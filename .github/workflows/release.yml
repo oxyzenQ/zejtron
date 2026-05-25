@@ -91,14 +91,22 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const eventType = 'aur-sync';
             const tag = context.ref.replace('refs/tags/', '');
-            if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
+            const isNormalSemver = /^v\d+\.\d+\.\d+$/.test(tag);
+
+            core.info(`AUR dispatch tag: ${tag}`);
+            core.info(`AUR dispatch normal semver vX.Y.Z: ${isNormalSemver}`);
+
+            if (!isNormalSemver) {
               core.info(`Skipping AUR sync for non-normal tag ${tag}`);
               return;
             }
+
             await github.rest.repos.createDispatchEvent({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              event_type: 'aur-sync',
+              event_type: eventType,
               client_payload: { tag },
             });
+            core.info(`repository_dispatch sent: ${eventType}`);

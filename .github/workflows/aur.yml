@@ -33,12 +33,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug dispatch context
+        shell: bash
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          RAW_TAG: ${{ github.event.client_payload.tag || inputs.tag }}
+        run: |
+          set -Eeuo pipefail
+          echo "event name: ${GITHUB_EVENT_NAME}"
+          echo "raw tag: ${RAW_TAG}"
+          if [[ -n "${AUR_SSH_PRIVATE_KEY}" ]]; then
+            echo "AUR_SSH_PRIVATE_KEY present: yes"
+          else
+            echo "AUR_SSH_PRIVATE_KEY present: no"
+          fi
+
       - name: Normalize tag
         id: tag
         shell: bash
+        env:
+          RAW_TAG: ${{ github.event.client_payload.tag || inputs.tag }}
         run: |
           set -Eeuo pipefail
-          raw="${{ github.event.client_payload.tag || inputs.tag }}"
+          raw="${RAW_TAG}"
           if [[ "$raw" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
             tag="v${version}"
@@ -46,6 +63,7 @@ jobs:
             echo "error: tag must be vX.Y.Z or X.Y.Z" >&2
             exit 1
           fi
+          echo "resolved tag: ${tag}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
