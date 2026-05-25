@@ -1,0 +1,130 @@
+name: nestkit - AUR Sync
+
+on:
+  repository_dispatch:
+    types:
+      - aur-sync
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to sync, such as v0.1.0 or 0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  AUR_REPO: ssh://aur@aur.archlinux.org/nestkit-bin.git
+  AUR_BRANCH: master
+  PKGBUILD_DIR: aur/nestkit-bin
+
+jobs:
+  aur:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install tools
+        run: |
+          pacman -Sy --noconfirm --needed base-devel git openssh
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Normalize tag
+        id: tag
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          raw="${{ github.event.client_payload.tag || inputs.tag }}"
+          if [[ "$raw" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+            tag="v${version}"
+          else
+            echo "error: tag must be vX.Y.Z or X.Y.Z" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Update package metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cd "$PKGBUILD_DIR"
+          sed -i -E 's/^pkgver=.*/pkgver=${{ steps.tag.outputs.version }}/' PKGBUILD
+          sed -i -E 's/^pkgrel=.*/pkgrel=1/' PKGBUILD
+          makepkg --printsrcinfo > .SRCINFO
+          grep -q '^pkgver=${{ steps.tag.outputs.version }}$' PKGBUILD
+          grep -q 'pkgver = ${{ steps.tag.outputs.version }}' .SRCINFO
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          set -Eeuo pipefail
+          if [[ -z "${AUR_SSH_PRIVATE_KEY}" ]]; then
+            echo "error: AUR_SSH_PRIVATE_KEY secret is required" >&2
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${AUR_SSH_PRIVATE_KEY}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+
+          fingerprint="$(ssh-keyscan -t ed25519 aur.archlinux.org 2>/dev/null | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          if [[ "$fingerprint" != "SHA256:RFzBCUItH3s2XIQWqRY22o8CNdNnU09Lzjz7K8IGmN4" ]]; then
+            echo "error: unexpected aur.archlinux.org SSH fingerprint: ${fingerprint}" >&2
+            exit 1
+          fi
+          ssh-keyscan -t ed25519 aur.archlinux.org >> ~/.ssh/known_hosts
+
+          {
+            echo "Host aur.archlinux.org"
+            echo "  IdentityFile ~/.ssh/aur"
+            echo "  IdentitiesOnly yes"
+            echo "  StrictHostKeyChecking yes"
+          } > ~/.ssh/config
+
+      - name: Publish to AUR
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          workdir="$(mktemp -d)"
+          pkgbuild_src="${GITHUB_WORKSPACE}/${PKGBUILD_DIR}"
+
+          if git ls-remote --exit-code --heads "$AUR_REPO" "$AUR_BRANCH" >/dev/null 2>&1; then
+            git clone --branch "$AUR_BRANCH" "$AUR_REPO" "$workdir/nestkit-bin"
+          else
+            mkdir -p "$workdir/nestkit-bin"
+            git -C "$workdir/nestkit-bin" init -b "$AUR_BRANCH"
+            git -C "$workdir/nestkit-bin" remote add origin "$AUR_REPO"
+          fi
+
+          cp "$pkgbuild_src/PKGBUILD" "$pkgbuild_src/.SRCINFO" "$workdir/nestkit-bin/"
+          git -C "$workdir/nestkit-bin" config user.name "rezky_nightky"
+          git -C "$workdir/nestkit-bin" config user.email "rezky2399@proton.me"
+          git -C "$workdir/nestkit-bin" add PKGBUILD .SRCINFO
+
+          if git -C "$workdir/nestkit-bin" diff --cached --quiet; then
+            echo "AUR metadata already up to date for ${{ steps.tag.outputs.tag }}"
+            exit 0
+          fi
+
+          git -C "$workdir/nestkit-bin" commit -m "Update to ${{ steps.tag.outputs.tag }}"
+          for attempt in 1 2 3; do
+            if git -C "$workdir/nestkit-bin" push origin "$AUR_BRANCH"; then
+              exit 0
+            fi
+            sleep "$((attempt * 5))"
+          done
+          echo "error: failed to push AUR repository after retries" >&2
+          exit 1
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/aur

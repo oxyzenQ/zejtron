@@ -1,0 +1,99 @@
+name: nestkit - Release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: linux-x86_64
+            install_packages: ""
+          - target: aarch64-unknown-linux-gnu
+            arch: linux-aarch64
+            install_packages: gcc-aarch64-linux-gnu
+
+    env:
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      TAG: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system packages
+        if: matrix.install_packages != ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.install_packages }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.85.0
+        with:
+          targets: ${{ matrix.target }}
+          components: rustfmt, clippy
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install codespell
+        run: python3 -m pip install --user codespell
+
+      - name: Run full checks
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: ./check.sh
+
+      - name: Build
+        run: cargo build --release --locked --target "${{ matrix.target }}"
+
+      - name: Package
+        run: |
+          set -Eeuo pipefail
+          asset="nestkit-bin-${TAG}-${{ matrix.arch }}"
+          staging="$(mktemp -d)"
+          mkdir -p "${staging}/${asset}"
+          cp "target/${{ matrix.target }}/release/nestkit" "${staging}/${asset}/nestkit"
+          cp README.md LICENSE "${staging}/${asset}/"
+          tar -C "${staging}/${asset}" -czf "${asset}.tar.gz" nestkit README.md LICENSE
+          sha512sum "${asset}.tar.gz" > "${asset}.tar.gz.sha512"
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref_name, '-alpha.') || contains(github.ref_name, '-beta.') || contains(github.ref_name, '-rc.') }}
+          files: |
+            nestkit-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz
+            nestkit-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.sha512
+
+  aur-sync:
+    needs: release
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+
+    steps:
+      - name: Dispatch AUR sync
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
+              core.info(`Skipping AUR sync for non-normal tag ${tag}`);
+              return;
+            }
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'aur-sync',
+              client_payload: { tag },
+            });
