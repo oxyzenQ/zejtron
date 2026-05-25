@@ -62,6 +62,8 @@ If `nestkit - AUR Sync` does not trigger, check:
 
 If `nestkit - AUR Sync` triggers but authentication fails, check that `AUR_SSH_PRIVATE_KEY` is configured as a repository secret, not only as an environment secret.
 
+The AUR workflow runs in an Arch Linux container. Because `makepkg` refuses to run as root, the workflow creates an unprivileged `aurbuild` user for `.SRCINFO` regeneration.
+
 ## Version Bump Flow
 
 ```sh
