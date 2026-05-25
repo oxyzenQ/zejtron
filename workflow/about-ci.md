@@ -64,6 +64,8 @@ If `nestkit - AUR Sync` triggers but authentication fails, check that `AUR_SSH_P
 
 The AUR workflow runs in an Arch Linux container. Because `makepkg` refuses to run as root, the workflow creates an unprivileged `aurbuild` user for `.SRCINFO` regeneration.
 
+The workflow pins the AUR Ed25519 host key and exports an explicit `GIT_SSH_COMMAND` so both remote inspection and push use the same private key and known-hosts file. If remote inspection fails for any reason other than a missing AUR repository, the job fails before bootstrapping a local repo.
+
 ## Version Bump Flow
 
 ```sh
