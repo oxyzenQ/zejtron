@@ -62,9 +62,7 @@ If `nestkit - AUR Sync` does not trigger, check:
 
 If `nestkit - AUR Sync` triggers but authentication fails, check that `AUR_SSH_PRIVATE_KEY` is configured as a repository secret, not only as an environment secret.
 
-The AUR workflow runs in an Arch Linux container. Because `makepkg` refuses to run as root, the workflow creates an unprivileged `aurbuild` user for `.SRCINFO` regeneration.
-
-The workflow pins the AUR Ed25519 host key and exports an explicit `GIT_SSH_COMMAND` so both remote inspection and push use the same private key and known-hosts file. If remote inspection fails for any reason other than a missing AUR repository, the job fails before bootstrapping a local repo.
+The AUR workflow runs on `ubuntu-latest`, updates `.SRCINFO` directly from the package metadata, pins the AUR Ed25519 host key, and clones the AUR repository before copying package files. If clone fails because of authentication or host-key verification, the job fails clearly. If the AUR repository is empty or not initialized yet, the workflow bootstraps a local repository and pushes `master`.
 
 ## Version Bump Flow
 
