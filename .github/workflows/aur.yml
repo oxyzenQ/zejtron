@@ -107,7 +107,7 @@ jobs:
           chmod 600 ~/.ssh/aur
 
           fingerprint="$(ssh-keyscan -t ed25519 aur.archlinux.org 2>/dev/null | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
-          if [[ "$fingerprint" != "SHA256:RFzBCUItH3s2XIQWqRY22o8CNdNnU09Lzjz7K8IGmN4" ]]; then
+          if [[ "$fingerprint" != "SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4" ]]; then
             echo "error: unexpected aur.archlinux.org SSH fingerprint: ${fingerprint}" >&2
             exit 1
           fi
