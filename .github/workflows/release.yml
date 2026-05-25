@@ -44,6 +44,11 @@ jobs:
           targets: ${{ matrix.target }}
           components: rustfmt, clippy
 
+      - name: Install Rust target
+        run: |
+          rustup target add "${{ matrix.target }}"
+          rustup target list --installed
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
