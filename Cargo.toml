@@ -1,10 +1,10 @@
 [package]
-name = "nestkit"
+name = "zejtron"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
-repository = "https://github.com/oxyzenQ/nestkit"
+repository = "https://github.com/oxyzenQ/zejtron"
 authors = ["rezky_nightky"]
 description = "A small Linux terminal toolkit for tracing paths, ports, env, recent files, and services."
 

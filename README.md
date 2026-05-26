@@ -1,14 +1,14 @@
-# nestkit
+# zejtron
 
-![CI](https://github.com/oxyzenQ/nestkit/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/oxyzenQ/zejtron/actions/workflows/ci.yml/badge.svg)
 
 A small Linux terminal toolkit for tracing paths, ports, env, recent files, and services.
 
 ## Install From Source
 
 ```sh
-git clone https://github.com/oxyzenQ/nestkit
-cd nestkit
+git clone https://github.com/oxyzenQ/zejtron
+cd zejtron
 cargo install --path .
 ```
 
@@ -16,30 +16,30 @@ cargo install --path .
 
 ```sh
 TAG=v0.1.0
-curl -LO "https://github.com/oxyzenQ/nestkit/releases/download/${TAG}/nestkit-bin-${TAG}-linux-x86_64.tar.gz"
-curl -LO "https://github.com/oxyzenQ/nestkit/releases/download/${TAG}/nestkit-bin-${TAG}-linux-x86_64.tar.gz.sha512"
-sha512sum --check "nestkit-bin-${TAG}-linux-x86_64.tar.gz.sha512"
-tar -xzf "nestkit-bin-${TAG}-linux-x86_64.tar.gz"
-sudo install -Dm755 nestkit /usr/local/bin/nestkit
+curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
+curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
+sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
+tar -xzf "zejtron-bin-${TAG}-linux-x86_64.tar.gz"
+sudo install -Dm755 zejtron /usr/local/bin/zejtron
 ```
 
-For aarch64 Linux, use `nestkit-bin-${TAG}-linux-aarch64.tar.gz`.
+For aarch64 Linux, use `zejtron-bin-${TAG}-linux-aarch64.tar.gz`.
 
 ## Install From AUR
 
 ```sh
-yay -S nestkit-bin
-paru -S nestkit-bin
+yay -S zejtron-bin
+paru -S zejtron-bin
 ```
 
 ## Usage
 
 ```sh
-nestkit --version
-nestkit path python
-nestkit recent .
-nestkit recent . --limit 10
-nestkit recent . --since 2h
+zejtron --version
+zejtron path python
+zejtron recent .
+zejtron recent . --limit 10
+zejtron recent . --since 2h
 ```
 
 ## Commands
@@ -49,7 +49,7 @@ nestkit recent . --since 2h
 Trace where a command comes from by scanning `PATH`, showing all matches, the active match, executable status, symlink targets, and Arch package ownership when `pacman` is available.
 
 ```sh
-nestkit path sh
+zejtron path sh
 ```
 
 ```text
@@ -67,9 +67,9 @@ When multiple unique matches exist, `path` keeps the active command separate and
 Show recently modified files under a path. By default, `recent` scans the current directory, ignores common noisy directories, and returns 20 files.
 
 ```sh
-nestkit recent
-nestkit recent . --limit 5
-nestkit recent ~/src --since 1d
+zejtron recent
+zejtron recent . --limit 5
+zejtron recent ~/src --since 1d
 ```
 
 ## Development Checks

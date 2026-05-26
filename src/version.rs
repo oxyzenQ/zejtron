@@ -6,7 +6,7 @@ pub fn version_text(hash: &str) -> String {
     };
 
     format!(
-        "nestkit v{} ({hash})\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/nestkit",
+        "zejtron v{} ({hash})\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/zejtron",
         env!("CARGO_PKG_VERSION")
     )
 }
@@ -20,7 +20,7 @@ mod tests {
         assert_eq!(
             version_text("abc123"),
             format!(
-                "nestkit v{} (abc123)\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/nestkit",
+                "zejtron v{} (abc123)\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/zejtron",
                 env!("CARGO_PKG_VERSION")
             )
         );
@@ -31,7 +31,7 @@ mod tests {
         assert_eq!(
             version_text("  "),
             format!(
-                "nestkit v{} (unknown)\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/nestkit",
+                "zejtron v{} (unknown)\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/zejtron",
                 env!("CARGO_PKG_VERSION")
             )
         );

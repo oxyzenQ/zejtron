@@ -2,4 +2,4 @@
 skip = .git,target,Cargo.lock
 quiet-level = 3
 check-filenames =
-ignore-words-list = rezky,nightky,oxyzenq,nestkit,procfs,symlink,symlinks,rustfmt,clippy,AUR,PKGBUILD,SRCINFO
+ignore-words-list = rezky,nightky,oxyzenq,zejtron,procfs,symlink,symlinks,rustfmt,clippy,AUR,PKGBUILD,SRCINFO
