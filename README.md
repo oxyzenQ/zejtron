@@ -15,7 +15,7 @@ cargo install --path .
 ## Install From GitHub Release
 
 ```sh
-TAG=v0.2.0
+TAG=v0.2.1
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -72,12 +72,14 @@ Show listening TCP/UDP ports and process owners when discoverable. `port` reads 
 zejtron port
 zejtron port 3000
 zejtron port --tcp
+zejtron port --tcp --group
 zejtron port --udp
 zejtron port --all
+zejtron port --group
 zejtron port --no-pid
 ```
 
-By default, `port` shows TCP listening sockets and UDP bound sockets. Use `--all` to include non-listening TCP connections. The summary counts rendered sockets after filters and unique known owner processes; unknown owners are not counted. `--numeric` is accepted for numeric output; v0.2.0 output is already numeric.
+By default, `port` shows TCP listening sockets and UDP bound sockets. Use `--all` to include non-listening TCP connections. Use `--group` to collapse repeated rendered socket rows by protocol, local address, port, state, and owner. Raw summaries count rendered sockets and unique known owner processes; grouped summaries use `groups · sockets · owners`. Unknown owners are not counted. `--numeric` is accepted for numeric output; v0.2.1 output is already numeric.
 
 ### `recent`
 
@@ -103,7 +105,7 @@ The source code is licensed under the MIT License. The Zejtron name and branding
 ## Version Updates
 
 ```sh
-./version-to.sh v0.2.0
+./version-to.sh v0.2.1
 ```
 
 ## Roadmap

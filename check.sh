@@ -99,6 +99,7 @@ run target/release/zejtron recent . --limit 5
 run target/release/zejtron port
 run target/release/zejtron port --tcp
 run target/release/zejtron port --udp
+run target/release/zejtron port --tcp --group
 
 capture recent_zero target/release/zejtron recent . --limit 0
 if [[ ! -s "$tmpdir/recent_zero.out" ]]; then

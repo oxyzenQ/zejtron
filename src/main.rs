@@ -23,8 +23,20 @@ fn main() {
             listen,
             all,
             numeric,
+            group,
             no_pid,
-        }) => port::run(port.as_deref(), tcp, udp, listen, all, numeric, no_pid),
+        }) => port::run(
+            port.as_deref(),
+            port::PortFlags {
+                tcp,
+                udp,
+                listen,
+                all,
+                numeric,
+                group,
+                no_pid,
+            },
+        ),
         Some(cli::Commands::Recent { path, limit, since }) => {
             recent::run(&path, limit, since.as_deref())
         }
