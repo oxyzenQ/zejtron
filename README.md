@@ -79,6 +79,10 @@ zejtron recent ~/src --since 1d
 SKIP_CODESPELL=1 ./check.sh
 ```
 
+## Trademark
+
+The source code is licensed under the MIT License. The Zejtron name and branding are not granted under the MIT License. See [TRADEMARK.md](TRADEMARK.md).
+
 ## Version Updates
 
 ```sh
