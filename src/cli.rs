@@ -41,6 +41,8 @@ pub enum Commands {
         all: bool,
         #[arg(long, help = "Use numeric addresses and ports")]
         numeric: bool,
+        #[arg(long, help = "Group repeated rendered socket rows")]
+        group: bool,
         #[arg(long, help = "Hide process IDs in owner lines")]
         no_pid: bool,
     },

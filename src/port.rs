@@ -41,6 +41,39 @@ pub struct ProcessInfo {
     pub cwd: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SocketGroup {
+    socket: SocketEntry,
+    owners: Vec<ProcessInfo>,
+    count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GroupKey {
+    protocol: Protocol,
+    address: String,
+    port: u16,
+    state: Option<String>,
+    owners: Vec<OwnerIdentity>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct OwnerIdentity {
+    pid: u32,
+    name: String,
+    user: String,
+}
+
+impl From<&ProcessInfo> for OwnerIdentity {
+    fn from(process: &ProcessInfo) -> Self {
+        Self {
+            pid: process.pid,
+            name: process.name.clone(),
+            user: process.user.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PortOptions {
     pub port: Option<u16>,
@@ -49,6 +82,18 @@ pub struct PortOptions {
     pub listen: bool,
     pub all: bool,
     pub numeric: bool,
+    pub group: bool,
+    pub no_pid: bool,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PortFlags {
+    pub tcp: bool,
+    pub udp: bool,
+    pub listen: bool,
+    pub all: bool,
+    pub numeric: bool,
+    pub group: bool,
     pub no_pid: bool,
 }
 
@@ -69,16 +114,8 @@ impl fmt::Display for PortError {
 
 impl Error for PortError {}
 
-pub fn run(
-    port: Option<&str>,
-    tcp: bool,
-    udp: bool,
-    listen: bool,
-    all: bool,
-    numeric: bool,
-    no_pid: bool,
-) -> Result<(), Box<dyn Error>> {
-    let options = parse_options(port, tcp, udp, listen, all, numeric, no_pid)?;
+pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
+    let options = parse_options(port, flags)?;
     let (sockets, owners, stats) = scan_proc()?;
     let selected = filter_sockets(&sockets, &options);
     let output = format_report(&selected, &owners, &stats, &options);
@@ -86,27 +123,20 @@ pub fn run(
     Ok(())
 }
 
-pub fn parse_options(
-    port: Option<&str>,
-    tcp: bool,
-    udp: bool,
-    listen: bool,
-    all: bool,
-    numeric: bool,
-    no_pid: bool,
-) -> Result<PortOptions, PortError> {
-    if listen && all {
+pub fn parse_options(port: Option<&str>, flags: PortFlags) -> Result<PortOptions, PortError> {
+    if flags.listen && flags.all {
         return Err(PortError("--listen cannot be used with --all".to_owned()));
     }
 
     Ok(PortOptions {
         port: port.map(validate_port).transpose()?,
-        tcp,
-        udp,
-        listen,
-        all,
-        numeric,
-        no_pid,
+        tcp: flags.tcp,
+        udp: flags.udp,
+        listen: flags.listen,
+        all: flags.all,
+        numeric: flags.numeric,
+        group: flags.group,
+        no_pid: flags.no_pid,
     })
 }
 
@@ -390,6 +420,10 @@ pub fn format_report(
     stats: &ScanStats,
     options: &PortOptions,
 ) -> String {
+    if options.group {
+        return format_grouped_report(sockets, owners, stats, options);
+    }
+
     let mut lines = Vec::new();
 
     if let Some(port) = options.port {
@@ -423,6 +457,80 @@ pub fn format_report(
     lines.join("\n")
 }
 
+fn format_grouped_report(
+    sockets: &[SocketEntry],
+    owners: &OwnerMap,
+    stats: &ScanStats,
+    options: &PortOptions,
+) -> String {
+    let mut lines = Vec::new();
+
+    if let Some(port) = options.port {
+        if sockets.is_empty() {
+            lines.push(format!("No sockets found for port {port}."));
+            append_note(&mut lines, stats);
+            return lines.join("\n");
+        }
+        lines.push(format!(":{port}"));
+    } else {
+        lines.push("ports".to_owned());
+        if sockets.is_empty() {
+            lines.push("No sockets found.".to_owned());
+            append_note(&mut lines, stats);
+            return lines.join("\n");
+        }
+    }
+
+    let groups = group_sockets(sockets, owners);
+    append_group_lines(&mut lines, &groups, options, "");
+
+    let socket_count: usize = groups.iter().map(|group| group.count).sum();
+    let owner_count = unique_group_owner_count(&groups);
+    lines.push(String::new());
+    lines.push(format!(
+        "{} {} · {} {} · {} {}",
+        groups.len(),
+        plural(groups.len(), "group", "groups"),
+        socket_count,
+        plural(socket_count, "socket", "sockets"),
+        owner_count,
+        plural(owner_count, "owner", "owners")
+    ));
+
+    append_note(&mut lines, stats);
+    lines.join("\n")
+}
+
+fn group_sockets(sockets: &[SocketEntry], owners: &OwnerMap) -> Vec<SocketGroup> {
+    let mut groups: Vec<(GroupKey, SocketGroup)> = Vec::new();
+
+    for socket in sockets {
+        let group_owners = owners.get(&socket.inode).cloned().unwrap_or_default();
+        let key = GroupKey {
+            protocol: socket.protocol,
+            address: socket.address.clone(),
+            port: socket.port,
+            state: socket.state.clone(),
+            owners: group_owners.iter().map(OwnerIdentity::from).collect(),
+        };
+
+        if let Some((_, group)) = groups.iter_mut().find(|(existing, _)| existing == &key) {
+            group.count += 1;
+        } else {
+            groups.push((
+                key,
+                SocketGroup {
+                    socket: socket.clone(),
+                    owners: group_owners,
+                    count: 1,
+                },
+            ));
+        }
+    }
+
+    groups.into_iter().map(|(_, group)| group).collect()
+}
+
 fn unique_owner_count(sockets: &[SocketEntry], owners: &OwnerMap) -> usize {
     let mut unique = BTreeSet::new();
     for process in sockets
@@ -430,6 +538,14 @@ fn unique_owner_count(sockets: &[SocketEntry], owners: &OwnerMap) -> usize {
         .filter_map(|socket| owners.get(&socket.inode))
         .flatten()
     {
+        unique.insert(process.pid);
+    }
+    unique.len()
+}
+
+fn unique_group_owner_count(groups: &[SocketGroup]) -> usize {
+    let mut unique = BTreeSet::new();
+    for process in groups.iter().flat_map(|group| &group.owners) {
         unique.insert(process.pid);
     }
     unique.len()
@@ -458,6 +574,34 @@ fn append_socket_lines(
             &format!("{indent}{child_indent}"),
         );
     }
+}
+
+fn append_group_lines(
+    lines: &mut Vec<String>,
+    groups: &[SocketGroup],
+    options: &PortOptions,
+    indent: &str,
+) {
+    for (index, group) in groups.iter().enumerate() {
+        let last_group = index + 1 == groups.len();
+        let branch = if last_group { "└──" } else { "├──" };
+        let child_indent = if last_group { "    " } else { "│   " };
+        lines.push(format!("{indent}{branch} {}", format_group(group)));
+        append_owner_lines(
+            lines,
+            Some(&group.owners),
+            options,
+            &format!("{indent}{child_indent}"),
+        );
+    }
+}
+
+fn format_group(group: &SocketGroup) -> String {
+    let mut value = format_socket(&group.socket);
+    if group.count > 1 {
+        value.push_str(&format!(" ×{}", group.count));
+    }
+    value
 }
 
 fn append_owner_lines(
@@ -545,9 +689,19 @@ mod tests {
         state: Option<&str>,
         inode: u64,
     ) -> SocketEntry {
+        socket_at(protocol, "127.0.0.1", port, state, inode)
+    }
+
+    fn socket_at(
+        protocol: Protocol,
+        address: &str,
+        port: u16,
+        state: Option<&str>,
+        inode: u64,
+    ) -> SocketEntry {
         SocketEntry {
             protocol,
-            address: "127.0.0.1".to_owned(),
+            address: address.to_owned(),
             port,
             state: state.map(ToOwned::to_owned),
             inode,
@@ -562,6 +716,7 @@ mod tests {
             listen: false,
             all: false,
             numeric: false,
+            group: false,
             no_pid: false,
         }
     }
@@ -749,7 +904,17 @@ mod tests {
 
     #[test]
     fn listen_and_all_conflict() {
-        assert!(parse_options(None, false, false, true, true, false, false).is_err());
+        assert!(
+            parse_options(
+                None,
+                PortFlags {
+                    listen: true,
+                    all: true,
+                    ..PortFlags::default()
+                },
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -841,6 +1006,165 @@ mod tests {
 
         assert!(report.contains("node user=rezky"));
         assert!(!report.contains("pid=1234"));
+    }
+
+    #[test]
+    fn grouped_report_combines_repeated_sockets() {
+        let sockets = vec![
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 100),
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 200),
+        ];
+
+        let report = format_report(
+            &sockets,
+            &OwnerMap::new(),
+            &ScanStats::default(),
+            &PortOptions {
+                group: true,
+                ..options()
+            },
+        );
+
+        assert!(report.contains("tcp 127.0.0.1:53 LISTEN ×2"));
+        assert!(report.contains("1 group · 2 sockets · 0 owners"));
+        assert_eq!(report.matches("unknown").count(), 1);
+    }
+
+    #[test]
+    fn grouped_report_keeps_different_owners_separate() {
+        let sockets = vec![
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 100),
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 200),
+        ];
+        let mut owners = OwnerMap::new();
+        owners.insert(100, vec![process(10, "unbound")]);
+        owners.insert(200, vec![process(20, "dnsmasq")]);
+
+        let report = format_report(
+            &sockets,
+            &owners,
+            &ScanStats::default(),
+            &PortOptions {
+                group: true,
+                ..options()
+            },
+        );
+
+        assert_eq!(report.matches("tcp 127.0.0.1:53 LISTEN").count(), 2);
+        assert!(!report.contains("×2"));
+        assert!(report.contains("2 groups · 2 sockets · 2 owners"));
+    }
+
+    #[test]
+    fn grouped_report_keeps_socket_identity_separate() {
+        let sockets = vec![
+            socket_at(Protocol::Tcp, "127.0.0.1", 53, Some("LISTEN"), 100),
+            socket_at(Protocol::Tcp, "127.0.0.2", 53, Some("LISTEN"), 200),
+            socket_at(Protocol::Tcp, "127.0.0.1", 54, Some("LISTEN"), 300),
+            socket_at(Protocol::Tcp, "127.0.0.1", 53, Some("ESTABLISHED"), 400),
+            socket_at(Protocol::Udp, "127.0.0.1", 53, None, 500),
+        ];
+
+        let report = format_report(
+            &sockets,
+            &OwnerMap::new(),
+            &ScanStats::default(),
+            &PortOptions {
+                group: true,
+                all: true,
+                ..options()
+            },
+        );
+
+        assert!(report.contains("5 groups · 5 sockets · 0 owners"));
+        assert!(!report.contains('×'));
+    }
+
+    #[test]
+    fn grouped_summary_counts_groups_sockets_and_unique_owners() {
+        let sockets = vec![
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 100),
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 200),
+            socket_with_inode(Protocol::Udp, 5353, None, 300),
+        ];
+        let mut owners = OwnerMap::new();
+        owners.insert(100, vec![process(10, "unbound")]);
+        owners.insert(200, vec![process(10, "unbound")]);
+
+        let report = format_report(
+            &sockets,
+            &owners,
+            &ScanStats::default(),
+            &PortOptions {
+                group: true,
+                ..options()
+            },
+        );
+
+        assert!(report.contains("2 groups · 3 sockets · 1 owner"));
+    }
+
+    #[test]
+    fn grouped_report_respects_no_pid_owner_formatting() {
+        let sockets = vec![socket_with_inode(Protocol::Tcp, 3000, Some("LISTEN"), 100)];
+        let mut owners = OwnerMap::new();
+        owners.insert(100, vec![process(1234, "node")]);
+
+        let report = format_report(
+            &sockets,
+            &owners,
+            &ScanStats::default(),
+            &PortOptions {
+                group: true,
+                no_pid: true,
+                ..options()
+            },
+        );
+
+        assert!(report.contains("node user=rezky"));
+        assert!(!report.contains("pid=1234"));
+    }
+
+    #[test]
+    fn grouped_specific_port_keeps_detail_header() {
+        let sockets = vec![
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 100),
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 200),
+        ];
+
+        let report = format_report(
+            &sockets,
+            &OwnerMap::new(),
+            &ScanStats::default(),
+            &PortOptions {
+                port: Some(53),
+                group: true,
+                ..options()
+            },
+        );
+
+        assert!(report.starts_with(":53\n"));
+        assert!(report.contains("tcp 127.0.0.1:53 LISTEN ×2"));
+        assert!(report.contains("1 group · 2 sockets · 0 owners"));
+    }
+
+    #[test]
+    fn raw_report_does_not_group_by_default() {
+        let sockets = vec![
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 100),
+            socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 200),
+        ];
+
+        let report = format_report(
+            &sockets,
+            &OwnerMap::new(),
+            &ScanStats::default(),
+            &options(),
+        );
+
+        assert_eq!(report.matches("tcp 127.0.0.1:53 LISTEN").count(), 2);
+        assert!(report.contains("2 ports · 0 owners"));
+        assert!(!report.contains('×'));
     }
 
     #[test]
