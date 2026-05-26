@@ -15,7 +15,7 @@ cargo install --path .
 ## Install From GitHub Release
 
 ```sh
-TAG=v0.1.0
+TAG=v0.2.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -37,6 +37,8 @@ paru -S zejtron-bin
 ```sh
 zejtron --version
 zejtron path python
+zejtron port
+zejtron port 3000
 zejtron recent .
 zejtron recent . --limit 10
 zejtron recent . --since 2h
@@ -61,6 +63,21 @@ sh
 ```
 
 When multiple unique matches exist, `path` keeps the active command separate and lists only the other locations under `duplicates`.
+
+### `port`
+
+Show listening TCP/UDP ports and process owners when discoverable. `port` reads Linux `/proc` directly and does not require root, though `sudo` may show more owner details on hardened systems.
+
+```sh
+zejtron port
+zejtron port 3000
+zejtron port --tcp
+zejtron port --udp
+zejtron port --all
+zejtron port --no-pid
+```
+
+By default, `port` shows TCP listening sockets and UDP bound sockets. Use `--all` to include non-listening TCP connections. The summary counts rendered sockets after filters and unique known owner processes; unknown owners are not counted. `--numeric` is accepted for numeric output; v0.2.0 output is already numeric.
 
 ### `recent`
 
@@ -91,6 +108,5 @@ The source code is licensed under the MIT License. The Zejtron name and branding
 
 ## Roadmap
 
-- `port`
 - `env`
 - `service`
