@@ -1,5 +1,6 @@
 mod cli;
 mod path;
+mod port;
 mod recent;
 mod version;
 
@@ -15,6 +16,15 @@ fn main() {
 
     let result = match cli.command {
         Some(cli::Commands::Path { command }) => path::run(&command),
+        Some(cli::Commands::Port {
+            port,
+            tcp,
+            udp,
+            listen,
+            all,
+            numeric,
+            no_pid,
+        }) => port::run(port.as_deref(), tcp, udp, listen, all, numeric, no_pid),
         Some(cli::Commands::Recent { path, limit, since }) => {
             recent::run(&path, limit, since.as_deref())
         }

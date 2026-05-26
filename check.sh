@@ -42,6 +42,29 @@ capture() {
   "$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
 }
 
+expect_fail_contains() {
+  local name="$1"
+  local expected="$2"
+  shift 2
+
+  set +e
+  "$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
+  local status=$?
+  set -e
+
+  if [[ "$status" -eq 0 ]]; then
+    echo "error: $* unexpectedly succeeded" >&2
+    cat "$tmpdir/${name}.out" >&2
+    exit 1
+  fi
+  if ! grep -q "$expected" "$tmpdir/${name}.out" "$tmpdir/${name}.err"; then
+    echo "error: $* did not mention '$expected'" >&2
+    cat "$tmpdir/${name}.out" >&2
+    cat "$tmpdir/${name}.err" >&2
+    exit 1
+  fi
+}
+
 run rustc --version
 run cargo --version
 run cargo fmt --all -- --check
@@ -73,6 +96,9 @@ if ! grep -q "duplicates:" "$tmpdir/path_sh.out"; then
 fi
 
 run target/release/zejtron recent . --limit 5
+run target/release/zejtron port
+run target/release/zejtron port --tcp
+run target/release/zejtron port --udp
 
 capture recent_zero target/release/zejtron recent . --limit 0
 if [[ ! -s "$tmpdir/recent_zero.out" ]]; then
@@ -81,21 +107,11 @@ if [[ ! -s "$tmpdir/recent_zero.out" ]]; then
   exit 1
 fi
 
-set +e
-target/release/zejtron recent . --since nope >"$tmpdir/recent_invalid.out" 2>"$tmpdir/recent_invalid.err"
-recent_invalid_status=$?
-set -e
-if [[ "$recent_invalid_status" -eq 0 ]]; then
-  echo "error: recent --since nope unexpectedly succeeded" >&2
-  cat "$tmpdir/recent_invalid.out" >&2
-  exit 1
-fi
-if ! grep -q "invalid duration" "$tmpdir/recent_invalid.out" "$tmpdir/recent_invalid.err"; then
-  echo "error: recent --since nope did not mention invalid duration" >&2
-  cat "$tmpdir/recent_invalid.out" >&2
-  cat "$tmpdir/recent_invalid.err" >&2
-  exit 1
-fi
+expect_fail_contains recent_invalid "invalid duration" target/release/zejtron recent . --since nope
+expect_fail_contains port_zero "invalid port" target/release/zejtron port 0
+expect_fail_contains port_too_high "invalid port" target/release/zejtron port 65536
+expect_fail_contains port_invalid "invalid port" target/release/zejtron port abc
+expect_fail_contains port_conflict "cannot be used" target/release/zejtron port --listen --all
 
 if [[ "${SKIP_CODESPELL:-0}" == "1" ]]; then
   echo "+ codespell skipped because SKIP_CODESPELL=1"

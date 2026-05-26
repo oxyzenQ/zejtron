@@ -27,6 +27,23 @@ pub enum Commands {
         #[arg(value_name = "COMMAND")]
         command: String,
     },
+    #[command(about = "Show listening ports and process owners")]
+    Port {
+        #[arg(value_name = "PORT")]
+        port: Option<String>,
+        #[arg(long, help = "Show TCP sockets")]
+        tcp: bool,
+        #[arg(long, help = "Show UDP sockets")]
+        udp: bool,
+        #[arg(long, conflicts_with = "all", help = "Show listening or bound sockets")]
+        listen: bool,
+        #[arg(long, help = "Show all parsed sockets")]
+        all: bool,
+        #[arg(long, help = "Use numeric addresses and ports")]
+        numeric: bool,
+        #[arg(long, help = "Hide process IDs in owner lines")]
+        no_pid: bool,
+    },
     #[command(about = "Show recently modified files")]
     Recent {
         #[arg(value_name = "PATH", default_value = ".")]
