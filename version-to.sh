@@ -32,25 +32,25 @@ cd "$repo_root"
 
 [[ -f Cargo.toml ]] || error "Cargo.toml not found"
 [[ -f Cargo.lock ]] || error "Cargo.lock not found"
-[[ -f aur/nestkit-bin/PKGBUILD ]] || error "aur/nestkit-bin/PKGBUILD not found"
+[[ -f aur/zejtron-bin/PKGBUILD ]] || error "aur/zejtron-bin/PKGBUILD not found"
 [[ -f README.md ]] || error "README.md not found"
 [[ -f workflow/about-ci.md ]] || error "workflow/about-ci.md not found"
 
-echo "Updating nestkit to ${TAG}"
+echo "Updating zejtron to ${TAG}"
 
 sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "'"${VERSION}"'"/' Cargo.toml
-cargo update -p nestkit
+cargo update -p zejtron
 
-sed -i -E 's/^pkgver=.*/pkgver='"${VERSION}"'/' aur/nestkit-bin/PKGBUILD
-sed -i -E 's/^pkgrel=.*/pkgrel=1/' aur/nestkit-bin/PKGBUILD
+sed -i -E 's/^pkgver=.*/pkgver='"${VERSION}"'/' aur/zejtron-bin/PKGBUILD
+sed -i -E 's/^pkgrel=.*/pkgrel=1/' aur/zejtron-bin/PKGBUILD
 
 (
-  cd aur/nestkit-bin
+  cd aur/zejtron-bin
   makepkg --printsrcinfo > .SRCINFO
 )
 
 sed -i -E 's/^TAG=v[0-9]+\.[0-9]+\.[0-9]+/TAG='"${TAG}"'/' README.md workflow/about-ci.md
-sed -i -E 's#(nestkit-bin-)v[0-9]+\.[0-9]+\.[0-9]+(-linux-)#\1'"${TAG}"'\2#g' README.md workflow/about-ci.md
+sed -i -E 's#(zejtron-bin-)v[0-9]+\.[0-9]+\.[0-9]+(-linux-)#\1'"${TAG}"'\2#g' README.md workflow/about-ci.md
 sed -i -E 's#(/download/)v[0-9]+\.[0-9]+\.[0-9]+/#\1'"${TAG}"'/#g' README.md workflow/about-ci.md
 sed -i -E 's#(git tag -a )v[0-9]+\.[0-9]+\.[0-9]+#\1'"${TAG}"'#g' workflow/about-ci.md
 sed -i -E 's#(git push origin )v[0-9]+\.[0-9]+\.[0-9]+#\1'"${TAG}"'#g' workflow/about-ci.md
@@ -58,9 +58,9 @@ sed -i -E 's#(git commit -m "chore: prepare )v[0-9]+\.[0-9]+\.[0-9]+( release")#
 sed -i -E 's#(./version-to\.sh )v[0-9]+\.[0-9]+\.[0-9]+#\1'"${TAG}"'#g' workflow/about-ci.md
 
 grep -q '^version = "'"${VERSION}"'"$' Cargo.toml || error "Cargo.toml version was not updated"
-grep -A3 'name = "nestkit"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' || error "Cargo.lock nestkit version was not updated"
-grep -q '^pkgver='"${VERSION}"'$' aur/nestkit-bin/PKGBUILD || error "PKGBUILD pkgver was not updated"
-grep -q 'pkgver = '"${VERSION}" aur/nestkit-bin/.SRCINFO || error ".SRCINFO pkgver was not updated"
+grep -A3 'name = "zejtron"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' || error "Cargo.lock zejtron version was not updated"
+grep -q '^pkgver='"${VERSION}"'$' aur/zejtron-bin/PKGBUILD || error "PKGBUILD pkgver was not updated"
+grep -q 'pkgver = '"${VERSION}" aur/zejtron-bin/.SRCINFO || error ".SRCINFO pkgver was not updated"
 grep -q "TAG=${TAG}" README.md || error "README.md release examples do not mention TAG=${TAG}"
 grep -q "TAG=${TAG}" workflow/about-ci.md || error "workflow/about-ci.md release examples do not mention TAG=${TAG}"
 

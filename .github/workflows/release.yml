@@ -1,4 +1,4 @@
-name: nestkit - Release
+name: zejtron - Release
 
 on:
   push:
@@ -65,12 +65,12 @@ jobs:
       - name: Package
         run: |
           set -Eeuo pipefail
-          asset="nestkit-bin-${TAG}-${{ matrix.arch }}"
+          asset="zejtron-bin-${TAG}-${{ matrix.arch }}"
           staging="$(mktemp -d)"
           mkdir -p "${staging}/${asset}"
-          cp "target/${{ matrix.target }}/release/nestkit" "${staging}/${asset}/nestkit"
+          cp "target/${{ matrix.target }}/release/zejtron" "${staging}/${asset}/zejtron"
           cp README.md LICENSE "${staging}/${asset}/"
-          tar -C "${staging}/${asset}" -czf "${asset}.tar.gz" nestkit README.md LICENSE
+          tar -C "${staging}/${asset}" -czf "${asset}.tar.gz" zejtron README.md LICENSE
           sha512sum "${asset}.tar.gz" > "${asset}.tar.gz.sha512"
 
       - name: Upload release assets
@@ -78,8 +78,8 @@ jobs:
         with:
           prerelease: ${{ contains(github.ref_name, '-alpha.') || contains(github.ref_name, '-beta.') || contains(github.ref_name, '-rc.') }}
           files: |
-            nestkit-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz
-            nestkit-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.sha512
+            zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz
+            zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.sha512
 
   aur-sync:
     needs: release

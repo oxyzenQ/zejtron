@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "nestkit",
+    name = "zejtron",
     about = "A small Linux terminal toolkit for tracing paths, ports, env, recent files, and services.",
     disable_version_flag = true
 )]

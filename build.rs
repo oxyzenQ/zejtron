@@ -14,5 +14,5 @@ fn main() {
         .filter(|hash| !hash.is_empty())
         .unwrap_or_else(|| "unknown".to_owned());
 
-    println!("cargo:rustc-env=NESTKIT_GIT_HASH={hash}");
+    println!("cargo:rustc-env=ZEJTRON_GIT_HASH={hash}");
 }

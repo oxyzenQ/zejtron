@@ -1,4 +1,4 @@
-name: nestkit - AUR Sync
+name: zejtron - AUR Sync
 
 on:
   repository_dispatch:
@@ -15,13 +15,13 @@ permissions:
   contents: read
 
 env:
-  AUR_REPO: ssh://aur@aur.archlinux.org/nestkit-bin.git
+  AUR_REPO: ssh://aur@aur.archlinux.org/zejtron-bin.git
   AUR_BRANCH: master
-  PKGBUILD_DIR: aur/nestkit-bin
+  PKGBUILD_DIR: aur/zejtron-bin
 
 jobs:
   sync:
-    name: Sync nestkit-bin
+    name: Sync zejtron-bin
     runs-on: ubuntu-latest
 
     steps:
@@ -65,21 +65,21 @@ jobs:
           sed -i -E "s/^pkgver=.*/pkgver=${pkgver}/" "${PKGBUILD_DIR}/PKGBUILD"
           sed -i -E "s/^pkgrel=.*/pkgrel=1/" "${PKGBUILD_DIR}/PKGBUILD"
           {
-            printf 'pkgbase = nestkit-bin\n'
+            printf 'pkgbase = zejtron-bin\n'
             printf '\tpkgdesc = Small Linux terminal toolkit for tracing paths, ports, env, recent files, and services\n'
             printf '\tpkgver = %s\n' "$pkgver"
             printf '\tpkgrel = 1\n'
-            printf '\turl = https://github.com/oxyzenQ/nestkit\n'
+            printf '\turl = https://github.com/oxyzenQ/zejtron\n'
             printf '\tarch = x86_64\n'
             printf '\tarch = aarch64\n'
             printf '\tlicense = MIT\n'
             printf '\tdepends = glibc\n'
             printf '\tdepends = gcc-libs\n'
-            printf '\tprovides = nestkit\n'
-            printf '\tconflicts = nestkit\n'
+            printf '\tprovides = zejtron\n'
+            printf '\tconflicts = zejtron\n'
             printf '\toptions = !strip\n'
             printf '\n'
-            printf 'pkgname = nestkit-bin\n'
+            printf 'pkgname = zejtron-bin\n'
           } > "${PKGBUILD_DIR}/.SRCINFO"
 
       - name: Setup SSH
@@ -171,7 +171,7 @@ jobs:
             echo "AUR package is already up to date"
             exit 0
           fi
-          git commit -m "Update nestkit-bin to ${{ steps.version.outputs.tag }}"
+          git commit -m "Update zejtron-bin to ${{ steps.version.outputs.tag }}"
 
       - name: Push AUR update
         working-directory: aur-repo

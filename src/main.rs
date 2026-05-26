@@ -9,7 +9,7 @@ fn main() {
     let cli = cli::Cli::parse();
 
     if cli.version {
-        println!("{}", version::version_text(env!("NESTKIT_GIT_HASH")));
+        println!("{}", version::version_text(env!("ZEJTRON_GIT_HASH")));
         return;
     }
 
@@ -25,7 +25,7 @@ fn main() {
     };
 
     if let Err(error) = result {
-        eprintln!("nestkit: {error}");
+        eprintln!("zejtron: {error}");
         std::process::exit(1);
     }
 }

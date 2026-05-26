@@ -1,4 +1,4 @@
-name: nestkit - CI
+name: zejtron - CI
 
 on:
   push:
