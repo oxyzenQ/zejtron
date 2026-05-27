@@ -429,7 +429,6 @@ pub fn format_report(
     if let Some(port) = options.port {
         if sockets.is_empty() {
             lines.push(format!("No sockets found for port {port}."));
-            append_note(&mut lines, stats);
             return lines.join("\n");
         }
         lines.push(format!(":{port}"));
@@ -438,7 +437,6 @@ pub fn format_report(
         lines.push("ports".to_owned());
         if sockets.is_empty() {
             lines.push("No sockets found.".to_owned());
-            append_note(&mut lines, stats);
             return lines.join("\n");
         }
         append_socket_lines(&mut lines, sockets, owners, options, "");
@@ -468,7 +466,6 @@ fn format_grouped_report(
     if let Some(port) = options.port {
         if sockets.is_empty() {
             lines.push(format!("No sockets found for port {port}."));
-            append_note(&mut lines, stats);
             return lines.join("\n");
         }
         lines.push(format!(":{port}"));
@@ -476,7 +473,6 @@ fn format_grouped_report(
         lines.push("ports".to_owned());
         if sockets.is_empty() {
             lines.push("No sockets found.".to_owned());
-            append_note(&mut lines, stats);
             return lines.join("\n");
         }
     }
@@ -1146,6 +1142,66 @@ mod tests {
         assert!(report.starts_with(":53\n"));
         assert!(report.contains("tcp 127.0.0.1:53 LISTEN ×2"));
         assert!(report.contains("1 group · 2 sockets · 0 owners"));
+    }
+
+    #[test]
+    fn no_match_specific_port_omits_unreadable_note() {
+        let report = format_report(
+            &[],
+            &OwnerMap::new(),
+            &ScanStats {
+                unreadable_processes: 1,
+                unreadable_fds: 1,
+            },
+            &PortOptions {
+                port: Some(22),
+                ..options()
+            },
+        );
+
+        assert_eq!(report, "No sockets found for port 22.");
+    }
+
+    #[test]
+    fn grouped_no_match_specific_port_omits_unreadable_note() {
+        let report = format_report(
+            &[],
+            &OwnerMap::new(),
+            &ScanStats {
+                unreadable_processes: 1,
+                unreadable_fds: 1,
+            },
+            &PortOptions {
+                port: Some(22),
+                group: true,
+                ..options()
+            },
+        );
+
+        assert_eq!(report, "No sockets found for port 22.");
+    }
+
+    #[test]
+    fn rendered_sockets_keep_unreadable_note() {
+        let sockets = vec![socket_with_inode(Protocol::Tcp, 53, Some("LISTEN"), 100)];
+
+        let report = format_report(
+            &sockets,
+            &OwnerMap::new(),
+            &ScanStats {
+                unreadable_processes: 1,
+                unreadable_fds: 0,
+            },
+            &PortOptions {
+                group: true,
+                ..options()
+            },
+        );
+
+        assert!(report.contains("tcp 127.0.0.1:53 LISTEN"));
+        assert!(report.contains(
+            "note: some processes were not readable; try sudo for complete owner details"
+        ));
     }
 
     #[test]

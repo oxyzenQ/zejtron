@@ -15,7 +15,7 @@ cargo install --path .
 ## Install From GitHub Release
 
 ```sh
-TAG=v0.2.1
+TAG=v0.2.2
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -105,7 +105,7 @@ The source code is licensed under the MIT License. The Zejtron name and branding
 ## Version Updates
 
 ```sh
-./version-to.sh v0.2.1
+./version-to.sh v0.2.2
 ```
 
 ## Roadmap
