@@ -22,6 +22,17 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    #[command(about = "Inspect and compare environment variables")]
+    Env {
+        #[command(subcommand)]
+        command: Option<EnvCommands>,
+        #[arg(long, help = "Show variable names only")]
+        keys: bool,
+        #[arg(long, value_name = "TEXT", help = "Filter variables by key substring")]
+        filter: Option<String>,
+        #[arg(long, help = "Alias for --keys")]
+        no_values: bool,
+    },
     #[command(about = "Trace where a command comes from")]
     Path {
         #[arg(value_name = "COMMAND")]
@@ -54,6 +65,29 @@ pub enum Commands {
         limit: usize,
         #[arg(long, value_name = "DURATION")]
         since: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum EnvCommands {
+    #[command(about = "Save current environment snapshot")]
+    Save {
+        #[arg(value_name = "NAME")]
+        name: String,
+    },
+    #[command(about = "List saved environment snapshots")]
+    List,
+    #[command(about = "Delete saved environment snapshot")]
+    Delete {
+        #[arg(value_name = "NAME")]
+        name: String,
+    },
+    #[command(about = "Compare saved environment snapshot with current environment")]
+    Diff {
+        #[arg(value_name = "NAME")]
+        name: String,
+        #[arg(long, help = "Show unchanged variables")]
+        show_same: bool,
     },
 }
 

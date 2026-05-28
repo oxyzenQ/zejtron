@@ -1,4 +1,5 @@
 mod cli;
+mod env;
 mod path;
 mod port;
 mod recent;
@@ -15,6 +16,12 @@ fn main() {
     }
 
     let result = match cli.command {
+        Some(cli::Commands::Env {
+            command,
+            keys,
+            filter,
+            no_values,
+        }) => env::run(command, keys || no_values, filter.as_deref()),
         Some(cli::Commands::Path { command }) => path::run(&command),
         Some(cli::Commands::Port {
             port,
