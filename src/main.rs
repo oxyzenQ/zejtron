@@ -2,6 +2,7 @@ mod cli;
 mod env;
 mod path;
 mod port;
+mod proc;
 mod recent;
 mod service;
 mod version;
@@ -43,6 +44,29 @@ fn main() {
                 numeric,
                 group,
                 no_pid,
+            },
+        ),
+        Some(cli::Commands::Proc {
+            user_or_uid,
+            me,
+            live,
+            watch,
+            interval,
+            depth,
+            find,
+            no_pid,
+            no_color,
+        }) => proc::run(
+            user_or_uid.as_deref(),
+            proc::ProcFlags {
+                me,
+                live,
+                watch,
+                interval,
+                depth,
+                find,
+                no_pid,
+                no_color,
             },
         ),
         Some(cli::Commands::Recent { path, limit, since }) => {

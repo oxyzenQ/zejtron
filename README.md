@@ -9,7 +9,7 @@
   <a href="https://ko-fi.com/rezky"><img src="https://img.shields.io/badge/Ko--fi-rezky-ff5f5f?logo=kofi&logoColor=white" alt="Ko-fi"></a>
 </p>
 
-<p align="center">Zejtron is a stable small Linux terminal toolkit for tracing command paths, recent files, ports, environment variables, and systemd services.</p>
+<p align="center">Zejtron v2.0.0 is the unified Linux terminal toolkit for tracing command paths, recent files, ports, environment variables, systemd services, and process trees.</p>
 
 ## Install From AUR
 
@@ -22,7 +22,7 @@ paru -S zejtron-bin
 ## Install From GitHub Release
 
 ```sh
-TAG=v1.0.0
+TAG=v2.0.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -47,6 +47,7 @@ cargo install --path .
 | `path` | Trace command origin |
 | `recent` | Show recently modified files |
 | `port` | Inspect ports and owners |
+| `proc` | Inspect process trees by user or UID |
 | `env` | Snapshot and diff environment variables |
 | `service` | Inspect systemd services |
 
@@ -56,6 +57,7 @@ cargo install --path .
 zejtron path sh
 zejtron recent . --limit 10
 zejtron port --tcp --group
+zejtron proc --me
 zejtron env save base
 zejtron env diff base
 zejtron service --filter unbound
@@ -104,6 +106,21 @@ zejtron port --no-pid
 
 By default, `port` shows TCP listening sockets and UDP bound sockets. Use `--all` to include non-listening TCP connections. Use `--group` to collapse repeated rendered socket rows by protocol, local address, port, state, and owner.
 
+### `proc`
+
+Show a clean process tree for a Linux user or UID. `proc` is the successor to pidnest inside the unified Zejtron toolkit.
+
+```sh
+zejtron proc --me
+zejtron proc rezky
+zejtron proc root --depth 1
+zejtron proc rezky --find python
+zejtron proc rezky --no-pid
+zejtron proc rezky --live --interval 6
+```
+
+Live mode refreshes the tree in place. `--watch` is an alias for `--live`; refresh intervals must be between 3 and 60 seconds.
+
 ### `env`
 
 Inspect current environment variables, save named snapshots, and diff a saved snapshot against the current terminal environment.
@@ -136,7 +153,7 @@ By default, `service` shows running system services plus failed services. Use `-
 
 ## Stability
 
-Zejtron v1.0.0 marks the current CLI as stable. Future breaking changes should wait for v2.0.0 or be carefully documented.
+Zejtron v2.0.0 marks the unified toolkit release and brings pidnest process tree inspection into Zejtron as `zejtron proc`.
 
 ## Development Checks
 
@@ -148,7 +165,7 @@ SKIP_CODESPELL=1 ./check.sh
 ## Version Updates
 
 ```sh
-./version-to.sh v1.0.0
+./version-to.sh v2.0.0
 ```
 
 ## Trademark
