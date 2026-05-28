@@ -1,6 +1,6 @@
 pkgbase = zejtron-bin
-	pkgdesc = Linux terminal toolkit for tracing paths, ports, env, holders, reasons, file changes, services, and process trees
-	pkgver = 2.3.0
+	pkgdesc = Linux terminal toolkit for tracing paths, ports, env, holders, reasons, diagnostics, file changes, services, and process trees
+	pkgver = 2.4.0
 	pkgrel = 1
 	url = https://github.com/oxyzenQ/zejtron
 	arch = x86_64

@@ -25,10 +25,10 @@ Release archives use a flat layout:
 - `README.md`
 - `LICENSE`
 
-Example release asset flow for the v2.3.0 why explanation tag:
+Example release asset flow for the v2.4.0 doctor diagnostics tag:
 
 ```sh
-TAG=v2.3.0
+TAG=v2.4.0
 cargo build --release --locked --target x86_64-unknown-linux-gnu
 ```
 
@@ -36,9 +36,9 @@ The release workflow uploads `zejtron-bin-${TAG}-linux-x86_64.tar.gz`, `zejtron-
 
 ## AUR Sync
 
-The release workflow dispatches AUR sync only for normal semver tags like `v2.3.0`. Its `aur-sync` job only sends a `repository_dispatch` event with `event_type: aur-sync`; the real AUR push happens in the separate `zejtron - AUR Sync` workflow.
+The release workflow dispatches AUR sync only for normal semver tags like `v2.4.0`. Its `aur-sync` job only sends a `repository_dispatch` event with `event_type: aur-sync`; the real AUR push happens in the separate `zejtron - AUR Sync` workflow.
 
-AUR sync can also be run manually with a `tag` input such as `v2.3.0` or `2.3.0`. It updates `aur/zejtron-bin/PKGBUILD`, regenerates `.SRCINFO`, commits as `rezky_nightky <rezky2399@proton.me>`, and pushes to `ssh://aur@aur.archlinux.org/zejtron-bin.git`.
+AUR sync can also be run manually with a `tag` input such as `v2.4.0` or `2.4.0`. It updates `aur/zejtron-bin/PKGBUILD`, regenerates `.SRCINFO`, commits as `rezky_nightky <rezky2399@proton.me>`, and pushes to `ssh://aur@aur.archlinux.org/zejtron-bin.git`.
 
 Required repository secret:
 
@@ -67,18 +67,18 @@ The AUR workflow runs on `ubuntu-latest`, updates `.SRCINFO` directly from the p
 ## Version Bump Flow
 
 ```sh
-./version-to.sh v2.3.0
+./version-to.sh v2.4.0
 ./check.sh
 ```
 
 ## Release Command Flow
 
 ```sh
-./version-to.sh v2.3.0
+./version-to.sh v2.4.0
 ./check.sh
 git add .
-git commit -m "chore: prepare v2.3.0 release"
+git commit -m "chore: prepare v2.4.0 release"
 git push origin main
-git tag -a v2.3.0 -m "v2.3.0"
-git push origin v2.3.0
+git tag -a v2.4.0 -m "v2.4.0"
+git push origin v2.4.0
 ```

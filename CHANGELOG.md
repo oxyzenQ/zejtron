@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.4.0
+
+- Add `zejtron doctor`.
+- Merge selected Zenlixem doctor capability checks into Zejtron.
+- Report Linux, procfs, proc-net, journal, systemctl, and build readiness.
+
 ## v2.3.0
 
 - Add `zejtron why`.

@@ -102,6 +102,7 @@ run cargo test --all-targets --all-features --locked
 run cargo build --release --locked
 
 run target/release/zejtron --help
+run target/release/zejtron doctor
 run target/release/zejtron service --help
 
 capture version target/release/zejtron --version
