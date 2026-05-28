@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[command(
     name = "zejtron",
-    about = "A Linux terminal toolkit for tracing paths, ports, env, holders, recent files, services, and process trees.",
+    about = "A Linux terminal toolkit for tracing paths, ports, env, holders, file changes, services, and process trees.",
     disable_version_flag = true
 )]
 pub struct Cli {
@@ -64,6 +64,11 @@ pub enum Commands {
         group: bool,
         #[arg(long, help = "Hide process IDs in owner lines")]
         no_pid: bool,
+    },
+    #[command(about = "Inspect last modification evidence for a path (read-only)")]
+    Touch {
+        #[arg(value_name = "PATH", help = "Path to inspect without modifying it")]
+        path: PathBuf,
     },
     #[command(about = "Inspect process trees by user or UID")]
     Proc {
@@ -194,6 +199,18 @@ mod tests {
         match cli.command {
             Some(Commands::Holds { target }) => {
                 assert_eq!(target, "/tmp/file with spaces");
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_touch_path() {
+        let cli = Cli::try_parse_from(["zejtron", "touch", "/tmp/file with spaces"]).unwrap();
+
+        match cli.command {
+            Some(Commands::Touch { path }) => {
+                assert_eq!(path, PathBuf::from("/tmp/file with spaces"));
             }
             other => panic!("unexpected command: {other:?}"),
         }

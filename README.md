@@ -9,7 +9,7 @@
   <a href="https://ko-fi.com/rezky"><img src="https://img.shields.io/badge/Ko--fi-rezky-ff5f5f?logo=kofi&logoColor=white" alt="Ko-fi"></a>
 </p>
 
-<p align="center">Zejtron v2.1.0 is the unified Linux terminal toolkit for tracing command paths, recent files, ports, holders, environment variables, systemd services, and process trees.</p>
+<p align="center">Zejtron v2.2.0 is the unified Linux terminal toolkit for tracing command paths, recent files, ports, holders, file change evidence, environment variables, systemd services, and process trees.</p>
 
 ## Install From AUR
 
@@ -22,7 +22,7 @@ paru -S zejtron-bin
 ## Install From GitHub Release
 
 ```sh
-TAG=v2.1.0
+TAG=v2.2.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -48,6 +48,7 @@ cargo install --path .
 | `recent` | Show recently modified files |
 | `port` | Inspect ports and owners |
 | `holds` | Show processes holding a file, device, or port |
+| `touch` | Inspect last modification evidence for a path |
 | `proc` | Inspect process trees by user or UID |
 | `env` | Snapshot and diff environment variables |
 | `service` | Inspect systemd services |
@@ -59,6 +60,7 @@ zejtron path sh
 zejtron recent . --limit 10
 zejtron port --tcp --group
 zejtron holds 3000
+zejtron touch ./README.md
 zejtron proc --me
 zejtron env save base
 zejtron env diff base
@@ -120,6 +122,18 @@ zejtron holds /dev/nvme0n1
 
 `holds` reads Linux `/proc` directly and does not require root. On hardened systems, `sudo` may reveal more holders.
 
+### `touch`
+
+Inspect last modification evidence for a path. `touch` is read-only: it does not create files, change timestamps, or behave like shell `touch`. It is the successor to Zenlixem `lasttouch` inside Zejtron.
+
+```sh
+zejtron touch /etc/resolv.conf
+zejtron touch ./README.md
+zejtron touch "/path/with spaces/file.txt"
+```
+
+When audit or journal evidence is available, `touch` reports best-effort actor and process evidence. Otherwise it falls back to filesystem metadata, which shows when a path changed but is not proof of who changed it. Audit and journal evidence depend on system configuration and permissions.
+
 ### `proc`
 
 Show a clean process tree for a Linux user or UID. `proc` is the successor to pidnest inside the unified Zejtron toolkit.
@@ -167,7 +181,7 @@ By default, `service` shows running system services plus failed services. Use `-
 
 ## Stability
 
-Zejtron v2.1.0 adds `holds`, bringing selected Zenlixem `whoholds` inspection into the unified toolkit.
+Zejtron v2.2.0 adds `touch`, bringing selected Zenlixem `lasttouch` inspection into the unified toolkit.
 
 ## Development Checks
 
@@ -179,7 +193,7 @@ SKIP_CODESPELL=1 ./check.sh
 ## Version Updates
 
 ```sh
-./version-to.sh v2.1.0
+./version-to.sh v2.2.0
 ```
 
 ## Trademark

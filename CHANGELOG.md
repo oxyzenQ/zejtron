@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.2.0
+
+- Add `zejtron touch`.
+- Merge selected Zenlixem `lasttouch` functionality into Zejtron.
+- Add read-only path modification evidence inspection.
+
 ## v2.1.0
 
 - Add `zejtron holds`.

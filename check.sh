@@ -133,11 +133,27 @@ run target/release/zejtron port --udp
 run target/release/zejtron port --tcp --group
 run target/release/zejtron holds 53
 touch "$tmpdir/held file"
+printf 'hello\n' >"$tmpdir/touched file"
+mkdir "$tmpdir/touched dir"
 capture holds_temp target/release/zejtron holds "$tmpdir/held file"
 if ! grep -q "No holders found" "$tmpdir/holds_temp.out"; then
   echo "error: holds temp file output did not mention no holders" >&2
   cat "$tmpdir/holds_temp.out" >&2
   cat "$tmpdir/holds_temp.err" >&2
+  exit 1
+fi
+capture touch_file target/release/zejtron touch "$tmpdir/touched file"
+if ! grep -q "filesystem metadata" "$tmpdir/touch_file.out"; then
+  echo "error: touch temp file output did not mention filesystem metadata" >&2
+  cat "$tmpdir/touch_file.out" >&2
+  cat "$tmpdir/touch_file.err" >&2
+  exit 1
+fi
+capture touch_dir target/release/zejtron touch "$tmpdir/touched dir"
+if ! grep -q "actor: unknown" "$tmpdir/touch_dir.out"; then
+  echo "error: touch temp directory output did not mention unknown actor" >&2
+  cat "$tmpdir/touch_dir.out" >&2
+  cat "$tmpdir/touch_dir.err" >&2
   exit 1
 fi
 run target/release/zejtron proc --me --depth 1
@@ -171,6 +187,7 @@ expect_fail_contains port_invalid "invalid port" target/release/zejtron port abc
 expect_fail_contains port_conflict "cannot be used" target/release/zejtron port --listen --all
 expect_fail_contains holds_zero "invalid port" target/release/zejtron holds 0
 expect_fail_contains holds_too_high "invalid port" target/release/zejtron holds 65536
+expect_fail_contains touch_missing "path not found" target/release/zejtron touch "$tmpdir/missing path"
 expect_fail_contains proc_invalid_interval "must be between" target/release/zejtron proc --me --live --interval 1
 expect_fail_contains service_scope_conflict "cannot be used" target/release/zejtron service --system --user
 
