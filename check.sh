@@ -131,6 +131,9 @@ run target/release/zejtron port
 run target/release/zejtron port --tcp
 run target/release/zejtron port --udp
 run target/release/zejtron port --tcp --group
+run target/release/zejtron proc --me --depth 1
+run target/release/zejtron proc --me --no-pid --depth 1
+run target/release/zejtron proc --me --find sh --depth 2
 run target/release/zejtron env --keys
 run target/release/zejtron env --filter PATH
 env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env save check-base
@@ -157,6 +160,7 @@ expect_fail_contains port_zero "invalid port" target/release/zejtron port 0
 expect_fail_contains port_too_high "invalid port" target/release/zejtron port 65536
 expect_fail_contains port_invalid "invalid port" target/release/zejtron port abc
 expect_fail_contains port_conflict "cannot be used" target/release/zejtron port --listen --all
+expect_fail_contains proc_invalid_interval "must be between" target/release/zejtron proc --me --live --interval 1
 expect_fail_contains service_scope_conflict "cannot be used" target/release/zejtron service --system --user
 
 if [[ "${SKIP_CODESPELL:-0}" == "1" ]]; then

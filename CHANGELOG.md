@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.0.0
+
+- Add `zejtron proc`.
+- Merge pidnest process tree functionality into Zejtron.
+- Zejtron becomes unified Linux introspection command center.
+
 ## v1.0.0 Stable
 
 - Stable CLI release.
