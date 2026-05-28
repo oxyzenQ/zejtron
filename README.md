@@ -2,20 +2,20 @@
 
 ![CI](https://github.com/oxyzenQ/zejtron/actions/workflows/ci.yml/badge.svg)
 
-A small Linux terminal toolkit for tracing paths, ports, env, recent files, and services.
+Zejtron is a stable small Linux terminal toolkit for tracing command paths, recent files, ports, environment variables, and systemd services.
 
-## Install From Source
+## Install From AUR
 
 ```sh
-git clone https://github.com/oxyzenQ/zejtron
-cd zejtron
-cargo install --path .
+paru -S zejtron-bin
 ```
+
+`yay -S zejtron-bin` works too.
 
 ## Install From GitHub Release
 
 ```sh
-TAG=v0.4.0
+TAG=v1.0.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -25,27 +25,33 @@ sudo install -Dm755 zejtron /usr/local/bin/zejtron
 
 For aarch64 Linux, use `zejtron-bin-${TAG}-linux-aarch64.tar.gz`.
 
-## Install From AUR
+## Install From Source
 
 ```sh
-yay -S zejtron-bin
-paru -S zejtron-bin
+git clone https://github.com/oxyzenQ/zejtron
+cd zejtron
+cargo install --path .
 ```
 
-## Usage
+## Command Overview
+
+| Command | Purpose |
+| --- | --- |
+| `path` | Trace command origin |
+| `recent` | Show recently modified files |
+| `port` | Inspect ports and owners |
+| `env` | Snapshot and diff environment variables |
+| `service` | Inspect systemd services |
+
+## Quick Examples
 
 ```sh
-zejtron --version
-zejtron env
-zejtron env diff base
-zejtron path python
-zejtron port
-zejtron port 3000
-zejtron service
-zejtron service --failed
-zejtron recent .
+zejtron path sh
 zejtron recent . --limit 10
-zejtron recent . --since 2h
+zejtron port --tcp --group
+zejtron env save base
+zejtron env diff base
+zejtron service --filter unbound
 ```
 
 ## Commands
@@ -66,7 +72,15 @@ sh
 └── duplicates: none
 ```
 
-When multiple unique matches exist, `path` keeps the active command separate and lists only the other locations under `duplicates`.
+### `recent`
+
+Show recently modified files under a path. By default, `recent` scans the current directory, ignores common noisy directories, and returns 20 files.
+
+```sh
+zejtron recent
+zejtron recent . --limit 5
+zejtron recent ~/src --since 1d
+```
 
 ### `port`
 
@@ -75,15 +89,13 @@ Show listening TCP/UDP ports and process owners when discoverable. `port` reads 
 ```sh
 zejtron port
 zejtron port 3000
-zejtron port --tcp
 zejtron port --tcp --group
 zejtron port --udp
 zejtron port --all
-zejtron port --group
 zejtron port --no-pid
 ```
 
-By default, `port` shows TCP listening sockets and UDP bound sockets. Use `--all` to include non-listening TCP connections. Use `--group` to collapse repeated rendered socket rows by protocol, local address, port, state, and owner. Raw summaries count rendered sockets and unique known owner processes; grouped summaries use `groups · sockets · owners`. Unknown owners are not counted. `--numeric` is accepted for numeric output; output is already numeric.
+By default, `port` shows TCP listening sockets and UDP bound sockets. Use `--all` to include non-listening TCP connections. Use `--group` to collapse repeated rendered socket rows by protocol, local address, port, state, and owner.
 
 ### `env`
 
@@ -103,7 +115,7 @@ Snapshots are stored under `$XDG_DATA_HOME/zejtron/env` when `XDG_DATA_HOME` is 
 
 ### `service`
 
-Inspect systemd service units in a read-only view. `service` uses `systemctl`, does not require root, and does not provide start, stop, restart, enable, or disable actions in v0.4.0.
+Inspect systemd service units in a read-only view. `service` uses `systemctl`, does not require root, and does not provide start, stop, restart, enable, or disable actions.
 
 ```sh
 zejtron service
@@ -115,15 +127,9 @@ zejtron service --filter unbound
 
 By default, `service` shows running system services plus failed services. Use `--user` for running user services, `--failed` for failed services only, and `--all` for all service units, including exited and inactive units.
 
-### `recent`
+## Stability
 
-Show recently modified files under a path. By default, `recent` scans the current directory, ignores common noisy directories, and returns 20 files.
-
-```sh
-zejtron recent
-zejtron recent . --limit 5
-zejtron recent ~/src --since 1d
-```
+Zejtron v1.0.0 marks the current CLI as stable. Future breaking changes should wait for v2.0.0 or be carefully documented.
 
 ## Development Checks
 
@@ -132,16 +138,12 @@ zejtron recent ~/src --since 1d
 SKIP_CODESPELL=1 ./check.sh
 ```
 
-## Trademark
-
-The source code is licensed under the MIT License. The Zejtron name and branding are not granted under the MIT License. See [TRADEMARK.md](TRADEMARK.md).
-
 ## Version Updates
 
 ```sh
-./version-to.sh v0.4.0
+./version-to.sh v1.0.0
 ```
 
-## Roadmap
+## Trademark
 
-- JSON output
+The source code is licensed under the MIT License. The Zejtron name and branding are not granted under the MIT License. See [TRADEMARK.md](TRADEMARK.md).
