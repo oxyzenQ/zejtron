@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.0
+
+- Add `zejtron holds`.
+- Merge selected Zenlixem `whoholds` functionality into Zejtron.
+- Add path, device, and port holder inspection.
+
 ## v2.0.0
 
 - Add `zejtron proc`.

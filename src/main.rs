@@ -1,5 +1,6 @@
 mod cli;
 mod env;
+mod holds;
 mod path;
 mod port;
 mod proc;
@@ -24,6 +25,7 @@ fn main() {
             filter,
             no_values,
         }) => env::run(command, keys || no_values, filter.as_deref()),
+        Some(cli::Commands::Holds { target }) => holds::run(&target),
         Some(cli::Commands::Path { command }) => path::run(&command),
         Some(cli::Commands::Port {
             port,
