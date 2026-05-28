@@ -24,22 +24,22 @@ impl fmt::Display for HoldsError {
 impl Error for HoldsError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Holder {
-    pid: u32,
-    name: String,
-    user: String,
-    cwd: Option<PathBuf>,
-    evidence: Vec<Evidence>,
+pub(crate) struct Holder {
+    pub(crate) pid: u32,
+    pub(crate) name: String,
+    pub(crate) user: String,
+    pub(crate) cwd: Option<PathBuf>,
+    pub(crate) evidence: Vec<Evidence>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-enum Evidence {
+pub(crate) enum Evidence {
     Fd(i32),
     Mmap,
 }
 
 impl Evidence {
-    fn label(&self) -> String {
+    pub(crate) fn label(&self) -> String {
         match self {
             Self::Fd(fd) => format!("fd {fd}"),
             Self::Mmap => "mmap".to_owned(),
@@ -48,10 +48,16 @@ impl Evidence {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-struct ScanStats {
-    unreadable_processes: usize,
-    unreadable_fds: usize,
-    unreadable_maps: usize,
+pub(crate) struct ScanStats {
+    pub(crate) unreadable_processes: usize,
+    pub(crate) unreadable_fds: usize,
+    pub(crate) unreadable_maps: usize,
+}
+
+impl ScanStats {
+    pub(crate) fn has_unreadable(self) -> bool {
+        self.unreadable_processes > 0 || self.unreadable_fds > 0 || self.unreadable_maps > 0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -120,7 +126,7 @@ fn parse_target(input: &str) -> Result<Target, HoldsError> {
     Ok(Target::Path(PathBuf::from(input)))
 }
 
-fn scan_port_holders(port: u16) -> Result<(Vec<Holder>, ScanStats), HoldsError> {
+pub(crate) fn scan_port_holders(port: u16) -> Result<(Vec<Holder>, ScanStats), HoldsError> {
     let sockets = read_proc_net_sockets().map_err(|error| HoldsError(error.to_string()))?;
     let target_inodes: BTreeSet<u64> = sockets
         .into_iter()
@@ -135,7 +141,7 @@ fn scan_port_holders(port: u16) -> Result<(Vec<Holder>, ScanStats), HoldsError> 
     scan_socket_holders(&target_inodes)
 }
 
-fn scan_path_holders(path: &Path) -> Result<(Vec<Holder>, ScanStats), HoldsError> {
+pub(crate) fn scan_path_holders(path: &Path) -> Result<(Vec<Holder>, ScanStats), HoldsError> {
     let metadata = fs::metadata(path).map_err(|error| {
         if error.kind() == io::ErrorKind::NotFound {
             HoldsError(format!("{}: no such file or directory", path.display()))
@@ -306,7 +312,7 @@ fn append_holder_lines(lines: &mut Vec<String>, holders: &[Holder], show_cwd: bo
 }
 
 fn append_note(lines: &mut Vec<String>, stats: &ScanStats) {
-    if stats.unreadable_processes > 0 || stats.unreadable_fds > 0 || stats.unreadable_maps > 0 {
+    if stats.has_unreadable() {
         lines.push(String::new());
         lines.push(
             "note: some processes were not readable; try sudo for complete holder details"

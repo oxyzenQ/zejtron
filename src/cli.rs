@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[command(
     name = "zejtron",
-    about = "A Linux terminal toolkit for tracing paths, ports, env, holders, file changes, services, and process trees.",
+    about = "A Linux terminal toolkit for tracing paths, ports, env, holders, reasons, file changes, services, and process trees.",
     disable_version_flag = true
 )]
 pub struct Cli {
@@ -69,6 +69,14 @@ pub enum Commands {
     Touch {
         #[arg(value_name = "PATH", help = "Path to inspect without modifying it")]
         path: PathBuf,
+    },
+    #[command(about = "Explain visible evidence for a path or port (read-only)")]
+    Why {
+        #[arg(
+            value_name = "TARGET",
+            help = "Filesystem path or port number to explain"
+        )]
+        target: String,
     },
     #[command(about = "Inspect process trees by user or UID")]
     Proc {
@@ -211,6 +219,18 @@ mod tests {
         match cli.command {
             Some(Commands::Touch { path }) => {
                 assert_eq!(path, PathBuf::from("/tmp/file with spaces"));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_why_target() {
+        let cli = Cli::try_parse_from(["zejtron", "why", "/tmp/file with spaces"]).unwrap();
+
+        match cli.command {
+            Some(Commands::Why { target }) => {
+                assert_eq!(target, "/tmp/file with spaces");
             }
             other => panic!("unexpected command: {other:?}"),
         }
