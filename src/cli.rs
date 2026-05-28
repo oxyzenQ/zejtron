@@ -66,6 +66,19 @@ pub enum Commands {
         #[arg(long, value_name = "DURATION")]
         since: Option<String>,
     },
+    #[command(about = "Inspect systemd services")]
+    Service {
+        #[arg(long, conflicts_with = "user", help = "Inspect system services")]
+        system: bool,
+        #[arg(long, help = "Inspect user services")]
+        user: bool,
+        #[arg(long, help = "Show failed services only")]
+        failed: bool,
+        #[arg(long, help = "Show all service units")]
+        all: bool,
+        #[arg(long, value_name = "TEXT", help = "Filter services by unit name")]
+        filter: Option<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]

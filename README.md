@@ -15,7 +15,7 @@ cargo install --path .
 ## Install From GitHub Release
 
 ```sh
-TAG=v0.3.0
+TAG=v0.4.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -41,6 +41,8 @@ zejtron env diff base
 zejtron path python
 zejtron port
 zejtron port 3000
+zejtron service
+zejtron service --failed
 zejtron recent .
 zejtron recent . --limit 10
 zejtron recent . --since 2h
@@ -99,6 +101,20 @@ zejtron env delete base
 
 Snapshots are stored under `$XDG_DATA_HOME/zejtron/env` when `XDG_DATA_HOME` is set, otherwise `~/.local/share/zejtron/env`.
 
+### `service`
+
+Inspect systemd service units in a read-only view. `service` uses `systemctl`, does not require root, and does not provide start, stop, restart, enable, or disable actions in v0.4.0.
+
+```sh
+zejtron service
+zejtron service --user
+zejtron service --failed
+zejtron service --all
+zejtron service --filter unbound
+```
+
+By default, `service` shows running system services plus failed services. Use `--user` for running user services, `--failed` for failed services only, and `--all` for all service units, including exited and inactive units.
+
 ### `recent`
 
 Show recently modified files under a path. By default, `recent` scans the current directory, ignores common noisy directories, and returns 20 files.
@@ -123,9 +139,9 @@ The source code is licensed under the MIT License. The Zejtron name and branding
 ## Version Updates
 
 ```sh
-./version-to.sh v0.3.0
+./version-to.sh v0.4.0
 ```
 
 ## Roadmap
 
-- `service`
+- JSON output
