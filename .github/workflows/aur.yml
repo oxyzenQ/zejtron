@@ -5,11 +5,6 @@ on:
     types:
       - aur-sync
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Release tag, such as v0.2.0 or 0.2.0
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -25,62 +20,84 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Resolve release tag
-        id: version
+      - name: Resolve source ref
+        id: source
         shell: bash
         env:
-          RAW_TAG: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.tag || inputs.tag }}
+          DISPATCH_TAG: ${{ github.event.client_payload.tag }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
         run: |
           set -Eeuo pipefail
           echo "event name: ${GITHUB_EVENT_NAME}"
-          echo "raw tag: ${RAW_TAG}"
           if [[ -n "${AUR_SSH_PRIVATE_KEY}" ]]; then
             echo "AUR_SSH_PRIVATE_KEY present: yes"
           else
             echo "AUR_SSH_PRIVATE_KEY present: no"
           fi
 
-          tag="$RAW_TAG"
-          if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            tag="v${tag}"
+          if [[ "${GITHUB_EVENT_NAME}" == "repository_dispatch" ]]; then
+            tag="${DISPATCH_TAG}"
+            if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              tag="v${tag}"
+            fi
+            if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "invalid release tag: ${DISPATCH_TAG}" >&2
+              exit 1
+            fi
+            echo "source ref: ${tag}"
+            echo "source label: ${tag}"
+            echo "ref=${tag}" >> "$GITHUB_OUTPUT"
+            echo "label=${tag}" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "invalid tag: $RAW_TAG" >&2
+
+          branch="${DEFAULT_BRANCH:-main}"
+          if [[ "$branch" != "main" ]]; then
+            echo "manual AUR sync must read metadata from main; default branch is ${branch}" >&2
             exit 1
           fi
-          pkgver="${tag#v}"
-          echo "resolved tag: ${tag}"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "pkgver=$pkgver" >> "$GITHUB_OUTPUT"
+          echo "source ref: main"
+          echo "source label: main"
+          echo "ref=main" >> "$GITHUB_OUTPUT"
+          echo "label=main" >> "$GITHUB_OUTPUT"
 
-      - name: Update package metadata
+      - name: Checkout package metadata source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+
+      - name: Validate package metadata
         shell: bash
         run: |
           set -Eeuo pipefail
-          pkgver="${{ steps.version.outputs.pkgver }}"
-          sed -i -E "s/^pkgver=.*/pkgver=${pkgver}/" "${PKGBUILD_DIR}/PKGBUILD"
-          sed -i -E "s/^pkgrel=.*/pkgrel=1/" "${PKGBUILD_DIR}/PKGBUILD"
-          {
-            printf 'pkgbase = zejtron-bin\n'
-            printf '\tpkgdesc = Small Linux terminal toolkit for tracing paths, ports, env, recent files, and services\n'
-            printf '\tpkgver = %s\n' "$pkgver"
-            printf '\tpkgrel = 1\n'
-            printf '\turl = https://github.com/oxyzenQ/zejtron\n'
-            printf '\tarch = x86_64\n'
-            printf '\tarch = aarch64\n'
-            printf '\tlicense = MIT\n'
-            printf '\tdepends = glibc\n'
-            printf '\tdepends = gcc-libs\n'
-            printf '\tprovides = zejtron\n'
-            printf '\tconflicts = zejtron\n'
-            printf '\toptions = !strip\n'
-            printf '\n'
-            printf 'pkgname = zejtron-bin\n'
-          } > "${PKGBUILD_DIR}/.SRCINFO"
+          test -f "${PKGBUILD_DIR}/PKGBUILD"
+          test -f "${PKGBUILD_DIR}/.SRCINFO"
+
+          grep -n -E '^(pkgver=|pkgdesc=)|^[[:space:]]*(pkgver|pkgdesc) = ' \
+            "${PKGBUILD_DIR}/PKGBUILD" "${PKGBUILD_DIR}/.SRCINFO"
+
+          pkgbuild_pkgver="$(sed -n -E 's/^pkgver=([^[:space:]]+).*/\1/p' "${PKGBUILD_DIR}/PKGBUILD" | head -n1)"
+          pkgbuild_pkgdesc="$(sed -n -E 's/^pkgdesc="(.*)"/\1/p' "${PKGBUILD_DIR}/PKGBUILD" | head -n1)"
+          srcinfo_pkgver="$(sed -n -E 's/^[[:space:]]*pkgver = (.*)/\1/p' "${PKGBUILD_DIR}/.SRCINFO" | head -n1)"
+          srcinfo_pkgdesc="$(sed -n -E 's/^[[:space:]]*pkgdesc = (.*)/\1/p' "${PKGBUILD_DIR}/.SRCINFO" | head -n1)"
+
+          if [[ -z "$pkgbuild_pkgver" || -z "$srcinfo_pkgver" ]]; then
+            echo "pkgver missing from PKGBUILD or .SRCINFO" >&2
+            exit 1
+          fi
+          if [[ -z "$pkgbuild_pkgdesc" || -z "$srcinfo_pkgdesc" ]]; then
+            echo "pkgdesc missing from PKGBUILD or .SRCINFO" >&2
+            exit 1
+          fi
+          if [[ "$pkgbuild_pkgver" != "$srcinfo_pkgver" ]]; then
+            echo "pkgver mismatch: PKGBUILD=${pkgbuild_pkgver} .SRCINFO=${srcinfo_pkgver}" >&2
+            exit 1
+          fi
+          if [[ "$pkgbuild_pkgdesc" != "$srcinfo_pkgdesc" ]]; then
+            echo "pkgdesc mismatch: PKGBUILD=${pkgbuild_pkgdesc} .SRCINFO=${srcinfo_pkgdesc}" >&2
+            exit 1
+          fi
 
       - name: Setup SSH
         shell: bash
@@ -171,7 +188,7 @@ jobs:
             echo "AUR package is already up to date"
             exit 0
           fi
-          git commit -m "Update zejtron-bin to ${{ steps.version.outputs.tag }}"
+          git commit -m "Sync zejtron-bin metadata from ${{ steps.source.outputs.label }}"
 
       - name: Push AUR update
         working-directory: aur-repo
