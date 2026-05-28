@@ -101,6 +101,9 @@ run cargo clippy --all-targets --all-features --locked -- -D warnings
 run cargo test --all-targets --all-features --locked
 run cargo build --release --locked
 
+run target/release/zejtron --help
+run target/release/zejtron service --help
+
 capture version target/release/zejtron --version
 if ! grep -q "zejtron" "$tmpdir/version.out"; then
   echo "error: version output did not contain 'zejtron'" >&2

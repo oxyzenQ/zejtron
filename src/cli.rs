@@ -35,12 +35,12 @@ pub enum Commands {
     },
     #[command(about = "Trace where a command comes from")]
     Path {
-        #[arg(value_name = "COMMAND")]
+        #[arg(value_name = "COMMAND", help = "Command name to find in PATH")]
         command: String,
     },
     #[command(about = "Show listening ports and process owners")]
     Port {
-        #[arg(value_name = "PORT")]
+        #[arg(value_name = "PORT", help = "Port number to inspect")]
         port: Option<String>,
         #[arg(long, help = "Show TCP sockets")]
         tcp: bool,
@@ -61,12 +61,21 @@ pub enum Commands {
     Recent {
         #[arg(value_name = "PATH", default_value = ".")]
         path: PathBuf,
-        #[arg(long, value_name = "N", default_value_t = 20)]
+        #[arg(
+            long,
+            value_name = "N",
+            default_value_t = 20,
+            help = "Maximum files to show"
+        )]
         limit: usize,
-        #[arg(long, value_name = "DURATION")]
+        #[arg(
+            long,
+            value_name = "DURATION",
+            help = "Only show files modified since this duration"
+        )]
         since: Option<String>,
     },
-    #[command(about = "Inspect systemd services")]
+    #[command(about = "Inspect systemd services (read-only)")]
     Service {
         #[arg(long, conflicts_with = "user", help = "Inspect system services")]
         system: bool,
