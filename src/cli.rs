@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[command(
     name = "zejtron",
-    about = "A Linux terminal toolkit for tracing paths, ports, env, recent files, services, and process trees.",
+    about = "A Linux terminal toolkit for tracing paths, ports, env, holders, recent files, services, and process trees.",
     disable_version_flag = true
 )]
 pub struct Cli {
@@ -32,6 +32,14 @@ pub enum Commands {
         filter: Option<String>,
         #[arg(long, help = "Alias for --keys")]
         no_values: bool,
+    },
+    #[command(about = "Show processes holding a file, device, or port")]
+    Holds {
+        #[arg(
+            value_name = "TARGET",
+            help = "Filesystem path or port number to inspect"
+        )]
+        target: String,
     },
     #[command(about = "Trace where a command comes from")]
     Path {
@@ -174,6 +182,18 @@ mod tests {
             }) => {
                 assert!(me);
                 assert_eq!(user_or_uid, None);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parses_holds_target() {
+        let cli = Cli::try_parse_from(["zejtron", "holds", "/tmp/file with spaces"]).unwrap();
+
+        match cli.command {
+            Some(Commands::Holds { target }) => {
+                assert_eq!(target, "/tmp/file with spaces");
             }
             other => panic!("unexpected command: {other:?}"),
         }
