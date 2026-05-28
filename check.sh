@@ -135,6 +135,7 @@ run target/release/zejtron holds 53
 touch "$tmpdir/held file"
 printf 'hello\n' >"$tmpdir/touched file"
 mkdir "$tmpdir/touched dir"
+printf 'hello\n' >"$tmpdir/why file with spaces"
 capture holds_temp target/release/zejtron holds "$tmpdir/held file"
 if ! grep -q "No holders found" "$tmpdir/holds_temp.out"; then
   echo "error: holds temp file output did not mention no holders" >&2
@@ -154,6 +155,22 @@ if ! grep -q "actor: unknown" "$tmpdir/touch_dir.out"; then
   echo "error: touch temp directory output did not mention unknown actor" >&2
   cat "$tmpdir/touch_dir.out" >&2
   cat "$tmpdir/touch_dir.err" >&2
+  exit 1
+fi
+run target/release/zejtron why 53
+capture why_readme target/release/zejtron why README.md
+if ! grep -q "reason:" "$tmpdir/why_readme.out"; then
+  echo "error: why README output did not mention reason" >&2
+  cat "$tmpdir/why_readme.out" >&2
+  cat "$tmpdir/why_readme.err" >&2
+  exit 1
+fi
+run target/release/zejtron why /etc/resolv.conf
+capture why_spaces target/release/zejtron why "$tmpdir/why file with spaces"
+if ! grep -q "why file with spaces" "$tmpdir/why_spaces.out"; then
+  echo "error: why path with spaces output did not mention the path" >&2
+  cat "$tmpdir/why_spaces.out" >&2
+  cat "$tmpdir/why_spaces.err" >&2
   exit 1
 fi
 run target/release/zejtron proc --me --depth 1
@@ -188,6 +205,9 @@ expect_fail_contains port_conflict "cannot be used" target/release/zejtron port 
 expect_fail_contains holds_zero "invalid port" target/release/zejtron holds 0
 expect_fail_contains holds_too_high "invalid port" target/release/zejtron holds 65536
 expect_fail_contains touch_missing "path not found" target/release/zejtron touch "$tmpdir/missing path"
+expect_fail_contains why_zero "invalid port" target/release/zejtron why 0
+expect_fail_contains why_too_high "invalid port" target/release/zejtron why 65536
+expect_fail_contains why_missing "path not found" target/release/zejtron why "$tmpdir/missing path"
 expect_fail_contains proc_invalid_interval "must be between" target/release/zejtron proc --me --live --interval 1
 expect_fail_contains service_scope_conflict "cannot be used" target/release/zejtron service --system --user
 

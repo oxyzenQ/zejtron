@@ -8,6 +8,7 @@ mod recent;
 mod service;
 mod touch;
 mod version;
+mod why;
 
 use clap::Parser;
 
@@ -50,6 +51,7 @@ fn main() {
             },
         ),
         Some(cli::Commands::Touch { path }) => touch::run(&path),
+        Some(cli::Commands::Why { target }) => why::run(&target),
         Some(cli::Commands::Proc {
             user_or_uid,
             me,

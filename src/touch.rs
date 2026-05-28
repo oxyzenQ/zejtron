@@ -20,23 +20,23 @@ impl fmt::Display for TouchError {
 impl Error for TouchError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct TouchInfo {
-    path: PathBuf,
-    modified: SystemTime,
-    source: EvidenceSource,
-    actor: String,
-    process: Option<ProcessEvidence>,
+pub(crate) struct TouchInfo {
+    pub(crate) path: PathBuf,
+    pub(crate) modified: SystemTime,
+    pub(crate) source: EvidenceSource,
+    pub(crate) actor: String,
+    pub(crate) process: Option<ProcessEvidence>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum EvidenceSource {
+pub(crate) enum EvidenceSource {
     Metadata,
     Audit,
     Journal,
 }
 
 impl EvidenceSource {
-    fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Self::Metadata => "filesystem metadata",
             Self::Audit => "audit evidence",
@@ -46,13 +46,13 @@ impl EvidenceSource {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ProcessEvidence {
-    name: String,
-    pid: Option<u32>,
+pub(crate) struct ProcessEvidence {
+    pub(crate) name: String,
+    pub(crate) pid: Option<u32>,
 }
 
 impl ProcessEvidence {
-    fn label(&self) -> String {
+    pub(crate) fn label(&self) -> String {
         match self.pid {
             Some(pid) => format!("{} pid={pid}", self.name),
             None => self.name.clone(),
@@ -66,7 +66,7 @@ pub fn run(path: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn inspect_path(path: &Path) -> Result<TouchInfo, TouchError> {
+pub(crate) fn inspect_path(path: &Path) -> Result<TouchInfo, TouchError> {
     let metadata = fs::metadata(path).map_err(|error| {
         if error.kind() == io::ErrorKind::NotFound {
             TouchError(format!("path not found: {}", path.display()))
@@ -133,7 +133,7 @@ fn format_report(info: &TouchInfo) -> String {
     lines.join("\n")
 }
 
-fn format_system_time(time: SystemTime) -> String {
+pub(crate) fn format_system_time(time: SystemTime) -> String {
     let datetime: DateTime<Local> = time.into();
     datetime.format("%Y-%m-%d %H:%M:%S").to_string()
 }
@@ -264,8 +264,17 @@ fn try_journalctl(
     lookup_path: &Path,
     users: &HashMap<u32, String>,
 ) -> Option<TouchInfo> {
+    try_journalctl_command("journalctl", display_path, lookup_path, users)
+}
+
+fn try_journalctl_command(
+    command: &str,
+    display_path: &Path,
+    lookup_path: &Path,
+    users: &HashMap<u32, String>,
+) -> Option<TouchInfo> {
     let escaped = escape_journal_regex(&lookup_path.to_string_lossy());
-    let output = Command::new("journalctl")
+    let output = Command::new(command)
         .arg("--no-pager")
         .arg("-o")
         .arg("export")
@@ -574,5 +583,18 @@ mod tests {
     fn journal_regex_escapes_specials() {
         assert_eq!(escape_journal_regex("/etc/foo.bar"), r"/etc/foo\.bar");
         assert_eq!(escape_journal_regex("test[0]"), r"test\[0\]");
+    }
+
+    #[test]
+    fn missing_journalctl_is_optional() {
+        let users = HashMap::new();
+        let info = try_journalctl_command(
+            "zejtron-missing-journalctl-test-command",
+            Path::new("/tmp/example"),
+            Path::new("/tmp/example"),
+            &users,
+        );
+
+        assert_eq!(info, None);
     }
 }

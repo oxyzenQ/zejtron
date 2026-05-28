@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.3.0
+
+- Add `zejtron why`.
+- Merge selected Zenlixem `whyopen` functionality into Zejtron.
+- Add read-only narrative explanation for path and port evidence.
+
 ## v2.2.0
 
 - Add `zejtron touch`.

@@ -489,6 +489,21 @@ mod tests {
     }
 
     #[test]
+    fn systemctl_unusable_error_format_is_stable() {
+        assert_eq!(
+            format_systemctl_error(
+                "System has not been booted with systemd as init system (PID 1).",
+                ""
+            ),
+            "systemctl failed: System has not been booted with systemd as init system (PID 1)."
+        );
+        assert_eq!(
+            format_systemctl_error("", "Failed to connect to bus: No medium found"),
+            "systemctl failed: Failed to connect to bus: No medium found"
+        );
+    }
+
+    #[test]
     fn filter_no_match_message_is_clean() {
         assert_eq!(
             format_default_report(&[], &[], Some("unbound")),

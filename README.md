@@ -9,7 +9,7 @@
   <a href="https://ko-fi.com/rezky"><img src="https://img.shields.io/badge/Ko--fi-rezky-ff5f5f?logo=kofi&logoColor=white" alt="Ko-fi"></a>
 </p>
 
-<p align="center">Zejtron v2.2.0 is the unified Linux terminal toolkit for tracing command paths, recent files, ports, holders, file change evidence, environment variables, systemd services, and process trees.</p>
+<p align="center">Zejtron v2.3.0 is the unified Linux terminal toolkit for tracing command paths, recent files, ports, holders, reasons, file change evidence, environment variables, systemd services, and process trees.</p>
 
 ## Install From AUR
 
@@ -22,7 +22,7 @@ paru -S zejtron-bin
 ## Install From GitHub Release
 
 ```sh
-TAG=v2.2.0
+TAG=v2.3.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -49,9 +49,16 @@ cargo install --path .
 | `port` | Inspect ports and owners |
 | `holds` | Show processes holding a file, device, or port |
 | `touch` | Inspect last modification evidence for a path |
+| `why` | Explain visible evidence for a path or port |
 | `proc` | Inspect process trees by user or UID |
 | `env` | Snapshot and diff environment variables |
 | `service` | Inspect systemd services |
+
+## Compatibility
+
+Zejtron targets Linux systems with procfs mounted at `/proc`. The `path`, `recent`, `port`, `env`, `proc`, `holds`, `touch`, and `why` commands do not require systemd.
+
+`service` requires `systemd` and `systemctl`, and fails cleanly when they are unavailable or unusable. `touch` and `why` can use filesystem metadata on any supported Linux system; audit and journal evidence is best-effort and depends on audit logs or `journalctl`/systemd journal availability. Metadata shows when a path changed, but it is not proof of actor identity.
 
 ## Quick Examples
 
@@ -61,6 +68,7 @@ zejtron recent . --limit 10
 zejtron port --tcp --group
 zejtron holds 3000
 zejtron touch ./README.md
+zejtron why /etc/resolv.conf
 zejtron proc --me
 zejtron env save base
 zejtron env diff base
@@ -134,6 +142,19 @@ zejtron touch "/path/with spaces/file.txt"
 
 When audit or journal evidence is available, `touch` reports best-effort actor and process evidence. Otherwise it falls back to filesystem metadata, which shows when a path changed but is not proof of who changed it. Audit and journal evidence depend on system configuration and permissions.
 
+### `why`
+
+Explain visible evidence for a path or port. `why` is read-only and is the successor to Zenlixem `whyopen` inside Zejtron.
+
+```sh
+zejtron why 53
+zejtron why 3000
+zejtron why /etc/resolv.conf
+zejtron why ./README.md
+```
+
+`why` uses best-effort evidence from procfs, socket ownership, and path metadata, audit, or journal evidence. It does not infer intent, and `sudo` may reveal more complete holder explanations on hardened systems. Journal evidence is optional and depends on `journalctl` and the systemd journal.
+
 ### `proc`
 
 Show a clean process tree for a Linux user or UID. `proc` is the successor to pidnest inside the unified Zejtron toolkit.
@@ -181,7 +202,7 @@ By default, `service` shows running system services plus failed services. Use `-
 
 ## Stability
 
-Zejtron v2.2.0 adds `touch`, bringing selected Zenlixem `lasttouch` inspection into the unified toolkit.
+Zejtron v2.3.0 adds `why`, bringing selected Zenlixem `whyopen` explanation into the unified toolkit.
 
 ## Development Checks
 
@@ -193,7 +214,7 @@ SKIP_CODESPELL=1 ./check.sh
 ## Version Updates
 
 ```sh
-./version-to.sh v2.2.0
+./version-to.sh v2.3.0
 ```
 
 ## Trademark
