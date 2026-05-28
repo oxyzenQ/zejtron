@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[command(
     name = "zejtron",
-    about = "A Linux terminal toolkit for tracing paths, ports, env, holders, reasons, file changes, services, and process trees.",
+    about = "A Linux terminal toolkit for tracing paths, ports, env, holders, reasons, diagnostics, file changes, services, and process trees.",
     disable_version_flag = true
 )]
 pub struct Cli {
@@ -22,6 +22,8 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    #[command(about = "Check Zejtron system capability/readiness")]
+    Doctor,
     #[command(about = "Inspect and compare environment variables")]
     Env {
         #[command(subcommand)]
@@ -210,6 +212,13 @@ mod tests {
             }
             other => panic!("unexpected command: {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_doctor() {
+        let cli = Cli::try_parse_from(["zejtron", "doctor"]).unwrap();
+
+        assert!(matches!(cli.command, Some(Commands::Doctor)));
     }
 
     #[test]

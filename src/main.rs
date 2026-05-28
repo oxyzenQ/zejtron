@@ -1,4 +1,5 @@
 mod cli;
+mod doctor;
 mod env;
 mod holds;
 mod path;
@@ -27,6 +28,7 @@ fn main() {
             filter,
             no_values,
         }) => env::run(command, keys || no_values, filter.as_deref()),
+        Some(cli::Commands::Doctor) => doctor::run(env!("ZEJTRON_GIT_HASH")),
         Some(cli::Commands::Holds { target }) => holds::run(&target),
         Some(cli::Commands::Path { command }) => path::run(&command),
         Some(cli::Commands::Port {
