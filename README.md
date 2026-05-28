@@ -15,7 +15,7 @@ cargo install --path .
 ## Install From GitHub Release
 
 ```sh
-TAG=v0.2.2
+TAG=v0.3.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -36,6 +36,8 @@ paru -S zejtron-bin
 
 ```sh
 zejtron --version
+zejtron env
+zejtron env diff base
 zejtron path python
 zejtron port
 zejtron port 3000
@@ -79,7 +81,23 @@ zejtron port --group
 zejtron port --no-pid
 ```
 
-By default, `port` shows TCP listening sockets and UDP bound sockets. Use `--all` to include non-listening TCP connections. Use `--group` to collapse repeated rendered socket rows by protocol, local address, port, state, and owner. Raw summaries count rendered sockets and unique known owner processes; grouped summaries use `groups · sockets · owners`. Unknown owners are not counted. `--numeric` is accepted for numeric output; v0.2.1 output is already numeric.
+By default, `port` shows TCP listening sockets and UDP bound sockets. Use `--all` to include non-listening TCP connections. Use `--group` to collapse repeated rendered socket rows by protocol, local address, port, state, and owner. Raw summaries count rendered sockets and unique known owner processes; grouped summaries use `groups · sockets · owners`. Unknown owners are not counted. `--numeric` is accepted for numeric output; output is already numeric.
+
+### `env`
+
+Inspect current environment variables, save named snapshots, and diff a saved snapshot against the current terminal environment.
+
+```sh
+zejtron env
+zejtron env --keys
+zejtron env --filter path
+zejtron env save base
+zejtron env diff base
+zejtron env list
+zejtron env delete base
+```
+
+Snapshots are stored under `$XDG_DATA_HOME/zejtron/env` when `XDG_DATA_HOME` is set, otherwise `~/.local/share/zejtron/env`.
 
 ### `recent`
 
@@ -105,10 +123,9 @@ The source code is licensed under the MIT License. The Zejtron name and branding
 ## Version Updates
 
 ```sh
-./version-to.sh v0.2.2
+./version-to.sh v0.3.0
 ```
 
 ## Roadmap
 
-- `env`
 - `service`

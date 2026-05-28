@@ -100,6 +100,12 @@ run target/release/zejtron port
 run target/release/zejtron port --tcp
 run target/release/zejtron port --udp
 run target/release/zejtron port --tcp --group
+run target/release/zejtron env --keys
+run target/release/zejtron env --filter PATH
+env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env save check-base
+env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env list
+env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env diff check-base
+env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env delete check-base
 
 capture recent_zero target/release/zejtron recent . --limit 0
 if [[ ! -s "$tmpdir/recent_zero.out" ]]; then
