@@ -6,6 +6,7 @@ mod port;
 mod proc;
 mod recent;
 mod service;
+mod touch;
 mod version;
 
 use clap::Parser;
@@ -48,6 +49,7 @@ fn main() {
                 no_pid,
             },
         ),
+        Some(cli::Commands::Touch { path }) => touch::run(&path),
         Some(cli::Commands::Proc {
             user_or_uid,
             me,
