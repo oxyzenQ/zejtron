@@ -1,8 +1,15 @@
-# zejtron
+<p align="center">
+  <img src="assets/zejtron-logo.png" alt="zejtron logo" width="160">
+</p>
 
-![CI](https://github.com/oxyzenQ/zejtron/actions/workflows/ci.yml/badge.svg)
+<h1 align="center">zejtron</h1>
 
-Zejtron is a stable small Linux terminal toolkit for tracing command paths, recent files, ports, environment variables, and systemd services.
+<p align="center">
+  <a href="https://github.com/oxyzenQ/zejtron/actions/workflows/ci.yml"><img src="https://github.com/oxyzenQ/zejtron/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://ko-fi.com/rezky"><img src="https://img.shields.io/badge/Ko--fi-rezky-ff5f5f?logo=kofi&logoColor=white" alt="Ko-fi"></a>
+</p>
+
+<p align="center">Zejtron is a stable small Linux terminal toolkit for tracing command paths, recent files, ports, environment variables, and systemd services.</p>
 
 ## Install From AUR
 
