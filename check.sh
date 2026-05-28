@@ -65,6 +65,34 @@ expect_fail_contains() {
   fi
 }
 
+service_smoke() {
+  local name="$1"
+  shift
+
+  set +e
+  "$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
+  local status=$?
+  set -e
+
+  if [[ "$status" -eq 0 ]]; then
+    cat "$tmpdir/${name}.out"
+    return
+  fi
+
+  if grep -Eqi "systemctl failed|Failed to connect|System has not been booted|No such file or directory|No medium found" \
+    "$tmpdir/${name}.out" "$tmpdir/${name}.err"; then
+    echo "+ service smoke tolerated because systemd is unavailable: $*"
+    cat "$tmpdir/${name}.out"
+    cat "$tmpdir/${name}.err" >&2
+    return
+  fi
+
+  echo "error: service smoke failed unexpectedly: $*" >&2
+  cat "$tmpdir/${name}.out" >&2
+  cat "$tmpdir/${name}.err" >&2
+  exit 1
+}
+
 run rustc --version
 run cargo --version
 run cargo fmt --all -- --check
@@ -106,6 +134,13 @@ env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env save check-base
 env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env list
 env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env diff check-base
 env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env delete check-base
+if command -v systemctl >/dev/null 2>&1; then
+  service_smoke service_failed target/release/zejtron service --failed
+  service_smoke service_filter target/release/zejtron service --filter systemd
+  service_smoke service_all target/release/zejtron service --all
+else
+  echo "+ service smoke skipped because systemctl is unavailable"
+fi
 
 capture recent_zero target/release/zejtron recent . --limit 0
 if [[ ! -s "$tmpdir/recent_zero.out" ]]; then
@@ -119,6 +154,7 @@ expect_fail_contains port_zero "invalid port" target/release/zejtron port 0
 expect_fail_contains port_too_high "invalid port" target/release/zejtron port 65536
 expect_fail_contains port_invalid "invalid port" target/release/zejtron port abc
 expect_fail_contains port_conflict "cannot be used" target/release/zejtron port --listen --all
+expect_fail_contains service_scope_conflict "cannot be used" target/release/zejtron service --system --user
 
 if [[ "${SKIP_CODESPELL:-0}" == "1" ]]; then
   echo "+ codespell skipped because SKIP_CODESPELL=1"

@@ -3,6 +3,7 @@ mod env;
 mod path;
 mod port;
 mod recent;
+mod service;
 mod version;
 
 use clap::Parser;
@@ -47,6 +48,19 @@ fn main() {
         Some(cli::Commands::Recent { path, limit, since }) => {
             recent::run(&path, limit, since.as_deref())
         }
+        Some(cli::Commands::Service {
+            system,
+            user,
+            failed,
+            all,
+            filter,
+        }) => service::run(service::ServiceFlags {
+            system,
+            user,
+            failed,
+            all,
+            filter,
+        }),
         None => {
             let mut cmd = cli::Cli::command();
             cmd.print_help().map(|_| println!()).map_err(Into::into)
