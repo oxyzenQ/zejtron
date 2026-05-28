@@ -36,9 +36,9 @@ The release workflow uploads `zejtron-bin-${TAG}-linux-x86_64.tar.gz`, `zejtron-
 
 ## AUR Sync
 
-The release workflow dispatches AUR sync only for normal semver tags like `v2.4.0`. Its `aur-sync` job only sends a `repository_dispatch` event with `event_type: aur-sync`; the real AUR push happens in the separate `zejtron - AUR Sync` workflow.
+The release workflow dispatches AUR sync only for normal semver tags like `v2.4.0`. Its `aur-sync` job only sends a `repository_dispatch` event with `event_type: aur-sync`; the real AUR push happens in the separate `zejtron - AUR Sync` workflow. Release-triggered sync checks out the release tag and copies the committed AUR metadata from that tag.
 
-AUR sync can also be run manually with a `tag` input such as `v2.4.0` or `2.4.0`. It updates `aur/zejtron-bin/PKGBUILD`, regenerates `.SRCINFO`, commits as `rezky_nightky <rezky2399@proton.me>`, and pushes to `ssh://aur@aur.archlinux.org/zejtron-bin.git`.
+AUR sync can also be run manually. Manual sync checks out `main`, validates that `aur/zejtron-bin/PKGBUILD` and `aur/zejtron-bin/.SRCINFO` have matching `pkgver` and `pkgdesc` values, copies both files as committed, commits as `rezky_nightky <rezky2399@proton.me>`, and pushes to `ssh://aur@aur.archlinux.org/zejtron-bin.git`.
 
 Required repository secret:
 
@@ -62,7 +62,7 @@ If `zejtron - AUR Sync` does not trigger, check:
 
 If `zejtron - AUR Sync` triggers but authentication fails, check that `AUR_SSH_PRIVATE_KEY` is configured as a repository secret, not only as an environment secret.
 
-The AUR workflow runs on `ubuntu-latest`, updates `.SRCINFO` directly from the package metadata, pins the AUR Ed25519 host key, and clones the AUR repository before copying package files. If clone fails because of authentication or host-key verification, the job fails clearly. If the AUR repository is empty or not initialized yet, the workflow bootstraps a local repository and pushes `master`.
+The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, pins the AUR Ed25519 host key, and clones the AUR repository before copying both `PKGBUILD` and `.SRCINFO`. If clone fails because of authentication or host-key verification, the job fails clearly. If the AUR repository is empty or not initialized yet, the workflow bootstraps a local repository and pushes `master`.
 
 ## Version Bump Flow
 
