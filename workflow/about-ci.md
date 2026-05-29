@@ -25,10 +25,10 @@ Release archives use a flat layout:
 - `README.md`
 - `LICENSE`
 
-Example release asset flow for the v2.4.1 maintenance tag:
+Example release asset flow for the v2.4.2 maintenance tag:
 
 ```sh
-TAG=v2.4.1
+TAG=v2.4.2
 cargo build --release --locked --target x86_64-unknown-linux-gnu
 ```
 
@@ -67,18 +67,18 @@ The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, 
 ## Version Bump Flow
 
 ```sh
-./version-to.sh v2.4.1
+./version-to.sh v2.4.2
 ./check.sh
 ```
 
 ## Release Command Flow
 
 ```sh
-./version-to.sh v2.4.1
+./version-to.sh v2.4.2
 ./check.sh
 git add .
-git commit -m "chore: prepare v2.4.1 release"
+git commit -m "chore: prepare v2.4.2 release"
 git push origin main
-git tag -a v2.4.1 -m "v2.4.1"
-git push origin v2.4.1
+git tag -a v2.4.2 -m "optimize build for release"
+git push origin v2.4.2
 ```
