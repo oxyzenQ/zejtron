@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.4.1
+
+- Maintenance release.
+- Tighten repository and workflow consistency.
+- Sync project descriptions across Cargo, README, CLI help, and AUR metadata.
+- Make command and help order consistent.
+- Harden AUR sync validation and SSH cleanup.
+- Make `version-to.sh` update the README version badge.
+- Add Dependabot maintenance PRs for Rust and GitHub Actions dependencies.
+
 ## v2.4.0
 
 - Add `zejtron doctor`.
