@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/oxyzenQ/zejtron/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/oxyzenQ/zejtron/ci.yml?branch=main&label=CI&style=flat-square&color=7C3AED&labelColor=111827" alt="CI"></a>
-  <img src="https://img.shields.io/badge/version-v2.4.0-7C3AED?style=flat-square&labelColor=111827" alt="Version v2.4.0">
+  <img src="https://img.shields.io/badge/version-v2.4.1-7C3AED?style=flat-square&labelColor=111827" alt="Version v2.4.1">
   <img src="https://img.shields.io/badge/license-MIT-6D28D9?style=flat-square&labelColor=111827" alt="MIT License">
   <img src="https://img.shields.io/badge/AUR-zejtron--bin-8B5CF6?style=flat-square&labelColor=111827" alt="AUR zejtron-bin">
   <img src="https://img.shields.io/badge/Rust-1.85+-A855F7?style=flat-square&labelColor=111827" alt="Rust 1.85+">
@@ -44,7 +44,7 @@ yay -S zejtron-bin
 ### GitHub Release
 
 ```sh
-TAG=v2.4.0
+TAG=v2.4.1
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
