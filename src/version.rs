@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
+
 pub fn version_text(hash: &str) -> String {
     let hash = if hash.trim().is_empty() {
         "unknown"

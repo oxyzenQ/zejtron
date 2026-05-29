@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
+
 use std::error::Error;
 use std::fs;
 use std::io::{self, BufRead};

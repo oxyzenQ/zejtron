@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
+
 use crate::holds::{self, Evidence, Holder, ScanStats};
 use crate::touch::{self, EvidenceSource, TouchInfo};
 use std::error::Error;
