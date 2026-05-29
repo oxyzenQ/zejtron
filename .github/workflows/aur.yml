@@ -69,7 +69,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Checkout package metadata source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.source.outputs.ref }}
           persist-credentials: false
