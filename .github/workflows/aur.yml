@@ -47,8 +47,11 @@ jobs:
             fi
             echo "source ref: ${tag}"
             echo "source label: ${tag}"
-            echo "ref=${tag}" >> "$GITHUB_OUTPUT"
-            echo "label=${tag}" >> "$GITHUB_OUTPUT"
+            {
+              echo "ref=${tag}"
+              echo "label=${tag}"
+              echo "expected_pkgver=${tag#v}"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -59,8 +62,11 @@ jobs:
           fi
           echo "source ref: main"
           echo "source label: main"
-          echo "ref=main" >> "$GITHUB_OUTPUT"
-          echo "label=main" >> "$GITHUB_OUTPUT"
+          {
+            echo "ref=main"
+            echo "label=main"
+            echo "expected_pkgver="
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout package metadata source
         uses: actions/checkout@v4
@@ -69,6 +75,8 @@ jobs:
 
       - name: Validate package metadata
         shell: bash
+        env:
+          EXPECTED_PKGVER: ${{ steps.source.outputs.expected_pkgver }}
         run: |
           set -Eeuo pipefail
           test -f "${PKGBUILD_DIR}/PKGBUILD"
@@ -92,6 +100,10 @@ jobs:
           fi
           if [[ "$pkgbuild_pkgver" != "$srcinfo_pkgver" ]]; then
             echo "pkgver mismatch: PKGBUILD=${pkgbuild_pkgver} .SRCINFO=${srcinfo_pkgver}" >&2
+            exit 1
+          fi
+          if [[ -n "$EXPECTED_PKGVER" && "$pkgbuild_pkgver" != "$EXPECTED_PKGVER" ]]; then
+            echo "release tag/pkgver mismatch: tag=${EXPECTED_PKGVER} PKGBUILD=${pkgbuild_pkgver}" >&2
             exit 1
           fi
           if [[ "$pkgbuild_pkgdesc" != "$srcinfo_pkgdesc" ]]; then
