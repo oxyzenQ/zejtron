@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
+
 mod cli;
 mod doctor;
 mod env;

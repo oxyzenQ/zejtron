@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
+
 use clap::{CommandFactory, Parser, Subcommand};
 use std::path::PathBuf;
 
