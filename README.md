@@ -69,12 +69,12 @@ cargo install --path .
 | `path` | Trace command origin |
 | `recent` | Show recently modified files |
 | `port` | Inspect ports and process owners |
-| `env` | Snapshot and diff environment variables |
-| `service` | Inspect systemd services |
 | `proc` | Inspect process trees by user or UID |
 | `holds` | Show processes holding a file, device, or port |
 | `touch` | Inspect last modification evidence for a path |
 | `why` | Explain visible evidence for a path or port |
+| `env` | Snapshot and diff environment variables |
+| `service` | Inspect systemd services |
 | `doctor` | Check Zejtron system capability/readiness |
 
 ## Quick Examples
@@ -133,32 +133,6 @@ zejtron port --all
 zejtron port --no-pid
 ```
 
-### `env`
-
-Inspect current environment variables, save named snapshots, and diff a saved snapshot against the current terminal environment.
-
-```sh
-zejtron env
-zejtron env --keys
-zejtron env --filter path
-zejtron env save base
-zejtron env diff base
-zejtron env list
-zejtron env delete base
-```
-
-### `service`
-
-Inspect systemd service units in a read-only view.
-
-```sh
-zejtron service
-zejtron service --user
-zejtron service --failed
-zejtron service --all
-zejtron service --filter unbound
-```
-
 ### `proc`
 
 Show a clean process tree for a Linux user or UID.
@@ -201,6 +175,32 @@ zejtron why 53
 zejtron why 3000
 zejtron why /etc/resolv.conf
 zejtron why ./README.md
+```
+
+### `env`
+
+Inspect current environment variables, save named snapshots, and diff a saved snapshot against the current terminal environment.
+
+```sh
+zejtron env
+zejtron env --keys
+zejtron env --filter path
+zejtron env save base
+zejtron env diff base
+zejtron env list
+zejtron env delete base
+```
+
+### `service`
+
+Inspect systemd service units in a read-only view.
+
+```sh
+zejtron service
+zejtron service --user
+zejtron service --failed
+zejtron service --all
+zejtron service --filter unbound
 ```
 
 ### `doctor`
