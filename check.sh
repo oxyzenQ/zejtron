@@ -132,6 +132,9 @@ run target/release/zejtron port
 run target/release/zejtron port --tcp
 run target/release/zejtron port --udp
 run target/release/zejtron port --tcp --group
+run target/release/zejtron proc --me --depth 1
+run target/release/zejtron proc --me --no-pid --depth 1
+run target/release/zejtron proc --me --find sh --depth 2
 run target/release/zejtron holds 53
 touch "$tmpdir/held file"
 printf 'hello\n' >"$tmpdir/touched file"
@@ -174,9 +177,6 @@ if ! grep -q "why file with spaces" "$tmpdir/why_spaces.out"; then
   cat "$tmpdir/why_spaces.err" >&2
   exit 1
 fi
-run target/release/zejtron proc --me --depth 1
-run target/release/zejtron proc --me --no-pid --depth 1
-run target/release/zejtron proc --me --find sh --depth 2
 run target/release/zejtron env --keys
 run target/release/zejtron env --filter PATH
 env XDG_DATA_HOME="$tmpdir/xdg-data" target/release/zejtron env save check-base

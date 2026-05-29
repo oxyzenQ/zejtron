@@ -22,15 +22,10 @@ fn main() {
     }
 
     let result = match cli.command {
-        Some(cli::Commands::Env {
-            command,
-            keys,
-            filter,
-            no_values,
-        }) => env::run(command, keys || no_values, filter.as_deref()),
-        Some(cli::Commands::Doctor) => doctor::run(env!("ZEJTRON_GIT_HASH")),
-        Some(cli::Commands::Holds { target }) => holds::run(&target),
         Some(cli::Commands::Path { command }) => path::run(&command),
+        Some(cli::Commands::Recent { path, limit, since }) => {
+            recent::run(&path, limit, since.as_deref())
+        }
         Some(cli::Commands::Port {
             port,
             tcp,
@@ -52,8 +47,6 @@ fn main() {
                 no_pid,
             },
         ),
-        Some(cli::Commands::Touch { path }) => touch::run(&path),
-        Some(cli::Commands::Why { target }) => why::run(&target),
         Some(cli::Commands::Proc {
             user_or_uid,
             me,
@@ -77,9 +70,15 @@ fn main() {
                 no_color,
             },
         ),
-        Some(cli::Commands::Recent { path, limit, since }) => {
-            recent::run(&path, limit, since.as_deref())
-        }
+        Some(cli::Commands::Holds { target }) => holds::run(&target),
+        Some(cli::Commands::Touch { path }) => touch::run(&path),
+        Some(cli::Commands::Why { target }) => why::run(&target),
+        Some(cli::Commands::Env {
+            command,
+            keys,
+            filter,
+            no_values,
+        }) => env::run(command, keys || no_values, filter.as_deref()),
         Some(cli::Commands::Service {
             system,
             user,
@@ -93,6 +92,7 @@ fn main() {
             all,
             filter,
         }),
+        Some(cli::Commands::Doctor) => doctor::run(env!("ZEJTRON_GIT_HASH")),
         None => {
             let mut cmd = cli::Cli::command();
             cmd.print_help().map(|_| println!()).map_err(Into::into)

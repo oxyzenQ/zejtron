@@ -1,1 +1,16 @@
 target/
+
+# Local machine state and temporary artifacts
+.env
+.env.*
+!.env.example
+*.bak
+*.log
+*.tmp
+*~
+
+# Locally produced release/archive artifacts
+*.tar
+*.tar.gz
+*.tgz
+*.zip

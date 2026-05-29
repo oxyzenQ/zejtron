@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[command(
     name = "zejtron",
-    about = "A Linux terminal toolkit for tracing paths, ports, env, holders, reasons, diagnostics, file changes, services, and process trees.",
+    about = "Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics",
     disable_version_flag = true
 )]
 pub struct Cli {
@@ -22,31 +22,28 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    #[command(about = "Check Zejtron system capability/readiness")]
-    Doctor,
-    #[command(about = "Inspect and compare environment variables")]
-    Env {
-        #[command(subcommand)]
-        command: Option<EnvCommands>,
-        #[arg(long, help = "Show variable names only")]
-        keys: bool,
-        #[arg(long, value_name = "TEXT", help = "Filter variables by key substring")]
-        filter: Option<String>,
-        #[arg(long, help = "Alias for --keys")]
-        no_values: bool,
-    },
-    #[command(about = "Show processes holding a file, device, or port")]
-    Holds {
-        #[arg(
-            value_name = "TARGET",
-            help = "Filesystem path or port number to inspect"
-        )]
-        target: String,
-    },
     #[command(about = "Trace where a command comes from")]
     Path {
         #[arg(value_name = "COMMAND", help = "Command name to find in PATH")]
         command: String,
+    },
+    #[command(about = "Show recently modified files")]
+    Recent {
+        #[arg(value_name = "PATH", default_value = ".")]
+        path: PathBuf,
+        #[arg(
+            long,
+            value_name = "N",
+            default_value_t = 20,
+            help = "Maximum files to show"
+        )]
+        limit: usize,
+        #[arg(
+            long,
+            value_name = "DURATION",
+            help = "Only show files modified since this duration"
+        )]
+        since: Option<String>,
     },
     #[command(about = "Show listening ports and process owners")]
     Port {
@@ -66,19 +63,6 @@ pub enum Commands {
         group: bool,
         #[arg(long, help = "Hide process IDs in owner lines")]
         no_pid: bool,
-    },
-    #[command(about = "Inspect last modification evidence for a path (read-only)")]
-    Touch {
-        #[arg(value_name = "PATH", help = "Path to inspect without modifying it")]
-        path: PathBuf,
-    },
-    #[command(about = "Explain visible evidence for a path or port (read-only)")]
-    Why {
-        #[arg(
-            value_name = "TARGET",
-            help = "Filesystem path or port number to explain"
-        )]
-        target: String,
     },
     #[command(about = "Inspect process trees by user or UID")]
     Proc {
@@ -121,23 +105,37 @@ pub enum Commands {
         #[arg(long, help = "Disable ANSI color output")]
         no_color: bool,
     },
-    #[command(about = "Show recently modified files")]
-    Recent {
-        #[arg(value_name = "PATH", default_value = ".")]
+    #[command(about = "Show processes holding a file, device, or port")]
+    Holds {
+        #[arg(
+            value_name = "TARGET",
+            help = "Filesystem path or port number to inspect"
+        )]
+        target: String,
+    },
+    #[command(about = "Inspect last modification evidence for a path (read-only)")]
+    Touch {
+        #[arg(value_name = "PATH", help = "Path to inspect without modifying it")]
         path: PathBuf,
+    },
+    #[command(about = "Explain visible evidence for a path or port (read-only)")]
+    Why {
         #[arg(
-            long,
-            value_name = "N",
-            default_value_t = 20,
-            help = "Maximum files to show"
+            value_name = "TARGET",
+            help = "Filesystem path or port number to explain"
         )]
-        limit: usize,
-        #[arg(
-            long,
-            value_name = "DURATION",
-            help = "Only show files modified since this duration"
-        )]
-        since: Option<String>,
+        target: String,
+    },
+    #[command(about = "Inspect and compare environment variables")]
+    Env {
+        #[command(subcommand)]
+        command: Option<EnvCommands>,
+        #[arg(long, help = "Show variable names only")]
+        keys: bool,
+        #[arg(long, value_name = "TEXT", help = "Filter variables by key substring")]
+        filter: Option<String>,
+        #[arg(long, help = "Alias for --keys")]
+        no_values: bool,
     },
     #[command(about = "Inspect systemd services (read-only)")]
     Service {
@@ -152,6 +150,8 @@ pub enum Commands {
         #[arg(long, value_name = "TEXT", help = "Filter services by unit name")]
         filter: Option<String>,
     },
+    #[command(about = "Check Zejtron system capability/readiness")]
+    Doctor,
 }
 
 #[derive(Debug, Subcommand)]

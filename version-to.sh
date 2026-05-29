@@ -57,12 +57,15 @@ sed -i -E 's#(git tag -a v[0-9]+\.[0-9]+\.[0-9]+ -m ")v[0-9]+\.[0-9]+\.[0-9]+(")
 sed -i -E 's#(git push origin )v[0-9]+\.[0-9]+\.[0-9]+#\1'"${TAG}"'#g' workflow/about-ci.md
 sed -i -E 's#(git commit -m "chore: prepare )v[0-9]+\.[0-9]+\.[0-9]+( release")#\1'"${TAG}"'\2#g' workflow/about-ci.md
 sed -i -E 's#(./version-to\.sh )v[0-9]+\.[0-9]+\.[0-9]+#\1'"${TAG}"'#g' README.md workflow/about-ci.md
+sed -i -E 's#(img\.shields\.io/badge/version-)v[0-9]+\.[0-9]+\.[0-9]+-#\1'"${TAG}"'-#g' README.md
+sed -i -E 's#(alt="Version )v[0-9]+\.[0-9]+\.[0-9]+(")#\1'"${TAG}"'\2#g' README.md
 
 grep -q '^version = "'"${VERSION}"'"$' Cargo.toml || error "Cargo.toml version was not updated"
 grep -A3 'name = "zejtron"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' || error "Cargo.lock zejtron version was not updated"
 grep -q '^pkgver='"${VERSION}"'$' aur/zejtron-bin/PKGBUILD || error "PKGBUILD pkgver was not updated"
 grep -q 'pkgver = '"${VERSION}" aur/zejtron-bin/.SRCINFO || error ".SRCINFO pkgver was not updated"
 grep -q "TAG=${TAG}" README.md || error "README.md release examples do not mention TAG=${TAG}"
+grep -q "version-${TAG}-" README.md || error "README.md version badge does not mention ${TAG}"
 grep -q "TAG=${TAG}" workflow/about-ci.md || error "workflow/about-ci.md release examples do not mention TAG=${TAG}"
 
 echo "VERSION=${VERSION}"
