@@ -1,22 +1,28 @@
 <p align="center">
-  <img src="assets/zejtron-logo.png" alt="Zejtron logo" width="150">
+  <img src="assets/zejtron-logo.png" alt="Zejtron logo" width="250">
 </p>
 
 <h1 align="center">Zejtron</h1>
 
-<p align="center"><strong>Unified Linux introspection toolkit.</strong></p>
-
 <p align="center">
-  Trace paths, ports, processes, holders, file evidence, services, and system readiness from one fast terminal command.
+  <strong>Unified Linux introspection toolkit.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/oxyzenQ/zejtron/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/oxyzenQ/zejtron/ci.yml?branch=main&label=CI&style=flat-square&color=7C3AED&labelColor=111827" alt="CI"></a>
+  Trace paths, ports, processes, file holders, service evidence, and system readiness from one fast terminal command.
+</p>
+
+<p align="center">
+  <a href="https://github.com/oxyzenQ/zejtron/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/oxyzenQ/zejtron/ci.yml?branch=main&label=CI&style=flat-square&color=7C3AED&labelColor=111827" alt="CI status">
+  </a>
   <img src="https://img.shields.io/badge/version-v2.4.2-7C3AED?style=flat-square&labelColor=111827" alt="Version v2.4.2">
-  <img src="https://img.shields.io/badge/license-MIT-6D28D9?style=flat-square&labelColor=111827" alt="MIT License">
-  <img src="https://img.shields.io/badge/AUR-zejtron--bin-8B5CF6?style=flat-square&labelColor=111827" alt="AUR zejtron-bin">
+  <img src="https://img.shields.io/badge/license-MIT-6D28D9?style=flat-square&labelColor=111827" alt="MIT license">
+  <img src="https://img.shields.io/badge/AUR-zejtron--bin-8B5CF6?style=flat-square&labelColor=111827" alt="AUR package zejtron-bin">
   <img src="https://img.shields.io/badge/Rust-1.85+-A855F7?style=flat-square&labelColor=111827" alt="Rust 1.85+">
-  <a href="https://ko-fi.com/rezky"><img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi"></a>
+  <a href="https://ko-fi.com/rezky">
+    <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
+  </a>
 </p>
 
 ## What Is Zejtron?
