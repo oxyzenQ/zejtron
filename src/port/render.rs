@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 use std::collections::BTreeSet;
-use std::path::PathBuf;
 
-use super::model::{GroupKey, OwnerIdentity, OwnerMap, PortOptions, ProcessInfo, ScanStats, SocketEntry, SocketGroup};
+use super::model::{
+    GroupKey, OwnerIdentity, OwnerMap, PortOptions, ProcessInfo, ScanStats, SocketEntry,
+    SocketGroup,
+};
 
 pub fn format_report(
     sockets: &[SocketEntry],
@@ -265,8 +267,9 @@ fn plural<'a>(count: usize, singular: &'a str, plural: &'a str) -> &'a str {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::model::Protocol;
+    use super::*;
+    use std::path::PathBuf;
 
     fn socket_with_inode(
         protocol: Protocol,

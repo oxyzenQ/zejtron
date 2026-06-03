@@ -8,11 +8,13 @@ mod render;
 
 use std::error::Error;
 
-use model::{PortError, PortFlags, PortOptions, Protocol, ScanStats, SocketEntry};
-use render::{format_report, format_owner, format_unknown_owner, should_show_unreadable_note};
+use model::{PortError, PortOptions, Protocol, SocketEntry};
+use render::format_report;
 
 pub use model::PortFlags;
-pub use render::{format_owner, format_unknown_owner, should_show_unreadable_note};
+
+#[cfg(test)]
+use render::{format_owner, format_unknown_owner, should_show_unreadable_note};
 
 pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
     let options = parse_options(port, flags)?;
@@ -301,12 +303,12 @@ mod tests {
 
     #[test]
     fn unreadable_note_logic() {
-        assert!(!should_show_unreadable_note(&ScanStats::default()));
-        assert!(should_show_unreadable_note(&ScanStats {
+        assert!(!should_show_unreadable_note(&model::ScanStats::default()));
+        assert!(should_show_unreadable_note(&model::ScanStats {
             unreadable_processes: 1,
             unreadable_fds: 0,
         }));
-        assert!(should_show_unreadable_note(&ScanStats {
+        assert!(should_show_unreadable_note(&model::ScanStats {
             unreadable_processes: 0,
             unreadable_fds: 1,
         }));
