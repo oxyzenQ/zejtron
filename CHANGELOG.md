@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.4.2
+
+- Add project maintenance rules (`RULES.md`).
+- Refactor port module under LOC rule; split into focused submodules.
+- Tighten maintainability and supply-chain posture.
+- Minimize release workflow permissions (`aur-sync` uses `actions: write` only).
+- No runtime feature changes.
+
 ## v2.4.1
 
 - Maintenance release.
