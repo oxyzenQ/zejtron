@@ -6,6 +6,7 @@
 - Refactor port module under LOC rule; split into focused submodules.
 - Tighten maintainability and supply-chain posture.
 - Minimize release workflow permissions (`aur-sync` uses `actions: write` only).
+- Replace dependency maintenance automation with a weekly direct-to-main refresh after CI validation.
 - No runtime feature changes.
 
 ## v2.4.1
@@ -16,7 +17,7 @@
 - Make command and help order consistent.
 - Harden AUR sync validation and SSH cleanup.
 - Make `version-to.sh` update the README version badge.
-- Add Dependabot maintenance PRs for Rust and GitHub Actions dependencies.
+- Add automated maintenance for Rust and GitHub Actions dependencies.
 
 ## v2.4.0
 

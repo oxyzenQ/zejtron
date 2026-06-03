@@ -6,11 +6,20 @@ This project uses GitHub Actions for CI, GitHub Releases, and optional AUR sync 
 
 CI runs on pushes and pull requests targeting `main`.
 
-It installs Rust 1.85.0 with `rustfmt` and `clippy`, installs `codespell`, restores the Rust cache, and runs:
+It installs stable Rust with `rustfmt` and `clippy`, installs `codespell`, restores the Rust cache, and runs:
 
 ```sh
 ./check.sh
 ```
+
+## Weekly Maintenance
+
+The weekly maintenance workflow runs every Saturday at 23:00 Asia/Jakarta time and can also be run manually. It checks out the default branch, runs `cargo update`, executes `./check.sh`, and commits the refreshed `Cargo.lock` directly back to the default branch only after validation passes.
+
+Maintenance commits use:
+
+- `oxyzenQ`
+- `130107241+oxyzenQ@users.noreply.github.com`
 
 ## Release
 

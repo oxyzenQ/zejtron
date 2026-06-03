@@ -53,23 +53,21 @@ rejected during review.
 ## CI/CD Maturity
 
 CI must remain **green** at all times. All changes must pass the full
-`./check.sh` suite before being merged to `main`. The CI pipeline must run
-as read-only and must not require broad write tokens.
+`./check.sh` suite before being merged to `main`. The normal CI pipeline must
+run as read-only and must not require broad write tokens.
 
 Release workflows must use the **minimum permissions necessary**. The release
 workflow requires `contents: write` only for creating GitHub Releases and
-dispatching AUR sync. No other workflow should have write access.
+dispatching AUR sync. The weekly maintenance workflow may use `contents: write`
+only to commit a validated dependency refresh directly to the default branch.
 
 ## Supply-Chain Surface
 
 The dependency footprint must stay **minimal**. No new runtime dependencies
-should be added unless absolutely necessary. When a dependency update is
-available, it should be evaluated for necessity and security impact before
-acceptance.
-
-Dependabot is configured for both Cargo and GitHub Actions dependencies. PRs
-from Dependabot must be reviewed and tested before merge; auto-merge is
-disabled.
+should be added unless absolutely necessary. Dependency refreshes are handled by
+the weekly maintenance workflow, which runs `cargo update`, executes the full
+`./check.sh` suite, and commits `Cargo.lock` directly to the default branch only
+when validation succeeds.
 
 ## Code Quality
 
