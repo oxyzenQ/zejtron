@@ -87,7 +87,13 @@ sudo zejtron holds 53
 zejtron touch /etc/resolv.conf
 zejtron why /etc/resolv.conf
 zejtron doctor
+zejtron -V
+zejtron --check-update
 ```
+
+`-V` and `--version` print complete version, build, license, and source
+metadata. `--check-update` checks the latest upstream GitHub release; the
+`--check-updated` alias is accepted too.
 
 ## Compatibility
 

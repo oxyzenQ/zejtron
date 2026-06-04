@@ -7,9 +7,14 @@ pub fn version_text(hash: &str) -> String {
     } else {
         hash.trim()
     };
+    let target = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
 
     format!(
-        "zejtron v{} ({hash})\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/zejtron",
+        "Version: v{}\n\
+         Build: {target} ({hash})\n\
+         Copyright: (c) 2026 Rezky_nightky\n\
+         License: MIT\n\
+         Source: https://github.com/oxyzenq/zejtron",
         env!("CARGO_PKG_VERSION")
     )
 }
@@ -23,10 +28,17 @@ mod tests {
         assert_eq!(
             version_text("abc123"),
             format!(
-                "zejtron v{} (abc123)\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/zejtron",
-                env!("CARGO_PKG_VERSION")
+                "Version: v{}\nBuild: {}-{} (abc123)\nCopyright: (c) 2026 Rezky_nightky\nLicense: MIT\nSource: https://github.com/oxyzenq/zejtron",
+                env!("CARGO_PKG_VERSION"),
+                std::env::consts::OS,
+                std::env::consts::ARCH
             )
         );
+    }
+
+    #[test]
+    fn has_five_lines() {
+        assert_eq!(version_text("abc123").lines().count(), 5);
     }
 
     #[test]
@@ -34,8 +46,10 @@ mod tests {
         assert_eq!(
             version_text("  "),
             format!(
-                "zejtron v{} (unknown)\n© 2026 rezky_nightky\nMIT · github.com/oxyzenQ/zejtron",
-                env!("CARGO_PKG_VERSION")
+                "Version: v{}\nBuild: {}-{} (unknown)\nCopyright: (c) 2026 Rezky_nightky\nLicense: MIT\nSource: https://github.com/oxyzenq/zejtron",
+                env!("CARGO_PKG_VERSION"),
+                std::env::consts::OS,
+                std::env::consts::ARCH
             )
         );
     }

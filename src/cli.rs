@@ -19,6 +19,14 @@ pub struct Cli {
     )]
     pub version: bool,
 
+    #[arg(
+        long = "check-update",
+        alias = "check-updated",
+        global = true,
+        help = "Check the latest upstream release"
+    )]
+    pub check_update: bool,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 }

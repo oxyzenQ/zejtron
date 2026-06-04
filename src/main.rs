@@ -11,6 +11,7 @@ mod proc;
 mod recent;
 mod service;
 mod touch;
+mod update;
 mod version;
 mod why;
 
@@ -21,6 +22,14 @@ fn main() {
 
     if cli.version {
         println!("{}", version::version_text(env!("ZEJTRON_GIT_HASH")));
+        return;
+    }
+
+    if cli.check_update {
+        if let Err(error) = update::check_update(env!("CARGO_PKG_VERSION")) {
+            eprintln!("zejtron: update check failed: {error}");
+            std::process::exit(1);
+        }
         return;
     }
 
