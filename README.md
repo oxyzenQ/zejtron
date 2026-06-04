@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/zejtron-logo.png" alt="zejtron logo" width="240">
+  <img src="assets/zejtron-logo-new.png" alt="zejtron logo" width="240">
 </p>
 
 <h1 align="center">zejtron</h1>
