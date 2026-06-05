@@ -4,9 +4,35 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain*'
+      - 'check.sh'
+      - 'package.sh'
+      - 'version-to.sh'
+      - 'src/**'
+      - 'tests/**'
+      - 'benches/**'
+      - 'examples/**'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain*'
+      - 'check.sh'
+      - 'package.sh'
+      - 'version-to.sh'
+      - 'src/**'
+      - 'tests/**'
+      - 'benches/**'
+      - 'examples/**'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read
