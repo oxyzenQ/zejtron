@@ -1,16 +1,21 @@
+# Rust
 target/
 
-# Local machine state and temporary artifacts
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
 .env
 .env.*
 !.env.example
+
+# Temporary files
+*.tmp
 *.bak
 *.log
-*.tmp
 *~
-
-# Locally produced release/archive artifacts
-*.tar
-*.tar.gz
-*.tgz
-*.zip
