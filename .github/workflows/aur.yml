@@ -11,8 +11,6 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
-env:
   AUR_REPO: ssh://aur@aur.archlinux.org/zejtron-bin.git
   AUR_BRANCH: master
   PKGBUILD_DIR: aur/zejtron-bin
