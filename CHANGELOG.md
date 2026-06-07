@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.4.5
+
+- Documentation cleanup and release hygiene.
+- Refresh release examples to v2.4.5.
+- Tidy workflow and release notes.
+- No runtime behavior changes.
+
+## v2.4.4
+
+- Fix duplicate top-level `env` block in AUR workflow.
+- Fix release race condition by separating build and upload into sequential jobs.
+- No runtime behavior changes.
+
+## v2.4.3
+
+- Stabilization release.
+- No runtime behavior changes.
+
 ## v2.4.2
 
 - Add project maintenance rules (`RULES.md`).

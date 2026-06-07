@@ -1,6 +1,6 @@
 [package]
 name = "zejtron"
-version = "2.4.4"
+version = "2.4.5"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
