@@ -20,7 +20,8 @@
 
 ## What Is Zejtron?
 
-Zejtron is a Linux-first command center for terminal introspection. It brings the useful ideas from pidnest and Zenlixem into one flagship binary with one identity, one release flow, and one command surface.
+Zejtron is a Linux-first command center for terminal introspection.
+It consolidates functionality from pidnest and Zenlixem into one binary with one release flow.
 
 | Origin | Zejtron command |
 | --- | --- |
@@ -43,7 +44,7 @@ yay -S zejtron-bin
 ### GitHub Release
 
 ```sh
-TAG=v2.4.4
+TAG=v2.4.5
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -218,9 +219,7 @@ zejtron doctor
 
 ## Migration
 
-`pidnest` has moved into Zejtron as `zejtron proc`.
-
-Zenlixem functionality has moved into Zejtron as `holds`, `touch`, `why`, `doctor`, and `path`.
+`pidnest` and Zenlixem are superseded by Zejtron. See the origin table above for command mapping.
 
 ## Development
 

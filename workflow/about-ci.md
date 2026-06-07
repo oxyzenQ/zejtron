@@ -34,10 +34,10 @@ Release archives use a flat layout:
 - `README.md`
 - `LICENSE`
 
-Example release asset flow for the v2.4.2 maintenance tag:
+Example release asset flow:
 
 ```sh
-TAG=v2.4.4
+TAG=v2.4.5
 cargo build --release --locked --target x86_64-unknown-linux-gnu
 ```
 
@@ -45,7 +45,7 @@ The release workflow uploads `zejtron-bin-${TAG}-linux-x86_64.tar.gz`, `zejtron-
 
 ## AUR Sync
 
-The release workflow dispatches AUR sync only for normal semver tags like `v2.4.1`. Its `aur-sync` job only sends a `repository_dispatch` event with `event_type: aur-sync`; the real AUR push happens in the separate `zejtron - AUR Sync` workflow. Release-triggered sync checks out the release tag and copies the committed AUR metadata from that tag.
+The release workflow dispatches AUR sync only for normal semver tags (e.g. `vX.Y.Z`).
 
 AUR sync can also be run manually. Manual sync checks out `main`, validates that `aur/zejtron-bin/PKGBUILD` and `aur/zejtron-bin/.SRCINFO` have matching `pkgver` and `pkgdesc` values, copies both files as committed, commits as `rezky_nightky <rezky2399@proton.me>`, and pushes to `ssh://aur@aur.archlinux.org/zejtron-bin.git`. Release-triggered sync also verifies that the release tag version matches the committed AUR `pkgver`.
 
@@ -76,18 +76,18 @@ The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, 
 ## Version Bump Flow
 
 ```sh
-./version-to.sh v2.4.4
+./version-to.sh v2.4.5
 ./check.sh
 ```
 
 ## Release Command Flow
 
 ```sh
-./version-to.sh v2.4.4
+./version-to.sh v2.4.5
 ./check.sh
 git add .
-git commit -m "chore: prepare v2.4.4 release"
+git commit -m "chore: prepare v2.4.5 release"
 git push origin main
-git tag -a v2.4.4 -m "optimize build for release"
-git push origin v2.4.4
+git tag -a v2.4.5 -m "v2.4.5"
+git push origin v2.4.5
 ```
