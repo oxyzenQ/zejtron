@@ -1,6 +1,7 @@
+---
 name: zejtron - Docs CI
 
-on:
+"on":
   push:
     paths:
       - '**/*.md'
@@ -33,4 +34,6 @@ jobs:
 
       - name: Check documentation files
         run: |
-          find . -type f \( -name '*.md' -o -name '*.txt' -o -name '*.rst' \) -print0             | xargs -0r codespell
+          find . -type f \( -name '*.md' -o -name '*.txt' \
+            -o -name '*.rst' \) -print0 \
+            | xargs -0r codespell
