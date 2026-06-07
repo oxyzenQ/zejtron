@@ -1,6 +1,7 @@
+---
 name: nightbot maintenance
 
-on:
+"on":
   schedule:
     - cron: "0 16 * * 6"
   workflow_dispatch:

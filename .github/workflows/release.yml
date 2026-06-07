@@ -1,6 +1,7 @@
+---
 name: zejtron - Release
 
-on:
+"on":
   push:
     tags:
       - v*
@@ -74,9 +75,11 @@ jobs:
           asset="zejtron-bin-${TAG}-${{ matrix.arch }}"
           staging="$(mktemp -d)"
           mkdir -p "${staging}/${asset}"
-          cp "target/${{ matrix.target }}/release/zejtron" "${staging}/${asset}/zejtron"
+          cp "target/${{ matrix.target }}/release/zejtron" \
+            "${staging}/${asset}/zejtron"
           cp README.md LICENSE "${staging}/${asset}/"
-          tar -C "${staging}/${asset}" -czf "${asset}.tar.gz" zejtron README.md LICENSE
+          tar -C "${staging}/${asset}" \
+            -czf "${asset}.tar.gz" zejtron README.md LICENSE
           sha512sum "${asset}.tar.gz" > "${asset}.tar.gz.sha512"
 
       - name: Upload build artifact
@@ -113,14 +116,18 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p release-assets
-          find artifacts -type f \( -name '*.tar.gz' -o -name '*.sha512' \) \
+          find artifacts -type f \( -name '*.tar.gz' \
+            -o -name '*.sha512' \) \
             -exec cp {} release-assets/ \;
           ls -lh release-assets/
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          prerelease: ${{ contains(github.ref_name, '-alpha.') || contains(github.ref_name, '-beta.') || contains(github.ref_name, '-rc.') }}
+          prerelease: |-
+            ${{ contains(github.ref_name, '-alpha.')
+               || contains(github.ref_name, '-beta.')
+               || contains(github.ref_name, '-rc.') }}
           files: release-assets/*
 
   aur-sync:
@@ -128,7 +135,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+    if: |-
+      ${{ github.event_name == 'push'
+          && github.ref_type == 'tag'
+          && startsWith(github.ref_name, 'v')
+          && !contains(github.ref_name, '-') }}
 
     steps:
       - name: Dispatch AUR sync

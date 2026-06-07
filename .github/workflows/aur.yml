@@ -1,6 +1,7 @@
+---
 name: zejtron - AUR Sync
 
-on:
+"on":
   repository_dispatch:
     types:
       - aur-sync
@@ -58,7 +59,8 @@ jobs:
 
           branch="${DEFAULT_BRANCH:-main}"
           if [[ "$branch" != "main" ]]; then
-            echo "manual AUR sync must read metadata from main; default branch is ${branch}" >&2
+            echo "manual AUR sync must read metadata from main;" \
+              "default branch is ${branch}" >&2
             exit 1
           fi
           echo "source ref: main"
@@ -87,10 +89,18 @@ jobs:
           grep -n -E '^(pkgver=|pkgdesc=)|^[[:space:]]*(pkgver|pkgdesc) = ' \
             "${PKGBUILD_DIR}/PKGBUILD" "${PKGBUILD_DIR}/.SRCINFO"
 
-          pkgbuild_pkgver="$(sed -n -E 's/^pkgver=([^[:space:]]+).*/\1/p' "${PKGBUILD_DIR}/PKGBUILD" | head -n1)"
-          pkgbuild_pkgdesc="$(sed -n -E 's/^pkgdesc="(.*)"/\1/p' "${PKGBUILD_DIR}/PKGBUILD" | head -n1)"
-          srcinfo_pkgver="$(sed -n -E 's/^[[:space:]]*pkgver = (.*)/\1/p' "${PKGBUILD_DIR}/.SRCINFO" | head -n1)"
-          srcinfo_pkgdesc="$(sed -n -E 's/^[[:space:]]*pkgdesc = (.*)/\1/p' "${PKGBUILD_DIR}/.SRCINFO" | head -n1)"
+          pkgbuild_pkgver="$(sed -n \
+            -E 's/^pkgver=([^[:space:]]+).*/\1/p' \
+            "${PKGBUILD_DIR}/PKGBUILD" | head -n1)"
+          pkgbuild_pkgdesc="$(sed -n \
+            -E 's/^pkgdesc="(.*)"/\1/p' \
+            "${PKGBUILD_DIR}/PKGBUILD" | head -n1)"
+          srcinfo_pkgver="$(sed -n \
+            -E 's/^[[:space:]]*pkgver = (.*)/\1/p' \
+            "${PKGBUILD_DIR}/.SRCINFO" | head -n1)"
+          srcinfo_pkgdesc="$(sed -n \
+            -E 's/^[[:space:]]*pkgdesc = (.*)/\1/p' \
+            "${PKGBUILD_DIR}/.SRCINFO" | head -n1)"
 
           if [[ -z "$pkgbuild_pkgver" || -z "$srcinfo_pkgver" ]]; then
             echo "pkgver missing from PKGBUILD or .SRCINFO" >&2
@@ -101,15 +111,19 @@ jobs:
             exit 1
           fi
           if [[ "$pkgbuild_pkgver" != "$srcinfo_pkgver" ]]; then
-            echo "pkgver mismatch: PKGBUILD=${pkgbuild_pkgver} .SRCINFO=${srcinfo_pkgver}" >&2
+            echo "pkgver mismatch: PKGBUILD=${pkgbuild_pkgver}" \
+              ".SRCINFO=${srcinfo_pkgver}" >&2
             exit 1
           fi
-          if [[ -n "$EXPECTED_PKGVER" && "$pkgbuild_pkgver" != "$EXPECTED_PKGVER" ]]; then
-            echo "release tag/pkgver mismatch: tag=${EXPECTED_PKGVER} PKGBUILD=${pkgbuild_pkgver}" >&2
+          if [[ -n "$EXPECTED_PKGVER" \
+              && "$pkgbuild_pkgver" != "$EXPECTED_PKGVER" ]]; then
+            echo "release tag/pkgver mismatch:" \
+              "tag=${EXPECTED_PKGVER} PKGBUILD=${pkgbuild_pkgver}" >&2
             exit 1
           fi
           if [[ "$pkgbuild_pkgdesc" != "$srcinfo_pkgdesc" ]]; then
-            echo "pkgdesc mismatch: PKGBUILD=${pkgbuild_pkgdesc} .SRCINFO=${srcinfo_pkgdesc}" >&2
+            echo "pkgdesc mismatch: PKGBUILD=${pkgbuild_pkgdesc}" \
+              ".SRCINFO=${srcinfo_pkgdesc}" >&2
             exit 1
           fi
 
@@ -129,12 +143,14 @@ jobs:
           printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/aur
           chmod 600 ~/.ssh/aur
 
-          keyscan="$(ssh-keyscan -t ed25519 aur.archlinux.org 2>/dev/null)"
+          keyscan="$(ssh-keyscan -t ed25519 aur.archlinux.org \
+            2>/dev/null)"
           if [[ -z "$keyscan" ]]; then
             echo "failed to scan AUR SSH host key" >&2
             exit 1
           fi
-          fingerprint="$(printf '%s\n' "$keyscan" | ssh-keygen -lf - | awk '{print $2}')"
+          fingerprint="$(printf '%s\n' "$keyscan" \
+            | ssh-keygen -lf - | awk '{print $2}')"
           expected="SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
           if [[ "$fingerprint" != "$expected" ]]; then
             echo "AUR SSH host fingerprint mismatch" >&2
@@ -157,7 +173,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           set +e
-          clone_output="$(git clone --branch "${AUR_BRANCH}" "${AUR_REPO}" aur-repo 2>&1)"
+          clone_output="$(git clone --branch "${AUR_BRANCH}" \
+            "${AUR_REPO}" aur-repo 2>&1)"
           clone_status=$?
           set -e
 
@@ -167,13 +184,21 @@ jobs:
 
           printf '%s\n' "$clone_output"
 
-          if grep -Eqi 'permission denied|publickey|authentication|host key|identification has changed' <<<"$clone_output"; then
+          if grep -Eqi \
+            'permission denied|publickey|authentication|host key' \
+            'identification has changed' \
+            <<<"$clone_output"; then
             echo "failed to authenticate or verify AUR SSH host" >&2
             exit "$clone_status"
           fi
 
-          if grep -Eqi 'not found|does not appear to be a git repository|could not read from remote repository|remote branch .* not found|empty repository' <<<"$clone_output"; then
-            echo "AUR repository appears empty or not initialized; bootstrapping local repository"
+          if grep -Eqi \
+            'not found|does not appear to be a git repository' \
+            'could not read from remote repository' \
+            'remote branch .* not found|empty repository' \
+            <<<"$clone_output"; then
+            echo "AUR repository appears empty or not initialized;" \
+              "bootstrapping local repository"
             mkdir aur-repo
             cd aur-repo
             git init
@@ -202,7 +227,8 @@ jobs:
             echo "AUR package is already up to date"
             exit 0
           fi
-          git commit -m "Sync zejtron-bin metadata from ${{ steps.source.outputs.label }}"
+          git commit -m \
+            "Sync zejtron-bin metadata from ${{ steps.source.outputs.label }}"
 
       - name: Push AUR update
         working-directory: aur-repo
