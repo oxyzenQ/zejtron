@@ -10,6 +10,9 @@ permissions:
   contents: read
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+env:
   AUR_REPO: ssh://aur@aur.archlinux.org/zejtron-bin.git
   AUR_BRANCH: master
   PKGBUILD_DIR: aur/zejtron-bin
@@ -69,7 +72,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Checkout package metadata source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.source.outputs.ref }}
           persist-credentials: false
