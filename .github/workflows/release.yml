@@ -12,10 +12,10 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
 
     strategy:
       fail-fast: false
@@ -79,13 +79,49 @@ jobs:
           tar -C "${staging}/${asset}" -czf "${asset}.tar.gz" zejtron README.md LICENSE
           sha512sum "${asset}.tar.gz" > "${asset}.tar.gz.sha512"
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.arch }}
+          path: |
+            zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz
+            zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.sha512
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      TAG: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: release-*
+
+      - name: Collect artifacts for release
+        run: |
+          set -Eeuo pipefail
+          mkdir -p release-assets
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.sha512' \) \
+            -exec cp {} release-assets/ \;
+          ls -lh release-assets/
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ contains(github.ref_name, '-alpha.') || contains(github.ref_name, '-beta.') || contains(github.ref_name, '-rc.') }}
-          files: |
-            zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz
-            zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.sha512
+          files: release-assets/*
 
   aur-sync:
     needs: release
