@@ -12,14 +12,14 @@ It installs stable Rust with `rustfmt` and `clippy`, installs `codespell`, resto
 ./check.sh
 ```
 
-## Nightbot Maintenance
+## Maintenance deps weekly
 
-The `nightbot maintenance` workflow runs every Saturday at 23:00 Asia/Jakarta time and can also be run manually. It checks out the default branch, runs `cargo update`, executes `./check.sh`, and commits the refreshed `Cargo.lock` directly back to the default branch only after validation passes.
+The `Maintenance deps weekly` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update`, executes `./check.sh`, and commits the refreshed `Cargo.lock` directly back to the default branch only after validation passes.
 
-Nightbot maintenance commits use:
+Maintenance workflow commits use:
 
-- `nightbot`
-- `nightbot@users.noreply.github.com`
+- `github-actions[bot]`
+- `41898282+github-actions[bot]@users.noreply.github.com`
 
 ## Release
 
