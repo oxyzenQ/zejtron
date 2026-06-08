@@ -3,7 +3,7 @@
 
 use std::process::Command;
 
-const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenq/zejtron/releases/latest";
+const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenQ/zejtron/releases/latest";
 const RELEASES_URL: &str = "https://github.com/oxyzenQ/zejtron/releases/latest";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -81,7 +81,7 @@ fn curl_failure(code: i32) -> &'static str {
 fn http_failure(code: u16) -> &'static str {
     match code {
         403 => "GitHub API request was rate-limited or forbidden",
-        404 => "no latest GitHub release found for oxyzenq/zejtron",
+        404 => "no latest GitHub release found for oxyzenQ/zejtron",
         _ => "GitHub API returned an unexpected error",
     }
 }
