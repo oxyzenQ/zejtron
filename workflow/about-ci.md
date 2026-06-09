@@ -47,7 +47,7 @@ The release workflow uploads `zejtron-bin-${TAG}-linux-x86_64.tar.gz`, `zejtron-
 
 The release workflow dispatches AUR sync only for normal semver tags (e.g. `vX.Y.Z`).
 
-AUR sync can also be run manually. Manual sync checks out `main`, validates that `aur/zejtron-bin/PKGBUILD` and `aur/zejtron-bin/.SRCINFO` have matching `pkgver` and `pkgdesc` values, copies both files as committed, commits as `rezky_nightky <rezky2399@proton.me>`, and pushes to `ssh://aur@aur.archlinux.org/zejtron-bin.git`. Release-triggered sync also verifies that the release tag version matches the committed AUR `pkgver`.
+AUR sync can also be run manually. Manual sync checks out `main`, validates that `aur/zejtron-bin/PKGBUILD` and `aur/zejtron-bin/.SRCINFO` have matching `pkgver` and `pkgdesc` values, copies both files as committed, commits as `rezky_nightky <with dot rezky at gmail dot com>`, and pushes to `ssh://aur@aur.archlinux.org/zejtron-bin.git`. Release-triggered sync also verifies that the release tag version matches the committed AUR `pkgver`.
 
 Required repository secret:
 

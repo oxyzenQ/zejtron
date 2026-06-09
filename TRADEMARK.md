@@ -46,4 +46,4 @@ This policy does not claim that Zejtron is a registered trademark. It clarifies 
 
 ## Permission
 
-For permission to use the Zejtron name or branding outside this policy, contact the project owner through the official repository.
+For permission to use the Zejtron name or branding outside this policy, contact the project owner through the official repository or at `with dot rezky at gmail dot com`.
