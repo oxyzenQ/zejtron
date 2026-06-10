@@ -93,6 +93,26 @@ with the released version. The AUR sync workflow must validate that `pkgver`
 matches the release tag and that `pkgdesc` is identical in both files. Both
 `PKGBUILD` and `.SRCINFO` must be committed and copied together.
 
+## Major Release Design Gates
+
+Major releases (e.g. v5.0.0) carry additional requirements beyond normal
+maintenance. These gates must be satisfied before a major version tag is
+created:
+
+- All tests pass, including new namespace tests.
+- `actionlint .github/workflows/*` and `yamllint .github/workflows/*` pass.
+- No source file exceeds 1000 LOC.
+- No new high-risk dependencies without written justification in the commit
+  message.
+- AUR and release CI workflows stay green on the tagged commit.
+- Documentation and command help text remain consistent with actual behavior.
+- `git diff --check` reports no whitespace errors.
+- `bash -n check.sh version-to.sh` passes syntax validation.
+- No regression against the previous stable release for any existing command.
+
+The major release design plan is documented in [ROADMAP.md](ROADMAP.md) and
+[docs/v5.md](docs/v5.md).
+
 ## Version Bumps
 
 Version bumps must use the `./version-to.sh vX.Y.Z` script, which updates
