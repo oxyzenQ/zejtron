@@ -217,6 +217,10 @@ Check Linux/procfs visibility, visible processes, `/proc/net` socket parsing, ho
 zejtron doctor
 ```
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the project roadmap and design direction.
+
 ## Migration
 
 `pidnest` and Zenlixem are superseded by Zejtron. See the origin table above for command mapping.
