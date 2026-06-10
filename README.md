@@ -238,7 +238,7 @@ zejtron net
 
 ### `git`
 
-Inspect git repository context in a read-only view. Reports the repository root, branch, working tree status, latest commit, and remote URLs. Only invokes read-only git subcommands.
+Inspect git repository context in a read-only view. Reports the repository root, branch, working tree status, latest commit, and remote URLs. Only invokes read-only git subcommands. Credentials embedded in remote URLs (e.g. PATs in HTTPS URLs) are redacted as `<redacted>` in output.
 
 ```sh
 zejtron git
