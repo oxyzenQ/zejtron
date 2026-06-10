@@ -70,11 +70,11 @@ Each namespace follows the same delivery cycle:
 
 Proposed namespace order:
 
-| Order | Namespace | Scope |
-|-------|-----------|-------|
-| 1 | `zejtron shell` | Shell process and environment introspection |
-| 2 | `zejtron net`   | Network interface and routing inspection |
-| 3 | `zejtron git`   | Git repository state inspection |
+| Order | Namespace | Scope | Status |
+|-------|-----------|-------|--------|
+| 1 | `zejtron shell` | Shell process and environment introspection | Implemented in v3.0.0 |
+| 2 | `zejtron net`   | Network interface and routing inspection | Future |
+| 3 | `zejtron git`   | Git repository state inspection | Future |
 
 This order is deliberate. `shell` builds on existing process and environment
 infrastructure. `net` extends the port inspection model. `git` is the most
