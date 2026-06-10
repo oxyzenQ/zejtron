@@ -145,6 +145,50 @@ pub fn parse_status(output: Option<&str>) -> StatusSummary {
     }
 }
 
+/// Redact userinfo (credentials) from remote URLs.
+///
+/// Only HTTP/HTTPS-style URLs with userinfo are modified:
+///   `https://TOKEN@host/path`  -> `https://<redacted>@host/path`
+///   `https://USER:TOKEN@host`   -> `https://<redacted>@host`
+///   `http://USER:TOKEN@host`    -> `http://<redacted>@host`
+///   `git+https://TOKEN@host`    -> `git+https://<redacted>@host`
+///
+/// Safe URLs are returned unchanged:
+///   `git@host:path`, `ssh://git@host/path`,
+///   `https://host/path` (no userinfo), `file:///path`
+pub fn sanitize_remote_url(url: &str) -> String {
+    // We only redact credentials from http/https-style URLs.
+    // SSH URLs (scp-style or ssh://), file://, and other schemes are safe.
+    if !url.starts_with("http://")
+        && !url.starts_with("https://")
+        && !url.starts_with("git+http://")
+        && !url.starts_with("git+https://")
+    {
+        return url.to_owned();
+    }
+
+    // URLs without @ have no userinfo to redact.
+    let at_pos = match url.rfind('@') {
+        Some(pos) => pos,
+        None => return url.to_owned(),
+    };
+
+    // scheme_end points past "://" — e.g. "https://".len() == 8.
+    let scheme_end = url.find("://").map(|p| p + 3).unwrap();
+
+    // The @ must come after the scheme:// for this to be a credential-bearing URL.
+    if at_pos <= scheme_end {
+        return url.to_owned();
+    }
+
+    // Reconstruct: scheme://<redacted>@rest
+    let mut out = String::with_capacity(url.len());
+    out.push_str(&url[..scheme_end]);
+    out.push_str("<redacted>");
+    out.push_str(&url[at_pos..]);
+    out
+}
+
 pub fn parse_remotes(output: Option<&str>) -> Vec<RemoteEntry> {
     let Some(text) = output else {
         return vec![];
@@ -168,7 +212,7 @@ pub fn parse_remotes(output: Option<&str>) -> Vec<RemoteEntry> {
 
         entries.push(RemoteEntry {
             name: name.to_owned(),
-            url: url.to_owned(),
+            url: sanitize_remote_url(url),
         });
     }
 
@@ -466,5 +510,177 @@ mod tests {
         assert!(output.contains("status: clean"));
         assert!(output.contains("latest: abc1234 message"));
         assert!(output.contains("origin git@github.com:oxyzenQ/zejtron.git"));
+    }
+
+    // ── URL sanitization tests ──
+
+    #[test]
+    fn sanitize_token_only_https() {
+        assert_eq!(
+            sanitize_remote_url("https://TOKEN@github.com/owner/repo.git"),
+            "https://<redacted>@github.com/owner/repo.git"
+        );
+    }
+
+    #[test]
+    fn sanitize_user_token_https() {
+        assert_eq!(
+            sanitize_remote_url("https://USER:TOKEN@github.com/owner/repo.git"),
+            "https://<redacted>@github.com/owner/repo.git"
+        );
+    }
+
+    #[test]
+    fn sanitize_user_token_http() {
+        assert_eq!(
+            sanitize_remote_url("http://USER:TOKEN@example.com/repo.git"),
+            "http://<redacted>@example.com/repo.git"
+        );
+    }
+
+    #[test]
+    fn sanitize_git_https_prefix() {
+        assert_eq!(
+            sanitize_remote_url("git+https://TOKEN@host/path"),
+            "git+https://<redacted>@host/path"
+        );
+    }
+
+    #[test]
+    fn sanitize_git_http_prefix() {
+        assert_eq!(
+            sanitize_remote_url("git+http://TOKEN@host/path"),
+            "git+http://<redacted>@host/path"
+        );
+    }
+
+    #[test]
+    fn safe_ssh_scp_style_unchanged() {
+        assert_eq!(
+            sanitize_remote_url("git@github.com:oxyzenQ/zejtron.git"),
+            "git@github.com:oxyzenQ/zejtron.git"
+        );
+    }
+
+    #[test]
+    fn safe_ssh_url_unchanged() {
+        assert_eq!(
+            sanitize_remote_url("ssh://git@github.com/oxyzenQ/zejtron.git"),
+            "ssh://git@github.com/oxyzenQ/zejtron.git"
+        );
+    }
+
+    #[test]
+    fn safe_https_no_credentials_unchanged() {
+        assert_eq!(
+            sanitize_remote_url("https://github.com/oxyzenQ/zejtron.git"),
+            "https://github.com/oxyzenQ/zejtron.git"
+        );
+    }
+
+    #[test]
+    fn safe_file_url_unchanged() {
+        assert_eq!(
+            sanitize_remote_url("file:///home/u/repo"),
+            "file:///home/u/repo"
+        );
+    }
+
+    #[test]
+    fn parse_remotes_redacts_token_https() {
+        let output = Some(
+            "origin\thttps://ghp_abc123@github.com/user/repo.git (fetch)\n\
+             origin\thttps://ghp_abc123@github.com/user/repo.git (push)\n",
+        );
+        let remotes = parse_remotes(output);
+        assert_eq!(remotes.len(), 1);
+        assert_eq!(
+            remotes[0].url,
+            "https://<redacted>@github.com/user/repo.git"
+        );
+    }
+
+    #[test]
+    fn parse_remotes_redacts_user_token_https() {
+        let output = Some(
+            "origin\thttps://alice:ghp_secret@github.com/alice/repo.git (fetch)\n\
+             origin\thttps://alice:ghp_secret@github.com/alice/repo.git (push)\n",
+        );
+        let remotes = parse_remotes(output);
+        assert_eq!(remotes.len(), 1);
+        assert_eq!(
+            remotes[0].url,
+            "https://<redacted>@github.com/alice/repo.git"
+        );
+    }
+
+    #[test]
+    fn parse_remotes_preserves_safe_ssh_url() {
+        let output = Some(
+            "origin\tgit@github.com:oxyzenQ/zejtron.git (fetch)\n\
+             origin\tgit@github.com:oxyzenQ/zejtron.git (push)\n",
+        );
+        let remotes = parse_remotes(output);
+        assert_eq!(remotes.len(), 1);
+        assert_eq!(remotes[0].url, "git@github.com:oxyzenQ/zejtron.git");
+    }
+
+    #[test]
+    fn parse_remotes_preserves_safe_https_url() {
+        let output = Some(
+            "upstream\thttps://github.com/upstream/repo.git (fetch)\n\
+             upstream\thttps://github.com/upstream/repo.git (push)\n",
+        );
+        let remotes = parse_remotes(output);
+        assert_eq!(remotes.len(), 1);
+        assert_eq!(remotes[0].url, "https://github.com/upstream/repo.git");
+    }
+
+    #[test]
+    fn renderer_output_has_no_raw_token() {
+        let report = GitReport {
+            root: Some("/home/u/repo".to_owned()),
+            branch: Some("main".to_owned()),
+            status: StatusSummary::Clean,
+            latest: Some("abc1234 commit".to_owned()),
+            remotes: vec![RemoteEntry {
+                name: "origin".to_owned(),
+                url: "https://ghp_supersecret@github.com/user/repo.git".to_owned(),
+            }],
+            error: None,
+        };
+        // Simulate what parse_remotes does: sanitize before storing
+        let sanitized_url = sanitize_remote_url(&report.remotes[0].url);
+        let report = GitReport {
+            remotes: vec![RemoteEntry {
+                url: sanitized_url,
+                ..report.remotes.into_iter().next().unwrap()
+            }],
+            ..report
+        };
+        let output = render_report(&report);
+        assert!(!output.contains("ghp_supersecret"));
+        assert!(output.contains("<redacted>"));
+    }
+
+    #[test]
+    fn renderer_hides_token_via_parse_remotes() {
+        // End-to-end: parse_remotes already sanitizes
+        let output = Some(
+            "origin\thttps://ghp_ABCDEF123456@github.com/user/repo.git (fetch)\n\
+             origin\thttps://ghp_ABCDEF123456@github.com/user/repo.git (push)\n",
+        );
+        let remotes = parse_remotes(output);
+        let report = GitReport {
+            root: Some("/r".to_owned()),
+            branch: Some("main".to_owned()),
+            status: StatusSummary::Clean,
+            latest: None,
+            remotes,
+            error: None,
+        };
+        let rendered = render_report(&report);
+        assert!(!rendered.contains("ghp_ABCDEF123456"));
+        assert!(rendered.contains("<redacted>@github.com/user/repo.git"));
     }
 }
