@@ -1,5 +1,13 @@
 # Changelog
 
+## v5.0.0
+
+- Add `zejtron net` command for read-only network interface and routing inspection.
+- Add `zejtron git` command for read-only git repository context inspection.
+- Report interfaces from sysfs, default route from procfs, resolver file status.
+- Report repo root, branch, working tree status, latest commit, and remotes.
+- No new dependencies. No existing command behavior changed.
+
 ## v3.0.0
 
 - Add `zejtron shell` command for read-only shell context inspection.

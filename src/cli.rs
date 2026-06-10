@@ -165,6 +165,10 @@ pub enum Commands {
     Doctor,
     #[command(about = "Inspect current shell context (read-only)")]
     Shell,
+    #[command(about = "Inspect network interfaces and routing context (read-only)")]
+    Net,
+    #[command(about = "Inspect git repository context (read-only)")]
+    Git,
 }
 
 #[derive(Debug, Subcommand)]
@@ -204,6 +208,18 @@ mod tests {
     fn parses_shell() {
         let cli = Cli::try_parse_from(["zejtron", "shell"]).unwrap();
         assert!(matches!(cli.command, Some(Commands::Shell)));
+    }
+
+    #[test]
+    fn parses_net() {
+        let cli = Cli::try_parse_from(["zejtron", "net"]).unwrap();
+        assert!(matches!(cli.command, Some(Commands::Net)));
+    }
+
+    #[test]
+    fn parses_git() {
+        let cli = Cli::try_parse_from(["zejtron", "git"]).unwrap();
+        assert!(matches!(cli.command, Some(Commands::Git)));
     }
 
     #[test]

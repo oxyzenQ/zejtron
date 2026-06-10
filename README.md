@@ -29,7 +29,7 @@ It consolidates functionality from pidnest and Zenlixem into one binary with one
 | Zenlixem `whoholds` | `zejtron holds` |
 | Zenlixem `lasttouch` | `zejtron touch` |
 | Zenlixem `whyopen` | `zejtron why` |
-| Zenlixem `doctor` | `zejtron doctor` |
+| Zenlixem `doctor` | `zejtron net` |
 | Zenlixem `envpath` | covered by `zejtron path` |
 
 ## Install
@@ -44,7 +44,7 @@ yay -S zejtron-bin
 ### GitHub Release
 
 ```sh
-TAG=v3.0.0
+TAG=v5.0.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -76,6 +76,8 @@ cargo install --path .
 | `env` | Snapshot and diff environment variables |
 | `service` | Inspect systemd services |
 | `shell` | Inspect current shell context |
+| `net`   | Inspect network interfaces and routing |
+| `git`   | Inspect git repository context |
 | `doctor` | Check Zejtron system capability/readiness |
 
 ## Quick Examples
@@ -101,7 +103,7 @@ metadata. `--check-update` checks the latest upstream GitHub release; the
 
 Zejtron is Linux-first and expects procfs at `/proc`. Most commands work without systemd: `path`, `recent`, `port`, `env`, `proc`, `holds`, `touch`, `why`, and `doctor`.
 
-`service` requires systemd and `systemctl`. `touch` and `why` can use filesystem metadata on supported Linux systems, while journal evidence depends on `journalctl` and systemd journal availability. `holds`, `port`, and `proc` may show more complete details with `sudo` on hardened systems.
+`service` requires systemd and `systemctl`. `touch` and `why` can use filesystem metadata on supported Linux systems, while journal evidence depends on `journalctl` and systemd journal availability. `holds`, `port`, and `proc` may show more complete details with `sudo` on hardened systems. `net` reads from sysfs and procfs without external commands. `git` requires the `git` binary and only invokes read-only subcommands.
 
 ## Safety
 
@@ -224,6 +226,22 @@ Inspect current shell context in a read-only view. Reports the parent process, l
 
 ```sh
 zejtron shell
+```
+
+### `net`
+
+Inspect network interfaces and routing context in a read-only view. Reports interfaces from sysfs with state, MTU, and MAC address. Shows default route from procfs and resolver file status.
+
+```sh
+zejtron net
+```
+
+### `git`
+
+Inspect git repository context in a read-only view. Reports the repository root, branch, working tree status, latest commit, and remote URLs. Only invokes read-only git subcommands.
+
+```sh
+zejtron git
 ```
 
 ## Roadmap

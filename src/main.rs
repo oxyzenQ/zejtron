@@ -4,7 +4,9 @@
 mod cli;
 mod doctor;
 mod env;
+mod git;
 mod holds;
+mod net;
 mod path;
 mod port;
 mod proc;
@@ -107,6 +109,8 @@ fn main() {
         }),
         Some(cli::Commands::Doctor) => doctor::run(env!("ZEJTRON_GIT_HASH")),
         Some(cli::Commands::Shell) => shell::run(),
+        Some(cli::Commands::Net) => net::run(),
+        Some(cli::Commands::Git) => git::run(),
         None => {
             let mut cmd = cli::Cli::command();
             cmd.print_help().map(|_| println!()).map_err(Into::into)

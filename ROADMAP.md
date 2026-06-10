@@ -73,8 +73,8 @@ Proposed namespace order:
 | Order | Namespace | Scope | Status |
 |-------|-----------|-------|--------|
 | 1 | `zejtron shell` | Shell process and environment introspection | Implemented in v3.0.0 |
-| 2 | `zejtron net`   | Network interface and routing inspection | Future |
-| 3 | `zejtron git`   | Git repository state inspection | Future |
+| 2 | `zejtron net`   | Network interface and routing inspection | Implemented in v5.0.0 |
+| 3 | `zejtron git`   | Git repository state inspection | Implemented in v5.0.0 |
 
 This order is deliberate. `shell` builds on existing process and environment
 infrastructure. `net` extends the port inspection model. `git` is the most
