@@ -32,6 +32,15 @@ pub struct ConfigEntry {
     pub status: ConfigStatus,
 }
 
+/// Describes where config paths were resolved from.
+/// "parent" means the parent process name was used;
+/// "login" means $SHELL was used as fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigSource {
+    Parent(String),
+    Login(String),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShellReport {
     pub parent: Option<ParentProcess>,
@@ -39,6 +48,7 @@ pub struct ShellReport {
     pub terminal: Option<String>,
     pub env_vars: Vec<(String, String)>,
     pub configs: Vec<ConfigEntry>,
+    pub config_source: Option<ConfigSource>,
 }
 
 pub fn run() -> Result<(), Box<dyn Error>> {
@@ -64,6 +74,11 @@ fn collect_report() -> ShellReport {
         .and_then(|name| classify_shell(name));
 
     let config_shell = detected_shell.or(login_name);
+    let config_source = match (detected_shell, login_name) {
+        (Some(shell), _) => Some(ConfigSource::Parent(shell.to_owned())),
+        (None, Some(shell)) => Some(ConfigSource::Login(shell.to_owned())),
+        (None, None) => None,
+    };
 
     let configs = match (&home, &zdotdir, &xdg_config_home, config_shell) {
         (Some(home), zdotdir, xdg_config_home, Some(shell)) => {
@@ -84,6 +99,7 @@ fn collect_report() -> ShellReport {
         terminal,
         env_vars,
         configs,
+        config_source,
     }
 }
 
@@ -290,7 +306,11 @@ fn render_terminal_section(lines: &mut Vec<String>, report: &ShellReport) {
     let has_configs = !report.configs.is_empty();
     let branch = if has_configs { "├" } else { "└" };
     lines.push(format!("{branch}── terminal"));
-    lines.push(format!("{branch}── └── TERM={term}"));
+    if has_configs {
+        lines.push(format!("│   └── TERM={term}"));
+    } else {
+        lines.push(format!("    └── TERM={term}"));
+    }
 }
 
 fn render_env_section(lines: &mut Vec<String>, report: &ShellReport) {
@@ -303,9 +323,9 @@ fn render_env_section(lines: &mut Vec<String>, report: &ShellReport) {
 
     for (index, (key, value)) in report.env_vars.iter().enumerate() {
         let is_last = index + 1 == report.env_vars.len();
-        let inner = if has_configs { "│" } else { " " };
+        let indent = if has_configs { "│" } else { " " };
         let leaf = if is_last { "└" } else { "├" };
-        lines.push(format!("{branch}── {inner}   {leaf}── {key}={value}"));
+        lines.push(format!("{indent}   {leaf}── {key}={value}"));
     }
 }
 
@@ -313,7 +333,12 @@ fn render_configs_section(lines: &mut Vec<String>, report: &ShellReport) {
     if report.configs.is_empty() {
         return;
     }
-    lines.push("└── configs".to_owned());
+    let source_label = match &report.config_source {
+        Some(ConfigSource::Parent(shell)) => format!("configs ({shell}, via parent process)"),
+        Some(ConfigSource::Login(shell)) => format!("configs ({shell}, via $SHELL)"),
+        None => "configs".to_owned(),
+    };
+    lines.push(format!("└── {source_label}"));
 
     for (index, entry) in report.configs.iter().enumerate() {
         let is_last = index + 1 == report.configs.len();
@@ -322,7 +347,10 @@ fn render_configs_section(lines: &mut Vec<String>, report: &ShellReport) {
             ConfigStatus::Readable => "readable",
             ConfigStatus::Missing => "missing",
         };
-        lines.push(format!("{branch} {} {status_label}", entry.display_path));
+        lines.push(format!(
+            "    {branch} {} {status_label}",
+            entry.display_path
+        ));
     }
 }
 
@@ -455,6 +483,7 @@ mod tests {
                     status: ConfigStatus::Missing,
                 },
             ],
+            config_source: Some(ConfigSource::Parent("bash".to_owned())),
         };
 
         let output = render_report(&report);
@@ -476,6 +505,7 @@ mod tests {
             terminal: Some("dumb".to_owned()),
             env_vars: vec![("SHELL".to_owned(), "/bin/bash".to_owned())],
             configs: vec![],
+            config_source: Some(ConfigSource::Login("bash".to_owned())),
         };
 
         let output = render_report(&report);
@@ -495,6 +525,7 @@ mod tests {
             terminal: None,
             env_vars: vec![],
             configs: vec![],
+            config_source: Some(ConfigSource::Parent("sh".to_owned())),
         };
 
         let output = render_report(&report);
@@ -513,6 +544,7 @@ mod tests {
                 display_path: "HOME is not set; cannot resolve config paths".to_owned(),
                 status: ConfigStatus::Missing,
             }],
+            config_source: None,
         };
 
         let output = render_report(&report);
@@ -625,6 +657,7 @@ mod tests {
                 display_path: "~/.zshrc".to_owned(),
                 status: ConfigStatus::Readable,
             }],
+            config_source: Some(ConfigSource::Parent("bash".to_owned())),
         };
 
         let output = render_report(&report);
@@ -636,5 +669,263 @@ mod tests {
         assert!(output.contains("├── terminal"));
         assert!(output.contains("├── environment"));
         assert!(output.contains("└── configs"));
+    }
+
+    #[test]
+    fn no_malformed_tree_prefixes() {
+        let report = ShellReport {
+            parent: Some(ParentProcess {
+                name: "bash".to_owned(),
+                pid: 100,
+            }),
+            login_shell: Some("/bin/zsh".to_owned()),
+            terminal: Some("xterm-256color".to_owned()),
+            env_vars: vec![
+                ("HISTFILE".to_owned(), "/home/u/.zsh_history".to_owned()),
+                ("SHELL".to_owned(), "/bin/zsh".to_owned()),
+                ("STARSHIP_SHELL".to_owned(), "zsh".to_owned()),
+                ("TERM".to_owned(), "xterm-256color".to_owned()),
+            ],
+            configs: vec![
+                ConfigEntry {
+                    display_path: "~/.zshrc".to_owned(),
+                    status: ConfigStatus::Readable,
+                },
+                ConfigEntry {
+                    display_path: "~/.zshenv".to_owned(),
+                    status: ConfigStatus::Missing,
+                },
+            ],
+            config_source: Some(ConfigSource::Parent("bash".to_owned())),
+        };
+
+        let output = render_report(&report);
+
+        for line in output.lines() {
+            assert!(!line.contains("├── └──"), "malformed prefix found: {line}");
+            assert!(!line.contains("├── │"), "malformed prefix found: {line}");
+            assert!(!line.contains("└── ├──"), "malformed prefix found: {line}");
+            assert!(!line.contains("└── │"), "malformed prefix found: {line}");
+        }
+    }
+
+    #[test]
+    fn no_malformed_tree_prefixes_no_configs() {
+        let report = ShellReport {
+            parent: None,
+            login_shell: Some("/bin/bash".to_owned()),
+            terminal: Some("dumb".to_owned()),
+            env_vars: vec![
+                ("SHELL".to_owned(), "/bin/bash".to_owned()),
+                ("TERM".to_owned(), "dumb".to_owned()),
+            ],
+            configs: vec![],
+            config_source: None,
+        };
+
+        let output = render_report(&report);
+
+        for line in output.lines() {
+            assert!(!line.contains("├── └──"), "malformed prefix found: {line}");
+            assert!(!line.contains("├── │"), "malformed prefix found: {line}");
+        }
+    }
+
+    #[test]
+    fn terminal_section_formatting_with_configs() {
+        let report = ShellReport {
+            parent: None,
+            login_shell: None,
+            terminal: Some("xterm-direct".to_owned()),
+            env_vars: vec![],
+            configs: vec![ConfigEntry {
+                display_path: "~/.profile".to_owned(),
+                status: ConfigStatus::Missing,
+            }],
+            config_source: None,
+        };
+
+        let output = render_report(&report);
+        let lines: Vec<&str> = output.lines().collect();
+
+        let term_header = *lines.iter().find(|l| l.contains("terminal")).unwrap();
+        let term_child = *lines
+            .iter()
+            .find(|l| l.contains("TERM=xterm-direct"))
+            .unwrap();
+
+        assert_eq!(term_header, "├── terminal");
+        assert_eq!(term_child, "│   └── TERM=xterm-direct");
+    }
+
+    #[test]
+    fn terminal_section_formatting_without_configs() {
+        let report = ShellReport {
+            parent: None,
+            login_shell: None,
+            terminal: Some("xterm-direct".to_owned()),
+            env_vars: vec![],
+            configs: vec![],
+            config_source: None,
+        };
+
+        let output = render_report(&report);
+        let lines: Vec<&str> = output.lines().collect();
+
+        let term_header = *lines.iter().find(|l| l.contains("terminal")).unwrap();
+        let term_child = *lines
+            .iter()
+            .find(|l| l.contains("TERM=xterm-direct"))
+            .unwrap();
+
+        assert_eq!(term_header, "└── terminal");
+        assert_eq!(term_child, "    └── TERM=xterm-direct");
+    }
+
+    #[test]
+    fn environment_section_formatting_with_configs() {
+        let report = ShellReport {
+            parent: None,
+            login_shell: None,
+            terminal: None,
+            env_vars: vec![
+                ("HISTFILE".to_owned(), "/home/u/.zsh_history".to_owned()),
+                ("SHELL".to_owned(), "/bin/zsh".to_owned()),
+                ("TERM".to_owned(), "xterm-256color".to_owned()),
+            ],
+            configs: vec![ConfigEntry {
+                display_path: "~/.zshrc".to_owned(),
+                status: ConfigStatus::Readable,
+            }],
+            config_source: None,
+        };
+
+        let output = render_report(&report);
+        let lines: Vec<&str> = output.lines().collect();
+
+        let env_header = *lines.iter().find(|l| l.contains("environment")).unwrap();
+        assert_eq!(env_header, "├── environment");
+
+        assert!(lines.contains(&"│   ├── HISTFILE=/home/u/.zsh_history"));
+        assert!(lines.contains(&"│   ├── SHELL=/bin/zsh"));
+        assert!(lines.contains(&"│   └── TERM=xterm-256color"));
+    }
+
+    #[test]
+    fn environment_section_formatting_without_configs() {
+        let report = ShellReport {
+            parent: None,
+            login_shell: None,
+            terminal: None,
+            env_vars: vec![("SHELL".to_owned(), "/bin/bash".to_owned())],
+            configs: vec![],
+            config_source: None,
+        };
+
+        let output = render_report(&report);
+        let lines: Vec<&str> = output.lines().collect();
+
+        let env_header = *lines.iter().find(|l| l.contains("environment")).unwrap();
+        assert_eq!(env_header, "└── environment");
+
+        assert!(lines.contains(&"    └── SHELL=/bin/bash"));
+    }
+
+    #[test]
+    fn config_label_parent_source() {
+        let report = ShellReport {
+            parent: None,
+            login_shell: None,
+            terminal: None,
+            env_vars: vec![],
+            configs: vec![ConfigEntry {
+                display_path: "~/.bashrc".to_owned(),
+                status: ConfigStatus::Readable,
+            }],
+            config_source: Some(ConfigSource::Parent("bash".to_owned())),
+        };
+
+        let output = render_report(&report);
+        assert!(output.contains("└── configs (bash, via parent process)"));
+        assert!(!output.contains("via $SHELL"));
+    }
+
+    #[test]
+    fn config_label_login_source() {
+        let report = ShellReport {
+            parent: None,
+            login_shell: None,
+            terminal: None,
+            env_vars: vec![],
+            configs: vec![ConfigEntry {
+                display_path: "~/.zshrc".to_owned(),
+                status: ConfigStatus::Readable,
+            }],
+            config_source: Some(ConfigSource::Login("zsh".to_owned())),
+        };
+
+        let output = render_report(&report);
+        assert!(output.contains("└── configs (zsh, via $SHELL)"));
+        assert!(!output.contains("via parent process"));
+    }
+
+    #[test]
+    fn config_label_no_source() {
+        let report = ShellReport {
+            parent: None,
+            login_shell: None,
+            terminal: None,
+            env_vars: vec![],
+            configs: vec![ConfigEntry {
+                display_path: "HOME is not set; cannot resolve config paths".to_owned(),
+                status: ConfigStatus::Missing,
+            }],
+            config_source: None,
+        };
+
+        let output = render_report(&report);
+        assert!(output.contains("└── configs"));
+        assert!(!output.contains("via parent process"));
+        assert!(!output.contains("via $SHELL"));
+    }
+
+    #[test]
+    fn full_tree_output_exact_shape() {
+        let report = ShellReport {
+            parent: Some(ParentProcess {
+                name: "bash".to_owned(),
+                pid: 1700,
+            }),
+            login_shell: Some("/bin/zsh".to_owned()),
+            terminal: Some("xterm-256color".to_owned()),
+            env_vars: vec![
+                ("HISTFILE".to_owned(), "/home/u/.zsh_history".to_owned()),
+                ("SHELL".to_owned(), "/bin/zsh".to_owned()),
+                ("TERM".to_owned(), "xterm-256color".to_owned()),
+            ],
+            configs: vec![ConfigEntry {
+                display_path: "~/.zshrc".to_owned(),
+                status: ConfigStatus::Readable,
+            }],
+            config_source: Some(ConfigSource::Parent("bash".to_owned())),
+        };
+
+        let output = render_report(&report);
+        let expected = [
+            "shell",
+            "",
+            "├── invocation",
+            "│   ├── parent: bash pid=1700",
+            "│   └── login: /bin/zsh",
+            "├── terminal",
+            "│   └── TERM=xterm-256color",
+            "├── environment",
+            "│   ├── HISTFILE=/home/u/.zsh_history",
+            "│   ├── SHELL=/bin/zsh",
+            "│   └── TERM=xterm-256color",
+            "└── configs (bash, via parent process)",
+            "    └── ~/.zshrc readable",
+        ];
+        assert_eq!(output, expected.join("\n"));
     }
 }
