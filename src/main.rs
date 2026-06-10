@@ -10,6 +10,7 @@ mod port;
 mod proc;
 mod recent;
 mod service;
+mod shell;
 mod touch;
 mod update;
 mod version;
@@ -105,6 +106,7 @@ fn main() {
             filter,
         }),
         Some(cli::Commands::Doctor) => doctor::run(env!("ZEJTRON_GIT_HASH")),
+        Some(cli::Commands::Shell) => shell::run(),
         None => {
             let mut cmd = cli::Cli::command();
             cmd.print_help().map(|_| println!()).map_err(Into::into)

@@ -163,6 +163,8 @@ pub enum Commands {
     },
     #[command(about = "Check Zejtron system capability/readiness")]
     Doctor,
+    #[command(about = "Inspect current shell context (read-only)")]
+    Shell,
 }
 
 #[derive(Debug, Subcommand)]
@@ -197,6 +199,12 @@ impl Cli {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_shell() {
+        let cli = Cli::try_parse_from(["zejtron", "shell"]).unwrap();
+        assert!(matches!(cli.command, Some(Commands::Shell)));
+    }
 
     #[test]
     fn parses_proc_me() {

@@ -1,5 +1,12 @@
 # Changelog
 
+## v3.0.0
+
+- Add `zejtron shell` command for read-only shell context inspection.
+- Report parent process, login shell, terminal, and shell environment.
+- Show known config file paths for detected shell (zsh, bash, fish, dash, sh, nu).
+- No existing command behavior changed.
+
 ## v2.4.5
 
 - Documentation cleanup and release hygiene.

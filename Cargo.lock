@@ -866,7 +866,7 @@ dependencies = [
 
 [[package]]
 name = "zejtron"
-version = "2.4.6"
+version = "3.0.0"
 dependencies = [
  "chrono",
  "clap",

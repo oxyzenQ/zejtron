@@ -44,7 +44,7 @@ yay -S zejtron-bin
 ### GitHub Release
 
 ```sh
-TAG=v2.4.6
+TAG=v3.0.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
@@ -75,6 +75,7 @@ cargo install --path .
 | `why` | Explain visible evidence for a path or port |
 | `env` | Snapshot and diff environment variables |
 | `service` | Inspect systemd services |
+| `shell` | Inspect current shell context |
 | `doctor` | Check Zejtron system capability/readiness |
 
 ## Quick Examples
@@ -215,6 +216,14 @@ Check Linux/procfs visibility, visible processes, `/proc/net` socket parsing, ho
 
 ```sh
 zejtron doctor
+```
+
+### `shell`
+
+Inspect current shell context in a read-only view. Reports the parent process, login shell, terminal, shell-related environment variables, and known config file paths for the detected shell.
+
+```sh
+zejtron shell
 ```
 
 ## Roadmap
