@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: MIT
+
 set -Eeuo pipefail
 
 error() {
@@ -7,7 +10,7 @@ error() {
 }
 
 if [[ $# -ne 1 ]]; then
-  error "usage: ./version-to.sh vX.Y.Z"
+  error "usage: ./scripts/version-to.sh vX.Y.Z"
 fi
 
 input="$1"

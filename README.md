@@ -46,10 +46,10 @@ yay -S zejtron-bin
 ```sh
 TAG=v5.0.0
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
-curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
-sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512"
+curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512sum"
+sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512sum"
 tar -xzf "zejtron-bin-${TAG}-linux-x86_64.tar.gz"
-sudo install -Dm755 zejtron /usr/local/bin/zejtron
+install -Dm755 zejtron "$HOME/.local/bin/zejtron"
 ```
 
 For aarch64 Linux, use `zejtron-bin-${TAG}-linux-aarch64.tar.gz`.
@@ -255,9 +255,9 @@ See [ROADMAP.md](ROADMAP.md) for the project roadmap and design direction.
 ## Development
 
 ```sh
-./check.sh
-SKIP_CODESPELL=1 ./check.sh
-./version-to.sh vX.Y.Z
+./scripts/build.sh
+SKIP_CODESPELL=1 ./scripts/build.sh
+./scripts/version-to.sh vX.Y.Z
 ```
 
 ## Trademark

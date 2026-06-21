@@ -68,7 +68,7 @@ jobs:
 
       - name: Run checks
         if: steps.changes.outputs.changed == 'true'
-        run: ./check.sh
+        run: ./scripts/build.sh
 
       - name: Upload validated Cargo.lock
         if: steps.changes.outputs.changed == 'true'

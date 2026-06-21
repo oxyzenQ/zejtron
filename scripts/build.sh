@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: MIT
+
 set -Eeuo pipefail
 
 check_command() {
@@ -7,7 +10,7 @@ check_command() {
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "error: required command not found: $label" >&2
     if [[ "$label" == "codespell" ]]; then
-      echo "hint: install codespell or run SKIP_CODESPELL=1 ./check.sh" >&2
+      echo "hint: install codespell or run SKIP_CODESPELL=1 ./scripts/build.sh" >&2
     fi
     exit 1
   fi
@@ -24,6 +27,14 @@ fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
+
+case "${1:---check-all}" in
+  --check-all|check-all) ;;
+  *)
+    echo "usage: ./scripts/build.sh --check-all" >&2
+    exit 2
+    ;;
+esac
 
 tmpdir="$(mktemp -d)"
 cleanup() {
