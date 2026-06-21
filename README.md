@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/zejtron-logo-new.png" alt="zejtron logo" width="240">
+  <img src="assets/zejtron-logo-new.png" alt="zejtron logo" width="260">
 </p>
 
 <h1 align="center">zejtron</h1>
@@ -44,7 +44,7 @@ yay -S zejtron-bin
 ### GitHub Release
 
 ```sh
-TAG=v5.0.0
+TAG=v5.0.1
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512sum"
 sha512sum --check "zejtron-bin-${TAG}-linux-x86_64.tar.gz.sha512sum"
