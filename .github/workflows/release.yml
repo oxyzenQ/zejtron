@@ -64,7 +64,7 @@ jobs:
 
       - name: Run full checks
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: ./check.sh
+        run: ./scripts/build.sh
 
       - name: Build
         run: cargo build --release --locked --target "${{ matrix.target }}"
@@ -80,7 +80,7 @@ jobs:
           cp README.md LICENSE "${staging}/${asset}/"
           tar -C "${staging}/${asset}" \
             -czf "${asset}.tar.gz" zejtron README.md LICENSE
-          sha512sum "${asset}.tar.gz" > "${asset}.tar.gz.sha512"
+          sha512sum "${asset}.tar.gz" > "${asset}.tar.gz.sha512sum"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -88,7 +88,7 @@ jobs:
           name: release-${{ matrix.arch }}
           path: |
             zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz
-            zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.sha512
+            zejtron-bin-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.sha512sum
           retention-days: 1
 
   release:
@@ -117,7 +117,7 @@ jobs:
           set -Eeuo pipefail
           mkdir -p release-assets
           find artifacts -type f \( -name '*.tar.gz' \
-            -o -name '*.sha512' \) \
+            -o -name '*.sha512sum' \) \
             -exec cp {} release-assets/ \;
           ls -lh release-assets/
 

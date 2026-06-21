@@ -53,7 +53,7 @@ rejected during review.
 ## CI/CD Maturity
 
 CI must remain **green** at all times. All changes must pass the full
-`./check.sh` suite before being merged to `main`. The normal CI pipeline must
+`./scripts/build.sh` suite before being merged to `main`. The normal CI pipeline must
 run as read-only and must not require broad write tokens.
 
 Release workflows must use the **minimum permissions necessary**. The release
@@ -66,7 +66,7 @@ only to commit a validated dependency refresh directly to the default branch.
 The dependency footprint must stay **minimal**. No new runtime dependencies
 should be added unless absolutely necessary. Dependency refreshes are handled by
 the weekly maintenance workflow, which runs `cargo update`, executes the full
-`./check.sh` suite, and commits `Cargo.lock` directly to the default branch only
+`./scripts/build.sh` suite, and commits `Cargo.lock` directly to the default branch only
 when validation succeeds.
 
 ## Code Quality
@@ -115,6 +115,6 @@ The major release design plan is documented in [ROADMAP.md](ROADMAP.md) and
 
 ## Version Bumps
 
-Version bumps must use the `./version-to.sh vX.Y.Z` script, which updates
+Version bumps must use the `./scripts/version-to.sh vX.Y.Z` script, which updates
 `Cargo.toml`, `Cargo.lock`, `README.md`, `workflow/about-ci.md`, and the AUR
 metadata in a single, consistent pass. Manual version edits are prohibited.

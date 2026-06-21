@@ -64,7 +64,7 @@ Each namespace follows the same delivery cycle:
 1. Design review against docs/v5.md.
 2. Implementation with full test coverage.
 3. LOC compliance (no source file exceeds 1000 LOC).
-4. ./check.sh passes.
+4. ./scripts/build.sh passes.
 5. Codespell passes on all new documentation.
 6. Soak testing on real systems.
 
@@ -91,7 +91,7 @@ shipping.
 - Confirm no regression in binary size, startup time, or memory usage beyond
   acceptable thresholds.
 - Update CHANGELOG.md.
-- Bump version via ./version-to.sh.
+- Bump version via ./scripts/version-to.sh.
 - Tag and release only after all gates pass.
 
 Outcome: v5.0.0 release on main with full CI green.
@@ -100,7 +100,7 @@ Outcome: v5.0.0 release on main with full CI green.
 
 All releases must satisfy the following conditions before tagging:
 
-1. `./check.sh` passes on stable Rust.
+1. `./scripts/build.sh` passes on stable Rust.
 2. `actionlint .github/workflows/*` passes with no warnings.
 3. `yamllint .github/workflows/*` passes with no warnings.
 4. `git diff --check` reports no whitespace errors.

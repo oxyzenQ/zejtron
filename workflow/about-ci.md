@@ -9,12 +9,12 @@ CI runs on pushes and pull requests targeting `main`.
 It installs stable Rust with `rustfmt` and `clippy`, installs `codespell`, restores the Rust cache, and runs:
 
 ```sh
-./check.sh
+./scripts/build.sh
 ```
 
 ## Maintenance deps weekly
 
-The `Maintenance deps weekly` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update`, executes `./check.sh`, and commits the refreshed `Cargo.lock` directly back to the default branch only after validation passes.
+The `Maintenance deps weekly` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update`, executes `./scripts/build.sh`, and commits the refreshed `Cargo.lock` directly back to the default branch only after validation passes.
 
 Maintenance workflow commits use:
 
@@ -41,7 +41,7 @@ TAG=v5.0.0
 cargo build --release --locked --target x86_64-unknown-linux-gnu
 ```
 
-The release workflow uploads `zejtron-bin-${TAG}-linux-x86_64.tar.gz`, `zejtron-bin-${TAG}-linux-aarch64.tar.gz`, and matching `.sha512` files.
+The release workflow uploads `zejtron-bin-${TAG}-linux-x86_64.tar.gz`, `zejtron-bin-${TAG}-linux-aarch64.tar.gz`, and matching `.sha512sum` files.
 
 ## AUR Sync
 
@@ -76,15 +76,15 @@ The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, 
 ## Version Bump Flow
 
 ```sh
-./version-to.sh v5.0.0
-./check.sh
+./scripts/version-to.sh v5.0.0
+./scripts/build.sh
 ```
 
 ## Release Command Flow
 
 ```sh
-./version-to.sh v5.0.0
-./check.sh
+./scripts/version-to.sh v5.0.0
+./scripts/build.sh
 git add .
 git commit -m "chore: prepare v5.0.0 release"
 git push origin main

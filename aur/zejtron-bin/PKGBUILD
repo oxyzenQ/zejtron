@@ -32,8 +32,8 @@ prepare() {
 
   local base_url="https://github.com/oxyzenQ/zejtron/releases/download/${tag}"
   curl -fL -o "${asset}" "${base_url}/${asset}"
-  curl -fL -o "${asset}.sha512" "${base_url}/${asset}.sha512"
-  sha512sum --check "${asset}.sha512"
+  curl -fL -o "${asset}.sha512sum" "${base_url}/${asset}.sha512sum"
+  sha512sum --check "${asset}.sha512sum"
   mkdir -p "${srcdir}/archive"
   tar -xzf "${asset}" -C "${srcdir}/archive"
 }
