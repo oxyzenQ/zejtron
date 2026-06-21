@@ -37,7 +37,7 @@ Release archives use a flat layout:
 Example release asset flow:
 
 ```sh
-TAG=v5.0.0
+TAG=v5.0.1
 cargo build --release --locked --target x86_64-unknown-linux-gnu
 ```
 
@@ -76,18 +76,18 @@ The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, 
 ## Version Bump Flow
 
 ```sh
-./scripts/version-to.sh v5.0.0
+./scripts/version-to.sh v5.0.1
 ./scripts/build.sh
 ```
 
 ## Release Command Flow
 
 ```sh
-./scripts/version-to.sh v5.0.0
+./scripts/version-to.sh v5.0.1
 ./scripts/build.sh
 git add .
-git commit -m "chore: prepare v5.0.0 release"
+git commit -m "chore: prepare v5.0.1 release"
 git push origin main
-git tag -a v5.0.0 -m "v5.0.0"
-git push origin v5.0.0
+git tag -a v5.0.1 -m "v5.0.1"
+git push origin v5.0.1
 ```
