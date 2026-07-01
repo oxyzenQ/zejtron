@@ -23,14 +23,13 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            arch: linux-x86_64
+            arch: linux-amd64-gnu
             install_packages: ""
-          - target: aarch64-unknown-linux-gnu
-            arch: linux-aarch64
-            install_packages: gcc-aarch64-linux-gnu
+          - target: x86_64-unknown-linux-musl
+            arch: linux-amd64-musl
+            install_packages: musl-tools
 
     env:
-      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       TAG: ${{ github.ref_name }}
 
     steps:
