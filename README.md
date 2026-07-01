@@ -262,4 +262,4 @@ SKIP_CODESPELL=1 ./scripts/build.sh
 
 ## Trademark
 
-The source code is licensed under the MIT License. The Zejtron name and branding are not granted under the MIT License. See [TRADEMARK.md](TRADEMARK.md).
+The source code is licensed under the GNU General Public License v3.0 (GPL-3.0-only). The Zejtron name and branding are not granted under the GPL-3.0-only license. See [TRADEMARK.md](TRADEMARK.md).

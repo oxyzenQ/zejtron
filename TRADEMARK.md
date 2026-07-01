@@ -1,8 +1,8 @@
 # Zejtron Trademark Policy
 
-The Zejtron source code is licensed under the MIT License. That license grants rights to use, copy, modify, and distribute the source code under its terms.
+The Zejtron source code is licensed under the GNU General Public License v3.0 (GPL-3.0-only). That license grants rights to use, copy, modify, and distribute the source code under its terms.
 
-The MIT License does not grant rights to use the Zejtron name, logo, project identity, or branding in a way that suggests an official relationship, endorsement, or origin.
+The GPL-3.0-only license does not grant rights to use the Zejtron name, logo, project identity, or branding in a way that suggests an official relationship, endorsement, or origin.
 
 This policy applies to the names "Zejtron" and "zejtron", related logos or visual branding, and confusingly similar names or branding.
 
@@ -42,7 +42,7 @@ Examples of uses that require permission include:
 
 ## No Registration Claim
 
-This policy does not claim that Zejtron is a registered trademark. It clarifies that the project name and branding are not licensed under the MIT License.
+This policy does not claim that Zejtron is a registered trademark. It clarifies that the project name and branding are not licensed under the GNU General Public License v3.0 (GPL-3.0-only).
 
 ## Permission
 
