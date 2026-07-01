@@ -13,7 +13,7 @@ pub fn version_text(hash: &str) -> String {
         "Version: v{}\n\
          Build: {target} ({hash})\n\
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
-         License: MIT\n\
+         License: GPL-3.0-only\n\
          Source: https://github.com/oxyzenQ/zejtron",
         env!("CARGO_PKG_VERSION")
     )
@@ -28,7 +28,7 @@ mod tests {
         assert_eq!(
             version_text("abc123"),
             format!(
-                "Version: v{}\nBuild: {}-{} (abc123)\nCopyright: (c) 2026 rezky_nightky (oxyzenQ)\nLicense: MIT\nSource: https://github.com/oxyzenQ/zejtron",
+                "Version: v{}\nBuild: {}-{} (abc123)\nCopyright: (c) 2026 rezky_nightky (oxyzenQ)\nLicense: GPL-3.0-only\nSource: https://github.com/oxyzenQ/zejtron",
                 env!("CARGO_PKG_VERSION"),
                 std::env::consts::OS,
                 std::env::consts::ARCH
@@ -46,7 +46,7 @@ mod tests {
         assert_eq!(
             version_text("  "),
             format!(
-                "Version: v{}\nBuild: {}-{} (unknown)\nCopyright: (c) 2026 rezky_nightky (oxyzenQ)\nLicense: MIT\nSource: https://github.com/oxyzenQ/zejtron",
+                "Version: v{}\nBuild: {}-{} (unknown)\nCopyright: (c) 2026 rezky_nightky (oxyzenQ)\nLicense: GPL-3.0-only\nSource: https://github.com/oxyzenQ/zejtron",
                 env!("CARGO_PKG_VERSION"),
                 std::env::consts::OS,
                 std::env::consts::ARCH
