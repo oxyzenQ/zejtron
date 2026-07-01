@@ -75,7 +75,7 @@ All Rust source files must carry the SPDX license header:
 
 ```rust
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 ```
 
 Headers must not be duplicated.
