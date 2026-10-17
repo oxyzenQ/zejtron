@@ -97,7 +97,7 @@ jobs:
             LICENSE NOTICE deny.toml CHANGELOG.md TRADEMARK.md \
             CLA.md COMMERCIAL_LICENSE.md CONTRIBUTING.md SECURITY.md QA.md \
             docs/DEPENDENCY_AUDIT.md docs/LICENSING_FAQ.md \
-            src/main.rs src/clock.rs src/version.rs; do
+            src/main.rs src/info/clock.rs src/info/mod.rs; do
             if ! grep -qx "${required}" <<<"${LIST}"; then
               echo "::error::ship-set missing required entry: ${required}"
               exit 1
