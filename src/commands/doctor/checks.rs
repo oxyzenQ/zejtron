@@ -210,12 +210,9 @@ pub(super) fn check_proc_net(proc_net: &Path) -> CheckResult {
     let mut sockets = 0usize;
 
     for file in files {
-        match count_proc_net_sockets(&proc_net.join(file)) {
-            Ok(count) => {
-                parsed += 1;
-                sockets += count;
-            }
-            Err(_) => {}
+        if let Ok(count) = count_proc_net_sockets(&proc_net.join(file)) {
+            parsed += 1;
+            sockets += count;
         }
     }
 
