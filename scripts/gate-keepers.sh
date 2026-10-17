@@ -62,11 +62,10 @@
 #        the release optimization tier bit-for-bit; a one-file edit
 #        can no longer silently break that contract)
 #
-# Deferred sections (documented, owner-visible - each lands with its
-# enabling surface):
-#   - Name-case rule: the sibling's lowercase-project-name law; zejtron
-#     brands with the capital Zejtron in prose (README/BRANDING own the
-#     convention), so the gate has no invariant to enforce here yet.
+#   15.  Family name case (scripts/gates/check-name-case.py: the
+#        sibling name zylaxion is lowercase in every context, docs/
+#        BRANDING.md section 7 - every tracked file and path scanned,
+#        nothing excluded; a mixed-case form fails the gate)
 #
 # Pre-commit hook: the first wholesale run on a clone self-installs
 # .githooks/pre-commit (git config core.hooksPath=.githooks - repo-
@@ -211,26 +210,26 @@ QUAD_FAIL=0
 SRC_RE='^[[:space:]]*(source|\.)[[:space:]]+"\$\(cd[[:space:]]+"\$\(dirname[[:space:]]+"\$\{BASH_SOURCE\[0\]\}"\)(/(\.\.)+)*"[[:space:]]+&&[[:space:]]+pwd\)/([^"]+)"$'
 SRC_PLAIN='^[[:space:]]*(source|\.)[[:space:]]+([^"$][^[:space:]]*)[[:space:]]*$'
 for f in ${SHELL_FILES} .githooks/pre-commit; do
-	fdir="$(dirname "$f")"
-	while IFS= read -r line; do
-		if [[ $line =~ $SRC_RE ]]; then
-			climb="${BASH_REMATCH[2]}"
-			target="${BASH_REMATCH[4]}"
-			if [ ! -e "$fdir$climb/$target" ]; then
-				echo "  source resolution: $f: target missing: $line"
-				QUAD_FAIL=1
-			fi
-		elif [[ $line =~ $SRC_PLAIN ]]; then
-			rel="${BASH_REMATCH[2]}"
-			if [ ! -e "$fdir/$rel" ]; then
-				echo "  source resolution: $f: target missing: $line"
-				QUAD_FAIL=1
-			fi
-		else
-			echo "  source resolution: $f: unsupported idiom (extend the 1d translator): $line"
-			QUAD_FAIL=1
-		fi
-	done < <(grep -E '^[[:space:]]*(source|\.)[[:space:]]' "$f" 2>/dev/null || true)
+        fdir="$(dirname "$f")"
+        while IFS= read -r line; do
+                if [[ $line =~ $SRC_RE ]]; then
+                        climb="${BASH_REMATCH[2]}"
+                        target="${BASH_REMATCH[4]}"
+                        if [ ! -e "$fdir$climb/$target" ]; then
+                                echo "  source resolution: $f: target missing: $line"
+                                QUAD_FAIL=1
+                        fi
+                elif [[ $line =~ $SRC_PLAIN ]]; then
+                        rel="${BASH_REMATCH[2]}"
+                        if [ ! -e "$fdir/$rel" ]; then
+                                echo "  source resolution: $f: target missing: $line"
+                                QUAD_FAIL=1
+                        fi
+                else
+                        echo "  source resolution: $f: unsupported idiom (extend the 1d translator): $line"
+                        QUAD_FAIL=1
+                fi
+        done < <(grep -E '^[[:space:]]*(source|\.)[[:space:]]' "$f" 2>/dev/null || true)
 done
 [ "${QUAD_FAIL}" -eq 0 ] && pass "1d. source resolution" || fail "1d. source resolution"
 
@@ -409,6 +408,14 @@ if bash scripts/gates/check-release-parity.sh; then
         pass "14. release parity"
 else
         fail "14. release parity"
+fi
+
+# ── 15. Family name case ────────────────────────────────────────────────
+header "15. Family name case (zylaxion lowercase law)"
+if python3 scripts/gates/check-name-case.py; then
+        pass "15. name case"
+else
+        fail "15. name case"
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────
