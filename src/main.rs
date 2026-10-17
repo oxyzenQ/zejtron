@@ -7,6 +7,7 @@ mod env;
 mod git;
 mod holds;
 mod net;
+mod output;
 mod path;
 mod pathguard;
 mod port;
@@ -33,7 +34,7 @@ fn main() {
 
     if cli.check_update {
         if let Err(error) = update::check_update(env!("CARGO_PKG_VERSION")) {
-            eprintln!("zejtron: update check failed: {error}");
+            output::eprintln_error_labeled(&format!("update check failed: {error}"));
             std::process::exit(1);
         }
         return;
@@ -133,7 +134,7 @@ fn main() {
     };
 
     if let Err(error) = result {
-        eprintln!("zejtron: {error}");
+        output::eprintln_error_labeled(&error.to_string());
         std::process::exit(1);
     }
 }
