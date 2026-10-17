@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::holds::{self, Evidence, Holder, ScanStats};
+use crate::commands::holds::{self, Evidence, Holder, ScanStats};
 #[cfg(test)]
-use crate::touch::EvidenceSource;
-use crate::touch::{self, TouchInfo};
+use crate::commands::touch::EvidenceSource;
+use crate::commands::touch::{self, TouchInfo};
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -69,8 +69,8 @@ fn explain_port(port: u16) -> Result<String, WhyError> {
         .iter()
         .map(|h| EnrichedHolder {
             holder: h.clone(),
-            systemd_unit: crate::process::read_systemd_unit(Path::new("/proc"), h.pid),
-            cmdline: crate::process::read_cmdline(Path::new("/proc"), h.pid),
+            systemd_unit: crate::system::read_systemd_unit(Path::new("/proc"), h.pid),
+            cmdline: crate::system::read_cmdline(Path::new("/proc"), h.pid),
         })
         .collect();
 
@@ -96,8 +96,8 @@ fn explain_path(path: &Path) -> Result<String, WhyError> {
         .iter()
         .map(|h| EnrichedHolder {
             holder: h.clone(),
-            systemd_unit: crate::process::read_systemd_unit(Path::new("/proc"), h.pid),
-            cmdline: crate::process::read_cmdline(Path::new("/proc"), h.pid),
+            systemd_unit: crate::system::read_systemd_unit(Path::new("/proc"), h.pid),
+            cmdline: crate::system::read_cmdline(Path::new("/proc"), h.pid),
         })
         .collect();
 
@@ -507,7 +507,7 @@ fn plural<'a>(count: usize, singular: &'a str, plural: &'a str) -> &'a str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::touch::{EvidenceSource, ProcessEvidence};
+    use crate::commands::touch::{EvidenceSource, ProcessEvidence};
     use std::os::unix::fs::symlink;
     use std::time::{Duration, UNIX_EPOCH};
     use tempfile::TempDir;

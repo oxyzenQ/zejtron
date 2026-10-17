@@ -256,7 +256,7 @@ fn format_report(info: &TouchInfo) -> String {
 }
 
 pub(crate) fn format_system_time(time: SystemTime) -> String {
-    crate::clock::format_system_time(time)
+    crate::info::clock::format_system_time(time)
 }
 
 fn parse_passwd() -> io::Result<HashMap<u32, String>> {

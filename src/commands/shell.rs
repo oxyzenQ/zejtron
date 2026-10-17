@@ -117,7 +117,7 @@ fn collect_report() -> ShellReport {
 /// Walk the full ancestor chain from the current process to PID 1.
 fn read_ancestor_chain() -> Vec<AncestorEntry> {
     let own_pid = std::process::id();
-    let chain = crate::process::parent_chain(std::path::Path::new("/proc"), own_pid);
+    let chain = crate::system::parent_chain(std::path::Path::new("/proc"), own_pid);
     chain
         .into_iter()
         .map(|ctx| AncestorEntry {

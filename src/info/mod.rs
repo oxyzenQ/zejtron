@@ -111,6 +111,7 @@ fn version_body() -> String {
 /// License: GPL-3.0-only
 /// Source: https://github.com/oxyzenQ/zejtron
 /// ```
+pub mod clock;
 pub fn print_version_report() {
     let header = format!(
         "{NAME}: v{}\n{}",

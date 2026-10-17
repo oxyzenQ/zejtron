@@ -67,7 +67,7 @@ pub(crate) fn map_socket_owners(
 
         let mut process = read_process_info(&process_dir, pid);
         // Read cmdline once per process to share across all its sockets
-        process.cmdline = crate::process::read_cmdline(Path::new("/proc"), pid);
+        process.cmdline = crate::system::read_cmdline(Path::new("/proc"), pid);
 
         for (inode, fd) in matched_inodes {
             let mut entry = process.clone();

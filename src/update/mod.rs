@@ -98,8 +98,8 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
     // sibling contract, night-improve-16): refuse euid 0 before any
     // network I/O through the shared root guard, so the wording
     // matches the other fatal surfaces byte for byte.
-    if let Some(refusal) = crate::process::root_refusal(
-        crate::process::effective_uid() == Some(0),
+    if let Some(refusal) = crate::system::root_refusal(
+        crate::system::effective_uid() == Some(0),
         "the update check performs a network fetch",
     ) {
         return Err(refusal);
