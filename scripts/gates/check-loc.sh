@@ -47,11 +47,11 @@ echo ""
 # check-headers.sh set). Cargo build dirs are excluded by .gitignore
 # already; the guard below is defensive.
 FILES=$(git ls-files --cached --others --exclude-standard -- '*.rs' 2>/dev/null |
-        grep -v -E '^(target|ebpf/target)/' | sort)
+	grep -v -E '^(target|ebpf/target)/' | sort)
 
 if [ -z "$FILES" ]; then
-        echo "No .rs files found in the tree"
-        exit 0
+	echo "No .rs files found in the tree"
+	exit 0
 fi
 
 # night-improve-14: the src/ root single-file policy. Only main.rs may
@@ -60,24 +60,24 @@ fi
 # grow back.
 STRAY_ROOT=$(printf '%s\n' "$FILES" | grep -E '^src/[^/]+\.rs$' | grep -v '^src/main\.rs$' || true)
 if [ -n "$STRAY_ROOT" ]; then
-        echo "FAIL: src/ root single-file policy (night-improve-14):"
-        printf '%s\n' "$STRAY_ROOT" | sed 's/^/  stray: /'
-        echo "  Only src/main.rs may live at src/ root; move the file into"
-        echo "  its directory group (cli/, commands/, info/, output/, system/,"
-        echo "  update/) and wire the hub mod.rs."
-        exit 1
+	echo "FAIL: src/ root single-file policy (night-improve-14):"
+	printf '%s\n' "$STRAY_ROOT" | sed 's/^/  stray: /'
+	echo "  Only src/main.rs may live at src/ root; move the file into"
+	echo "  its directory group (cli/, commands/, info/, output/, system/,"
+	echo "  update/) and wire the hub mod.rs."
+	exit 1
 fi
 
 # Compute and display line counts sorted descending
 while IFS= read -r f; do
-        LINES=$(wc -l <"$f")
-        printf "  %5d  %s\n" "$LINES" "$f"
-        if [ "$LINES" -gt "$MAX_LINES" ]; then
-                FAILED=$((FAILED + 1))
-                echo "    ^^^ VIOLATES ${MAX_LINES} limit (the no-mercy law:"
-                echo "           over the cap means SPLIT, a pure move, gates green in between)"
-        fi
-        FOUND=$((FOUND + 1))
+	LINES=$(wc -l <"$f")
+	printf "  %5d  %s\n" "$LINES" "$f"
+	if [ "$LINES" -gt "$MAX_LINES" ]; then
+		FAILED=$((FAILED + 1))
+		echo "    ^^^ VIOLATES ${MAX_LINES} limit (the no-mercy law:"
+		echo "           over the cap means SPLIT, a pure move, gates green in between)"
+	fi
+	FOUND=$((FOUND + 1))
 done <<<"$FILES"
 
 echo ""
@@ -85,11 +85,11 @@ echo "Total files: ${FOUND}"
 echo "Files over ${MAX_LINES}: ${FAILED} (the no-mercy law: zero allowed)"
 
 if [ "$FAILED" -gt 0 ]; then
-        echo ""
-        echo "FAIL: ${FAILED} file(s) exceed ${MAX_LINES} lines. Split the file into"
-        echo "modules (a pure move, gates green in between) - there is no debt"
-        echo "list to join and no grandfather clause."
-        exit 1
+	echo ""
+	echo "FAIL: ${FAILED} file(s) exceed ${MAX_LINES} lines. Split the file into"
+	echo "modules (a pure move, gates green in between) - there is no debt"
+	echo "list to join and no grandfather clause."
+	exit 1
 fi
 
 echo ""

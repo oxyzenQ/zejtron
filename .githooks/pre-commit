@@ -7,10 +7,10 @@
 #
 # Deliberately a shim: the enforcement logic lives in
 # scripts/gates/check-commit-gate.sh so the shell quad (bash -n +
-# shellcheck + shfmt + source resolution) lints it like every other
-# gate script - git requires this file at .githooks/pre-commit with
-# no extension, below the quad's *.sh radar, so it stays trivial on
-# purpose. gate-keepers.sh self-installs the wiring
+# shfmt + static analysis + source resolution) lints it like every
+# other gate script - git requires this file at .githooks/pre-commit
+# with no extension, below the quad's *.sh radar, so it stays trivial
+# on purpose. gate-keepers.sh self-installs the wiring
 # (core.hooksPath=.githooks) on its first wholesale run, after which
 # every commit on the clone executes the commit gate even when the
 # wholesale gates themselves are forgotten.

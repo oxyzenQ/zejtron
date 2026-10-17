@@ -18,7 +18,7 @@ REPO_URL="https://github.com/oxyzenQ/zejtron"
 INSTALL_PATH="/usr/bin/${zejtron}"
 
 usage() {
-    cat <<EOF
+	cat <<EOF
 Usage: $0
 
   Builds ${zejtron} (release, locked) and installs it to /usr/bin/${zejtron}.
@@ -34,10 +34,17 @@ EOF
 }
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -h|--help) usage; exit 0 ;;
-        *) echo "error: unknown argument: $1 - this script takes no options" >&2; usage; exit 2 ;;
-    esac
+	case "$1" in
+	-h | --help)
+		usage
+		exit 0
+		;;
+	*)
+		echo "error: unknown argument: $1 - this script takes no options" >&2
+		usage
+		exit 2
+		;;
+	esac
 done
 
 # Refuse to run as root — cargo build must run as the current user.
@@ -45,15 +52,15 @@ done
 # breaking future `cargo clean` / `cargo build` for the normal user.
 # The script uses sudo internally only for the /usr/bin install step.
 if [[ $EUID -eq 0 ]]; then
-    echo "error: do not run this script with sudo." >&2
-    echo "  cargo build would run as root, corrupting target/ ownership." >&2
-    echo "  Run: $0   (sudo is used internally only for the /usr/bin install step)" >&2
-    exit 1
+	echo "error: do not run this script with sudo." >&2
+	echo "  cargo build would run as root, corrupting target/ ownership." >&2
+	echo "  Run: $0   (sudo is used internally only for the /usr/bin install step)" >&2
+	exit 1
 fi
 
 if [[ ! -f Cargo.toml ]]; then
-    echo "error: Cargo.toml not found. Run this script from the repo root." >&2
-    exit 1
+	echo "error: Cargo.toml not found. Run this script from the repo root." >&2
+	exit 1
 fi
 
 echo ">> [1/3] Building ${zejtron} (release, locked)"
@@ -61,8 +68,8 @@ cargo build --release --locked
 
 BINARY="target/release/${zejtron}"
 if [[ ! -f "${BINARY}" ]]; then
-    echo "error: build produced no binary at ${BINARY}" >&2
-    exit 1
+	echo "error: build produced no binary at ${BINARY}" >&2
+	exit 1
 fi
 
 echo ">> [2/3] Installing ${zejtron} to ${INSTALL_PATH} (sudo for this step only)"
