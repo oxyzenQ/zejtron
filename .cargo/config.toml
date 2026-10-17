@@ -62,3 +62,61 @@ pro-native-musl = [
   "--target",
   "x86_64-unknown-linux-musl",
 ]
+
+# Arch-baseline release aliases (the sibling's NIGHT-improve-22
+# lineage): `cargo pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu`
+# / `pro-linux-amd64-v3-musl` / `pro-linux-amd64-v4-musl` compile the
+# EXACT release shapes (release.yml builds v3 and v4 for both libc
+# flavors; the native v1 baseline is retired from releases and stays
+# a local dev-only build via the pro-native aliases above). Each
+# alias carries its own profile so the four artifacts land in
+# separate target dirs and never clobber each other or
+# target/release/zejtron. No build-label env: version.rs's
+# build_label() detects arch + libc at compile time (the
+# night-improve-11 contract); the x86-64 level is the one dimension
+# -V cannot self-detect at runtime, and it is documented by the
+# artifact name the release page ships.
+#
+# The gnu pair rides build.rustflags with the baseline -C target-cpu
+# flag; the musl pair sets the target-level rustflags directly (the
+# SHADOW rule documented above applies unchanged - the file's
+# target-level musl contract would ignore build-level flags, and the
+# CLI --config target rustflags are CONCATENATED with the alias's
+# +crt-static, so carrying it explicitly here keeps each alias
+# self-contained).
+#
+# Parity contract (scripts/gates/check-release-parity.sh): the -C
+# tokens below must equal the release matrix's rustflags verbatim -
+# a one-file edit can no longer silently break that contract.
+pro-linux-amd64-v3-gnu = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-v3-gnu",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
+]
+pro-linux-amd64-v4-gnu = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-v4-gnu",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
+]
+pro-linux-amd64-v3-musl = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-v3-musl",
+  "--config",
+  "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=x86-64-v3\",\"-C\",\"target-feature=+crt-static\"]",
+  "--target",
+  "x86_64-unknown-linux-musl",
+]
+pro-linux-amd64-v4-musl = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-v4-musl",
+  "--config",
+  "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=x86-64-v4\",\"-C\",\"target-feature=+crt-static\"]",
+  "--target",
+  "x86_64-unknown-linux-musl",
+]

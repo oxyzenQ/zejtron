@@ -28,15 +28,37 @@ cd "$repo_root"
 #     (ZEJTRON_BIN_PATH pointing at the leg's freshly built binary),
 #     so every build shape the repo ships gets the same runtime
 #     contract, not just the host shape.
+#   miri - undefined-behavior verification of the pure-Rust module
+#     families (scripts/lib/miri.sh owns the runner: the audited
+#     scope, the stamp file contract, the banner). Needs the nightly
+#     toolchain with the miri component; --no-install is CI's
+#     contract. Sub-flags: --filter <pat>, --no-install, --full.
 MODE="check-all"
 case "${1:---check-all}" in
   --check-all|check-all) MODE="check-all" ;;
   --battery|battery) MODE="battery" ;;
+  --miri|miri) MODE="miri" ;;
   *)
-    echo "usage: ./scripts/build.sh [--check-all|--battery]" >&2
+    echo "usage: ./scripts/build.sh [--check-all|--battery|--miri]" >&2
     exit 2
     ;;
 esac
+
+# miri sub-flags (parsed before anything else runs).
+MIRI_FILTER=""
+MIRI_NO_INSTALL=0
+MIRI_FULL=0
+if [[ "$MODE" == "miri" ]]; then
+  shift
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --filter) MIRI_FILTER="$2"; shift 2 ;;
+      --no-install) MIRI_NO_INSTALL=1; shift ;;
+      --full) MIRI_FULL=1; shift ;;
+      *) echo "usage: ./scripts/build.sh miri [--filter <pat>|--no-install|--full]" >&2; exit 2 ;;
+    esac
+  done
+fi
 
 # The binary the battery exercises. Override for cross-shape legs
 # (e.g. ZEJTRON_BIN_PATH=target/x86_64-unknown-linux-musl/release/zejtron).
@@ -127,6 +149,8 @@ service_smoke() {
   exit 1
 }
 
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/miri.sh"
+
 if [[ "$MODE" == "check-all" ]]; then
   run rustc --version
   run cargo --version
@@ -135,6 +159,9 @@ if [[ "$MODE" == "check-all" ]]; then
   run cargo clippy --all-targets --all-features --locked -- -D warnings
   run cargo test --all-targets --all-features --locked
   run cargo build --release --locked
+elif [[ "$MODE" == "miri" ]]; then
+  run_miri
+  exit $?
 fi
 
 run "$ZEJTRON_BIN" --help

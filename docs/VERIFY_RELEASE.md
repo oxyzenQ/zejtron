@@ -4,8 +4,10 @@
 # Verifying Release Artifacts
 
 Every release ships **three** checksum files per archive, covering
-classical + post-quantum algorithms. Verify at least one before
-trusting a downloaded binary.
+classical + post-quantum algorithms, and - when the release GPG key is
+configured - one detached ASCII-armored GPG signature per archive.
+Verify at least one checksum before trusting a downloaded binary, and
+the signature whenever one ships.
 
 ## Checksum files
 
@@ -36,20 +38,46 @@ EXPECTED=$(awk '{print $1}' project-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
 ```
 
 Replace `project-vX.Y.Z-linux-amd64-gnu` with the actual archive name
-(e.g. `zejtron-v10.0.1-linux-amd64-gnu` or
-`zejtron-v10.0.1-linux-amd64-musl`).
+- the release matrix ships exactly four shapes:
+`zejtron-vX.Y.Z-linux-amd64-v3-gnu`,
+`zejtron-vX.Y.Z-linux-amd64-v4-gnu`,
+`zejtron-vX.Y.Z-linux-amd64-v3-musl`,
+`zejtron-vX.Y.Z-linux-amd64-v4-musl` (the x86-64-v3/v4 microarch
+levels x the glibc/musl libc flavors).
+
+## GPG signature (when the release ships .asc files)
+
+```bash
+# One-time: fetch the release key (the key id is on the release page
+# and in docs/BRANDING.md's verification section once configured).
+gpg --keyserver keyserver.ubuntu.com --recv-keys <KEY_FINGERPRINT>
+
+# Verify the detached signature (the .asc rides the same asset list).
+gpg --verify zejtron-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.asc \
+           zejtron-vX.Y.Z-linux-amd64-v3-gnu.tar.gz
+```
+
+`Good signature` from the release key means the archive bytes are the
+ones the release pipeline signed - pair it with one checksum check
+for a complete verification.
 
 ## Why three algorithms
 
 Defense in depth across three independent hash families
 (SHA-2, BLAKE2, SHA-3 XOF). A future cryptanalytic break of any
 single family does not invalidate verification via the other two.
+GPG signatures add an authenticity layer the checksums cannot give
+on their own: a checksum proves integrity against the published
+hash file, the signature proves the bytes came from the release
+key (a compromised mirror cannot forge either pair together).
 
 ## Verification tools required
 
 - `sha512sum` — GNU coreutils (preinstalled on every Linux)
 - `b2sum` — GNU coreutils ≥ 8.x (preinstalled on modern distros)
-- `openssl` — OpenSSL 1.1.1+ (preinstalled on virtually every Linux)
+- `python3` — for the SHAKE256 lane (hashlib is stdlib)
+- `gpg` — GnuPG 2.x, for the signature lane (preinstalled on
+  virtually every Linux)
 
-All three tools ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine,
+All tools ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine,
 and macOS by default — no extra install needed.

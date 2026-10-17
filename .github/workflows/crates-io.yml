@@ -1,0 +1,135 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# The crates.io lane (the sibling's ship-set discipline, zejtron's
+# pre-publication shape).
+#
+# zejtron is NOT published to the registry yet - the manifest's
+# `documentation` field is withheld until the crate exists and the
+# docs.rs tree is verified live (the sibling's rule: never pre-claim
+# a link). This workflow therefore owns the two things that stay true
+# before and after publication:
+#   1. The ship-set verification: `cargo package --list --locked`
+#      inventory + a full `cargo package` dry run on every manifest
+#      change - the tarball contract can never rot silently.
+#   2. The on-demand publish: `workflow_dispatch` with publish=true
+#      and CARGO_REGISTRY_TOKEN configured. The publish step refuses
+#      to run without the explicit flag and the secret, so the dry-run
+#      lane is the default posture and the actual publish stays the
+#      owner's deliberate act.
+
+name: Dragon Guard - crates.io
+
+'on':
+  push:
+    branches: ["main"]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'src/**'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/crates-io.yml'
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'src/**'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/crates-io.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Actually publish to crates.io (requires CARGO_REGISTRY_TOKEN secret)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ship-set:
+    name: Registry ship-set verification (package dry run)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+
+      - name: Install Rust toolchain (pinned)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          cache-on-failure: true
+
+      # The curated-include contract: the tarball carries exactly the
+      # compile surface + the top-level docs + the governance set and
+      # nothing else. The inventory is asserted, not trusted.
+      - name: Verify the ship-set inventory
+        run: |
+          set -euo pipefail
+          LIST=$(cargo package --list --locked 2>/dev/null)
+          for required in \
+            Cargo.toml Cargo.lock build.rs rust-toolchain.toml README.md \
+            LICENSE NOTICE deny.toml CHANGELOG.md TRADEMARK.md \
+            CLA.md COMMERCIAL_LICENSE.md CONTRIBUTING.md SECURITY.md QA.md \
+            docs/DEPENDENCY_AUDIT.md docs/LICENSING_FAQ.md \
+            src/main.rs src/clock.rs src/version.rs; do
+            if ! grep -qx "${required}" <<<"${LIST}"; then
+              echo "::error::ship-set missing required entry: ${required}"
+              exit 1
+            fi
+          done
+          # The repo-only lanes must never ride the tarball.
+          for forbidden in "scripts/" "assets/" "aur/" ".github/"; do
+            if grep -q "^${forbidden}" <<<"${LIST}"; then
+              echo "::error::ship-set leaked repo-only lane: ${forbidden}"
+              exit 1
+            fi
+          done
+          echo "ship-set verified: $(grep -c . <<<"${LIST}") files"
+
+      # The full dry run: builds the package the registry would
+      # receive (including the build script's no-.git degradation).
+      - name: Package dry run
+        run: cargo package --locked --allow-dirty
+
+  publish:
+    name: Publish to crates.io (owner-gated)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [ship-set]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+
+      - name: Install Rust toolchain (pinned)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
+            echo "::error::CARGO_REGISTRY_TOKEN secret not configured - refusing to publish"
+            exit 1
+          fi
+          cargo publish --locked

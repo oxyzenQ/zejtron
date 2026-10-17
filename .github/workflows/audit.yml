@@ -1,0 +1,79 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The security-audit lane (the sibling's observation-only posture):
+# advisory scan on every manifest/lockfile change plus the weekly
+# watch over the advisory DB itself. Red in the run list is the
+# owner's morning signal.
+
+name: Dragon Guard - Security Audit
+
+'on':
+  push:
+    branches: ["main"]
+    paths:
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.github/workflows/audit.yml'
+  pull_request:
+    branches: ["main"]
+    paths:
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.github/workflows/audit.yml'
+  schedule:
+    # Every Monday at 00:00 UTC (07:00 WIB) - the owner's morning,
+    # one clock for every scheduled workflow.
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: Observation-only audit
+    # Runner pinned to ubuntu-24.04, never a floating ubuntu-latest:
+    # OS upgrades here are deliberate, matrix-tested changes.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+
+      # Scanner binaries pinned, advisory DB still refreshes every
+      # run: red means a new advisory, never a new release of the
+      # scanner itself.
+      - name: Install cargo-audit (pinned 0.22.2)
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
+      - name: Run cargo audit
+        # --deny warnings makes advisory-level findings (unmaintained
+        # dependencies, yanked versions) exit non-zero instead of
+        # scrolling past as yellow text - the observation-only
+        # posture lives in continue-on-error above, not in a silent
+        # exit code.
+        run: cargo audit --deny warnings
+
+      - name: Install cargo-deny (pinned 0.20.2)
+        run: cargo install cargo-deny --version 0.20.2 --locked
+
+      - name: Run cargo deny
+        if: hashFiles('deny.toml') != ''
+        # check (not check all): advisories + licenses + bans + the
+        # source policy - the full policy deny.toml carries. The
+        # chrono/iana-time-zone/time bans (night-improve-13's civil
+        # clock contract) are enforced here.
+        run: cargo deny check

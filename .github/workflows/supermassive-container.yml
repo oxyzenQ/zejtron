@@ -1,0 +1,118 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Supermassive Container E2E (the sibling's lane name, zejtron's
+# honest version): the read-only surfaces verified inside a REAL
+# container, because "zejtron works in a container" is a claim the
+# doctor makes (the container detection check) and the host battery
+# can never prove. The lane builds the static musl binary, runs it
+# inside a docker container, and asserts the container-honest
+# behavior: the doctor reports the container evidence, procfs reads
+# still work, and every read-only surface exits clean.
+#
+# The BPF side of the sibling's lane has no zejtron analog by design
+# - zejtron is a pure procfs/sysfs reader with no kernel surface.
+
+name: Dragon Guard - Supermassive Container E2E
+
+'on':
+  push:
+    branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'scripts/build.sh'
+      - '.github/workflows/supermassive-container.yml'
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'scripts/build.sh'
+      - '.github/workflows/supermassive-container.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  container-e2e:
+    name: Container E2E - docker (musl static)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+
+      - name: Install Rust toolchain (pinned)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          cache-on-failure: true
+
+      - name: Build the static musl binary
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          cargo build --release --locked --target x86_64-unknown-linux-musl
+
+      # The container round trip: the binary rides a scratch-like
+      # image, reads the container's own /proc and sysfs, and must
+      # behave exactly as the doctor's container-detection contract
+      # promises: evidence found, no crash, exit codes clean.
+      - name: Run the read-only surfaces inside docker
+        run: |
+          set -euo pipefail
+          BIN=target/x86_64-unknown-linux-musl/release/zejtron
+          docker build -t zejtron-e2e -f- . <<'DOCKERFILE'
+          FROM alpine:3.20
+          COPY target/x86_64-unknown-linux-musl/release/zejtron /usr/local/bin/zejtron
+          DOCKERFILE
+
+          echo "=== -V report inside the container ==="
+          docker run --rm zejtron-e2e -V
+
+          echo "=== doctor inside the container (container evidence expected) ==="
+          set +e
+          DOC_OUT=$(docker run --rm zejtron-e2e doctor 2>&1)
+          DOC_RC=$?
+          set -e
+          echo "${DOC_OUT}"
+          # The container markers MUST be detected (/.dockerenv or
+          # cgroup evidence) - a "bare-metal" verdict inside docker is
+          # a detection regression. A FAIL verdict (procfs unreadable)
+          # exits non-zero by contract and fails this lane; WARN-only
+          # is the honest container posture.
+          if ! grep -q "container" <<<"${DOC_OUT}"; then
+            echo "::error::doctor did not report container evidence inside docker"
+            exit 1
+          fi
+          if [ "${DOC_RC}" -ne 0 ]; then
+            echo "::error::doctor exited ${DOC_RC} inside the container (a FAIL row landed)"
+            exit 1
+          fi
+
+          echo "=== the read-only surfaces inside the container ==="
+          docker run --rm zejtron-e2e port --tcp --no-pid
+          docker run --rm zejtron-e2e proc --me --depth 1 --no-pid
+          docker run --rm zejtron-e2e net
+          docker run --rm zejtron-e2e shell
+
+          echo "Container E2E complete: every read-only surface behaved."
