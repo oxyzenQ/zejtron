@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Zejtron Project Maintenance Rules
 
 This document codifies the maintenance discipline for the Zejtron project.

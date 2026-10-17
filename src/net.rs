@@ -426,7 +426,7 @@ fn render_iface_details(lines: &mut Vec<String>, iface: &InterfaceEntry, prefix:
             sub.push(format!("flags {flag_str}"));
         }
         if flags & 0x100 != 0 {
-            sub.push("⚠ promiscuous-mode".to_owned());
+            sub.push("warn: promiscuous-mode".to_owned());
         }
     }
     if let (Some(rx), Some(tx)) = (iface.rx_bytes, iface.tx_bytes) {

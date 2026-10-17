@@ -1,0 +1,84 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Gate-keepers - the one wholesale gate workflow (the sibling's
+# NIGHT-hunt-23 class closure lineage): ci.yml carries the
+# path-filtered build/test jobs, this workflow runs
+# scripts/gate-keepers.sh wholesale on EVERY push and PR with NO
+# paths filter - a docs-only or workflow-only change never skips the
+# gates that police it.
+#
+# Checks performed by gate-keepers.sh (13 numbered sections; the
+# shell quad's four sub-checks count separately):
+#    0. Pre-commit hook self-install
+#    1. Shell quad (bash -n, shellcheck, shfmt, source resolution)
+#    2. yamllint       3. actionlint      4. TOML syntax
+#    5. codespell      6. SPDX headers   7. permissions (644/755)
+#    8. emoji sweep    9. .rs LOC cap   10. toolchain pin sync
+#   11. language      12. scripts LOC   13. version anti-patterns
+#
+# Every tool below is installed and pinned - a check that silently
+# skips because its tool is missing is a check that does not exist.
+
+name: Dragon Guard - Gate-keepers
+
+'on':
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  gatekeepers:
+    name: Gate-keepers (wholesale)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+
+      # Tool pins make findings meaningful: a red wholesale run means
+      # the tree drifted, never that a linter released overnight.
+      - name: Install shellcheck (pinned v0.10.0)
+        run: |
+          curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+            -o /tmp/shellcheck.tar.xz \
+            https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz
+          tar -xf /tmp/shellcheck.tar.xz -C /tmp
+          sudo install -m755 /tmp/shellcheck-v0.10.0/shellcheck /usr/local/bin/shellcheck
+          shellcheck --version | head -2
+
+      - name: Install shfmt (pinned v3.10.0)
+        run: |
+          curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+            -o /tmp/shfmt \
+            https://github.com/mvdan/sh/releases/download/v3.10.0/shfmt_v3.10.0_linux_amd64
+          sudo install -m755 /tmp/shfmt /usr/local/bin/shfmt
+          shfmt --version
+
+      - name: Install yamllint, codespell, actionlint (pinned)
+        run: |
+          python3 -m pip install --user yamllint==1.38.0 codespell==2.4.3
+          curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+            -o /tmp/actionlint.tgz \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          tar -xzf /tmp/actionlint.tgz -C /tmp actionlint
+          sudo install -m755 /tmp/actionlint /usr/local/bin/actionlint
+          yamllint --version
+          codespell --version
+          actionlint --version
+
+      # The wholesale run: all 13 sections in one shot - exit code 0
+      # or the push is blocked.
+      - name: Run gate-keepers.sh (wholesale)
+        run: bash scripts/gate-keepers.sh
