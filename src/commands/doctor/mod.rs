@@ -74,7 +74,7 @@ fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> St
     let build = build_label(git_hash);
     let mut lines = vec![
         "Doctor report:".to_owned(),
-        mode_label(crate::process::effective_uid()),
+        mode_label(crate::system::effective_uid()),
         "STATUS  CHECK                 MESSAGE".to_owned(),
     ];
 

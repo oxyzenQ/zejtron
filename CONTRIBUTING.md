@@ -48,19 +48,18 @@ unit surface. The commit gate is one invocation:
 
 ```
 src/
-  main.rs        — entry point + dispatch (the flat module root)
-  cli.rs         — CLI definition (clap derive) + subcommands
-  styles.rs      — clap brand styling (purple headings, grey grammar)
-  output.rs      — runtime color tier (capability ladder, error lane)
-  clock.rs       — the std-only civil clock (Hinnant civil_from_days)
-  version.rs     — the -V version report
-  doctor.rs      — doctor checks + report
-  path.rs, recent.rs, port/, proc.rs, holds.rs, touch.rs,
-  why.rs, env.rs, service.rs, shell.rs, net.rs, git.rs
-                 — the read-only command surfaces
-  pathguard.rs   — port/argument guardrails
-  process.rs     — /proc readers + username lookup
-  update.rs      — --check-update (curl-backed, refuses root)
+  main.rs        — entry point + dispatch (the ONLY file at src/ root,
+                   enforced by check-loc.sh)
+  cli/           — CLI definition (clap derive) + clap brand styling
+  commands/      — the read-only command surfaces (path, recent, port/,
+                   proc, holds, touch/, why, env, service, shell, net,
+                   git, doctor/)
+  info/          — the -V version report + the std-only civil clock
+                   (Hinnant civil_from_days)
+  output/        — runtime color tier (capability ladder, error lane)
+  system/        — /proc readers + username lookup + path/argument
+                   guardrails (pathguard)
+  update/        — --check-update (curl-backed, refuses root)
 scripts/
   build.sh       — the commit gate (check-all) + CLI battery
   gate-keepers.sh — the wholesale non-code gate (self-installs the
@@ -106,7 +105,7 @@ docs/            — the docs tree (BRANDING, RULES, VERIFY_RELEASE, ...)
    `docs/DEPENDENCY_AUDIT.md`; feature lists are trimmed to the
    modules actually used; zero-call-site deps get removed, not kept
    "for later". No time crates — wall-clock math is the Hinnant
-   civil-from-days algorithm (`src/clock.rs` and `build.rs`; chrono
+   civil-from-days algorithm (`src/info/clock.rs` and `build.rs`; chrono
    is banned in `deny.toml`, re-adding it fails CI).
 8. **English-only language**: comments, docs, script text, and string
    literals are pure English (chat may be mixed-language; committed

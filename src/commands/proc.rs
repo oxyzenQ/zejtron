@@ -362,7 +362,7 @@ fn scan_processes_for_uid_at(proc_root: &Path, target_uid: u32) -> Result<ScanRe
         if process.pid == pid && process.uid == target_uid {
             // Enrich with cmdline (from /proc/<pid>/cmdline) and state char
             // (from /proc/<pid>/stat field 3).
-            process.cmdline = crate::process::read_cmdline(proc_root, pid);
+            process.cmdline = crate::system::read_cmdline(proc_root, pid);
             process.state = read_state_char(&entry.path()).unwrap_or_else(|| "?".to_owned());
             processes.push(process);
         }

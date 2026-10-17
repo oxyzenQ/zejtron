@@ -2,26 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 mod cli;
-mod clock;
-mod doctor;
-mod env;
-mod git;
-mod holds;
-mod net;
+mod commands;
+mod info;
 mod output;
-mod path;
-mod pathguard;
-mod port;
-mod proc;
-mod process;
-mod recent;
-mod service;
-mod shell;
-mod styles;
-mod touch;
+mod system;
 mod update;
-mod version;
-mod why;
 
 use clap::Parser;
 
@@ -29,7 +14,7 @@ fn main() {
     let cli = cli::Cli::parse();
 
     if cli.version {
-        version::print_version_report();
+        info::print_version_report();
         return;
     }
 
@@ -42,9 +27,9 @@ fn main() {
     }
 
     let result = match cli.command {
-        Some(cli::Commands::Path { command }) => path::run(&command),
+        Some(cli::Commands::Path { command }) => commands::path::run(&command),
         Some(cli::Commands::Recent { path, limit, since }) => {
-            recent::run(&path, limit, since.as_deref())
+            commands::recent::run(&path, limit, since.as_deref())
         }
         Some(cli::Commands::Port {
             port,
@@ -55,9 +40,9 @@ fn main() {
             numeric,
             group,
             no_pid,
-        }) => port::run(
+        }) => commands::port::run(
             port.as_deref(),
-            port::PortFlags {
+            commands::port::PortFlags {
                 tcp,
                 udp,
                 listen,
@@ -77,9 +62,9 @@ fn main() {
             find,
             no_pid,
             no_color,
-        }) => proc::run(
+        }) => commands::proc::run(
             user_or_uid.as_deref(),
-            proc::ProcFlags {
+            commands::proc::ProcFlags {
                 me,
                 live,
                 watch,
@@ -90,9 +75,9 @@ fn main() {
                 no_color,
             },
         ),
-        Some(cli::Commands::Holds { target }) => holds::run(&target),
-        Some(cli::Commands::Touch { path }) => touch::run(&path),
-        Some(cli::Commands::Why { target }) => why::run(&target),
+        Some(cli::Commands::Holds { target }) => commands::holds::run(&target),
+        Some(cli::Commands::Touch { path }) => commands::touch::run(&path),
+        Some(cli::Commands::Why { target }) => commands::why::run(&target),
         Some(cli::Commands::Env {
             command,
             keys,
@@ -100,7 +85,7 @@ fn main() {
             no_values,
             pid,
             mask_secrets,
-        }) => env::run(
+        }) => commands::env::run(
             command,
             keys || no_values,
             filter.as_deref(),
@@ -114,7 +99,7 @@ fn main() {
             failed,
             all,
             filter,
-        }) => service::run(service::ServiceFlags {
+        }) => commands::service::run(commands::service::ServiceFlags {
             unit,
             system,
             user,
@@ -122,10 +107,10 @@ fn main() {
             all,
             filter,
         }),
-        Some(cli::Commands::Doctor) => doctor::run(env!("ZEJTRON_GIT_HASH")),
-        Some(cli::Commands::Shell) => shell::run(),
-        Some(cli::Commands::Net) => net::run(),
-        Some(cli::Commands::Git) => git::run(),
+        Some(cli::Commands::Doctor) => commands::doctor::run(env!("ZEJTRON_GIT_HASH")),
+        Some(cli::Commands::Shell) => commands::shell::run(),
+        Some(cli::Commands::Net) => commands::net::run(),
+        Some(cli::Commands::Git) => commands::git::run(),
         None => {
             let mut cmd = cli::Cli::command();
             cmd.print_help().map(|_| println!()).map_err(Into::into)

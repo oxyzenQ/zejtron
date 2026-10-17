@@ -37,7 +37,7 @@ pub fn run(
     let rows: Vec<(String, String, String)> = files
         .iter()
         .map(|file| {
-            let owner = crate::process::lookup_username(file.uid);
+            let owner = crate::system::lookup_username(file.uid);
             (
                 display_relative_path(path, &file.path),
                 rough_age(now, file.modified),

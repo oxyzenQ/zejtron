@@ -69,8 +69,8 @@ The CLI speaks one palette on two surfaces, both anchored to the same values:
 | Warning yellow | `#FFEB3C` (255,235,60) | invalid-input highlights on the clap lane; doctor `WARN` rows; the update check's "update available" verdict |
 | Status green | `#50FA7B` (80,250,123) | affirmative verdicts: doctor `OK` rows; the update check's "up to date" verdict |
 
-Implementation: the clap lane renders through `src/styles.rs`, the
-runtime lane through `src/output.rs`; one palette, two modules.
+Implementation: the clap lane renders through `src/cli/styles.rs`, the
+runtime lane through `src/output/mod.rs`; one palette, two modules.
 
 Capability ladder (the runtime lane): TrueColor 24-bit when
 `COLORTERM=truecolor/24bit` or the terminal names a truecolor-native

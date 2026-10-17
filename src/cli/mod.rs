@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+pub mod styles;
 use clap::{CommandFactory, Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -14,7 +15,7 @@ use std::path::PathBuf;
     // `help` subcommand row padding the commands list on every
     // top-level render.
     disable_help_subcommand = true,
-    styles = crate::styles::clap_styles()
+    styles = crate::cli::styles::clap_styles()
 )]
 pub struct Cli {
     #[arg(

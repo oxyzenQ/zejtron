@@ -17,6 +17,7 @@
 
 #![allow(dead_code)]
 
+pub mod pathguard;
 use std::fs;
 use std::path::Path;
 

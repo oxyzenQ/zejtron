@@ -5,14 +5,14 @@
 //! escape sequences every runtime surface renders (the error gate in
 //! main, the doctor verdict rows, the update check's status word).
 //! The clap lane (help, usage, clap errors, typo suggestions) is a
-//! separate surface with its own module: [`crate::styles`] paints
+//! separate surface with its own module: [`crate::cli::styles`] paints
 //! what clap renders; this module paints what zejtron renders
 //! itself. One palette across both: the sibling contract.
 //!
 //! Owner color contract (the sibling project's output law): error
 //! red #FF5A5A (255,90,90), warning yellow #FFEB3C (255,235,60),
 //! status green #50FA7B (80,250,123). Brand purple #A855F7 rides the
-//! clap heading tier via [`crate::styles`] and has exactly one
+//! clap heading tier via [`crate::cli::styles`] and has exactly one
 //! runtime seat: the `-V` version-report header (the sibling's
 //! masterclass layout) - nothing else on this lane paints purple.
 //!

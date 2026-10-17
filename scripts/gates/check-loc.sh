@@ -23,10 +23,12 @@
 # A file already listed that GROWS does not re-fail (the list pins
 # the current line counts); the splits remove entries, never add.
 #
-# Deferred (documented, owner-visible): the sibling's src/ root
-# single-file policy (only main.rs at src/ root) is NOT enforced
-# here yet - zejtron's flat src/ layout is grandfathered, and the
-# layout migration is its own task.
+# Single-file policy (night-improve-14, the sibling's src/ root law,
+# now ENFORCED - the grandfather clause is lifted): src/ root carries
+# ONLY main.rs. Every other module lives in a directory group (cli/,
+# commands/, info/, output/, system/, update/), the zelynic shape.
+# The gate below fails the build the day a stray *.rs file joins
+# src/ root again.
 #
 # Usage: scripts/gates/check-loc.sh [MAX_LINES]
 #   MAX_LINES: override the default limit (default: 600)
@@ -43,16 +45,16 @@ FOUND=0
 # Entries only ever LEAVE this list (a split removes its row); a new
 # over-cap file that is not listed here fails the build.
 TRACKED_DEBT=(
-  "src/env.rs|632|env|snapshot store: split the snapshot IO family out of the render"
-  "src/git.rs|900|git|context reporter: split the porcelain parsers out of the reporter"
-  "src/holds.rs|886|holds|holder scanner: split the fd/port scanners out of the report"
-  "src/net.rs|718|net|interface reporter: split the sysfs readers out of the render"
-  "src/port/render.rs|659|port|socket renderer: split the owner/detail rows out of the table"
-  "src/proc.rs|1039|proc|process tree: split the live-loop out of the tree builder"
-  "src/process.rs|609|process|/proc readers: split the unit/env readers out of the lookup"
-  "src/service.rs|760|service|systemd surface: split the unit-detail render out of the list"
-  "src/shell.rs|1013|shell|shell context: split the shell detectors out of the report"
-  "src/why.rs|760|why|explain surface: split the evidence collectors out of the render"
+  "src/commands/env.rs|640|env|snapshot store: split the snapshot IO family out of the render"
+  "src/commands/git.rs|900|git|context reporter: split the porcelain parsers out of the reporter"
+  "src/commands/holds.rs|886|holds|holder scanner: split the fd/port scanners out of the report"
+  "src/commands/net.rs|718|net|interface reporter: split the sysfs readers out of the render"
+  "src/commands/port/render.rs|659|port|socket renderer: split the owner/detail rows out of the table"
+  "src/commands/proc.rs|986|proc|process tree: split the live-loop out of the tree builder"
+  "src/commands/service.rs|760|service|systemd surface: split the unit-detail render out of the list"
+  "src/commands/shell.rs|1013|shell|shell context: split the shell detectors out of the report"
+  "src/commands/why.rs|760|why|explain surface: split the evidence collectors out of the render"
+  "src/system/mod.rs|671|system|/proc readers: split the unit/env readers out of the lookup"
 )
 
 is_tracked_debt() {
@@ -79,6 +81,20 @@ FILES=$(git ls-files --cached --others --exclude-standard -- '*.rs' 2>/dev/null 
 if [ -z "$FILES" ]; then
         echo "No .rs files found in the tree"
         exit 0
+fi
+
+# night-improve-14: the src/ root single-file policy. Only main.rs may
+# sit at src/ root - every other module rides a directory group. A
+# stray root-level file fails the build, so the flat layout can never
+# grow back.
+STRAY_ROOT=$(printf '%s\n' "$FILES" | grep -E '^src/[^/]+\.rs$' | grep -v '^src/main\.rs$' || true)
+if [ -n "$STRAY_ROOT" ]; then
+        echo "FAIL: src/ root single-file policy (night-improve-14):"
+        printf '%s\n' "$STRAY_ROOT" | sed 's/^/  stray: /'
+        echo "  Only src/main.rs may live at src/ root; move the file into"
+        echo "  its directory group (cli/, commands/, info/, output/, system/,"
+        echo "  update/) and wire the hub mod.rs."
+        exit 1
 fi
 
 # Compute and display line counts sorted descending

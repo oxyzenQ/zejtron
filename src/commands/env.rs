@@ -37,7 +37,7 @@ pub fn run(
             // refused first (night-improve-16): a save under sudo plants
             // root-owned snapshot files the invoking user cannot read
             // back.
-            crate::process::refuse_root("environment snapshot save writes files")?;
+            crate::system::refuse_root("environment snapshot save writes files")?;
             save_snapshot(&name, &current_environment(), &data_dir()?)?;
             println!("Saved environment snapshot: {name}");
         }
@@ -49,7 +49,7 @@ pub fn run(
             // Root is refused first (night-improve-16): a delete under
             // sudo removes snapshot files with root privilege - the
             // same planted-root-owned-files hazard as save.
-            crate::process::refuse_root("environment snapshot delete removes files")?;
+            crate::system::refuse_root("environment snapshot delete removes files")?;
             if delete_snapshot(&name, &data_dir()?)? {
                 println!("Deleted environment snapshot: {name}");
             } else {
@@ -96,7 +96,7 @@ fn data_dir() -> Result<PathBuf, EnvError> {
     // Delegate to pathguard: resolves $XDG_DATA_HOME/zejtron or
     // ~/.local/share/zejtron, and rejects XDG overrides pointing to system
     // or credential paths (/etc, ~/.ssh, etc.).
-    let base = crate::pathguard::resolve_state_dir().map_err(EnvError)?;
+    let base = crate::system::pathguard::resolve_state_dir().map_err(EnvError)?;
     Ok(base.join("env"))
 }
 
