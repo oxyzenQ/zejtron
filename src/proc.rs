@@ -643,10 +643,11 @@ fn render_process(
             output.push_str(&format!(" threads={}", process.threads));
         }
         // Show cmdline if it differs from name (kernel threads have no cmdline)
-        if let Some(ref cmd) = process.cmdline {
-            if !cmd.is_empty() && cmd.as_str() != process.name {
-                output.push_str(&format!(" cmd={}", quote_if_needed(cmd)));
-            }
+        if let Some(ref cmd) = process.cmdline
+            && !cmd.is_empty()
+            && cmd.as_str() != process.name
+        {
+            output.push_str(&format!(" cmd={}", quote_if_needed(cmd)));
         }
     }
 

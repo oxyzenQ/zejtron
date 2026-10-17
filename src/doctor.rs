@@ -118,10 +118,10 @@ fn check_container() -> CheckResult {
         evidence.push("/run/.containerenv".to_owned());
     }
     // /proc/1/cgroup containing /docker/ or /kubepods/ indicates a container
-    if let Ok(cg) = fs::read_to_string("/proc/1/cgroup") {
-        if cg.contains("/docker/") || cg.contains("/kubepods/") || cg.contains("/lxc/") {
-            evidence.push("cgroup indicates container".to_owned());
-        }
+    if let Ok(cg) = fs::read_to_string("/proc/1/cgroup")
+        && (cg.contains("/docker/") || cg.contains("/kubepods/") || cg.contains("/lxc/"))
+    {
+        evidence.push("cgroup indicates container".to_owned());
     }
     // /proc/1/sched shows the init process name; in containers it's not "systemd" or "init"
     if let Ok(sched) = fs::read_to_string("/proc/1/sched") {

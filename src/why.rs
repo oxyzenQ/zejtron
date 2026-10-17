@@ -174,10 +174,11 @@ fn format_port_synthesis(port: u16, enriched: &[EnrichedHolder], stats: &ScanSta
             holder_line.push_str(&format!(" unit={unit}"));
         }
         lines.push(holder_line);
-        if let Some(ref cmd) = e.cmdline {
-            if !cmd.is_empty() && cmd.as_str() != e.holder.name {
-                lines.push(format!("│   ├── cmd: {cmd}"));
-            }
+        if let Some(ref cmd) = e.cmdline
+            && !cmd.is_empty()
+            && cmd.as_str() != e.holder.name
+        {
+            lines.push(format!("│   ├── cmd: {cmd}"));
         }
         if let Some(ref cwd) = e.holder.cwd {
             lines.push(format!("│   └── cwd {}", cwd.display()));

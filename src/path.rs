@@ -25,10 +25,8 @@ pub fn run(command: &str, verbose: bool) -> Result<(), Box<dyn std::error::Error
 
     if matches.is_empty() {
         println!("command not found in PATH: {command}");
-        if verbose {
-            if let Some(ref pe) = path_env {
-                print_path_audit(pe);
-            }
+        if verbose && let Some(ref pe) = path_env {
+            print_path_audit(pe);
         }
         return Ok(());
     }
@@ -36,10 +34,8 @@ pub fn run(command: &str, verbose: bool) -> Result<(), Box<dyn std::error::Error
     let report = format_path_report(command, &matches, verbose);
     println!("{report}");
 
-    if verbose {
-        if let Some(ref pe) = path_env {
-            print_path_audit(pe);
-        }
+    if verbose && let Some(ref pe) = path_env {
+        print_path_audit(pe);
     }
 
     Ok(())
@@ -60,13 +56,11 @@ pub fn format_path_report(command: &str, matches: &[PathMatch], verbose: bool) -
         pkg.as_deref().unwrap_or("unknown")
     ));
 
-    if verbose {
-        if let Some(meta) = file_metadata(&active.path) {
-            lines.push(format!("├── size: {} bytes", meta.size));
-            lines.push(format!("├── owner: {}", meta.owner));
-            lines.push(format!("├── perms: {}", meta.perms));
-            lines.push(format!("├── mtime: {}", meta.mtime));
-        }
+    if verbose && let Some(meta) = file_metadata(&active.path) {
+        lines.push(format!("├── size: {} bytes", meta.size));
+        lines.push(format!("├── owner: {}", meta.owner));
+        lines.push(format!("├── perms: {}", meta.perms));
+        lines.push(format!("├── mtime: {}", meta.mtime));
     }
 
     if duplicates.is_empty() {

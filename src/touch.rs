@@ -200,10 +200,10 @@ fn format_report(info: &TouchInfo) -> String {
             .unwrap_or_else(|| meta.gid.to_string());
 
         lines.push(format!("├── type: {}", meta.file_type));
-        if meta.is_symlink {
-            if let Some(ref target) = meta.symlink_target {
-                lines.push(format!("├── symlink-target: {target}"));
-            }
+        if meta.is_symlink
+            && let Some(ref target) = meta.symlink_target
+        {
+            lines.push(format!("├── symlink-target: {target}"));
         }
         lines.push(format!("├── size: {} bytes", meta.size));
         lines.push(format!(
