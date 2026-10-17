@@ -1,0 +1,64 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Native-CPU host build aliases (sibling-project pro-native
+# lineage, zelynic .cargo/config.toml).
+#
+# Owner contract: `cargo pro-native-gnu` / `cargo pro-native-musl`
+# compile for the host CPU (`-C target-cpu=native`) with dynamic
+# linking (gnu/glibc) or static linking (musl) respectively. No
+# feature flags ride these aliases - zejtron is feature-free by
+# design. No build-label env is needed either: version.rs's
+# build_label() detects arch + libc at compile time, so `-V` names
+# the shape ("linux-amd64-gnu" / "linux-amd64-musl") the same way
+# the release matrix's Build: line does. Separate profile names
+# (see the [profile.pro-native-*] blocks in Cargo.toml) land the
+# binaries in target/pro-native-gnu/zejtron and
+# target/x86_64-unknown-linux-musl/pro-native-musl/zejtron so a
+# native build never clobbers target/release/zejtron.
+#
+# Precedence note (verified live on cargo 1.98.1, the sibling
+# config's rule): target-level rustflags SHADOW build-level
+# rustflags, so the musl alias sets
+# target.x86_64-unknown-linux-musl.rustflags directly - passing
+# only build.rustflags there would be silently ignored once a
+# [target.*] block exists for the triple (and the gnu alias rides
+# build.rustflags precisely because no [target] block exists in
+# this file). CLI --config rustflags are additionally CONCATENATED
+# with file-level target rustflags (not replaced), so the musl
+# alias carries +crt-static explicitly and its native+static
+# contract stays self-contained regardless of any future [target]
+# block.
+#
+# aarch64 hosts: pro-native-gnu works as-is (host triple, dynamic);
+# pro-native-musl is x86_64-only because cargo aliases cannot detect
+# the host arch - mirror the musl alias with the aarch64 target
+# triple if a static aarch64 native build is ever needed.
+#
+# Prerequisites: pro-native-musl needs the musl rust-std target
+# (`rustup target add x86_64-unknown-linux-musl`) and nothing else -
+# the alias links through rust-lld, the linker the pinned toolchain
+# ships, so no distro musl-tools package is required. The sibling
+# config's musl [target] block pins the same linker. The alias-level
+# --config linker is per-invocation: the release lane's own musl
+# build (release.yml, musl-tools) is untouched. pro-native-gnu needs
+# nothing beyond the pinned toolchain.
+[alias]
+pro-native-gnu = [
+  "build",
+  "--profile",
+  "pro-native-gnu",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
+]
+pro-native-musl = [
+  "build",
+  "--profile",
+  "pro-native-musl",
+  "--config",
+  "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"target-feature=+crt-static\"]",
+  "--config",
+  "target.x86_64-unknown-linux-musl.linker=\"rust-lld\"",
+  "--target",
+  "x86_64-unknown-linux-musl",
+]
