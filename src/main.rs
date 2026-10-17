@@ -11,7 +11,16 @@ mod update;
 use clap::Parser;
 
 fn main() {
-    let cli = cli::Cli::parse();
+    // Parse through the UX bridge (night-improve-19, the sibling's
+    // zelynic contract): usage errors get the migration redirects,
+    // the case-insensitive flag rescue, the one-tip contract, and the
+    // brand styles at render time - exit 2. Help/version requests
+    // keep clap's own stdout + exit 0 path. Runtime failures below
+    // keep the labeled red renderer and exit 1.
+    let cli = match cli::Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => cli::ux::exit_clap_error(e),
+    };
 
     if cli.version {
         info::print_version_report();
