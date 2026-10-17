@@ -207,35 +207,48 @@ pub(super) fn check_proc_access(comm_path: &Path) -> CheckResult {
 pub(super) fn check_proc_net(proc_net: &Path) -> CheckResult {
     let files = ["tcp", "udp", "tcp6", "udp6"];
     let mut parsed = 0usize;
-    let mut unavailable = 0usize;
+    let mut sockets = 0usize;
 
     for file in files {
         match count_proc_net_sockets(&proc_net.join(file)) {
-            Ok(count) => parsed += count,
-            Err(_) => unavailable += 1,
+            Ok(count) => {
+                parsed += 1;
+                sockets += count;
+            }
+            Err(_) => {}
         }
     }
 
-    if parsed > 0 && unavailable == 0 {
+    // The check's subject is the net surface's readability, not
+    // traffic on it. A fresh container netns (the exact shape the
+    // Container E2E lane runs) carries every file with zero socket
+    // rows - that is the surface working, not failing, so the
+    // socket count only decorates the message and the parsed-file
+    // count decides the verdict. The FAIL verdict stays reserved
+    // for the broken-procfs shape: not one /proc/net file readable.
+    if parsed == 0 {
         return CheckResult {
-            status: CheckStatus::Ok,
+            status: CheckStatus::Fail,
             check: "proc_net",
-            message: format!("{parsed} sockets parsed"),
+            message: "no /proc/net socket files could be parsed".to_owned(),
         };
     }
 
-    if parsed > 0 {
+    if parsed == files.len() {
         return CheckResult {
-            status: CheckStatus::Warn,
+            status: CheckStatus::Ok,
             check: "proc_net",
-            message: format!("{parsed} sockets parsed; {unavailable} proc-net files unavailable"),
+            message: format!("{sockets} sockets parsed"),
         };
     }
 
     CheckResult {
-        status: CheckStatus::Fail,
+        status: CheckStatus::Warn,
         check: "proc_net",
-        message: "no /proc/net socket files could be parsed".to_owned(),
+        message: format!(
+            "{sockets} sockets parsed; {} proc-net files unavailable",
+            files.len() - parsed
+        ),
     }
 }
 

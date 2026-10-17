@@ -50,3 +50,30 @@ fn proc_net_parse_count_formatting() {
     assert_eq!(check.check, "proc_net");
     assert!(check.message.contains("1 sockets parsed"));
 }
+
+#[test]
+fn proc_net_idle_netns_is_ok_not_fail() {
+    let directory = TempDir::new().unwrap();
+    // The Container E2E shape: every net file readable, zero socket
+    // rows (a fresh netns). The surface works; the verdict is OK.
+    let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
+    for name in ["tcp", "udp", "tcp6", "udp6"] {
+        fs::write(directory.path().join(name), header).unwrap();
+    }
+
+    let check = check_proc_net(directory.path());
+
+    assert_eq!(check.status, CheckStatus::Ok);
+    assert_eq!(check.check, "proc_net");
+    assert!(check.message.contains("0 sockets parsed"));
+}
+
+#[test]
+fn proc_net_no_readable_file_is_fail() {
+    let directory = TempDir::new().unwrap();
+    // The broken-procfs shape: not one /proc/net file readable.
+    let check = check_proc_net(directory.path());
+
+    assert_eq!(check.status, CheckStatus::Fail);
+    assert_eq!(check.check, "proc_net");
+}
