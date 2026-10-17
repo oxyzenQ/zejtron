@@ -157,8 +157,8 @@ tar -xzf "zejtron-${TAG}-${SHAPE}.tar.gz"
 install -Dm755 zejtron "$HOME/.local/bin/zejtron"
 ```
 
-Each release also ships quantum-resistant checksums (BLAKE2b +
-SHAKE256) and, when the release key is configured, a detached GPG
+Each release also ships BLAKE3 and SHAKE256 (NIST post-quantum)
+checksums and, when the release key is configured, a detached GPG
 signature per archive — see
 [Release Verification](#release-verification).
 
@@ -355,7 +355,7 @@ run the battery, not just compiled the code.
 
 ## Release Verification
 
-Each archive ships SHA-512, BLAKE2b-512 (fastest), and SHAKE256
+Each archive ships SHA-512, BLAKE3 (fastest), and SHAKE256
 (NIST post-quantum) checksums, and — when the release key is
 configured — one detached GPG signature, imported, signed, and
 verified inside the release pipeline itself. The full per-download

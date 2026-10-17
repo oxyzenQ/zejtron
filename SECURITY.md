@@ -81,7 +81,7 @@ Concrete classes we care about, with the current posture of each:
 | Terminal escape injection | Audited — /proc-derived strings (comm, cmdline) cross the trust boundary into the terminal sanitized; the color ladder degrades to plain text, never renders untrusted bytes as control sequences |
 | Panic surfaces reachable from user input | Pinned by the unit surface — port/argument guardrails (`pathguard.rs`) reject malformed targets with labeled errors |
 | Supply chain (dependency compromise) | 4 direct deps, `cargo audit` + `cargo deny` in CI, chrono banned, every dep justified in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) |
-| Release artifact tampering | SHA-512 + BLAKE2b-512 + SHAKE256 checksums + GPG detached signatures; verify per [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) |
+| Release artifact tampering | SHA-512 + BLAKE3 + SHAKE256 checksums + GPG detached signatures; verify per [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) |
 
 The full audit trail — findings, verdicts, and accepted risks — lives
 in the docs tree ([docs/README.md](docs/README.md) indexes it) and is

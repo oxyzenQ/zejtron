@@ -14,7 +14,7 @@ carries the disclaimer and yields to it.
 |---|---|
 | [../README.md](../README.md) | The project front page: what zejtron is, install, the command surface, compatibility, safety contract. |
 | [BRANDING.md](BRANDING.md) | The brand: naming, the purple palette (#A855F7), the color system ladder, the civil-clock UTC markers, third-party usage rules. |
-| [VERIFY_RELEASE.md](VERIFY_RELEASE.md) | How to verify a release: checksums (SHA-512 / BLAKE2b-512 / SHAKE256), GPG signatures, the exact commands. |
+| [VERIFY_RELEASE.md](VERIFY_RELEASE.md) | How to verify a release: checksums (SHA-512 / BLAKE3 / SHAKE256), GPG signatures, the exact commands. |
 | [RULES.md](RULES.md) | The project law: the gates, the caps, the conventions a change must land under. |
 | [ROADMAP.md](ROADMAP.md) / [ROADMAP-current.md](ROADMAP-current.md) | Where the project is going; the owner's call. |
 | [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) | The supply-chain ledger: every direct dependency's justification, the removed set, the rules going forward. |
