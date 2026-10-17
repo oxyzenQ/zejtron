@@ -23,9 +23,11 @@ any casing outside the two legal families BRANDING section 7 codifies:
      opening with the all-caps name).
 
 Every other casing — a capitalized first letter, internal capitals,
-or all-caps prose — fails with file:line:token. A stray `Zylaxion` or
-`zylaXion` in any file is a gate failure, per the owner's strict
-reading: the family name never rides a capital in this repo.
+or all-caps prose — fails with file:line:token. A stray capitalized
+or internally-capitalized form of the name in any file is a gate
+failure, per the owner's strict reading: the family name never rides
+a capital in this repo (this docstring spells no forbidden literal —
+the checker must stay self-clean, flagging nothing of its own).
 
 The checker is self-clean by construction: the all-caps form is built
 at runtime from the lowercase name, so this file carries no literal it
