@@ -8,41 +8,27 @@
 <h1 align="center">zejtron</h1>
 
 <p align="center">
-  <strong>Boring and serious. A Linux introspection command center for operators, engineers, and incident work.</strong>
+  <strong>The Linux introspection command center. One binary, read-only, boring and serious.</strong>
 </p>
 
 <p align="center">
-  Trace commands, ports, process trees, file holders, service evidence, and host readiness from one disciplined terminal interface.
+  Trace commands, ports, process trees, file holders, service evidence, and host
+  readiness from one disciplined terminal interface — no daemon, no writes, no
+  guesswork, every timestamp in UTC.
 </p>
+
+<div align="center">
+
+> The operator asks. The host answers.
+> zejtron reads the evidence and prints the ledger — nothing more, and never less.
+
+</div>
 
 <p align="center">
   <a href="https://ko-fi.com/rezky">
     <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
   </a>
 </p>
-
-## Philosophy
-
-**The boring and serious.**
-
-Zejtron stays out of the operator's way while doing serious investigative
-work underneath. The interface rarely changes. Output is deterministic and
-read-only by design. Every release makes it slightly more stable, slightly
-sharper, and slightly easier to maintain.
-
-## What Is Zejtron?
-
-Zejtron is a Linux-first command center for terminal introspection.
-It consolidates functionality from pidnest and Zenlixem into one binary with one release flow.
-
-| Origin | Zejtron command |
-| --- | --- |
-| pidnest | `zejtron proc` |
-| Zenlixem `whoholds` | `zejtron holds` |
-| Zenlixem `lasttouch` | `zejtron touch` |
-| Zenlixem `whyopen` | `zejtron why` |
-| Zenlixem `doctor` | `zejtron net` |
-| Zenlixem `envpath` | covered by `zejtron path` |
 
 ## Demo
 
@@ -75,9 +61,74 @@ It consolidates functionality from pidnest and Zenlixem into one binary with one
   </video>
 </p>
 
-## Install
+## Why zejtron?
 
-### On My Machine (fast setup)
+An investigation fragments across seven tools: `which` for the binary,
+`ss` for the port, `lsof` for the holder, `ps` for the tree, `systemctl`
+for the unit, `journalctl` for the evidence, and shell glue to hold it
+together — each with its own output dialect, none of it deterministic.
+
+zejtron is one binary that answers the incident questions in one
+dialect. The output is deterministic, the timestamps are UTC with an
+explicit marker, and the tool never writes.
+
+### What makes zejtron sharp
+
+- **One binary, thirteen surfaces** — path, recent, port, proc, holds,
+  touch, why, env, service, shell, net, git, doctor.
+- **Read-only by design** — it does not kill processes, close ports,
+  start or stop services, or modify files. Ever.
+- **Deterministic output** — the same evidence, the same bytes, on
+  every host. Piped output carries zero escape bytes.
+- **UTC everywhere** — evidence timestamps render
+  `YYYY-MM-DD HH:MM:SS (UTC)`, computed by Howard Hinnant's
+  civil_from_days on `std::time` only. No timezone database, no local
+  guesses in containers.
+- **Root-honest** — `--check-update` and the env snapshot writes
+  refuse sudo by name; `git` output redacts credentials embedded in
+  remote URLs.
+- **Pro mode on `--help`** — the complete flag estate on one surface,
+  grouped by the verbs that own them, aliases disclosed.
+
+### Dependency policy (supply chain)
+
+Three runtime dependencies, all audited: `clap` (the CLI), `ctrlc`
+(one signal path), `regex-lite` (a small pattern engine). No chrono —
+it was dropped Hinnant-style and is **banned** in `deny.toml`; the
+lockfile is committed so `cargo install zejtron --locked` reproduces
+the exact graph the release lane vetted. See
+[docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md).
+
+### vs the tools it replaces
+
+zejtron consolidates two earlier projects into one release flow:
+
+| Origin | Tool | zejtron surface |
+| --- | --- | --- |
+| pidnest | process trees | `zejtron proc` |
+| Zenlixem | whoholds | `zejtron holds` |
+| Zenlixem | lasttouch | `zejtron touch` |
+| Zenlixem | whyopen | `zejtron why` |
+| Zenlixem | doctor (network) | `zejtron net` |
+| Zenlixem | envpath | `zejtron path` |
+
+Old muscle memory is honored at the CLI too: `zejtron whoholds`,
+`lasttouch`, `whyopen`, and `envpath` name their successor instead of
+dead-ending in an unrecognized-subcommand error.
+
+## Quick Start
+
+### Requirements
+
+- Linux with procfs at `/proc` (zejtron is Linux-first; x86-64-v3/v4
+  are the shipped shapes)
+- rust (the pinned toolchain, via `rust-toolchain.toml`) for the
+  from-source and on-my-machine lanes
+- Optional: `systemctl` (for `service`), `journalctl` (touch/why
+  journal evidence), `git` (for `git`), `pacman` (package-ownership
+  rows in `path` on Arch)
+
+### Install on my machine (fast setup)
 
 Build for this machine's CPU and install to `/usr/bin` in one
 command:
@@ -86,11 +137,11 @@ command:
 ./scripts/package/install-on-my-machine.sh
 ```
 
-Detects the x86-64 level (v3/v4), builds the release tier through
-the parity-gated alias, and installs to `/usr/bin` - the one install
-path, no flags. Linux amd64 with rust required.
+Detects the x86-64 level (v3/v4), builds the release tier through the
+parity-gated alias, and installs to `/usr/bin` — the one install path,
+no flags. Linux amd64 with rust required.
 
-### GitHub Release
+### Install from a release (recommended)
 
 The release matrix ships exactly four shapes: the x86-64-v3/v4
 microarch levels for both libc flavors (v3 covers Haswell 2013+,
@@ -108,18 +159,16 @@ install -Dm755 zejtron "$HOME/.local/bin/zejtron"
 
 Each release also ships quantum-resistant checksums (BLAKE2b +
 SHAKE256) and, when the release key is configured, a detached GPG
-signature per archive. See [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)
-for full instructions, and the arch-baseline alias commands
-(`cargo pro-linux-amd64-v3-gnu` and friends) that reproduce the
-release optimization tier bit-for-bit.
+signature per archive — see
+[Release Verification](#release-verification).
 
-### crates.io
+### Install from crates.io
 
 ```sh
 cargo install zejtron
 ```
 
-### From Source
+### Install from source
 
 ```sh
 git clone https://github.com/oxyzenQ/zejtron
@@ -127,214 +176,191 @@ cd zejtron
 cargo install --path .
 ```
 
-## Command Overview
+### Usage
 
-| Command | Purpose |
-| --- | --- |
-| `path` | Trace command origin |
-| `recent` | Show recently modified files |
-| `port` | Inspect ports and process owners |
-| `proc` | Inspect process trees by user or UID |
-| `holds` | Show processes holding a file, device, or port |
-| `touch` | Inspect last modification evidence for a path |
-| `why` | Explain visible evidence for a path or port |
-| `env` | Snapshot and diff environment variables |
-| `service` | Inspect systemd services |
-| `shell` | Inspect current shell context |
-| `net`   | Inspect network interfaces and routing |
-| `git`   | Inspect git repository context |
-| `doctor` | Check Zejtron system capability/readiness |
-
-## Quick Examples
+Every command, once — flags live in `--help` (Pro mode owns the
+complete flag estate), the reference examples live here:
 
 ```sh
+# Where does a command come from? PATH scan, all matches, the active
+# match, symlink targets, package ownership on Arch
 zejtron path sh
+
+# Recently modified files — optional limit and duration filters
+zejtron recent . --limit 5 --since 1d
+
+# Ports — TCP/UDP, grouped owners, numeric mode; a port argument focuses
 zejtron port --tcp --group
+zejtron port 3000
+
+# Process trees — by user or UID, the current user, depth, name filter
 zejtron proc --me --depth 1
+zejtron proc rezky --find python
+zejtron proc rezky --live --interval 6
+
+# Who holds a file, device, or port? (sudo shows more on hardened hosts)
 zejtron holds 53
-sudo zejtron holds 53
+zejtron holds /etc/resolv.conf
+
+# Last modification evidence for a path — metadata + audit + journal
 zejtron touch /etc/resolv.conf
+
+# The evidence report for a path or port, without inferring intent
 zejtron why /etc/resolv.conf
+
+# Environment — current, filtered, snapshotted, diffed (secrets masked)
+zejtron env --filter path
+zejtron env save base
+zejtron env diff base
+
+# systemd services, shell context, network context, git context
+zejtron service --failed
+zejtron shell
+zejtron net
+zejtron git
+
+# Host readiness — procfs visibility, socket parsing, evidence lanes
 zejtron doctor
+
+# Version + build report; the upstream release check (refuses sudo)
 zejtron -V
 zejtron --check-update
 ```
 
 `-V` and `--version` print complete version, build, build-time (UTC),
-license, and source metadata. `--check-update` checks the latest
-upstream GitHub release; the `--check-updated` alias is accepted too.
-Evidence timestamps shown by `touch` render in
-UTC with an explicit marker, identical on every host.
+license, and source metadata. The doctor's BUILD block carries the
+same stamp.
 
-## Compatibility
+## Limitations (honest)
 
-Zejtron is Linux-first and expects procfs at `/proc`. Most commands work without systemd: `path`, `recent`, `port`, `env`, `proc`, `holds`, `touch`, `why`, and `doctor`.
+- Without sudo, port owners and some holder details show as
+  `unknown` on hardened systems — the kernel hides other users'
+  process context; zejtron reports what is genuinely visible.
+- `service` requires systemd and `systemctl`. Most commands work
+  without it: `path`, `recent`, `port`, `env`, `proc`, `holds`,
+  `touch`, `why`, and `doctor`.
+- Audit and journal evidence in `touch`/`why` is best-effort — it
+  depends on `auditctl`/`journalctl` availability and retention.
+- `git` requires the `git` binary and only invokes read-only
+  subcommands.
+- `path` package ownership requires `pacman` (Arch); other distros
+  show the file facts only.
 
-`service` requires systemd and `systemctl`. `touch` and `why` can use filesystem metadata on supported Linux systems, while journal evidence depends on `journalctl` and systemd journal availability. `holds`, `port`, and `proc` may show more complete details with `sudo` on hardened systems. `net` reads from sysfs and procfs without external commands. `git` requires the `git` binary and only invokes read-only subcommands.
+## Safety Features
 
-## Safety
+- **Read-only by design** — no kill, no port close, no service
+  control, no file writes. `zejtron touch` inspects evidence; it is
+  not shell `touch` and does not create files or change timestamps.
+- **Root refusal with a name** — `--check-update` (the network
+  surface) and `env save`/`delete` (the filesystem-write surfaces)
+  print the named refusal and a rerun tip instead of silently
+  misbehaving under sudo.
+- **Secret hygiene** — `env --mask-secrets` masks common secret
+  patterns (AWS, GitHub, JWT, private keys); `git` redacts
+  credentials embedded in remote URLs as `<redacted>`.
+- **Capability-honest color** — truecolor when the terminal truly
+  supports it, plain bytes when piped; `NO_COLOR` is honored
+  everywhere.
 
-Zejtron is read-only by design. It does not kill processes, close ports, start or stop services, or modify files. `zejtron touch` inspects file evidence; it is not shell `touch` and does not create files or change timestamps.
+## Architecture
 
-## Commands
+One crate, one binary, one discipline:
 
-### `path`
-
-Trace where a command comes from by scanning `PATH`, showing all matches, the active match, executable status, symlink targets, and Arch package ownership when `pacman` is available.
-
-```sh
-zejtron path sh
+```
+src/
+  main.rs        — entry point + dispatch (the ONLY file at src/ root)
+  cli/           — clap derive definition, brand styling, the UX bridge
+  commands/      — the thirteen read-only surfaces
+  info/          — the -V report + the std-only civil clock
+  output/        — the runtime color tier (capability ladder, error lane)
+  system/        — /proc readers, username lookup, path guardrails
+  update/        — --check-update (refuses root, fail-closed)
 ```
 
-### `recent`
+Every `.rs` file rides under 600 lines (the no-mercy cap, enforced),
+every test file lives under `test/` (#[path]-wired), and every gate
+runs in CI — the tree cannot drift back. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full map.
 
-Show recently modified files under a path.
+## Philosophy
 
-```sh
-zejtron recent
-zejtron recent . --limit 5
-zejtron recent ~/src --since 1d
-```
+**The boring and serious.**
 
-### `port`
+zejtron stays out of the operator's way while doing serious
+investigative work underneath. The interface rarely changes. Output
+is deterministic and read-only by design. Every release makes it
+slightly more stable, slightly sharper, and slightly easier to
+maintain.
 
-Show listening TCP/UDP ports and process owners when discoverable.
+### What zejtron IS
 
-```sh
-zejtron port
-zejtron port 3000
-zejtron port --tcp --group
-zejtron port --udp
-zejtron port --all
-zejtron port --no-pid
-```
+- A read-only investigator's command center
+- Deterministic output you can diff, pipe, and archive
+- Honest about what the kernel actually shows
 
-### `proc`
+### What zejtron will NEVER be
 
-Show a clean process tree for a Linux user or UID.
+- A process killer, port closer, or service controller
+- A daemon, an agent, or a telemetry endpoint
+- A tool that guesses instead of showing evidence
 
-```sh
-zejtron proc --me
-zejtron proc rezky
-zejtron proc root --depth 1
-zejtron proc rezky --find python
-zejtron proc rezky --no-pid
-zejtron proc rezky --live --interval 6
-```
-
-### `holds`
-
-Show processes holding a file, device, or specific TCP/UDP port.
-
-```sh
-zejtron holds 3000
-zejtron holds /etc/resolv.conf
-zejtron holds /dev/nvme0n1
-```
-
-### `touch`
-
-Inspect last modification evidence for a path. Metadata shows when a path changed, not who changed it; audit and journal evidence is best-effort.
-
-```sh
-zejtron touch /etc/resolv.conf
-zejtron touch ./README.md
-zejtron touch "/path/with spaces/file.txt"
-```
-
-### `why`
-
-Explain visible evidence for a path or port without inferring intent.
-
-```sh
-zejtron why 53
-zejtron why 3000
-zejtron why /etc/resolv.conf
-zejtron why ./README.md
-```
-
-### `env`
-
-Inspect current environment variables, save named snapshots, and diff a saved snapshot against the current terminal environment.
-
-```sh
-zejtron env
-zejtron env --keys
-zejtron env --filter path
-zejtron env save base
-zejtron env diff base
-zejtron env list
-zejtron env delete base
-```
-
-### `service`
-
-Inspect systemd service units in a read-only view.
-
-```sh
-zejtron service
-zejtron service --user
-zejtron service --failed
-zejtron service --all
-zejtron service --filter unbound
-```
-
-### `doctor`
-
-Check Linux/procfs visibility, visible processes, `/proc/net` socket parsing, holder scan readiness, optional audit and journal evidence, systemctl/systemd availability, and build metadata.
-
-```sh
-zejtron doctor
-```
-
-### `shell`
-
-Inspect current shell context in a read-only view. Reports the parent process, login shell, terminal, shell-related environment variables, and known config file paths for the detected shell.
-
-```sh
-zejtron shell
-```
-
-### `net`
-
-Inspect network interfaces and routing context in a read-only view. Reports interfaces from sysfs with state, MTU, and MAC address. Shows default route from procfs and resolver file status.
-
-```sh
-zejtron net
-```
-
-### `git`
-
-Inspect git repository context in a read-only view. Reports the repository root, branch, working tree status, latest commit, and remote URLs. Only invokes read-only git subcommands. Credentials embedded in remote URLs (e.g. PATs in HTTPS URLs) are redacted as `<redacted>` in output.
-
-```sh
-zejtron git
-```
-
-## Roadmap
-
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the project roadmap and design direction, or [docs/ROADMAP-current.md](docs/ROADMAP-current.md) for the current design document.
-
-## Migration
-
-`pidnest` and Zenlixem are superseded by Zejtron. See the origin table above for command mapping.
-
-## Development
-
-```sh
-./scripts/build.sh
-SKIP_CODESPELL=1 ./scripts/build.sh
-./scripts/dev/version-to.sh vX.Y.Z
-```
-
-## Stable API (from v11.0.0)
+### Stable API (from v11.0.0)
 
 The CLI surface is frozen: no breaking changes to commands, flags, or
-output format from v11.0.0 onward. Future releases focus on:
+output format from v11.0.0 onward. Future releases focus on bug
+fixes, procfs/sysfs compatibility, and internal performance.
 
-- Bug fixes
-- procfs/sysfs compatibility updates
-- Performance improvements (internal, no API changes)
+### Release channels
+
+Stable releases are tagged `vX.Y.Z` from `main`. The release pipeline
+validates the tag, builds the four-leg matrix, and publishes with
+checksums; pre-release tags are never marked "latest".
+
+## Contributing
+
+Contributions ride the DCO: every commit carries a
+`Signed-off-by:` line (the [CLA](CLA.md) acceptance), gates must stay
+green (`./scripts/build.sh check-all` + `./scripts/gate-keepers.sh`),
+and the structure laws hold — 600-line cap, `test/` tree, `src/`
+root discipline. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Security
+
+zejtron is read-only; its own attack surface is the honest surface:
+the network lane (`--check-update`) refuses root and verifies tags
+fail-closed, snapshots stay under the user's own state directory, and
+credentials never survive in output. Report vulnerabilities per
+[SECURITY.md](SECURITY.md) — please do not open public issues for
+them.
+
+## Documentation
+
+- [docs/BRANDING.md](docs/BRANDING.md) — the brand and color system,
+  the zylaxion lowercase law
+- [docs/RULES.md](docs/RULES.md) — the engineering rules
+- [docs/ROADMAP.md](docs/ROADMAP.md) and
+  [docs/ROADMAP-current.md](docs/ROADMAP-current.md) — the direction
+- [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) — release
+  verification, told once
+- [docs/LICENSING_FAQ.md](docs/LICENSING_FAQ.md) — licensing questions
+- [docs/workflow/about-ci.md](docs/workflow/about-ci.md) — the CI estate
+
+## Test Results
+
+The suite is the contract: 296 tests green at every landing, plus the
+CLI battery run against the built binary per supermassive leg (MSRV
+and stable, gnu and musl), the miri UB lane, and the container end-to-end
+leg. CI blocks the merge on every one of them — a green pipeline has
+run the battery, not just compiled the code.
+
+## Release Verification
+
+Each archive ships SHA-512, BLAKE2b-512 (fastest), and SHAKE256
+(NIST post-quantum) checksums, and — when the release key is
+configured — one detached GPG signature, imported, signed, and
+verified inside the release pipeline itself. The full per-download
+instructions, the key details, and the algorithm rationale live in
+[docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md), told once there.
 
 ## Support
 
@@ -367,6 +393,24 @@ BTC to a non-Taproot address) will permanently lose funds.
 </p>
 
 Support is optional. The project remains open-source.
+
+## Intellectual Property & Trademark
+
+**zejtron** is the exclusive intellectual property of
+**rezky_nightky (oxyzenQ)**.
+
+- Source code: licensed under **GPL-3.0-only** (see [LICENSE](LICENSE)).
+  Proprietary/commercial use that cannot meet the GPL is available
+  under the commercial license - see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)
+  and [NOTICE](NOTICE) for tiers and terms.
+- Name, logo, and branding ("the Marks"): governed by
+  [TRADEMARK.md](TRADEMARK.md). The Marks are NOT covered by the GPL and
+  are reserved by the owner.
+- Unauthorized rebranding, relicensing, or source-code theft is strictly
+  prohibited.
+
+For trademark licensing or written permission, contact
+**rezky_nightky (oxyzenQ)** — https://github.com/oxyzenQ.
 
 ## Commercial Licensing
 
@@ -410,23 +454,18 @@ The voluntary [crypto donations](#crypto-donations) above are separate
 from commercial licensing — donations support the project; a
 commercial license buys rights.
 
-## Intellectual Property & Trademark
+## License
 
-**zejtron** is the exclusive intellectual property of
-**rezky_nightky (oxyzenQ)**.
+Dual-licensed: **GPL-3.0-only** for open-source use (see
+[LICENSE](LICENSE)), or the **Commercial License** for proprietary and
+commercial use (see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).
 
-- Source code: licensed under **GPL-3.0-only** (see [LICENSE](LICENSE)).
-  Proprietary/commercial use that cannot meet the GPL is available
-  under the commercial license - see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)
-  and [NOTICE](NOTICE) for tiers and terms.
-- Name, logo, and branding ("the Marks"): governed by
-  [TRADEMARK.md](TRADEMARK.md). The Marks are NOT covered by the GPL and
-  are reserved by the owner.
-- Unauthorized rebranding, relicensing, or source-code theft is strictly
-  prohibited.
+## Author
 
-For trademark licensing or written permission, contact
-**rezky_nightky (oxyzenQ)** — https://github.com/oxyzenQ.
+Built and maintained by **rezky_nightky (oxyzenQ)** —
+[github.com/oxyzenQ](https://github.com/oxyzenQ) ·
+[with.rezky@gmail.com](mailto:with.rezky@gmail.com) ·
+[Ko-fi](https://ko-fi.com/rezky).
 
 ---
 
