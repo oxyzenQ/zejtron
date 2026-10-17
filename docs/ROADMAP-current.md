@@ -91,7 +91,7 @@ shipping.
 - Confirm no regression in binary size, startup time, or memory usage beyond
   acceptable thresholds.
 - Update CHANGELOG.md.
-- Bump version via ./scripts/version-to.sh.
+- Bump version via ./scripts/dev/version-to.sh.
 - Tag and release only after all gates pass.
 
 Outcome: v5.0.0 release on main with full CI green.

@@ -115,6 +115,6 @@ The major release design plan is documented in [ROADMAP-current.md](ROADMAP-curr
 
 ## Version Bumps
 
-Version bumps must use the `./scripts/version-to.sh vX.Y.Z` script, which updates
+Version bumps must use the `./scripts/dev/version-to.sh vX.Y.Z` script, which updates
 `Cargo.toml`, `Cargo.lock`, `README.md`, `docs/workflow/about-ci.md`, and the AUR
 metadata in a single, consistent pass. Manual version edits are prohibited.

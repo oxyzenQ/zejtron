@@ -10,7 +10,7 @@ error() {
 }
 
 if [[ $# -ne 1 ]]; then
-  error "usage: ./scripts/version-to.sh vX.Y.Z"
+  error "usage: ./scripts/dev/version-to.sh vX.Y.Z"
 fi
 
 input="$1"
