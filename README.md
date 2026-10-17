@@ -470,3 +470,7 @@ Built and maintained by **rezky_nightky (oxyzenQ)** —
 ---
 
 © 2026 rezky_nightky (oxyzenQ). All rights reserved.
+
+<p align="center">
+  <em>built with curiosity &amp; masterpiece</em>
+</p>
