@@ -18,6 +18,11 @@ name: zejtron - Docs CI
       - '**/*.rst'
       - 'LICENSE'
 
+# One run per ref (the estate's concurrency shape).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

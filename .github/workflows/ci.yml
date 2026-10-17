@@ -1,5 +1,27 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# The fast lane: fmt + clippy + tests + the CLI battery on every
+# code-surface push and pull request.
+#
+# Trigger discipline (night-improve-32, the sibling's NIGHT-boost-10
+# shape): the estate-wide path spelling - the surface this lane
+# actually reads - replaces the old checkout-and-grep `changes` job.
+# Trigger-level filtering is the efficient shape: a docs-only push
+# never boots a runner here at all, where the detect job paid a full
+# checkout to decide the same thing. The filter is five shared
+# surface globs plus this file's own name, identical in every build
+# workflow (supermassive, supermassive-container, miri, crates-io
+# carry the same spelling; a workflow that can change its own
+# contract owes itself a run). A docs-only change matches nothing
+# here - gate-keepers.yml (unfiltered) polices the rest, including
+# the workflow lint this file's old workflow_quality job duplicated
+# (gate-keepers.sh sections 2-4: yamllint, actionlint, codespell).
+#
+# The workflow_quality job is retired whole: it duplicated the
+# gate-keepers CI lane (which runs unfiltered on every push and
+# already owns actionlint, yamllint, and codespell with pinned
+# versions) on an unpinned ad-hoc install. One lane, one owner.
 
 ---
 name: zejtron - CI
@@ -8,46 +30,39 @@ name: zejtron - CI
   push:
     branches:
       - main
+    paths:
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
+    paths:
+      # Same spelling as push (the no-drift law).
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read
+
+# One run per ref: a new push supersedes the previous run's verdict
+# (the sibling's concurrency shape, every workflow in the estate).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      core: ${{ steps.detect.outputs.core }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Detect core file changes
-        id: detect
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-            HEAD="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE=$(git rev-parse HEAD~1 2>/dev/null || git rev-list --max-parents=0 HEAD)
-            HEAD="${{ github.sha }}"
-          fi
-          FILES=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || git ls-files)
-          if echo "$FILES" | grep -qE '\.(rs|toml)$|Cargo\.lock$|^build\.rs$|^rust-toolchain|^scripts/|^\.cargo/'; then
-            echo "core=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "core=false" >> "$GITHUB_OUTPUT"
-          fi
-
   check:
-    needs: changes
-    if: needs.changes.outputs.core == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -69,30 +84,3 @@ jobs:
 
       - name: Run checks
         run: ./scripts/build.sh
-
-  workflow_quality:
-    name: Workflow lint + codespell
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install workflow lint tools
-        run: |
-          python3 -m pip install --user yamllint codespell
-          go install github.com/rhysd/actionlint/cmd/actionlint@latest
-          echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
-
-      - name: Run actionlint
-        run: actionlint .github/workflows/*.yml
-
-      - name: Run yamllint
-        run: yamllint .github/workflows
-
-      - name: Run codespell
-        run: |
-          if [ -f .codespellrc ]; then
-            codespell --config .codespellrc .
-          else
-            codespell --skip './.git,./target,./assets,./dist,./node_modules' .
-          fi

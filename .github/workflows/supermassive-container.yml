@@ -19,20 +19,28 @@ name: Dragon Guard - Supermassive Container E2E
   push:
     branches: ["main"]
     paths:
-      - 'src/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'rust-toolchain.toml'
-      - 'scripts/build.sh'
+      # night-improve-32: the estate-wide spelling (the sibling's
+      # NIGHT-boost-10 shape) - the surface the lane reads, identical
+      # in every build workflow, plus this file's own name (a
+      # workflow that can change its own contract owes itself a run).
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'scripts/**'
       - '.github/workflows/supermassive-container.yml'
   pull_request:
     branches: ["main"]
     paths:
-      - 'src/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'rust-toolchain.toml'
-      - 'scripts/build.sh'
+      # night-improve-32: the estate-wide spelling (the sibling's
+      # NIGHT-boost-10 shape) - the surface the lane reads, identical
+      # in every build workflow, plus this file's own name (a
+      # workflow that can change its own contract owes itself a run).
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'scripts/**'
       - '.github/workflows/supermassive-container.yml'
   workflow_dispatch:
 

@@ -24,20 +24,28 @@ name: Dragon Guard - crates.io
   push:
     branches: ["main"]
     paths:
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'src/**'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
+      # night-improve-32: the estate-wide spelling (the sibling's
+      # NIGHT-boost-10 shape) - the package-verify lane reads the
+      # same code surface every build workflow reads, spelled the
+      # same way, plus this file's own name.
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'scripts/**'
       - '.github/workflows/crates-io.yml'
   pull_request:
     branches: ["main"]
     paths:
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'src/**'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
+      # night-improve-32: the estate-wide spelling (the sibling's
+      # NIGHT-boost-10 shape) - the package-verify lane reads the
+      # same code surface every build workflow reads, spelled the
+      # same way, plus this file's own name.
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'scripts/**'
       - '.github/workflows/crates-io.yml'
   workflow_dispatch:
     inputs:
