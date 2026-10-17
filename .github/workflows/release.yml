@@ -409,6 +409,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # The self-binding keeps the job-level TAG env visible to
+          # the shellcheck pass actionlint runs on this script
+          # (without it every ${TAG} read below reads as an
+          # unassigned variable); the disable is the directive for
+          # the no-op assignment.
+          # shellcheck disable=SC2269
           TAG="${TAG}"
           IS_PRERELEASE="${{ needs.validate.outputs.prerelease }}"
 
