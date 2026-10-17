@@ -11,17 +11,13 @@
 # tree — the checker walks the whole git index, not a hand-listed
 # directory set.
 #
-# Tracked debt (night-improve-12b, owner-visible): zejtron's law
-# landed on a tree that grew before it - ten command-surface modules
-# predate the cap. The end-state contract is the sibling's no-mercy
-# rule (over the cap means SPLIT, a pure move, gates green in
-# between); until each split task lands, the files below are the
-# EXPLICIT, justified debt list. The gate enforces two things:
-#   1. A file over the cap that is NOT in this list fails the build
-#      the day it appears - no new debt can ever silently join.
-#   2. Every list entry names the module family that owns the fix.
-# A file already listed that GROWS does not re-fail (the list pins
-# the current line counts); the splits remove entries, never add.
+# No mercy (night-improve-18, the masterclass discipline): the
+# tracked-debt era is over. The ten founding command-surface modules
+# are split (holds/procfs, proc/forest, and the whole test/ tree
+# relocation that shrank the rest under the cap), so the debt list is
+# retired whole: over the cap means FAIL — SPLIT, a pure move, gates
+# green in between. There is no list to join, no row to pin, no
+# grandfather clause.
 #
 # Single-file policy (night-improve-14, the sibling's src/ root law,
 # now ENFORCED - the grandfather clause is lifted): src/ root carries
@@ -40,31 +36,6 @@ set -euo pipefail
 MAX_LINES="${1:-600}"
 FAILED=0
 FOUND=0
-
-# The tracked-debt list: file|current lines|owning family|one-line reason.
-# Entries only ever LEAVE this list (a split removes its row); a new
-# over-cap file that is not listed here fails the build.
-TRACKED_DEBT=(
-  "src/commands/env.rs|640|env|snapshot store: split the snapshot IO family out of the render"
-  "src/commands/git.rs|900|git|context reporter: split the porcelain parsers out of the reporter"
-  "src/commands/holds.rs|886|holds|holder scanner: split the fd/port scanners out of the report"
-  "src/commands/net.rs|718|net|interface reporter: split the sysfs readers out of the render"
-  "src/commands/port/render.rs|659|port|socket renderer: split the owner/detail rows out of the table"
-  "src/commands/proc.rs|986|proc|process tree: split the live-loop out of the tree builder"
-  "src/commands/service.rs|760|service|systemd surface: split the unit-detail render out of the list"
-  "src/commands/shell.rs|1013|shell|shell context: split the shell detectors out of the report"
-  "src/commands/why.rs|760|why|explain surface: split the evidence collectors out of the render"
-  "src/system/mod.rs|671|system|/proc readers: split the unit/env readers out of the lookup"
-)
-
-is_tracked_debt() {
-  local file="$1"
-  local entry
-  for entry in "${TRACKED_DEBT[@]}"; do
-    [ "${entry%%|*}" = "$file" ] && return 0
-  done
-  return 1
-}
 
 echo "Rust source file line counts, tree-wide by type (max ${MAX_LINES}):"
 echo ""
@@ -102,30 +73,25 @@ while IFS= read -r f; do
         LINES=$(wc -l <"$f")
         printf "  %5d  %s\n" "$LINES" "$f"
         if [ "$LINES" -gt "$MAX_LINES" ]; then
-                if is_tracked_debt "$f"; then
-                        echo "    ^^^ over ${MAX_LINES} — TRACKED DEBT (listed below; the split task removes this row)"
-                else
-                        FAILED=$((FAILED + 1))
-                        echo "    ^^^ VIOLATES ${MAX_LINES} limit (the no-mercy law:"
-                        echo "           over the cap means SPLIT, a pure move, gates green in between)"
-                fi
+                FAILED=$((FAILED + 1))
+                echo "    ^^^ VIOLATES ${MAX_LINES} limit (the no-mercy law:"
+                echo "           over the cap means SPLIT, a pure move, gates green in between)"
         fi
         FOUND=$((FOUND + 1))
 done <<<"$FILES"
 
 echo ""
 echo "Total files: ${FOUND}"
-echo "Files over ${MAX_LINES}: tracked debt listed above; NEW violations: ${FAILED} (the law: zero allowed)"
+echo "Files over ${MAX_LINES}: ${FAILED} (the no-mercy law: zero allowed)"
 
 if [ "$FAILED" -gt 0 ]; then
         echo ""
-        echo "FAIL: ${FAILED} NEW file(s) exceed ${MAX_LINES} lines and are not on the"
-        echo "tracked-debt list. Split the file into modules (a pure move, gates"
-        echo "green in between) — new debt cannot join silently."
+        echo "FAIL: ${FAILED} file(s) exceed ${MAX_LINES} lines. Split the file into"
+        echo "modules (a pure move, gates green in between) - there is no debt"
+        echo "list to join and no grandfather clause."
         exit 1
 fi
 
 echo ""
-echo "OK: no NEW over-cap files. The debt list (see the header) shrinks"
-echo "one row per split task and never grows."
+echo "OK: every Rust file in the tree rides under the ${MAX_LINES}-line cap."
 exit 0
