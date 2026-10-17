@@ -31,6 +31,18 @@ v11.0.0
   verification command, and the asset-inventory tripwire pins the
   new suffix (night-weekly-maintenance-1).
 
+### Fixed
+
+- The doctor's proc_net check no longer false-alarms on an idle
+  network namespace: the verdict now rides on how many /proc/net
+  files are readable (the surface working), not on how many sockets
+  the files carry. A fresh container netns reads every net file
+  with zero socket rows and was reported FAIL for exactly that -
+  the Container E2E lane's first real doctor run caught it, a run
+  the lane could never reach before. FAIL stays reserved for the
+  broken-procfs shape (not one net file readable); the OK and WARN
+  message shapes are unchanged (night-weekly-maintenance-1).
+
 ## History
 
 The changelog's per-era split, newest era first:
