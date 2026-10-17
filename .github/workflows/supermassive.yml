@@ -82,17 +82,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # night-improve-31: the sibling's envelope pair, titled in the
+        # reference's vocabulary - low specs is the MSRV floor (the
+        # oldest toolchain zejtron promises to run on, the minimum
+        # spec), best specs is the stable frontier (the moving
+        # frontier at full optimization). The sibling's resource
+        # envelopes size a VM boot; this lane's honest physics are
+        # the toolchain span crossed with the libc shapes, so the
+        # envelope IS the span. Each leg reports its own verdict.
         include:
-          - title: supermassive - msrv floor (gnu)
+          - title: supermassive test - low specs (gnu)
             toolchain: "1.98.1"
             targets: ""
-          - title: supermassive - stable frontier (gnu)
+          - title: supermassive test - best specs (gnu)
             toolchain: stable
             targets: ""
-          - title: supermassive - msrv floor (musl static)
+          - title: supermassive test - low specs (musl)
             toolchain: "1.98.1"
             targets: x86_64-unknown-linux-musl
-          - title: supermassive - stable frontier (musl static)
+          - title: supermassive test - best specs (musl)
             toolchain: stable
             targets: x86_64-unknown-linux-musl
 
