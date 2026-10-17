@@ -30,9 +30,24 @@ name: zejtron - Release
   push:
     tags:
       - v*
+  # night-improve-31 (the sibling's recovery lane): a dispatch on the
+  # tag ref re-runs the whole pipeline - validate, all four builds,
+  # publish - WITHOUT re-pushing anything, so a mid-flight red (a
+  # transient API 5xx, a runner hiccup) heals with one click instead
+  # of delete-and-re-push the tag. In the Run workflow dialog pick
+  # the tag under "Use workflow from"; every job derives its facts
+  # from GITHUB_REF_NAME, so a tag-ref dispatch is byte-identical to
+  # the push run.
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# One run per ref: a re-pushed or re-dispatched tag supersedes the
+# previous run (the sibling's moved-tag protection shape).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
