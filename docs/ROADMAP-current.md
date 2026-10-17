@@ -111,7 +111,7 @@ All releases must satisfy the following conditions before tagging:
 6. No source file exceeds 1000 LOC.
 7. No new high-risk dependencies without written justification in the
    commit message.
-8. AUR/release workflow stays green on the tagged commit.
+8. The release workflow stays green on the tagged commit.
 9. Documentation and command help text remain consistent.
 10. `codespell` passes on all documentation.
 

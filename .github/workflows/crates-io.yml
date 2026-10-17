@@ -96,7 +96,7 @@ jobs:
             fi
           done
           # The repo-only lanes must never ride the tarball.
-          for forbidden in "scripts/" "assets/" "aur/" ".github/"; do
+          for forbidden in "scripts/" "assets/" ".github/"; do
             if grep -q "^${forbidden}" <<<"${LIST}"; then
               echo "::error::ship-set leaked repo-only lane: ${forbidden}"
               exit 1
