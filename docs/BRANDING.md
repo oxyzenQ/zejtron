@@ -95,7 +95,7 @@ crate, no timezone database in the binary:
 - `-V`/`--version` carries `Build-time: M/D/YYYY HH:MM (UTC)`, stamped
   by `build.rs` at compile time (minute precision, identical across
   build hosts).
-- `touch` and `path --verbose` evidence timestamps render as
+- `touch` evidence timestamps render as
   `YYYY-MM-DD HH:MM:SS (UTC)` - the tree's long-standing zero-padded
   core with an explicit UTC marker instead of a silently wrong local
   guess on hosts without a timezone database (containers included).

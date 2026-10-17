@@ -71,14 +71,12 @@ pub struct ProcFlags {
     pub find: Option<String>,
     pub no_pid: bool,
     pub no_color: bool,
-    pub verbose: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ViewOptions {
     max_depth: Option<usize>,
     find: Option<String>,
-    verbose: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -104,7 +102,6 @@ fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> 
     let view = ViewOptions {
         max_depth: flags.depth,
         find,
-        verbose: flags.verbose,
     };
 
     if live {
@@ -309,7 +306,7 @@ fn render_report(
 
     forest = limit_depth(&forest, view.max_depth);
 
-    let mut output = render_forest(target, &forest, show_pid, view.verbose);
+    let mut output = render_forest(target, &forest, show_pid);
     output.push('\n');
 
     if report.unreadable_statuses > 0 {
@@ -573,12 +570,7 @@ fn forest_from_ids(forest: &ProcessForest, included: &BTreeSet<u32>) -> ProcessF
     )
 }
 
-pub fn render_forest(
-    target: &TargetUser,
-    forest: &ProcessForest,
-    show_pid: bool,
-    verbose: bool,
-) -> String {
+pub fn render_forest(target: &TargetUser, forest: &ProcessForest, show_pid: bool) -> String {
     let mut output = format!("{}\n", target.label());
 
     for (index, pid) in forest.roots.iter().enumerate() {
@@ -589,7 +581,6 @@ pub fn render_forest(
             "",
             index + 1 == forest.roots.len(),
             show_pid,
-            verbose,
         );
     }
 
@@ -619,7 +610,6 @@ fn render_process(
     prefix: &str,
     is_last: bool,
     show_pid: bool,
-    verbose: bool,
 ) {
     let Some(process) = forest.processes.get(&pid) else {
         return;
@@ -633,23 +623,6 @@ fn render_process(
     }
     // Always show state — it's a single char and very high signal (Z = zombie!)
     output.push_str(&format!(" state={}", process.state));
-
-    if verbose {
-        // Show memory (RSS) and thread count
-        if process.vm_rss_kb > 0 {
-            output.push_str(&format!(" rss={}", human_kb(process.vm_rss_kb)));
-        }
-        if process.threads > 1 {
-            output.push_str(&format!(" threads={}", process.threads));
-        }
-        // Show cmdline if it differs from name (kernel threads have no cmdline)
-        if let Some(ref cmd) = process.cmdline
-            && !cmd.is_empty()
-            && cmd.as_str() != process.name
-        {
-            output.push_str(&format!(" cmd={}", quote_if_needed(cmd)));
-        }
-    }
 
     output.push('\n');
 
@@ -671,30 +644,7 @@ fn render_process(
             &next_prefix,
             index + 1 == children.len(),
             show_pid,
-            verbose,
         );
-    }
-}
-
-fn human_kb(kb: u64) -> String {
-    if kb >= 1024 * 1024 {
-        format!("{:.1}GB", kb as f64 / 1024.0 / 1024.0)
-    } else if kb >= 1024 {
-        format!("{:.0}MB", kb as f64 / 1024.0)
-    } else {
-        format!("{kb}KB")
-    }
-}
-
-fn quote_if_needed(s: &str) -> String {
-    if s.contains(' ') || s.contains('"') || s.contains('\'') {
-        if !s.contains('\'') {
-            format!("'{s}'")
-        } else {
-            format!("\"{}\"", s.replace('"', "\\\""))
-        }
-    } else {
-        s.to_owned()
     }
 }
 
@@ -740,7 +690,6 @@ mod tests {
         ViewOptions {
             max_depth,
             find: find.map(str::to_owned),
-            verbose: false,
         }
     }
 
@@ -971,7 +920,6 @@ Uid:\t1000\t1000\t1000\t1000
                 process("cargo", 25, 20),
             ]),
             true,
-            false,
         );
 
         // state=? because test Process defaults to "?"
@@ -985,7 +933,6 @@ Uid:\t1000\t1000\t1000\t1000
         let output = render_forest(
             &target(),
             &build_forest(vec![process("bash", 20, 1), process("python3", 30, 20)]),
-            false,
             false,
         );
 
@@ -1016,7 +963,7 @@ Uid:\t1000\t1000\t1000\t1000
     fn depth_combines_with_no_pid() {
         let output = render_report(&target(), report(), false, &view(Some(2), None), None);
 
-        // state=? always shown now (even without --verbose)
+        // state=? always shown
         assert_eq!(
             output,
             "rezky uid=1000\n└── bash state=?\n    └── python3 state=?\n\n1 roots · 2 processes\n"

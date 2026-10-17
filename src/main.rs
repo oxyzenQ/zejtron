@@ -42,7 +42,7 @@ fn main() {
     }
 
     let result = match cli.command {
-        Some(cli::Commands::Path { command, verbose }) => path::run(&command, verbose),
+        Some(cli::Commands::Path { command }) => path::run(&command),
         Some(cli::Commands::Recent { path, limit, since }) => {
             recent::run(&path, limit, since.as_deref())
         }
@@ -77,7 +77,6 @@ fn main() {
             find,
             no_pid,
             no_color,
-            verbose,
         }) => proc::run(
             user_or_uid.as_deref(),
             proc::ProcFlags {
@@ -89,7 +88,6 @@ fn main() {
                 find,
                 no_pid,
                 no_color,
-                verbose,
             },
         ),
         Some(cli::Commands::Holds { target }) => holds::run(&target),
