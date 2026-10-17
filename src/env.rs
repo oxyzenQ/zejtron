@@ -383,10 +383,10 @@ fn read_proc_environ(pid: u32) -> Result<Snapshot, Box<dyn Error>> {
         if chunk.is_empty() {
             continue;
         }
-        if let Ok(s) = std::str::from_utf8(chunk) {
-            if let Some((k, v)) = s.split_once('=') {
-                snap.insert(k.to_owned(), v.to_owned());
-            }
+        if let Ok(s) = std::str::from_utf8(chunk)
+            && let Some((k, v)) = s.split_once('=')
+        {
+            snap.insert(k.to_owned(), v.to_owned());
         }
     }
     Ok(snap)

@@ -179,10 +179,10 @@ fn format_unit_detail(detail: &UnitDetail) -> String {
         "├── state: load={} active={} sub={}",
         detail.load_state, detail.active_state, detail.sub_state
     ));
-    if let Some(pid) = detail.main_pid {
-        if pid > 0 {
-            lines.push(format!("├── main-pid: {pid}"));
-        }
+    if let Some(pid) = detail.main_pid
+        && pid > 0
+    {
+        lines.push(format!("├── main-pid: {pid}"));
     }
     if !detail.exec_start.is_empty() {
         lines.push(format!("├── exec-start: {}", detail.exec_start));
@@ -196,10 +196,10 @@ fn format_unit_detail(detail: &UnitDetail) -> String {
             detail.active_enter_timestamp
         ));
     }
-    if let Some(restarts) = detail.n_restarts {
-        if restarts > 0 {
-            lines.push(format!("├── restarts: {restarts}"));
-        }
+    if let Some(restarts) = detail.n_restarts
+        && restarts > 0
+    {
+        lines.push(format!("├── restarts: {restarts}"));
     }
     if let Some(mem) = detail.memory_current {
         lines.push(format!("├── memory: {}", human_bytes(mem)));

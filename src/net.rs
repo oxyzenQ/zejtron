@@ -226,10 +226,12 @@ fn read_ipv4_addresses(_iface_name: &str) -> Vec<String> {
             // Walk backwards to find a line that looks like an IP
             if i > 0 {
                 let candidate = lines[i - 1].trim();
-                if let Some(ip) = extract_ip_from_fib_line(candidate) {
-                    if !addrs.contains(&ip) && ip != "127.0.0.1" && ip != "0.0.0.0" {
-                        addrs.push(ip);
-                    }
+                if let Some(ip) = extract_ip_from_fib_line(candidate)
+                    && !addrs.contains(&ip)
+                    && ip != "127.0.0.1"
+                    && ip != "0.0.0.0"
+                {
+                    addrs.push(ip);
                 }
             }
         }

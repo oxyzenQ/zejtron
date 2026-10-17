@@ -129,18 +129,18 @@ pub fn read_cmdline(proc_root: &Path, pid: u32) -> Option<String> {
     let mut start = 0;
     for (i, &b) in trimmed.iter().enumerate() {
         if b == 0 {
-            if i > start {
-                if let Ok(s) = std::str::from_utf8(&trimmed[start..i]) {
-                    tokens.push(s.to_owned());
-                }
+            if i > start
+                && let Ok(s) = std::str::from_utf8(&trimmed[start..i])
+            {
+                tokens.push(s.to_owned());
             }
             start = i + 1;
         }
     }
-    if start < trimmed.len() {
-        if let Ok(s) = std::str::from_utf8(&trimmed[start..]) {
-            tokens.push(s.to_owned());
-        }
+    if start < trimmed.len()
+        && let Ok(s) = std::str::from_utf8(&trimmed[start..])
+    {
+        tokens.push(s.to_owned());
     }
     if tokens.is_empty() {
         None

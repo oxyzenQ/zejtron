@@ -250,10 +250,10 @@ fn config_entry_from_path(path: &str, home: &str) -> ConfigEntry {
 }
 
 fn expand_home(path: &str, home: &str) -> String {
-    if let Some(rest) = path.strip_prefix(home) {
-        if rest.starts_with('/') {
-            return format!("~{rest}");
-        }
+    if let Some(rest) = path.strip_prefix(home)
+        && rest.starts_with('/')
+    {
+        return format!("~{rest}");
     }
     path.to_owned()
 }
@@ -307,16 +307,17 @@ fn render_ancestor_chain_section(lines: &mut Vec<String>, report: &ShellReport) 
         if entry.pid != 1 {
             line.push_str(&format!(" (ppid={})", entry.ppid));
         }
-        if let Some(ref cmd) = entry.cmdline {
-            if !cmd.is_empty() && cmd.as_str() != entry.name {
-                // Truncate long cmdlines for readability
-                let truncated = if cmd.len() > 80 {
-                    format!("{}...", &cmd[..77])
-                } else {
-                    cmd.clone()
-                };
-                line.push_str(&format!(" cmd={truncated}"));
-            }
+        if let Some(ref cmd) = entry.cmdline
+            && !cmd.is_empty()
+            && cmd.as_str() != entry.name
+        {
+            // Truncate long cmdlines for readability
+            let truncated = if cmd.len() > 80 {
+                format!("{}...", &cmd[..77])
+            } else {
+                cmd.clone()
+            };
+            line.push_str(&format!(" cmd={truncated}"));
         }
         lines.push(line);
     }

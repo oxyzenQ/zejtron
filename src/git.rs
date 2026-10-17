@@ -355,15 +355,15 @@ pub fn render_report(report: &GitReport) -> String {
         if let Some(ref up) = report.upstream {
             line.push_str(&format!(" <- {up}"));
             let mut ab = Vec::new();
-            if let Some(a) = report.ahead {
-                if a > 0 {
-                    ab.push(format!("↑{a}"));
-                }
+            if let Some(a) = report.ahead
+                && a > 0
+            {
+                ab.push(format!("↑{a}"));
             }
-            if let Some(b) = report.behind {
-                if b > 0 {
-                    ab.push(format!("↓{b}"));
-                }
+            if let Some(b) = report.behind
+                && b > 0
+            {
+                ab.push(format!("↓{b}"));
             }
             if !ab.is_empty() {
                 line.push_str(&format!(" ({})", ab.join(" ")));
