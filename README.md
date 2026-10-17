@@ -41,6 +41,37 @@ It consolidates functionality from pidnest and Zenlixem into one binary with one
 | Zenlixem `doctor` | `zejtron net` |
 | Zenlixem `envpath` | covered by `zejtron path` |
 
+## Demo
+
+<!-- Capture assets: rendered from real zejtron output on an
+     unprivileged container host, so port owners show as "unknown"
+     without sudo and audit/journal evidence is best-effort there.
+     The text output is the contract; the captures follow it. -->
+
+<p align="center">
+  <img src="assets/demo-doctor.png"
+       alt="zejtron doctor readiness report"
+       width="800"
+       style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+</p>
+
+<p align="center">
+  <img src="assets/demo-why.png"
+       alt="zejtron why evidence report for /etc/resolv.conf"
+       width="800"
+       style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+</p>
+
+<p align="center">
+  <video src="assets/demo-proc-live.webm"
+         width="640"
+         autoplay
+         loop
+         muted
+         style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+  </video>
+</p>
+
 ## Install
 
 ### AUR
