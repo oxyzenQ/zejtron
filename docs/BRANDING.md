@@ -60,7 +60,7 @@ The CLI speaks one palette on two surfaces, both anchored to the same values:
 
 | Tier | Value | Surface |
 |---|---|---|
-| Brand purple | `#A855F7` (168,85,247) | clap headings (`Usage`, `Commands`, `Options`) in `-h`/`--help` and errors |
+| Brand purple | `#A855F7` (168,85,247) | clap headings (`Usage`, `Commands`, `Options`) in `-h`/`--help` and errors; the `-V` version-report header (256-cube index 135, the sibling default theme's exact index for this RGB) |
 | Calm grey | `#8B8B8B` (139,139,139) | typeable grammar (flags, subcommands), valid-suggestion labels |
 | Error red | `#FF5A5A` (255,90,90) | the `error:` label (bold) and body of every runtime error; clap error labels; doctor `FAIL` rows |
 | Warning yellow | `#FFEB3C` (255,235,60) | invalid-input highlights on the clap lane; doctor `WARN` rows; the update check's "update available" verdict |
@@ -80,6 +80,24 @@ never carries escape bytes.
 Deliberately uncolored: "No X found" empty-result lines (informational,
 not errors) and content facts such as touch's `actor: unknown` - tiers
 mark verdicts, not prose.
+
+---
+
+## 5.1 The Civil Clock (UTC Markers)
+
+Every wall-clock surface renders through `src/clock.rs` - Howard
+Hinnant's `civil_from_days` algorithm on `std::time` only, no time
+crate, no timezone database in the binary:
+
+- `-V`/`--version` carries `Build-time: M/D/YYYY HH:MM (UTC)`, stamped
+  by `build.rs` at compile time (minute precision, identical across
+  build hosts).
+- `touch` and `path --verbose` evidence timestamps render as
+  `YYYY-MM-DD HH:MM:SS (UTC)` - the tree's long-standing zero-padded
+  core with an explicit UTC marker instead of a silently wrong local
+  guess on hosts without a timezone database (containers included).
+- The doctor's `build_meta` row appends `built <stamp>` from the same
+  compile-time source.
 
 ---
 

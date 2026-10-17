@@ -536,10 +536,21 @@ fn first_output_line(stderr: &[u8], stdout: &[u8]) -> Option<String> {
 }
 
 fn check_build_metadata(git_hash: &str) -> CheckResult {
+    // The doctor's build row carries the same build facts the -V
+    // report does (the sibling doctor's BUILD block parity): label,
+    // short sha, and the Hinnant build-time stamp when the build
+    // script stamped one. The degraded "unknown" stamp is omitted
+    // rather than reported - an absent fact is not a failing check.
+    let stamp = option_env!("ZEJTRON_BUILD_TIME").unwrap_or("unknown");
+    let message = if stamp == "unknown" {
+        build_label(git_hash)
+    } else {
+        format!("{} built {stamp}", build_label(git_hash))
+    };
     CheckResult {
         status: CheckStatus::Ok,
         check: "build_meta",
-        message: build_label(git_hash),
+        message,
     }
 }
 

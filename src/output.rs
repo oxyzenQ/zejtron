@@ -11,9 +11,10 @@
 //!
 //! Owner color contract (the sibling project's output law): error
 //! red #FF5A5A (255,90,90), warning yellow #FFEB3C (255,235,60),
-//! status green #50FA7B (80,250,123). The runtime lane keeps three
-//! of the sibling tiers it actually uses; brand purple stays on the
-//! clap heading tier and needs no runtime seat here.
+//! status green #50FA7B (80,250,123). Brand purple #A855F7 rides the
+//! clap heading tier via [`crate::styles`] and has exactly one
+//! runtime seat: the `-V` version-report header (the sibling's
+//! masterclass layout) - nothing else on this lane paints purple.
 //!
 //! Capability ladder, the sibling's table sized honestly:
 //!
@@ -70,6 +71,16 @@ const OK_RGB: (u8, u8, u8) = (80, 250, 123);
 #[cfg(test)]
 const OK_256: u8 = 84;
 
+/// Brand purple RGB: #A855F7 (168,85,247) - the one runtime seat is
+/// the `-V` version-report header. 256-color fallback: index 135,
+/// the exact cube index the sibling's default theme (Netrunner,
+/// Slot::Brand) renders for the same RGB - one purple across the
+/// family, same value on every rung.
+#[cfg(test)]
+const BRAND_RGB: (u8, u8, u8) = (168, 85, 247);
+#[cfg(test)]
+const BRAND_256: u8 = 135;
+
 /// The color capability this process renders with, detected once.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ColorCapability {
@@ -87,6 +98,7 @@ pub(crate) enum Tier {
     Error,
     Warn,
     Ok,
+    Brand,
 }
 
 impl Tier {
@@ -99,6 +111,7 @@ impl Tier {
             Tier::Error => ERROR_RGB,
             Tier::Warn => WARN_RGB,
             Tier::Ok => OK_RGB,
+            Tier::Brand => BRAND_RGB,
         }
     }
 
@@ -108,6 +121,7 @@ impl Tier {
             Tier::Error => ERROR_256,
             Tier::Warn => WARN_256,
             Tier::Ok => OK_256,
+            Tier::Brand => BRAND_256,
         }
     }
 
@@ -123,12 +137,16 @@ impl Tier {
             (ColorCapability::TrueColor, Tier::Warn, true) => "\x1b[1;38;2;255;235;60m",
             (ColorCapability::TrueColor, Tier::Ok, false) => "\x1b[38;2;80;250;123m",
             (ColorCapability::TrueColor, Tier::Ok, true) => "\x1b[1;38;2;80;250;123m",
+            (ColorCapability::TrueColor, Tier::Brand, false) => "\x1b[38;2;168;85;247m",
+            (ColorCapability::TrueColor, Tier::Brand, true) => "\x1b[1;38;2;168;85;247m",
             (ColorCapability::Color256, Tier::Error, false) => "\x1b[38;5;203m",
             (ColorCapability::Color256, Tier::Error, true) => "\x1b[1;38;5;203m",
             (ColorCapability::Color256, Tier::Warn, false) => "\x1b[38;5;227m",
             (ColorCapability::Color256, Tier::Warn, true) => "\x1b[1;38;5;227m",
             (ColorCapability::Color256, Tier::Ok, false) => "\x1b[38;5;84m",
             (ColorCapability::Color256, Tier::Ok, true) => "\x1b[1;38;5;84m",
+            (ColorCapability::Color256, Tier::Brand, false) => "\x1b[38;5;135m",
+            (ColorCapability::Color256, Tier::Brand, true) => "\x1b[1;38;5;135m",
             (ColorCapability::Mono, _, _) => "",
         }
     }
@@ -246,6 +264,13 @@ pub(crate) fn warn(msg: &str) -> String {
 /// text when color is off.
 pub(crate) fn ok(msg: &str) -> String {
     wrap(msg, Tier::Ok)
+}
+
+/// Wrap `msg` in brand purple (regular weight) - the `-V`
+/// version-report header tier, the sibling's masterclass layout.
+/// Plain text when color is off.
+pub(crate) fn brand(msg: &str) -> String {
+    wrap(msg, Tier::Brand)
 }
 
 /// Print a labeled error block to stderr: `error: <msg>` with the
@@ -437,6 +462,14 @@ mod tests {
             Tier::Ok.open(ColorCapability::Color256, false),
             "\x1b[38;5;84m"
         );
+        assert_eq!(
+            Tier::Brand.open(ColorCapability::TrueColor, false),
+            "\x1b[38;2;168;85;247m"
+        );
+        assert_eq!(
+            Tier::Brand.open(ColorCapability::Color256, false),
+            "\x1b[38;5;135m"
+        );
         assert_eq!(Tier::Error.open(ColorCapability::Mono, true), "");
     }
 
@@ -452,6 +485,7 @@ mod tests {
         assert_eq!(ERROR_256, 203);
         assert_eq!(WARN_256, 227);
         assert_eq!(OK_256, 84);
+        assert_eq!(BRAND_256, 135);
     }
 
     #[test]
@@ -459,8 +493,10 @@ mod tests {
         assert_eq!(Tier::Error.rgb(), ERROR_RGB);
         assert_eq!(Tier::Warn.rgb(), WARN_RGB);
         assert_eq!(Tier::Ok.rgb(), OK_RGB);
+        assert_eq!(Tier::Brand.rgb(), BRAND_RGB);
         assert_eq!(Tier::Error.index_256(), ERROR_256);
         assert_eq!(Tier::Warn.index_256(), WARN_256);
         assert_eq!(Tier::Ok.index_256(), OK_256);
+        assert_eq!(Tier::Brand.index_256(), BRAND_256);
     }
 }

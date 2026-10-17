@@ -289,8 +289,7 @@ fn file_metadata(path: &Path) -> Option<FileMeta> {
 }
 
 fn format_system_time(time: std::time::SystemTime) -> String {
-    let datetime: chrono::DateTime<chrono::Local> = time.into();
-    datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+    crate::clock::format_system_time(time)
 }
 
 /// Audit each $PATH component for security-relevant issues:

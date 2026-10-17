@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 mod cli;
+mod clock;
 mod doctor;
 mod env;
 mod git;
@@ -28,7 +29,7 @@ fn main() {
     let cli = cli::Cli::parse();
 
     if cli.version {
-        println!("{}", version::version_text(env!("ZEJTRON_GIT_HASH")));
+        version::print_version_report();
         return;
     }
 

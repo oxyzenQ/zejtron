@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-use chrono::{DateTime, Local};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
@@ -254,8 +253,7 @@ fn format_report(info: &TouchInfo) -> String {
 }
 
 pub(crate) fn format_system_time(time: SystemTime) -> String {
-    let datetime: DateTime<Local> = time.into();
-    datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+    crate::clock::format_system_time(time)
 }
 
 fn parse_passwd() -> io::Result<HashMap<u32, String>> {
@@ -669,7 +667,12 @@ mod tests {
     fn timestamp_format_is_stable_shape() {
         let formatted = format_system_time(UNIX_EPOCH + Duration::from_secs(1_700_000_000));
 
-        assert_eq!(formatted.len(), 19);
+        // The civil clock's contract (src/clock.rs): the tree's
+        // long-standing zero-padded core plus the explicit UTC
+        // marker. Ground truth: 1_700_000_000 = 2023-11-14 22:13:20
+        // UTC (verified via date -u -d @1700000000).
+        assert_eq!(formatted, "2023-11-14 22:13:20 (UTC)");
+        assert_eq!(formatted.len(), 25);
         assert_eq!(&formatted[4..5], "-");
         assert_eq!(&formatted[7..8], "-");
         assert_eq!(&formatted[10..11], " ");
