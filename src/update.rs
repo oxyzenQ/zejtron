@@ -95,14 +95,14 @@ fn http_failure(code: u16) -> &'static str {
 
 pub fn check_update(current_version: &str) -> Result<(), String> {
     // The network surface must never ride root privileges (the
-    // sibling contract): refuse euid 0 before any network I/O with
-    // the one behavioral rule that matters - a clear error message,
-    // not a foot-gun.
-    if crate::process::effective_uid() == Some(0) {
-        return Err(
-            "update check refuses root - re-run without sudo (the network surface must never ride root privileges)"
-                .to_owned(),
-        );
+    // sibling contract, night-improve-16): refuse euid 0 before any
+    // network I/O through the shared root guard, so the wording
+    // matches the other fatal surfaces byte for byte.
+    if let Some(refusal) = crate::process::root_refusal(
+        crate::process::effective_uid() == Some(0),
+        "the update check performs a network fetch",
+    ) {
+        return Err(refusal);
     }
 
     let output = Command::new("curl")
