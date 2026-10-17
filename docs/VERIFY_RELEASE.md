@@ -4,7 +4,7 @@
 # Verifying Release Artifacts
 
 Every release ships **three** checksum files per archive, covering
-classical + post-quantum algorithms, and - when the release GPG key is
+three independent hash families, and - when the release GPG key is
 configured - one detached ASCII-armored GPG signature per archive.
 Verify at least one checksum before trusting a downloaded binary, and
 the signature whenever one ships.
@@ -14,7 +14,7 @@ the signature whenever one ships.
 | File | Algorithm | Family | Quantum-safe? |
 |------|-----------|--------|---------------|
 | `*.sha512sum` | SHA-512 | SHA-2 | 256-bit (borderline) |
-| `*.b2sum` | BLAKE2b-512 | BLAKE2 | 256-bit |
+| `*.b3sum` | BLAKE3 | BLAKE3 | 128-bit |
 | `*.shake256` | SHAKE256 | SHA-3 XOF (NIST PQ) | 256-bit |
 
 ## How to verify
@@ -26,8 +26,8 @@ mismatch). No manual hash comparison needed.
 # Classical (universal, every Linux has this)
 sha512sum -c project-vX.Y.Z-linux-amd64-gnu.tar.gz.sha512sum
 
-# Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c project-vX.Y.Z-linux-amd64-gnu.tar.gz.b2sum
+# The fast modern lane — BLAKE3 (the official b3sum utility)
+b3sum -c project-vX.Y.Z-linux-amd64-gnu.tar.gz.b3sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python)
 # openssl's -shake256 default output length varies by version/distro;
@@ -64,7 +64,7 @@ for a complete verification.
 ## Why three algorithms
 
 Defense in depth across three independent hash families
-(SHA-2, BLAKE2, SHA-3 XOF). A future cryptanalytic break of any
+(SHA-2, BLAKE3, SHA-3 XOF). A future cryptanalytic break of any
 single family does not invalidate verification via the other two.
 GPG signatures add an authenticity layer the checksums cannot give
 on their own: a checksum proves integrity against the published
@@ -74,10 +74,14 @@ key (a compromised mirror cannot forge either pair together).
 ## Verification tools required
 
 - `sha512sum` — GNU coreutils (preinstalled on every Linux)
-- `b2sum` — GNU coreutils ≥ 8.x (preinstalled on modern distros)
+- `b3sum` — the official BLAKE3 utility (not in coreutils):
+  Debian 13+ and Ubuntu 24.04+ ship it as the `b3sum` package
+  (`apt install b3sum`); anywhere with a Rust toolchain,
+  `cargo install b3sum` builds the same binary
 - `python3` — for the SHAKE256 lane (hashlib is stdlib)
 - `gpg` — GnuPG 2.x, for the signature lane (preinstalled on
   virtually every Linux)
 
-All tools ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine,
-and macOS by default — no extra install needed.
+`sha512sum`, `python3`, and `gpg` ship by default on every major
+Linux and macOS; `b3sum` is one small package install where it is
+not preinstalled (the lanes above name the two commands).
