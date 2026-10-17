@@ -80,6 +80,18 @@ The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, 
 ./scripts/build.sh
 ```
 
+The script rewrites every version surface in one pass: `Cargo.toml` and
+`Cargo.lock` (the complete cargo surface - zejtron is a single-crate
+repo, there is no second manifest to ride along), the AUR metadata
+(`aur/zejtron-bin/PKGBUILD` and its regenerated `.SRCINFO`), the release
+examples in `README.md` and this document, and the `CHANGELOG.md`
+ledger - the bumped version is recorded as a bare line under
+`## [Released]`, newest first, above `## [Unreleased]`. The ledger
+writer probes honestly: a missing file, an already-recorded version, or
+a non-standard section shape warns and writes nothing rather than
+claiming a rewrite that did not happen, and the script's final
+verification fails if the ledger line for the new version is absent.
+
 ## Release Command Flow
 
 ```sh
