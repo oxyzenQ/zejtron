@@ -5,6 +5,65 @@ pub mod styles;
 use clap::{CommandFactory, Parser, Subcommand};
 use std::path::PathBuf;
 
+/// The Pro mode section of the help surface (night-improve-25, the
+/// sibling's zelynic shape): every flag of every verb, complete, on
+/// the one reference surface - grouped by the verb that owns each
+/// flag. The top-level Options block only ever shows the globals;
+/// the per-verb flags lived scattered across thirteen per-verb help
+/// renders, so the one surface a user reads end-to-end showed none of
+/// them. Pro mode owns the whole estate: each spelling mirrors the
+/// verb's own help string verbatim (one wording authority - the CLI
+/// structs), the hidden aliases are disclosed next to the flags they
+/// alias (--check-updated, --watch, --no-values), and the layout
+/// rides one description column so the geometry cannot drift per
+/// row. Rendered through clap's after_help: plain text, no embedded
+/// ANSI - piped output keeps its plain bytes and NO_COLOR stays
+/// default, the same law the runtime lane obeys.
+const PRO_MODE_HELP: &str = "\
+Pro mode:
+  The complete flag estate - grouped by the verbs that own them.
+  Each verb's own -h/--help shows its lane; this is the whole
+  estate on one surface.
+
+  recent:
+    --limit N           Maximum files to show (default 20)
+    --since DURATION    Only show files modified since this duration
+  port:
+    --tcp               Show TCP sockets
+    --udp               Show UDP sockets
+    --listen            Show listening or bound sockets (excludes --all)
+    --all               Show all parsed sockets
+    --numeric           Use numeric addresses and ports
+    --group             Group repeated rendered socket rows
+    --no-pid            Hide process IDs in owner lines
+  proc:
+    --me                Show processes owned by the current user
+    --live              Continuously refresh the process tree
+    --watch             Alias for --live
+    --interval SECONDS  Live refresh interval in seconds
+    --depth N           Limit rendered tree depth
+    --find PATTERN      Show process families matching a name substring
+    --no-pid            Hide pid=<PID> labels
+    --no-color          Disable ANSI color output
+  env:
+    --keys              Show variable names only
+    --no-values         Alias for --keys
+    --filter TEXT       Filter variables by key substring
+    --pid PID           Read /proc/<PID>/environ instead of this process
+    --mask-secrets      Mask common secret patterns (AWS, GitHub, JWT,
+                        private keys)
+  env diff:
+    --show-same         Show unchanged variables in a diff
+  service:
+    --system            Inspect system services
+    --user              Inspect user services
+    --failed            Show failed services only
+    --all               Show all service units
+    --filter TEXT       Filter services by unit name
+  global:
+    --check-update      Alias: --check-updated (same surface, one check)
+";
+
 #[derive(Debug, Parser)]
 #[command(
     name = "zejtron",
@@ -13,8 +72,11 @@ use std::path::PathBuf;
     // The mature help surface (night-improve-15, sibling shape): one
     // help authority - the -h/--help flags - and no auto-generated
     // `help` subcommand row padding the commands list on every
-    // top-level render.
+    // top-level render. night-improve-25 adds the Pro mode section:
+    // the complete flag estate, grouped by the verbs that own each
+    // flag, rendered plain through clap's after_help.
     disable_help_subcommand = true,
+    after_help = PRO_MODE_HELP,
     styles = crate::cli::styles::clap_styles()
 )]
 pub struct Cli {
@@ -226,6 +288,59 @@ impl Cli {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The Pro mode section is on the help surface (night-improve-25).
+    #[test]
+    fn help_carries_pro_mode_section() {
+        let help = Cli::command().render_help().to_string();
+        assert!(help.contains("Pro mode:"));
+    }
+
+    /// The hidden aliases are disclosed in Pro mode - the one surface
+    /// that names them next to the flags they alias.
+    #[test]
+    fn pro_mode_discloses_every_hidden_alias() {
+        let help = Cli::command().render_help().to_string();
+        for alias in ["--check-updated", "--watch", "--no-values"] {
+            assert!(
+                help.contains(alias),
+                "Pro mode must disclose the hidden alias {alias}"
+            );
+        }
+    }
+
+    /// The estate is complete: every flag-owning verb has its group,
+    /// and the advanced knobs are spelled on the surface.
+    #[test]
+    fn pro_mode_covers_every_flag_owning_verb() {
+        let help = Cli::command().render_help().to_string();
+        for group in [
+            "recent:",
+            "port:",
+            "proc:",
+            "env:",
+            "env diff:",
+            "service:",
+            "global:",
+        ] {
+            assert!(help.contains(group), "Pro mode must own the {group} group");
+        }
+        for spelling in [
+            "--limit N",
+            "--listen",
+            "--interval SECONDS",
+            "--depth N",
+            "--find PATTERN",
+            "--mask-secrets",
+            "--show-same",
+            "--filter TEXT",
+        ] {
+            assert!(
+                help.contains(spelling),
+                "Pro mode must spell the advanced flag {spelling}"
+            );
+        }
+    }
 
     #[test]
     fn parses_shell() {
