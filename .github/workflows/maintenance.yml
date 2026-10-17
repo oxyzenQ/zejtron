@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout default branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload validated Cargo.lock
         if: steps.changes.outputs.changed == 'true'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: validated-cargo-lock
           path: Cargo.lock
@@ -91,13 +91,13 @@ jobs:
 
     steps:
       - name: Checkout default branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.DEFAULT_BRANCH }}
           fetch-depth: 0
 
       - name: Download validated Cargo.lock
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: validated-cargo-lock
           path: .auto-update
