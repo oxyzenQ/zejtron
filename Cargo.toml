@@ -1,12 +1,32 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
 [package]
 name = "zejtron"
 version = "11.0.0"
 edition = "2024"
-rust-version = "1.85"
+description = "Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics. Boring and serious."
+authors = ["rezky_nightky (oxyzenQ)"]
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/zejtron"
-authors = ["rezky_nightky (oxyzenQ)"]
-description = "Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics"
+readme = "README.md"
+keywords = ["linux", "cli", "introspection", "processes", "diagnostics"]
+# Discoverability metadata, sibling-manifest lineage. Slugs validated
+# against the live registry API (2026-10-17):
+# - "command-line-utilities": the primary bucket for a terminal binary.
+# - "os::linux-apis": "Bindings to Linux-specific APIs" - the honest
+#   bucket for a procfs/sysfs introspection tool that reads /proc and
+#   sysfs directly with no external command dependencies.
+# Registry limit is 5 categories; 2 used.
+categories = ["command-line-utilities", "os::linux-apis"]
+# MSRV, pinned to the same version as rust-toolchain.toml's channel so
+# the manifest contract and the default local toolchain cannot drift.
+rust-version = "1.98.1"
+# documentation = "https://docs.rs/zejtron" - withheld until the crate
+# is published to the registry. The docs.rs link is verified live
+# before it ships (the sibling manifest's rule), and the registry
+# lookup (2026-10-17) reports the crate does not exist yet. Add the
+# field in the same change that publishes.
 
 [dependencies]
 chrono = { version = "0.4.42", default-features = false, features = ["clock"] }

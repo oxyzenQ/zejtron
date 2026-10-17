@@ -7,7 +7,7 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 #[command(
     name = "zejtron",
-    about = "Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics",
+    about = "Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics. Boring and serious.",
     disable_version_flag = true,
     styles = crate::styles::clap_styles()
 )]
