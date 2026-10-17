@@ -5,7 +5,7 @@
 <h1 align="center">zejtron</h1>
 
 <p align="center">
-  <strong>A serious Linux introspection command center for operators, engineers, and incident work.</strong>
+  <strong>Boring and serious. A Linux introspection command center for operators, engineers, and incident work.</strong>
 </p>
 
 <p align="center">
@@ -17,6 +17,15 @@
     <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
   </a>
 </p>
+
+## Philosophy
+
+**The boring and serious.**
+
+Zejtron stays out of the operator's way while doing serious investigative
+work underneath. The interface rarely changes. Output is deterministic and
+read-only by design. Every release makes it slightly more stable, slightly
+sharper, and slightly easier to maintain.
 
 ## What Is Zejtron?
 
