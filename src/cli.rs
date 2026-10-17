@@ -8,7 +8,8 @@ use std::path::PathBuf;
 #[command(
     name = "zejtron",
     about = "Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics",
-    disable_version_flag = true
+    disable_version_flag = true,
+    styles = crate::styles::clap_styles()
 )]
 pub struct Cli {
     #[arg(

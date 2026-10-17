@@ -15,6 +15,7 @@ mod process;
 mod recent;
 mod service;
 mod shell;
+mod styles;
 mod touch;
 mod update;
 mod version;
