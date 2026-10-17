@@ -86,19 +86,26 @@ yay -S zejtron-bin
 
 ### GitHub Release
 
+The release matrix ships exactly four shapes: the x86-64-v3/v4
+microarch levels for both libc flavors (v3 covers Haswell 2013+,
+v4 covers AVX-512-era 2017+; musl builds are fully static).
+
 ```sh
 TAG=v11.0.0
-curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-linux-amd64-gnu.tar.gz"
-curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-linux-amd64-gnu.tar.gz.sha512sum"
-sha512sum --check "zejtron-${TAG}-linux-amd64-gnu.tar.gz.sha512sum"
-tar -xzf "zejtron-${TAG}-linux-amd64-gnu.tar.gz"
+SHAPE=linux-amd64-v3-gnu   # or v4-gnu / v3-musl / v4-musl
+curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
+curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
+sha512sum --check "zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
+tar -xzf "zejtron-${TAG}-${SHAPE}.tar.gz"
 install -Dm755 zejtron "$HOME/.local/bin/zejtron"
 ```
 
-For a statically-linked musl build, replace `linux-amd64-gnu` with `linux-amd64-musl`.
-
-Each release also ships quantum-resistant checksums (BLAKE2b + SHAKE256).
-See [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) for full instructions.
+Each release also ships quantum-resistant checksums (BLAKE2b +
+SHAKE256) and, when the release key is configured, a detached GPG
+signature per archive. See [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)
+for full instructions, and the arch-baseline alias commands
+(`cargo pro-linux-amd64-v3-gnu` and friends) that reproduce the
+release optimization tier bit-for-bit.
 
 ### crates.io
 

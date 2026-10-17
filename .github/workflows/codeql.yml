@@ -1,0 +1,92 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# CodeQL security analysis for zejtron (the sibling's lane shape).
+#
+# zejtron's security surface is Rust end to end: one binary that reads
+# /proc, sysfs, and the filesystem and renders to a terminal. The
+# analysis is pinned to `rust` - the whole shipped surface. Shell and
+# Python tooling scripts are covered by the shell quad and the
+# language discipline via the wholesale gate-keepers job, which runs
+# unfiltered on every push. The paths filters are Rust-only: a
+# tooling-only diff has nothing new for a rust-language scan to find.
+
+name: Dragon Guard - CodeQL
+
+'on':
+  push:
+    branches: ["main"]
+    paths:
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - '.github/workflows/codeql.yml'
+  pull_request:
+    branches: ["main"]
+    paths:
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - '.github/workflows/codeql.yml'
+  schedule:
+    # Monday 00:00 UTC (07:00 WIB) - the owner's morning, one clock
+    # for every scheduled workflow.
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  RUST_VERSION: "1.98.1"
+
+jobs:
+  analyze:
+    name: Dragon Guard - CodeQL Analyze
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          cache-on-failure: true
+
+      # Pinned to rust: the security surface users run is the Rust
+      # binary - the whole shipped code is Rust.
+      #
+      # codeql-action is the ONE action deliberately left on a moving
+      # tag (github-org official): its value is tracking the current
+      # analyzers and query packs - SHA-pinning it would freeze the
+      # security scanner itself. Every other action in this repo is
+      # SHA-pinned.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: rust
+
+      - name: Build (autobuild)
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /rust
+          upload: true

@@ -1,7 +1,31 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# The release lane (the sibling's mature shape, zejtron's four-leg
+# matrix). On a v* tag push:
+#
+#   validate -> build (4 legs: linux-amd64-{v3,v4} x {gnu,musl}) -> release
+#                                                                   -> aur-sync
+#
+# - The matrix is the AMD64 x86-64-v3/v4 microarch levels for both
+#   libc flavors - the only shapes zejtron supports and optimizes for
+#   (the native v1 baseline stays a local dev-only build via the
+#   pro-native aliases). Each leg's RUSTFLAGS is the build contract;
+#   the tripwire step pins the exact flag set per platform id, and
+#   the same tokens live in .cargo/config.toml's arch-baseline
+#   aliases so a local alias build reproduces the release tier.
+# - Every tarball ships with SHA-512 + BLAKE2b-512 + SHAKE256
+#   (quantum-resistant) checksums, and - when the GPG secrets are
+#   configured - a detached ASCII-armored signature, imported, signed,
+#   and verified inside the build job (the least-privilege placement:
+#   the private key never enters the publishing job's environment).
+# - The release body renders through scripts/release/
+#   generate-release-notes.sh (single source of truth, self-tested
+#   before the body renders), with the asset-inventory tripwire ahead
+#   of the publish step - a green pipeline can never ship an
+#   asset-less release (the sibling's NIGHT-dinner-3 lesson).
+# - The stable tag dispatches the AUR sync (zejtron's packaging lane).
 
----
 name: zejtron - Release
 
 "on":
@@ -14,30 +38,76 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
 
 jobs:
+  validate:
+    name: Validate tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - name: Derive the release facts from the tag
+        id: tag
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          case "${TAG}" in
+            v[0-9]*.[0-9]*.[0-9]*)
+              echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+              echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+              ;;
+            v[0-9]*.[0-9]*.[0-9]*-*)
+              echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+              echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::tag ${TAG} is not a v-prefixed semver ( vX.Y.Z or vX.Y.Z-prerelease )"
+              exit 1
+              ;;
+          esac
+          echo "validated: ${TAG}"
+
   build:
-    runs-on: ubuntu-latest
+    name: Build Release Binary (${{ matrix.platform }})
+    runs-on: ubuntu-24.04
+    needs: [validate]
+    timeout-minutes: 30
     permissions:
       contents: read
-
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
-            arch: linux-amd64-gnu
+          - platform: linux-amd64-v3-gnu
+            target: x86_64-unknown-linux-gnu
+            rustflags: "-D warnings -C target-cpu=x86-64-v3"
             install_packages: ""
-          - target: x86_64-unknown-linux-musl
-            arch: linux-amd64-musl
+          - platform: linux-amd64-v4-gnu
+            target: x86_64-unknown-linux-gnu
+            rustflags: "-D warnings -C target-cpu=x86-64-v4"
+            install_packages: ""
+          - platform: linux-amd64-v3-musl
+            target: x86_64-unknown-linux-musl
+            rustflags: "-D warnings -C target-cpu=x86-64-v3 -C target-feature=+crt-static"
+            install_packages: musl-tools
+          - platform: linux-amd64-v4-musl
+            target: x86_64-unknown-linux-musl
+            rustflags: "-D warnings -C target-cpu=x86-64-v4 -C target-feature=+crt-static"
             install_packages: musl-tools
 
     env:
-      TAG: ${{ github.ref_name }}
+      TAG: ${{ needs.validate.outputs.tag }}
+      RUSTFLAGS: ${{ matrix.rustflags }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
         with:
           persist-credentials: false
 
@@ -47,126 +117,388 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ${{ matrix.install_packages }}
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain (pinned)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
+          toolchain: "1.98.1"
           targets: ${{ matrix.target }}
-          components: rustfmt, clippy
-
-      - name: Install Rust target
-        run: |
-          rustup target add "${{ matrix.target }}"
-          rustup target list --installed
 
       - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          key: release-${{ matrix.platform }}
+          prefix-key: release
 
-      - name: Install codespell
-        run: python3 -m pip install --user codespell
+      # cosmostrix tripwire: the matrix rustflags ARE the build
+      # contract - a platform whose flag set drifts fails here, not in
+      # a shipped binary's performance profile.
+      - name: Verify arch-baseline inputs
+        run: |
+          set -euo pipefail
+          case "${{ matrix.platform }}" in
+            linux-amd64-v3-gnu) expected="-D warnings -C target-cpu=x86-64-v3" ;;
+            linux-amd64-v4-gnu) expected="-D warnings -C target-cpu=x86-64-v4" ;;
+            linux-amd64-v3-musl) expected="-D warnings -C target-cpu=x86-64-v3 -C target-feature=+crt-static" ;;
+            linux-amd64-v4-musl) expected="-D warnings -C target-cpu=x86-64-v4 -C target-feature=+crt-static" ;;
+            *) echo "::error::Unknown platform id ${{ matrix.platform }}"; exit 1 ;;
+          esac
+          if [ "${{ matrix.rustflags }}" != "${expected}" ]; then
+            echo "::error::${{ matrix.platform }} must use RUSTFLAGS='${expected}', got '${{ matrix.rustflags }}'"
+            exit 1
+          fi
+          echo "arch-baseline inputs verified: ${{ matrix.platform }}"
 
+      # The gnu leg carries the full gate (fmt/clippy/test/battery);
+      # the other legs build only - their shape difference IS the
+      # product being released, and the gnu leg already vetted the
+      # source.
       - name: Run full checks
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: ./scripts/build.sh
+        if: matrix.platform == 'linux-amd64-v3-gnu'
+        run: ./scripts/build.sh check-all
 
       - name: Build
-        run: cargo build --release --target "${{ matrix.target }}"
+        run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Package
         run: |
           set -Eeuo pipefail
-          asset="zejtron-${TAG}-${{ matrix.arch }}"
-          staging="$(mktemp -d)"
-          mkdir -p "${staging}/${asset}"
-          cp "target/${{ matrix.target }}/release/zejtron" \
-            "${staging}/${asset}/zejtron"
-          cp README.md LICENSE "${staging}/${asset}/"
-          tar -C "${staging}/${asset}" \
-            -czf "${asset}.tar.gz" zejtron README.md LICENSE
-
+          PKG="zejtron-${TAG}-${{ matrix.platform }}"
+          STAGE="dist/stage"
+          mkdir -p "${STAGE}"
+          cp "target/${{ matrix.target }}/release/zejtron" "${STAGE}/"
+          chmod +x "${STAGE}/zejtron"
+          cp README.md LICENSE "${STAGE}/"
+          tar -czf "dist/${PKG}.tar.gz" -C "${STAGE}" zejtron LICENSE README.md
+          ACTUAL=$(tar -tzf "dist/${PKG}.tar.gz" | sort | tr '\n' ' ')
+          if [ "${ACTUAL}" != "LICENSE README.md zejtron " ]; then
+            echo "tarball invariant violated for ${PKG}: ${ACTUAL}"
+            exit 1
+          fi
+          rm -rf "${STAGE}"
+          cd dist
           # Checksums: SHA-512 (classical) + BLAKE2b-512 + SHAKE256 (quantum-resistant)
-          sha512sum "${asset}.tar.gz" > "${asset}.tar.gz.sha512sum"
-          b2sum "${asset}.tar.gz" > "${asset}.tar.gz.b2sum"
+          sha512sum "${PKG}.tar.gz" > "${PKG}.tar.gz.sha512sum"
+          b2sum "${PKG}.tar.gz" > "${PKG}.tar.gz.b2sum"
           # SHAKE256 via Python (cross-platform, consistent 64-byte output)
           python3 -c "
           import hashlib
-          data = open('${asset}.tar.gz', 'rb').read()
+          data = open('${PKG}.tar.gz', 'rb').read()
           h = hashlib.shake_256(data).hexdigest(64)
-          print(f'{h}  ${asset}.tar.gz')
-          " > "${asset}.tar.gz.shake256"
+          print(f'{h}  ${PKG}.tar.gz')
+          " > "${PKG}.tar.gz.shake256"
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v7
+          echo ""
+          echo "=== Release artifacts ==="
+          ls -lh
+
+      # =========================================================================
+      # Detached ASCII-armored GPG signatures for every release tarball.
+      #
+      # Placement: signing runs HERE, in the build job, which holds no
+      # `contents: write` token (top-level default is read). The private
+      # key therefore never enters the environment of the job that
+      # publishes the GitHub release - least privilege for the most
+      # sensitive secret in the pipeline.
+      #
+      # Contract: when the GPG_PRIVATE_KEY secret is not configured,
+      # both steps no-op and the release ships checksums-only - no
+      # release is ever blocked on signing configuration.
+      #
+      # Passphrase confinement: the passphrase NEVER enters
+      # GITHUB_ENV. The import step keeps it in step-scoped env +
+      # stdin (--passphrase-fd 0, never a command line), the sign
+      # step re-reads it from secrets directly in its own step env,
+      # and the only value that crosses steps is GPG_KEY_ID - a
+      # public key id, not a secret.
+      # =========================================================================
+      - name: Import GPG signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${GPG_PRIVATE_KEY}" ]; then
+            echo "GPG_PRIVATE_KEY secret not configured - skipping GPG signing"
+            exit 0
+          fi
+          # Import the armored private key. --batch + --yes prevents
+          # interactive prompts. --pinentry-mode loopback allows
+          # passwordless import for keys without passphrase protection.
+          # With a passphrase, it arrives via --passphrase-fd 0 (stdin)
+          # so it never appears in a process listing or command line.
+          if [ -n "${GPG_PASSPHRASE}" ]; then
+            echo "${GPG_PASSPHRASE}" | gpg --import --batch --yes \
+              --pinentry-mode loopback \
+              --passphrase-fd 0 \
+              <(echo "${GPG_PRIVATE_KEY}")
+          else
+            echo "${GPG_PRIVATE_KEY}" | gpg --import --batch --yes \
+              --pinentry-mode loopback
+          fi
+          # Show what was imported (key IDs only, no secrets). Extract
+          # the signing-capable key id: ssb/sec rows whose capability
+          # field carries S, with the any-secret fallback for gpg
+          # versions that populate the field differently.
+          gpg --list-secret-keys --with-colons || true
+          KEY_ID="$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^(ssb|sec):/ && $12 ~ /S/ {print $5; exit}')"
+          if [ -z "${KEY_ID}" ]; then
+            KEY_ID="$(gpg --list-secret-keys --with-colons \
+              | awk -F: '/^(ssb|sec):/ {print $5; exit}')"
+          fi
+          if [ -z "${KEY_ID}" ]; then
+            echo "::error::Failed to import GPG secret key (no signing-capable key found)"
+            echo "::error::gpg --list-secret-keys output:"
+            gpg --list-secret-keys 2>&1 || true
+            exit 1
+          fi
+          echo "GPG_KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
+          echo "Imported GPG signing key: ${KEY_ID}"
+
+      - name: Sign artifacts (detached GPG signatures)
+        if: env.GPG_KEY_ID != ''
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          # Sign every .tar.gz with a detached ASCII-armored signature.
+          # Idempotent: skip files that already have an .asc sibling so
+          # workflow re-runs never re-sign (stable artifact bytes).
+          # Passphrase (if any) flows via --passphrase-fd 0 from stdin -
+          # never via the command line.
+          find . -type f -name '*.tar.gz' ! -name '*.asc' -print0 \
+            | while IFS= read -r -d '' artifact; do
+                if [ -f "${artifact}.asc" ]; then
+                  echo "  (existing sig) ${artifact}.asc"
+                  continue
+                fi
+                echo "  signing ${artifact}"
+                if [ -n "${GPG_PASSPHRASE}" ]; then
+                  echo "${GPG_PASSPHRASE}" | gpg --batch --yes --detach-sign --armor \
+                      --local-user "${GPG_KEY_ID}" \
+                      --pinentry-mode loopback \
+                      --passphrase-fd 0 \
+                      --output "${artifact}.asc" "${artifact}"
+                else
+                  gpg --batch --yes --detach-sign --armor \
+                      --local-user "${GPG_KEY_ID}" \
+                      --pinentry-mode loopback \
+                      --output "${artifact}.asc" "${artifact}"
+                fi
+              done
+          # Tripwire: every tarball must have an .asc sibling, and every
+          # signature must verify against the imported key BEFORE
+          # upload. A release never ships a broken or missing signature
+          # once signing is configured.
+          TARBALLS=$(find . -type f -name '*.tar.gz' | wc -l)
+          SIGS=$(find . -type f -name '*.tar.gz.asc' | wc -l)
+          if [ "${TARBALLS}" -ne "${SIGS}" ]; then
+            echo "::error::Signature coverage broken: ${TARBALLS} tarballs, ${SIGS} signatures"
+            exit 1
+          fi
+          find . -type f -name '*.tar.gz' -print0 \
+            | while IFS= read -r -d '' artifact; do
+                echo "  verifying ${artifact}.asc"
+                gpg --batch --verify "${artifact}.asc" "${artifact}" 2>&1 \
+                  | grep -q "Good signature" \
+                  || { echo "::error::gpg --verify failed for ${artifact}"; exit 1; }
+              done
+          echo "--- Signed artifacts ---"
+          find . -name '*.asc' -print | sort
+          echo "--- All signatures verified ---"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, SHA pin
         with:
-          name: release-${{ matrix.arch }}
-          path: |
-            zejtron-${{ env.TAG }}-${{ matrix.arch }}.tar.gz
-            zejtron-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.sha512sum
-            zejtron-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.b2sum
-            zejtron-${{ env.TAG }}-${{ matrix.arch }}.tar.gz.shake256
+          # One artifact per platform; the release job merges the four
+          # by pattern (merge-multiple) so GPG signing stays in the
+          # build-class jobs while the matrix scales.
+          name: release-artifacts-${{ matrix.platform }}
+          path: dist/*
           retention-days: 1
 
   release:
-    needs: build
-    runs-on: ubuntu-latest
+    name: Create GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [validate, build]
+    timeout-minutes: 10
     permissions:
       contents: write
-
     env:
-      TAG: ${{ github.ref_name }}
-
+      TAG: ${{ needs.validate.outputs.tag }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      # STEP ORDER: checkout runs BEFORE the artifact download. The
+      # checkout's default clean wipes the workspace - under the
+      # download-first order it destroys the freshly fetched dist/
+      # and softprops' unmatched-glob warning ships an asset-less
+      # release (the sibling's NIGHT-dinner-3 incident, green
+      # pipeline, zero assets). Checkout first, download second.
+      - name: Checkout release tooling (sparse, depth 1)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          sparse-checkout: |
+            scripts/release
           persist-credentials: false
 
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v8
+      - name: Download artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, SHA pin
         with:
-          path: artifacts
-          pattern: release-*
+          pattern: release-artifacts-*
+          merge-multiple: true
+          path: dist
 
-      - name: Collect artifacts for release
+      # TRIPWIRE: assert the dist/ inventory BEFORE the publish step.
+      # The build matrix is four legs (v3/v4 x gnu/musl); each Prepare
+      # step emits one tarball plus three checksum files, and the build
+      # job's signature-coverage tripwire makes GPG signing
+      # all-or-nothing - so the legal shapes here are exactly: 4
+      # tarballs + 12 checksums + (0 or 4) signatures. Anything else is
+      # a red pipeline with the precise missing file named, never a
+      # silently asset-less release.
+      - name: Assert release asset inventory
         run: |
-          set -Eeuo pipefail
-          mkdir -p release-assets
-          find artifacts -type f \( -name '*.tar.gz' \
-            -o -name '*.sha512sum' \
-            -o -name '*.b2sum' \
-            -o -name '*.shake256' \) \
-            -exec cp {} release-assets/ \;
-          ls -lh release-assets/
+          set -euo pipefail
+          TARBALLS=$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)
+          if [ "${TARBALLS}" -ne 4 ]; then
+            echo "::error::Expected 4 release tarballs in dist/ (the build matrix legs), found ${TARBALLS}"
+            find dist -maxdepth 1 -type f -print 2>/dev/null || true
+            exit 1
+          fi
+          BROKEN=0
+          for f in dist/*.tar.gz; do
+            for suffix in sha512sum b2sum shake256; do
+              if [ ! -f "${f}.${suffix}" ]; then
+                echo "::error::Missing checksum sibling ${f}.${suffix}"
+                BROKEN=1
+              fi
+            done
+          done
+          SIGS=$(find dist -maxdepth 1 -type f -name '*.tar.gz.asc' | wc -l)
+          if [ "${SIGS}" -ne 0 ] && [ "${SIGS}" -ne "${TARBALLS}" ]; then
+            echo "::error::Partial GPG coverage: ${SIGS} signatures for ${TARBALLS} tarballs"
+            echo "(signing is all-or-nothing)"
+            BROKEN=1
+          fi
+          if [ "${BROKEN}" -ne 0 ]; then
+            exit 1
+          fi
+          echo "dist/ inventory verified: ${TARBALLS} tarballs, ${SIGS} GPG signatures,"
+          echo "$(( TARBALLS * 3 )) checksum files"
 
       - name: Generate release body
+        id: body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
-          {
-            if [ -n "$PREV_TAG" ]; then
-              echo "## What's Changed"
-              echo ""
-              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${GITHUB_REF_NAME}"
-              echo ""
-            else
-              echo "Initial release."
-            fi
-          } > release-body.md
+          set -euo pipefail
+          TAG="${TAG}"
+          IS_PRERELEASE="${{ needs.validate.outputs.prerelease }}"
+
+          # Bounded retry for the API reads below: a just-pushed tag
+          # occasionally answers its first requests with a transient
+          # 5xx. Three attempts, five seconds apart, then the real
+          # error surfaces unchanged.
+          gh_api() {
+            local attempt out
+            for attempt in 1 2 3; do
+              if out=$(gh api "$@"); then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              echo "gh api attempt ${attempt} failed - retrying in 5s" >&2
+              sleep 5
+            done
+            return 1
+          }
+
+          # All tag names via the API - no clone, no local refs. The
+          # previous-changelog boundary: pre-releases diff from the
+          # nearest prior tag; stables skip pre-releases. awk (never
+          # grep) so a zero-match filter is not a failed pipeline
+          # under pipefail.
+          TAGS=$(gh_api --paginate "repos/${GITHUB_REPOSITORY}/tags" --jq '.[].name')
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            PREV_TAG=$(printf '%s\n' "${TAGS}" \
+              | awk -v cur="${TAG}" '$0 != cur' \
+              | sort -V | tail -1)
+          else
+            PREV_TAG=$(printf '%s\n' "${TAGS}" \
+              | awk -v cur="${TAG}" \
+                '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-(dev|nightly|alpha|beta|rc)[\.-]/' \
+              | sort -V | tail -1)
+          fi
+
+          COMPARE_JSON=""
+          if [ -n "${PREV_TAG}" ]; then
+            gh_api "repos/${GITHUB_REPOSITORY}/compare/${PREV_TAG}...${TAG}" > compare.json
+            COMPARE_JSON=compare.json
+          fi
+
+          # The family release-page style, one implementation in the
+          # tree: scripts/release/generate-release-notes.sh (its header
+          # carries the design notes; --self-test pins the classifier
+          # battery and the body shape, rootless). The battery runs
+          # first - milliseconds, and a drifted classifier fails the
+          # pipeline BEFORE a broken body publishes, not after.
+          scripts/release/generate-release-notes.sh --self-test
+
+          scripts/release/generate-release-notes.sh \
+            --tag "${TAG}" \
+            --prerelease "${IS_PRERELEASE}" \
+            --compare-json "${COMPARE_JSON}" \
+            --prev-tag "${PREV_TAG}" \
+            > release-body.md
+
+          # Release title: the bare tag name (the family convention) -
+          # GitHub's own Pre-release badge marks the channel in the
+          # releases list, and the body's WARNING callout carries the
+          # expectation-setting text.
+          echo "title=${TAG}" >> "$GITHUB_OUTPUT"
+
           echo "=== Release body ==="
           cat release-body.md
 
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v3
+          # Platform tripwire: GitHub silently truncates a stored
+          # release body over ~125,000 characters. The generator owns
+          # the policy budget and refuses over-budget bodies itself;
+          # this check is the independent guard on the exact file the
+          # publish step uploads.
+          BODY_BYTES=$(wc -c < release-body.md | tr -d ' ')
+          if [ "${BODY_BYTES}" -gt 124000 ]; then
+            echo "::error::Release body is ${BODY_BYTES} bytes - over the 124,000-byte platform cap."
+            echo "Refusing to publish a body GitHub would silently truncate."
+            exit 1
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3, SHA pin
         with:
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: ${{ steps.body.outputs.title }}
           body_path: release-body.md
-          prerelease: |-
-            ${{ contains(github.ref_name, '-alpha.')
-               || contains(github.ref_name, '-beta.')
-               || contains(github.ref_name, '-rc.') }}
-          files: release-assets/*
+          files: dist/*
+          # Seatbelt: an unmatched `files:` glob FAILS the release
+          # instead of logging the warning that ships asset-less
+          # releases. The inventory tripwire above gives the precise
+          # diagnosis; this makes the third-party action itself refuse
+          # the silent path.
+          fail_on_unmatched_files: true
+          draft: false
+          # Pre-releases are never marked "latest" - the latest pointer
+          # only tracks stable releases.
+          prerelease: ${{ needs.validate.outputs.prerelease }}
+          make_latest: ${{ needs.validate.outputs.prerelease != 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   aur-sync:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       contents: write
     if: |-

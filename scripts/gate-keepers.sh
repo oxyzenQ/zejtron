@@ -55,11 +55,15 @@
 #        (scripts/gates/check-version-anti-patterns.sh: no test may
 #        assert that Cargo.toml contains its own version string - the
 #        tautology that once broke CI on every bump)
+#   14.  Release parity (scripts/gates/check-release-parity.sh: the
+#        four arch-baseline platforms' -C codegen tokens in
+#        .cargo/config.toml's pro-linux-amd64-* aliases must equal the
+#        release matrix's rustflags, so a local alias build reproduces
+#        the release optimization tier bit-for-bit; a one-file edit
+#        can no longer silently break that contract)
 #
 # Deferred sections (documented, owner-visible - each lands with its
 # enabling surface):
-#   - Release parity (alias rustflags == release matrix rustflags):
-#     lands with the night-improve-12c release matrix upgrade.
 #   - Name-case rule: the sibling's lowercase-project-name law; zejtron
 #     brands with the capital Zejtron in prose (README/BRANDING own the
 #     convention), so the gate has no invariant to enforce here yet.
@@ -92,10 +96,10 @@ NC='\033'
 
 FIX_ALL=false
 if [[ "${1:-}" == "--fix-all" ]]; then
-	FIX_ALL=true
+        FIX_ALL=true
 elif [[ $# -gt 0 ]]; then
-	echo "usage: ./scripts/gate-keepers.sh [--fix-all]" >&2
-	exit 2
+        echo "usage: ./scripts/gate-keepers.sh [--fix-all]" >&2
+        exit 2
 fi
 
 PASS=0
@@ -103,188 +107,208 @@ FAIL=0
 declare -a FAILED_SECTIONS=()
 
 header() {
-	echo ""
-	echo "── $1 ──"
+        echo ""
+        echo "── $1 ──"
 }
 
 pass() {
-	echo -e "${GREEN}PASS${NC}: $1"
-	PASS=$((PASS + 1))
+        echo -e "${GREEN}PASS${NC}: $1"
+        PASS=$((PASS + 1))
 }
 
 fail() {
-	echo -e "${RED}FAIL${NC}: $1"
-	FAIL=$((FAIL + 1))
-	FAILED_SECTIONS+=("$1")
+        echo -e "${RED}FAIL${NC}: $1"
+        FAIL=$((FAIL + 1))
+        FAILED_SECTIONS+=("$1")
 }
 
 warn_skip() {
-	echo -e "${YELLOW}SKIP${NC}: $1 (tool not installed)"
+        echo -e "${YELLOW}SKIP${NC}: $1 (tool not installed)"
 }
 
 # ── 0. Pre-commit hook self-install ─────────────────────────────────────────
 header "Pre-commit hook self-install"
 CURRENT_HOOKS_PATH="$(git config core.hooksPath || true)"
 if [ "${CURRENT_HOOKS_PATH}" != ".githooks" ]; then
-	git config core.hooksPath .githooks
-	echo "installed: git config core.hooksPath=.githooks (repo-local)"
-	pass "pre-commit hook wired (was: '${CURRENT_HOOKS_PATH:-unset}')"
+        git config core.hooksPath .githooks
+        echo "installed: git config core.hooksPath=.githooks (repo-local)"
+        pass "pre-commit hook wired (was: '${CURRENT_HOOKS_PATH:-unset}')"
 else
-	pass "pre-commit hook already wired (core.hooksPath=.githooks)"
+        pass "pre-commit hook already wired (core.hooksPath=.githooks)"
 fi
 
 # ── 1. Shell quad ───────────────────────────────────────────────────────────
 header "1. Shell scripts (strict quad)"
 SHELL_FILES=$(find scripts .githooks -type f -name '*.sh' 2>/dev/null | sort)
 if [ -z "${SHELL_FILES}" ]; then
-	# .githooks/pre-commit is extensionless; lint it explicitly.
-	SHELL_FILES=""
+        # .githooks/pre-commit is extensionless; lint it explicitly.
+        SHELL_FILES=""
 fi
 
 QUAD_FAIL=0
 
 # 1a. bash -n (always available)
 if [ -n "${SHELL_FILES}" ]; then
-	while IFS= read -r f; do
-		if ! bash -n "$f" 2>/tmp/zj-bashn.err; then
-			echo "  bash -n: $f"
-			cat /tmp/zj-bashn.err
-			QUAD_FAIL=1
-		fi
-	done <<<"${SHELL_FILES}"
+        while IFS= read -r f; do
+                if ! bash -n "$f" 2>/tmp/zj-bashn.err; then
+                        echo "  bash -n: $f"
+                        cat /tmp/zj-bashn.err
+                        QUAD_FAIL=1
+                fi
+        done <<<"${SHELL_FILES}"
 fi
 if ! bash -n .githooks/pre-commit 2>/tmp/zj-bashn.err; then
-	echo "  bash -n: .githooks/pre-commit"
-	cat /tmp/zj-bashn.err
-	QUAD_FAIL=1
+        echo "  bash -n: .githooks/pre-commit"
+        cat /tmp/zj-bashn.err
+        QUAD_FAIL=1
 fi
 [ "${QUAD_FAIL}" -eq 0 ] && pass "1a. bash -n syntax"
 
 # 1b. shellcheck
 if command -v shellcheck >/dev/null 2>&1; then
-	QUAD_FAIL=0
-	while IFS= read -r f; do
-		if ! shellcheck "$f" 2>&1 | grep -q "^$"; then :; fi
-		if ! shellcheck "$f" >/tmp/zj-sc.out 2>&1; then
-			echo "  shellcheck: $f"
-			head -20 /tmp/zj-sc.out
-			QUAD_FAIL=1
-		fi
-	done <<<"${SHELL_FILES}"
-	if ! shellcheck .githooks/pre-commit >/tmp/zj-sc.out 2>&1; then
-		echo "  shellcheck: .githooks/pre-commit"
-		head -20 /tmp/zj-sc.out
-		QUAD_FAIL=1
-	fi
-	[ "${QUAD_FAIL}" -eq 0 ] && pass "1b. shellcheck static analysis" || fail "1b. shellcheck static analysis"
+        QUAD_FAIL=0
+        while IFS= read -r f; do
+                if ! shellcheck "$f" 2>&1 | grep -q "^$"; then :; fi
+                if ! shellcheck "$f" >/tmp/zj-sc.out 2>&1; then
+                        echo "  shellcheck: $f"
+                        head -20 /tmp/zj-sc.out
+                        QUAD_FAIL=1
+                fi
+        done <<<"${SHELL_FILES}"
+        if ! shellcheck .githooks/pre-commit >/tmp/zj-sc.out 2>&1; then
+                echo "  shellcheck: .githooks/pre-commit"
+                head -20 /tmp/zj-sc.out
+                QUAD_FAIL=1
+        fi
+        [ "${QUAD_FAIL}" -eq 0 ] && pass "1b. shellcheck static analysis" || fail "1b. shellcheck static analysis"
 else
-	warn_skip "1b. shellcheck static analysis"
+        warn_skip "1b. shellcheck static analysis"
 fi
 
 # 1c. shfmt
 if command -v shfmt >/dev/null 2>&1; then
-	if [ "${FIX_ALL}" = true ]; then
-		shfmt -w ${SHELL_FILES} .githooks/pre-commit
-	fi
-	if shfmt -d ${SHELL_FILES} .githooks/pre-commit >/tmp/zj-shfmt.out 2>&1; then
-		pass "1c. shfmt canonical formatting"
-	else
-		echo "  shfmt diff (run ./scripts/gate-keepers.sh --fix-all to auto-fix):"
-		head -20 /tmp/zj-shfmt.out
-		fail "1c. shfmt canonical formatting"
-	fi
+        if [ "${FIX_ALL}" = true ]; then
+                shfmt -w ${SHELL_FILES} .githooks/pre-commit
+        fi
+        if shfmt -d ${SHELL_FILES} .githooks/pre-commit >/tmp/zj-shfmt.out 2>&1; then
+                pass "1c. shfmt canonical formatting"
+        else
+                echo "  shfmt diff (run ./scripts/gate-keepers.sh --fix-all to auto-fix):"
+                head -20 /tmp/zj-shfmt.out
+                fail "1c. shfmt canonical formatting"
+        fi
 else
-	warn_skip "1c. shfmt canonical formatting"
+        warn_skip "1c. shfmt canonical formatting"
 fi
 
-# 1d. source resolution
+# 1d. source resolution (the sibling's NIGHT-blade-14 fail-closed
+# translator): resolve every `source X` / `. X` line the way bash
+# would. Two repo idioms are recognized - the cd/pwd idiom anchored
+# at BASH_SOURCE[0], and a plain path relative to the sourcing
+# script's own directory; any other shape fails loudly, and a new
+# idiom must extend this translator (fail-closed, never fail-open).
 QUAD_FAIL=0
-while IFS= read -r f; do
-	while IFS= read -r target; do
-		dirname_f="$(dirname "$f")"
-		if [ ! -f "${dirname_f}/${target}" ] && [ ! -f "$target" ]; then
-			echo "  unresolved source '${target}' in ${f}"
+SRC_RE='^[[:space:]]*(source|\.)[[:space:]]+"\$\(cd[[:space:]]+"\$\(dirname[[:space:]]+"\$\{BASH_SOURCE\[0\]\}"\)(/(\.\.)+)*"[[:space:]]+&&[[:space:]]+pwd\)/([^"]+)"$'
+SRC_PLAIN='^[[:space:]]*(source|\.)[[:space:]]+([^"$][^[:space:]]*)[[:space:]]*$'
+for f in ${SHELL_FILES} .githooks/pre-commit; do
+	fdir="$(dirname "$f")"
+	while IFS= read -r line; do
+		if [[ $line =~ $SRC_RE ]]; then
+			climb="${BASH_REMATCH[2]}"
+			target="${BASH_REMATCH[4]}"
+			if [ ! -e "$fdir$climb/$target" ]; then
+				echo "  source resolution: $f: target missing: $line"
+				QUAD_FAIL=1
+			fi
+		elif [[ $line =~ $SRC_PLAIN ]]; then
+			rel="${BASH_REMATCH[2]}"
+			if [ ! -e "$fdir/$rel" ]; then
+				echo "  source resolution: $f: target missing: $line"
+				QUAD_FAIL=1
+			fi
+		else
+			echo "  source resolution: $f: unsupported idiom (extend the 1d translator): $line"
 			QUAD_FAIL=1
 		fi
-	done < <(grep -oE '^\s*(source|\.)\s+[^ ]+' "$f" 2>/dev/null | awk '{print $2}' | grep -v '^-' || true)
-done <<<"${SHELL_FILES}"
+	done < <(grep -E '^[[:space:]]*(source|\.)[[:space:]]' "$f" 2>/dev/null || true)
+done
 [ "${QUAD_FAIL}" -eq 0 ] && pass "1d. source resolution" || fail "1d. source resolution"
 
 # ── 2. yamllint ─────────────────────────────────────────────────────────────
 header "2. yamllint (.github YAML)"
 if command -v yamllint >/dev/null 2>&1; then
-	if yamllint .github/ >/tmp/zj-yaml.out 2>&1; then
-		pass "yamllint"
-	else
-		head -20 /tmp/zj-yaml.out
-		fail "yamllint"
-	fi
+        if yamllint .github/ >/tmp/zj-yaml.out 2>&1; then
+                pass "yamllint"
+        else
+                head -20 /tmp/zj-yaml.out
+                fail "yamllint"
+        fi
 else
-	warn_skip "yamllint"
+        warn_skip "yamllint"
 fi
 
 # ── 3. actionlint ───────────────────────────────────────────────────────────
 header "3. actionlint (workflows)"
 if command -v actionlint >/dev/null 2>&1; then
-	if actionlint -color >/tmp/zj-al.out 2>&1; then
-		pass "actionlint"
-	else
-		head -30 /tmp/zj-al.out
-		fail "actionlint"
-	fi
+        if actionlint -color >/tmp/zj-al.out 2>&1; then
+                pass "actionlint"
+        else
+                head -30 /tmp/zj-al.out
+                fail "actionlint"
+        fi
 else
-	warn_skip "actionlint"
+        warn_skip "actionlint"
 fi
 
 # ── 4. TOML syntax ──────────────────────────────────────────────────────────
 header "4. TOML syntax (python3 tomllib)"
 TOML_FAIL=0
 while IFS= read -r f; do
-	if ! python3 -c "import tomllib; tomllib.load(open('$f','rb'))" 2>/tmp/zj-toml.err; then
-		echo "  invalid TOML: $f"
-		head -3 /tmp/zj-toml.err
-		TOML_FAIL=1
-	fi
+        if ! python3 -c "import tomllib; tomllib.load(open('$f','rb'))" 2>/tmp/zj-toml.err; then
+                echo "  invalid TOML: $f"
+                head -3 /tmp/zj-toml.err
+                TOML_FAIL=1
+        fi
 done < <(git ls-files --cached --others --exclude-standard -- '*.toml' 2>/dev/null)
 [ "${TOML_FAIL}" -eq 0 ] && pass "TOML syntax" || fail "TOML syntax"
 
 # ── 5. codespell ────────────────────────────────────────────────────────────
 header "5. codespell"
 if command -v codespell >/dev/null 2>&1; then
-	if codespell --config .codespellrc . >/tmp/zj-cs.out 2>&1; then
-		pass "codespell"
-	else
-		head -20 /tmp/zj-cs.out
-		fail "codespell"
-	fi
+        if codespell --config .codespellrc . >/tmp/zj-cs.out 2>&1; then
+                pass "codespell"
+        else
+                head -20 /tmp/zj-cs.out
+                fail "codespell"
+        fi
 else
-	warn_skip "codespell"
+        warn_skip "codespell"
 fi
 
 # ── 6. SPDX headers ─────────────────────────────────────────────────────────
 header "6. SPDX license headers"
 if bash scripts/gates/check-headers.sh; then
-	pass "6. SPDX headers"
+        pass "6. SPDX headers"
 else
-	fail "6. SPDX headers"
+        fail "6. SPDX headers"
 fi
 
 # ── 7. Permissions ──────────────────────────────────────────────────────────
 header "7. File permission guard"
 if [ "${FIX_ALL}" = true ]; then
-	bash scripts/gates/check-permissions.sh --fix || true
+        bash scripts/gates/check-permissions.sh --fix || true
 fi
 if bash scripts/gates/check-permissions.sh; then
-	pass "7. permissions (644/755/shebang parity)"
+        pass "7. permissions (644/755/shebang parity)"
 else
-	fail "7. permissions (644/755/shebang parity)"
+        fail "7. permissions (644/755/shebang parity)"
 fi
 
 # ── 8. Emoji sweep ──────────────────────────────────────────────────────────
 header "8. Emoji Sweep (repo-wide)"
 if command -v python3 >/dev/null 2>&1; then
-	EMOJI_RC=0
-	python3 - <<'PYEOF' || EMOJI_RC=1
+        EMOJI_RC=0
+        python3 - <<'PYEOF' || EMOJI_RC=1
 import os
 import sys
 
@@ -330,53 +354,61 @@ for root, dirnames, filenames in os.walk("."):
 print("emoji sweep: %d text file(s) checked, %d finding(s)" % (checked, findings))
 sys.exit(1 if findings else 0)
 PYEOF
-	if [ "${EMOJI_RC}" -eq 0 ]; then
-		pass "8. emoji sweep"
-	else
-		fail "8. emoji sweep"
-	fi
+        if [ "${EMOJI_RC}" -eq 0 ]; then
+                pass "8. emoji sweep"
+        else
+                fail "8. emoji sweep"
+        fi
 else
-	warn_skip "8. emoji sweep (python3 not installed)"
+        warn_skip "8. emoji sweep (python3 not installed)"
 fi
 
 # ── 9. Rust source LOC cap ──────────────────────────────────────────────────
 header "9. Rust source LOC cap (600, tree-wide)"
 if bash scripts/gates/check-loc.sh; then
-	pass "9. .rs LOC cap"
+        pass "9. .rs LOC cap"
 else
-	fail "9. .rs LOC cap"
+        fail "9. .rs LOC cap"
 fi
 
 # ── 10. Rust toolchain version sync ─────────────────────────────────────────
 header "10. Rust toolchain version sync"
 if bash scripts/gates/check-rust-version-sync.sh; then
-	pass "10. toolchain pin sync"
+        pass "10. toolchain pin sync"
 else
-	fail "10. toolchain pin sync"
+        fail "10. toolchain pin sync"
 fi
 
 # ── 11. Language discipline ─────────────────────────────────────────────────
 header "11. Language discipline (English-only)"
 if bash scripts/gates/check-language.sh; then
-	pass "11. language discipline"
+        pass "11. language discipline"
 else
-	fail "11. language discipline"
+        fail "11. language discipline"
 fi
 
 # ── 12. Scripts LOC cap ─────────────────────────────────────────────────────
 header "12. Scripts LOC cap (1000, scripts/ tree)"
 if bash scripts/gates/check-scripts-loc.sh; then
-	pass "12. scripts LOC cap"
+        pass "12. scripts LOC cap"
 else
-	fail "12. scripts LOC cap"
+        fail "12. scripts LOC cap"
 fi
 
 # ── 13. Version anti-patterns ───────────────────────────────────────────────
 header "13. Version-string anti-pattern guard"
 if bash scripts/gates/check-version-anti-patterns.sh; then
-	pass "13. version anti-patterns"
+        pass "13. version anti-patterns"
 else
-	fail "13. version anti-patterns"
+        fail "13. version anti-patterns"
+fi
+
+# ── 14. Release parity ──────────────────────────────────────────────────────
+header "14. Release parity (alias == matrix rustflags)"
+if bash scripts/gates/check-release-parity.sh; then
+        pass "14. release parity"
+else
+        fail "14. release parity"
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────
@@ -384,12 +416,12 @@ echo ""
 echo "======================================================="
 echo "Gate-keepers summary: ${PASS} passed, ${FAIL} failed"
 if [ "${FAIL}" -gt 0 ]; then
-	echo "Failed sections:"
-	for section in "${FAILED_SECTIONS[@]}"; do
-		echo "  - ${section}"
-	done
-	echo "======================================================="
-	exit 1
+        echo "Failed sections:"
+        for section in "${FAILED_SECTIONS[@]}"; do
+                echo "  - ${section}"
+        done
+        echo "======================================================="
+        exit 1
 fi
 echo "All gate-keepers passed. Safe to commit."
 echo "======================================================="
