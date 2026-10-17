@@ -30,7 +30,7 @@
 # its own pinned toolchain below, so a missing component must fail
 # loudly rather than silently download a moving nightly.
 
-name: Dragon Guard - Miri
+name: zejtron - Miri
 
 'on':
   push:

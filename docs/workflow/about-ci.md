@@ -15,9 +15,9 @@ It installs stable Rust with `rustfmt` and `clippy`, installs `codespell`, resto
 ./scripts/build.sh
 ```
 
-## Maintenance deps weekly
+## Dependency Maintenance
 
-The `Maintenance deps weekly` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update`, executes `./scripts/build.sh`, and commits the refreshed `Cargo.lock` directly back to the default branch only after validation passes.
+The `zejtron - Dependency Maintenance` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update`, executes `./scripts/build.sh`, and commits the refreshed `Cargo.lock` directly back to the default branch only after validation passes.
 
 Maintenance workflow commits use:
 

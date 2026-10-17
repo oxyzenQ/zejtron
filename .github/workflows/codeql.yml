@@ -11,7 +11,7 @@
 # unfiltered on every push. The paths filters are Rust-only: a
 # tooling-only diff has nothing new for a rust-language scan to find.
 
-name: Dragon Guard - CodeQL
+name: zejtron - CodeQL
 
 'on':
   push:

@@ -6,7 +6,7 @@
 # watch over the advisory DB itself. Red in the run list is the
 # owner's morning signal.
 
-name: Dragon Guard - Security Audit
+name: zejtron - Security Audit
 
 'on':
   push:

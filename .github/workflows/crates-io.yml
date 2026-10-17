@@ -18,7 +18,7 @@
 #      lane is the default posture and the actual publish stays the
 #      owner's deliberate act.
 
-name: Dragon Guard - crates.io
+name: zejtron - crates.io publish
 
 'on':
   push:
