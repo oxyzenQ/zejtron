@@ -269,7 +269,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the project roadmap and design direct
 ```sh
 ./scripts/build.sh
 SKIP_CODESPELL=1 ./scripts/build.sh
-./scripts/version-to.sh vX.Y.Z
+./scripts/dev/version-to.sh vX.Y.Z
 ```
 
 ## Intellectual Property & Trademark

@@ -76,14 +76,14 @@ The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, 
 ## Version Bump Flow
 
 ```sh
-./scripts/version-to.sh v11.0.0
+./scripts/dev/version-to.sh v11.0.0
 ./scripts/build.sh
 ```
 
 ## Release Command Flow
 
 ```sh
-./scripts/version-to.sh v11.0.0
+./scripts/dev/version-to.sh v11.0.0
 ./scripts/build.sh
 git add .
 git commit -m "chore: prepare v11.0.0 release"
