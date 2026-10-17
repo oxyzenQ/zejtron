@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Clap brand styling — the one place clap's rendered surfaces
-//! (help, usage, errors) pick up the brand palette.
+//! (help, usage, errors) pick up the brand palette. The runtime lane
+//! (the error gate in main, the doctor verdict rows, the update
+//! status word) paints through [`crate::output`], the sibling color
+//! module; one palette across both surfaces.
 //!
 //! Purple brand identity: section headings (Usage, Commands, Options)
 //! render in bold truecolor purple #A855F7 — the same RGB the sibling

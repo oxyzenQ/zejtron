@@ -125,10 +125,16 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
 
     let latest_tag = extract_tag_name(body)
         .ok_or_else(|| "could not parse latest release tag from GitHub response".to_string())?;
+    // The status word is a verdict token, so it rides the owner's
+    // tier colors: an affirmative "up to date" verdict is green, an
+    // "update available" attention verdict is warning yellow, and
+    // the informational "current is newer" curiosity state stays
+    // plain - it asks for no action. In Mono mode (piped, NO_COLOR)
+    // all three render as their plain text.
     let status = match compare_versions(current_version, &latest_tag) {
-        UpdateStatus::UpToDate => "up to date",
-        UpdateStatus::UpdateAvailable => "update available",
-        UpdateStatus::CurrentIsNewer => "current is newer than latest release",
+        UpdateStatus::UpToDate => crate::output::ok("up to date"),
+        UpdateStatus::UpdateAvailable => crate::output::warn("update available"),
+        UpdateStatus::CurrentIsNewer => "current is newer than latest release".to_owned(),
     };
 
     println!("zejtron update check");

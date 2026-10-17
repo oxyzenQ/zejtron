@@ -54,7 +54,36 @@ Zejtron's communication should be direct, technical, and helpful.
 
 ---
 
-## 5. Third-party Usage
+## 5. Color System
+
+The CLI speaks one palette on two surfaces, both anchored to the same values:
+
+| Tier | Value | Surface |
+|---|---|---|
+| Brand purple | `#A855F7` (168,85,247) | clap headings (`Usage`, `Commands`, `Options`) in `-h`/`--help` and errors |
+| Calm grey | `#8B8B8B` (139,139,139) | typeable grammar (flags, subcommands), valid-suggestion labels |
+| Error red | `#FF5A5A` (255,90,90) | the `error:` label (bold) and body of every runtime error; clap error labels; doctor `FAIL` rows |
+| Warning yellow | `#FFEB3C` (255,235,60) | invalid-input highlights on the clap lane; doctor `WARN` rows; the update check's "update available" verdict |
+| Status green | `#50FA7B` (80,250,123) | affirmative verdicts: doctor `OK` rows; the update check's "up to date" verdict |
+
+Implementation: the clap lane renders through `src/styles.rs`, the
+runtime lane through `src/output.rs`; one palette, two modules.
+
+Capability ladder (the runtime lane): TrueColor 24-bit when
+`COLORTERM=truecolor/24bit` or the terminal names a truecolor-native
+emulator; 256-color (nearest cube index) when `TERM` carries
+`256color`; plain text otherwise - `NO_COLOR`, `CLICOLOR=0`,
+`TERM=dumb`, a non-terminal stderr (unless `CLICOLOR_FORCE=1`), or an
+unrecognized terminal all render byte-clean plain text. Piped output
+never carries escape bytes.
+
+Deliberately uncolored: "No X found" empty-result lines (informational,
+not errors) and content facts such as touch's `actor: unknown` - tiers
+mark verdicts, not prose.
+
+---
+
+## 6. Third-party Usage
 
 External projects or articles referencing Zejtron should:
 

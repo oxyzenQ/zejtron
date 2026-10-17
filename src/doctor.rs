@@ -175,12 +175,18 @@ fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> St
 }
 
 fn format_check_row(check: &CheckResult) -> String {
-    format!(
-        "{:<6}  {:<20} {}",
-        check.status.label(),
-        check.check,
-        check.message
-    )
+    // Pad first, color second: the status label rides a fixed-width
+    // column, and escape bytes inside the padded slot would break the
+    // alignment for every row below it. The pad applies to the plain
+    // label text; the tier color wraps the padded cell. In Mono mode
+    // the wrappers are the identity, byte-identical to the old row.
+    let padded_label = format!("{:<6}", check.status.label());
+    let label = match check.status {
+        CheckStatus::Ok => crate::output::ok(&padded_label),
+        CheckStatus::Warn => crate::output::warn(&padded_label),
+        CheckStatus::Fail => crate::output::error(&padded_label),
+    };
+    format!("{}  {:<20} {}", label, check.check, check.message)
 }
 
 fn summarize(checks: &[CheckResult]) -> Summary {
