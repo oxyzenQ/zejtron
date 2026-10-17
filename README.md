@@ -314,6 +314,89 @@ SKIP_CODESPELL=1 ./scripts/build.sh
 ./scripts/dev/version-to.sh vX.Y.Z
 ```
 
+## Stable API (from v11.0.0)
+
+The CLI surface is frozen: no breaking changes to commands, flags, or
+output format from v11.0.0 onward. Future releases focus on:
+
+- Bug fixes
+- procfs/sysfs compatibility updates
+- Performance improvements (internal, no API changes)
+
+## Support
+
+zejtron is built and maintained independently by
+rezky_nightky (oxyzenQ). If this project helped you, or sharpened your
+incident work, you can support future maintenance via the Ko-fi badge
+at the top of this document or the addresses below.
+
+### Crypto donations
+
+Owner-verified receive addresses. All three passed offline
+cryptographic verification (EIP-55 mixed-case checksum for Ethereum,
+bech32m witness-v1 for Taproot, base58-to-32-byte ed25519 key for
+Solana). Always double-check the address on screen before sending —
+network mismatches (e.g., sending USDT-ERC20 to a Solana address, or
+BTC to a non-Taproot address) will permanently lose funds.
+
+| Network  | Assets                                | Address                                                            |
+| -------- | ------------------------------------- | ------------------------------------------------------------------ |
+| Solana   | `SOL` / `USDT` (SPL)                  | `88umzS7abaToaGQVgTVXt5SnuvcjTw2jPSM6Ha2JYmXM`                     |
+| Ethereum | `ETH` / `USDT` (ERC-20) / `USDC` (ERC-20) | `0x1bCbA21c07B5636a942De27AA7Ee8283cEDb4C3D`                   |
+| Bitcoin  | `BTC` (Taproot, P2TR, `bc1p`-prefixed) | `bc1p88nqysn4p8u9zxwz2pyxs5pl77wllcrk6ca2r2l3ryr3863hxkys5vdkze`  |
+
+<p align="center">
+  <img src="assets/qr/solana.png" alt="Solana receive address QR code" width="140">
+  &nbsp;&nbsp;
+  <img src="assets/qr/ethereum.png" alt="Ethereum receive address QR code" width="140">
+  &nbsp;&nbsp;
+  <img src="assets/qr/bitcoin.png" alt="Bitcoin receive address QR code" width="140">
+</p>
+
+Support is optional. The project remains open-source.
+
+## Commercial Licensing
+
+Companies using zejtron in production need a commercial license.
+
+zejtron is dual-licensed: **GPL-3.0-only** for open-source use, and a
+**Commercial License** for proprietary and commercial use (SaaS
+offerings, internal tools that cannot meet copyleft, redistribution
+under your own terms). Full details, payment instructions, and the
+verification process live in
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md); the short version:
+
+| Tier                | Price          | Target                                                   |
+| ------------------- | -------------- | -------------------------------------------------------- |
+| Personal            | Free (GPL-3.0) | Hobby, personal, non-commercial, contributions           |
+| Individual Business | $2,199/year    | Solo business use, freelancers, small operations         |
+| Company             | $9,199/year    | Companies, SaaS, enterprise, or any redistribution rights |
+
+The paid rungs follow the value upward: zejtron is a masterpiece, and
+its value increases year by year — the price tracks the value and
+keeps rising as the work compounds. Buyers who paid before a move are
+grandfathered at the price they bought, for the term they bought.
+
+**Unauthorized use is theft.** Taking this code — stealing it, forking
+it illegally, stripping the license, or building a closed-source
+commercial product on it — without first contacting the owner
+(rezky_nightky / oxyzenQ) and paying the license is, in the owner's
+own words, the mark of the worst kind of human: a rotten one. The
+honest paths are exactly two: comply with GPL-3.0-only (free,
+first-class, not a trial), or buy the tier your use honestly matches.
+There is no third path that leaves you clean.
+
+Payment is USD-pegged crypto (Solana / Ethereum / Bitcoin,
+owner-verified addresses with QR codes in the
+[crypto donations](#crypto-donations) section above). Licensing
+contact: [with.rezky@gmail.com](mailto:with.rezky@gmail.com). Common
+questions are answered in
+[docs/LICENSING_FAQ.md](docs/LICENSING_FAQ.md).
+
+The voluntary [crypto donations](#crypto-donations) above are separate
+from commercial licensing — donations support the project; a
+commercial license buys rights.
+
 ## Intellectual Property & Trademark
 
 **zejtron** is the exclusive intellectual property of
