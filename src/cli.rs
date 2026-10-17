@@ -16,7 +16,7 @@ pub struct Cli {
         short = 'V',
         long = "version",
         global = true,
-        help = "Print version information"
+        help = "Print complete version and build information"
     )]
     pub version: bool,
 
