@@ -1,0 +1,139 @@
+---
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+#
+# ZEJTRON - SUPERMASSIVE (the heavy lane; the name is the sibling
+# project's: zelynic's .github/workflows/supermassive.yml, sized to
+# this repo's honest physics).
+#
+# The contract: every build shape the repo ships is verified end to
+# end - the pinned MSRV floor and the stable frontier, each crossed
+# with the glibc-dynamic and the musl-static release shapes - and
+# every leg runs the SAME canonical CLI battery, not a compile-and-
+# shrug. The gap this lane closes honestly: release.yml builds both
+# libc shapes but the runtime battery (scripts/build.sh's smoke and
+# error-path sweep) has only ever executed against the host gnu
+# shape; the musl binary shipped to the release page never ran it.
+# Here the battery runs per leg with ZEJTRON_BIN_PATH pointed at the
+# leg's own binary, so "it compiles" is never the whole claim.
+#
+# Toolchain span: the MSRV legs pin 1.98.1 - the same version
+# rust-toolchain.toml and Cargo.toml's rust-version pin, verified on
+# its own instead of assumed from a stable-lane pass. The stable
+# legs ride the moving frontier so a future stable that breaks the
+# tree is caught here before the pin's next bump. The libc span
+# mirrors the release matrix verbatim: the musl legs install
+# musl-tools exactly as release.yml does, so the exercised shape is
+# the shipped shape.
+#
+# Trigger discipline: a weekly schedule plus workflow_dispatch and a
+# core-paths push filter (a workflow that can change its own
+# contract owes itself a run - the sibling's NIGHT-hunt-34 rule).
+# No pull_request trigger on purpose: the fast lane (ci.yml) owns
+# PRs; this lane's budget is for the wide cross, not per-PR churn.
+#
+# Budget: timeout-minutes stays generous (a wedged leg fails the leg,
+# not the lane) but the lane as a whole stays off the PR path, so the
+# cost lands where the owner approved it: scheduled depth.
+name: zejtron - Supermassive
+
+"on":
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build.rs"
+      - "rust-toolchain.toml"
+      - "scripts/build.sh"
+      - ".github/workflows/supermassive.yml"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  supermassive:
+    name: ${{ matrix.title }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - title: supermassive - msrv floor (gnu)
+            toolchain: "1.98.1"
+            targets: ""
+          - title: supermassive - stable frontier (gnu)
+            toolchain: stable
+            targets: ""
+          - title: supermassive - msrv floor (musl static)
+            toolchain: "1.98.1"
+            targets: x86_64-unknown-linux-musl
+          - title: supermassive - stable frontier (musl static)
+            toolchain: stable
+            targets: x86_64-unknown-linux-musl
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust (${{ matrix.toolchain }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          targets: ${{ matrix.targets }}
+          components: ${{ matrix.targets == '' && 'rustfmt, clippy' || '' }}
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: supermassive-${{ matrix.toolchain }}-${{ matrix.targets }}
+
+      - name: Install musl cross toolchain
+        if: matrix.targets != ''
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q musl-tools
+
+      - name: Full gate (gnu leg)
+        if: matrix.targets == ''
+        run: ./scripts/build.sh check-all -q
+
+      - name: Build the musl release shape
+        if: matrix.targets != ''
+        run: cargo build --release --locked --target "${{ matrix.targets }}"
+
+      - name: CLI battery on the leg's own binary
+        if: matrix.targets != ''
+        env:
+          ZEJTRON_BIN_PATH: target/${{ matrix.targets }}/release/zejtron
+        run: ./scripts/build.sh battery
+
+      - name: Leg verdict
+        if: always()
+        env:
+          LEG_TITLE: ${{ matrix.title }}
+          LEG_TOOLCHAIN: ${{ matrix.toolchain }}
+          LEG_SHAPE: ${{ matrix.targets || 'gnu (host)' }}
+          LEG_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "| leg | toolchain | shape | verdict |"
+            echo "|-----|-----------|-------|---------|"
+            echo "| ${LEG_TITLE} | ${LEG_TOOLCHAIN} | ${LEG_SHAPE} | ${LEG_STATUS} |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -125,3 +125,21 @@ freshness is a remote fact, and a check that needs the network has no
 seat in a check that must stay fast. `--apply` fails closed if
 anything outside `.github/workflows/` changes, and `GITHUB_TOKEN`
 (optional, standard convention) lifts the unauthenticated API quota.
+
+## Supermassive (the heavy lane)
+
+`zejtron - Supermassive` is the wide cross the fast lane deliberately
+does not run: `{MSRV 1.98.1, stable} x {gnu, musl}` - four legs, each
+verifying its shape end to end. The gnu legs run the full gate
+(`./scripts/build.sh check-all -q`) on their own toolchain, so the
+pinned MSRV floor is proven on itself instead of assumed from a
+stable-lane pass. The musl legs build the static release shape
+(musl-tools, exactly as the release matrix provisions it) and then run
+the CLI battery against the leg's own binary via `ZEJTRON_BIN_PATH` -
+closing the honest gap where the shipped musl binary had never
+executed the runtime battery. Triggers: a weekly schedule,
+`workflow_dispatch`, and a core-paths push filter (a workflow that can
+change its own contract owes itself a run); no pull_request trigger,
+because `zejtron - CI` owns PRs. `scripts/build.sh battery` is the
+lane's reusable entry point: the runtime battery alone, no compile,
+against whatever binary `ZEJTRON_BIN_PATH` names.
