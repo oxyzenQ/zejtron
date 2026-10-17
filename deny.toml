@@ -1,0 +1,80 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# cargo-deny policy for zejtron (the sibling's supply-chain lineage,
+# night-improve-12). Enforced by .github/workflows/audit.yml (the
+# daily observation run) and the release lane. Local: cargo deny check
+# all (install: cargo install cargo-deny --locked).
+
+[graph]
+# The full dependency graph is small (4 direct deps), but the policy
+# still rides all-features=true by contract: if a feature is ever
+# added, the graph it pulls is inside every advisories/licenses/bans
+# check from day one - a policy that half-sees the tree is a policy
+# that lies.
+all-features = true
+
+[output]
+feature-depth = 1
+
+[advisories]
+# RustSec advisory database (default URL). No accepted advisories yet;
+# when one is accepted (informational unmaintained-crate class, etc.),
+# record it here with a reason string and mirror the rationale in
+# docs/DEPENDENCY_AUDIT.md.
+ignore = []
+
+[licenses]
+allow = [
+    "GPL-3.0-only",
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.8
+# The allow list is intentionally broader than the current tree (e.g.
+# BSD/ISC/MPL entries have no live consumers today) so a future
+# semver-compatible transitive addition does not fail CI for license
+# reasons alone - the bans/advisories sections stay strict.
+unused-allowed-license = "allow"
+
+[licenses.private]
+ignore = false
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+# Regressive dependencies - re-adding any of these fails
+# `cargo deny check all` in CI:
+# - chrono: dropped night-improve-13 (the sibling's Hinnant-style
+#   lineage). The `clock` feature dragged iana-time-zone + num-traits
+#   into the lockfile for two timestamp-formatting call sites;
+#   wall-clock math is the civil_from_days algorithm in src/clock.rs
+#   and build.rs (std only, UTC with an explicit marker). No time
+#   crate comes back through the front door.
+[[bans.deny]]
+name = "chrono"
+reason = "dropped night-improve-13 (Hinnant civil_from_days, std only); see src/clock.rs and Cargo.toml"
+
+[[bans.deny]]
+name = "iana-time-zone"
+reason = "chrono's tz-database sidecar; denied with its host crate"
+
+[[bans.deny]]
+name = "time"
+reason = "the other heavyweight time crate; the civil clock contract is std-only"
+
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

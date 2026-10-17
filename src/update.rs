@@ -68,6 +68,13 @@ fn extract_tag_name(json: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
+/// True when the tag carries no control characters (C0 controls or
+/// DEL). Everything else - printable ASCII and UTF-8 multibyte -
+/// passes; the bytes that could weaponize a terminal never do.
+fn tag_is_safe(tag: &str) -> bool {
+    tag.bytes().all(|b| !(b < 0x20 || b == 0x7f))
+}
+
 fn curl_failure(code: i32) -> &'static str {
     match code {
         6 => "DNS resolution failed",
@@ -87,6 +94,17 @@ fn http_failure(code: u16) -> &'static str {
 }
 
 pub fn check_update(current_version: &str) -> Result<(), String> {
+    // The network surface must never ride root privileges (the
+    // sibling contract): refuse euid 0 before any network I/O with
+    // the one behavioral rule that matters - a clear error message,
+    // not a foot-gun.
+    if crate::process::effective_uid() == Some(0) {
+        return Err(
+            "update check refuses root - re-run without sudo (the network surface must never ride root privileges)"
+                .to_owned(),
+        );
+    }
+
     let output = Command::new("curl")
         .args([
             "--silent",
@@ -125,6 +143,17 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
 
     let latest_tag = extract_tag_name(body)
         .ok_or_else(|| "could not parse latest release tag from GitHub response".to_string())?;
+    // Fail-closed tag safety: the tag is untrusted input that reaches
+    // the terminal verbatim, so a response whose tag field carries
+    // control characters (escape sequences, OSC 52 clipboard
+    // rewrites, output forging) is rejected outright - never
+    // sanitized into something else, never printed. Printable ASCII
+    // and UTF-8 pass; C0 controls and DEL fail.
+    if !tag_is_safe(&latest_tag) {
+        return Err(
+            "GitHub API response contained an invalid release tag (control characters)".to_owned(),
+        );
+    }
     // The status word is a verdict token, so it rides the owner's
     // tier colors: an affirmative "up to date" verdict is green, an
     // "update available" attention verdict is warning yellow, and
@@ -156,6 +185,23 @@ mod tests {
             extract_tag_name(r#"{"tag_name":"v2.4.3"}"#),
             Some("v2.4.3".to_string())
         );
+    }
+
+    #[test]
+    fn tag_safety_rejects_control_characters_and_accepts_printable() {
+        // Every control byte class a terminal-attack payload would
+        // ride: ESC (0x1b), newline, carriage return, tab, NUL, DEL.
+        assert!(!tag_is_safe("\x1b]52;c;"));
+        assert!(!tag_is_safe("v1\n.0"));
+        assert!(!tag_is_safe("v1\r.0"));
+        assert!(!tag_is_safe("v1\t.0"));
+        assert!(!tag_is_safe("v1\0.0"));
+        assert!(!tag_is_safe("v1\x7f.0"));
+        // Honest tags pass, including non-ASCII multibyte (only
+        // control bytes fail - the 0x80+ range rides UTF-8 legally).
+        assert!(tag_is_safe("v80.0.0"));
+        assert!(tag_is_safe("v11.0.0-beta.1"));
+        assert!(tag_is_safe("v11.0.0-caf\u{e9}"));
     }
 
     #[test]

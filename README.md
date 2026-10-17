@@ -97,6 +97,12 @@ For a statically-linked musl build, replace `linux-amd64-gnu` with `linux-amd64-
 Each release also ships quantum-resistant checksums (BLAKE2b + SHAKE256).
 See [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) for full instructions.
 
+### crates.io
+
+```sh
+cargo install zejtron
+```
+
 ### From Source
 
 ```sh
@@ -311,11 +317,14 @@ SKIP_CODESPELL=1 ./scripts/build.sh
 **rezky_nightky (oxyzenQ)**.
 
 - Source code: licensed under **GPL-3.0-only** (see [LICENSE](LICENSE)).
+  Proprietary/commercial use that cannot meet the GPL is available
+  under the commercial license - see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)
+  and [NOTICE](NOTICE) for tiers and terms.
 - Name, logo, and branding ("the Marks"): governed by
   [TRADEMARK.md](TRADEMARK.md). The Marks are NOT covered by the GPL and
   are reserved by the owner.
-- This project is **NOT for sale**. Unauthorized rebranding, relicensing,
-  or source-code theft is strictly prohibited.
+- Unauthorized rebranding, relicensing, or source-code theft is strictly
+  prohibited.
 
 For trademark licensing or written permission, contact
 **rezky_nightky (oxyzenQ)** — https://github.com/oxyzenQ.

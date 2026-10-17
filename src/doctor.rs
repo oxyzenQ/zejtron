@@ -160,7 +160,7 @@ fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> St
     let build = build_label(git_hash);
     let mut lines = vec![
         "Doctor report:".to_owned(),
-        mode_label(effective_uid()),
+        mode_label(crate::process::effective_uid()),
         "STATUS  CHECK                 MESSAGE".to_owned(),
     ];
 
@@ -220,19 +220,6 @@ fn mode_label(uid: Option<u32>) -> String {
     } else {
         "Mode: unprivileged (partial results expected)".to_owned()
     }
-}
-
-fn effective_uid() -> Option<u32> {
-    let status = fs::read_to_string("/proc/self/status").ok()?;
-    for line in status.lines() {
-        let Some(rest) = line.strip_prefix("Uid:") else {
-            continue;
-        };
-        let mut fields = rest.split_whitespace();
-        fields.next();
-        return fields.next()?.parse::<u32>().ok();
-    }
-    None
 }
 
 fn build_label(git_hash: &str) -> String {
