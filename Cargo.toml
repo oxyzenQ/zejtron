@@ -25,8 +25,51 @@ rust-version = "1.98.1"
 # documentation = "https://docs.rs/zejtron" - withheld until the crate
 # is published to the registry. The docs.rs link is verified live
 # before it ships (the sibling manifest's rule), and the registry
-# lookup (2026-10-17) reports the crate does not exist yet. Add the
-# field in the same change that publishes.
+# lookup (2026-10-17, re-verified this same day) reports the crate
+# does not exist yet. Add the field in the same change that publishes.
+# The crates.io ship set (sibling-manifest include/exclude lineage).
+# A curated allowlist beats an exclude list here: the tarball carries
+# exactly what a source consumer needs and nothing else. Structural
+# facts verified on this manifest:
+# - src/** and build.rs are the compile surface; build.rs's only
+#   repository dependency is .git/HEAD (read opportunistically for
+#   the build-hash env, degraded to "unknown" in a tarball extract
+#   where .git does not exist - by design, no include entry needed).
+# - Cargo.lock ships so `cargo install zejtron --locked` reproduces
+#   the dependency graph the release lane vetted.
+# - docs/*.md is the top-level docs surface the README links into
+#   (docs/ROADMAP.md, docs/ROADMAP-current.md, docs/VERIFY_RELEASE.md);
+#   the docs/workflow/, docs/archive/ research subdirs and the AUR
+#   packaging lane (aur/) stay repo-only - the sibling manifest's
+#   lean-half rule: the repo keeps them readable, the tarball does
+#   not carry them.
+# - rust-toolchain.toml ships so a source consumer's default
+#   toolchain matches the channel the release lane used.
+# Everything NOT listed stays repo-only: CI workflows, gates, assets
+# (branding, rendered at repository time - no code path reads them),
+# scripts/ (dev and package lanes are maintainer tooling).
+include = [
+    "src/**",
+    "build.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    "README.md",
+    "LICENSE",
+    "TRADEMARK.md",
+    "CHANGELOG.md",
+    "docs/*.md",
+]
+# Discovery discipline (sibling-manifest Pattern C lineage): every
+# auto-discovery axis is OFF. No tests/, benches/, or examples/
+# directory exists today, and these flags guarantee a stray directory
+# of the same name can never silently become a build target the
+# release lane did not vet. The binary is the only product; its
+# behavior is exercised end-to-end by the script lanes (build.sh,
+# gate-keepers) and CI, not by in-tree cargo targets.
+autotests = false
+autobenches = false
+autoexamples = false
 
 [dependencies]
 chrono = { version = "0.4.42", default-features = false, features = ["clock"] }
