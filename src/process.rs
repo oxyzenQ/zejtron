@@ -113,6 +113,22 @@ pub fn lookup_username(uid: u32) -> String {
 /// `/proc/<pid>/cmdline` is NUL-separated (not newline). An empty file
 /// means the process is a kernel thread (`[kworker/...]`) — in that case
 /// callers should fall back to the `Name` field from `/proc/<pid>/status`.
+/// The real UID of the current process, read from /proc/self/status
+/// (the Uid: row's second field is the effective uid). `None` when
+/// procfs is unreadable - callers degrade, never guess.
+pub fn effective_uid() -> Option<u32> {
+    let status = fs::read_to_string("/proc/self/status").ok()?;
+    for line in status.lines() {
+        let Some(rest) = line.strip_prefix("Uid:") else {
+            continue;
+        };
+        let mut fields = rest.split_whitespace();
+        fields.next();
+        return fields.next()?.parse::<u32>().ok();
+    }
+    None
+}
+
 pub fn read_cmdline(proc_root: &Path, pid: u32) -> Option<String> {
     let path = proc_root.join(pid.to_string()).join("cmdline");
     let bytes = fs::read(&path).ok()?;
