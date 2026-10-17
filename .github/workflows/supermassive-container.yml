@@ -13,7 +13,7 @@
 # The BPF side of the sibling's lane has no zejtron analog by design
 # - zejtron is a pure procfs/sysfs reader with no kernel surface.
 
-name: Dragon Guard - Supermassive Container E2E
+name: zejtron - Supermassive Container E2E
 
 'on':
   push:

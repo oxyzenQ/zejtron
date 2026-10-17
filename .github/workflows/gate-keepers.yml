@@ -20,7 +20,7 @@
 # Every tool below is installed and pinned - a check that silently
 # skips because its tool is missing is a check that does not exist.
 
-name: Dragon Guard - Gate-keepers
+name: zejtron - Gate-keepers
 
 'on':
   push:
