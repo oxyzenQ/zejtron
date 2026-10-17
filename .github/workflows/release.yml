@@ -5,7 +5,6 @@
 # matrix). On a v* tag push:
 #
 #   validate -> build (4 legs: linux-amd64-{v3,v4} x {gnu,musl}) -> release
-#                                                                   -> aur-sync
 #
 # - The matrix is the AMD64 x86-64-v3/v4 microarch levels for both
 #   libc flavors - the only shapes zejtron supports and optimizes for
@@ -24,7 +23,6 @@
 #   before the body renders), with the asset-inventory tripwire ahead
 #   of the publish step - a green pipeline can never ship an
 #   asset-less release (the sibling's NIGHT-dinner-3 lesson).
-# - The stable tag dispatches the AUR sync (zejtron's packaging lane).
 
 name: zejtron - Release
 
@@ -494,40 +492,3 @@ jobs:
           make_latest: ${{ needs.validate.outputs.prerelease != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  aur-sync:
-    needs: release
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: write
-    if: |-
-      ${{ github.event_name == 'push'
-          && github.ref_type == 'tag'
-          && startsWith(github.ref_name, 'v')
-          && !contains(github.ref_name, '-') }}
-
-    steps:
-      - name: Dispatch AUR sync
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const eventType = 'aur-sync';
-            const tag = context.ref.replace('refs/tags/', '');
-            const isNormalSemver = /^v\d+\.\d+\.\d+$/.test(tag);
-
-            core.info(`AUR dispatch tag: ${tag}`);
-            core.info(`AUR dispatch normal semver vX.Y.Z: ${isNormalSemver}`);
-
-            if (!isNormalSemver) {
-              core.info(`Skipping AUR sync for non-normal tag ${tag}`);
-              return;
-            }
-
-            await github.rest.repos.createDispatchEvent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              event_type: eventType,
-              client_payload: { tag },
-            });
-            core.info(`repository_dispatch sent: ${eventType}`);

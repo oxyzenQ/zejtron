@@ -35,11 +35,8 @@ else
   error "version must be normal semver: vX.Y.Z or X.Y.Z"
 fi
 
-for command in git cargo makepkg; do
+for command in git cargo; do
   if ! command -v "$command" >/dev/null 2>&1; then
-    if [[ "$command" == "makepkg" ]]; then
-      error "makepkg is required to regenerate .SRCINFO"
-    fi
     error "required command not found: $command"
   fi
 done
@@ -49,7 +46,6 @@ cd "$repo_root"
 
 [[ -f Cargo.toml ]] || error "Cargo.toml not found"
 [[ -f Cargo.lock ]] || error "Cargo.lock not found"
-[[ -f aur/zejtron-bin/PKGBUILD ]] || error "aur/zejtron-bin/PKGBUILD not found"
 [[ -f README.md ]] || error "README.md not found"
 [[ -f docs/workflow/about-ci.md ]] || error "docs/workflow/about-ci.md not found"
 
@@ -121,14 +117,6 @@ echo "Updating zejtron to ${TAG}"
 sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "'"${VERSION}"'"/' Cargo.toml
 cargo update -p zejtron
 
-sed -i -E 's/^pkgver=.*/pkgver='"${VERSION}"'/' aur/zejtron-bin/PKGBUILD
-sed -i -E 's/^pkgrel=.*/pkgrel=1/' aur/zejtron-bin/PKGBUILD
-
-(
-  cd aur/zejtron-bin
-  makepkg --printsrcinfo > .SRCINFO
-)
-
 sed -i -E 's/^TAG=v[0-9]+\.[0-9]+\.[0-9]+/TAG='"${TAG}"'/' README.md docs/workflow/about-ci.md
 sed -i -E 's#(zejtron-)v[0-9]+\.[0-9]+\.[0-9]+(-linux-)#\1'"${TAG}"'\2#g' README.md docs/workflow/about-ci.md
 sed -i -E 's#(/download/)v[0-9]+\.[0-9]+\.[0-9]+/#\1'"${TAG}"'/#g' README.md docs/workflow/about-ci.md
@@ -145,8 +133,6 @@ changelog_release "${VERSION}"
 
 grep -q '^version = "'"${VERSION}"'"$' Cargo.toml || error "Cargo.toml version was not updated"
 grep -A3 'name = "zejtron"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' || error "Cargo.lock zejtron version was not updated"
-grep -q '^pkgver='"${VERSION}"'$' aur/zejtron-bin/PKGBUILD || error "PKGBUILD pkgver was not updated"
-grep -q 'pkgver = '"${VERSION}" aur/zejtron-bin/.SRCINFO || error ".SRCINFO pkgver was not updated"
 grep -q "TAG=${TAG}" README.md || error "README.md release examples do not mention TAG=${TAG}"
 grep -q "TAG=${TAG}" docs/workflow/about-ci.md || error "docs/workflow/about-ci.md release examples do not mention TAG=${TAG}"
 # The ledger line is verified like every other rewrite: the version
@@ -155,4 +141,4 @@ grep -qxF "${TAG}" CHANGELOG.md || error "CHANGELOG.md ledger line for ${TAG} wa
 
 echo "VERSION=${VERSION}"
 echo "TAG=${TAG}"
-echo "Updated Cargo.toml, Cargo.lock, AUR metadata, README.md, docs/workflow/about-ci.md, and CHANGELOG.md"
+echo "Updated Cargo.toml, Cargo.lock, README.md, docs/workflow/about-ci.md, and CHANGELOG.md"

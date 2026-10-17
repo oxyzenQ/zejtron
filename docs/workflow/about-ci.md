@@ -3,7 +3,7 @@
 
 # Release Workflow
 
-This project uses GitHub Actions for CI, GitHub Releases, and optional AUR sync for `zejtron-bin`.
+This project uses GitHub Actions for CI and GitHub Releases.
 
 ## CI
 
@@ -44,37 +44,7 @@ TAG=v11.0.0
 cargo build --release --locked --target x86_64-unknown-linux-gnu
 ```
 
-The release workflow uploads `zejtron-bin-${TAG}-linux-amd64-gnu.tar.gz`, `zejtron-bin-${TAG}-linux-amd64-musl.tar.gz`, and matching `.sha512sum` files.
-
-## AUR Sync
-
-The release workflow dispatches AUR sync only for normal semver tags (e.g. `vX.Y.Z`).
-
-AUR sync can also be run manually. Manual sync checks out `main`, validates that `aur/zejtron-bin/PKGBUILD` and `aur/zejtron-bin/.SRCINFO` have matching `pkgver` and `pkgdesc` values, copies both files as committed, commits as `rezky_nightky <with dot rezky at gmail dot com>`, and pushes to `ssh://aur@aur.archlinux.org/zejtron-bin.git`. Release-triggered sync also verifies that the release tag version matches the committed AUR `pkgver`.
-
-Required repository secret:
-
-- `AUR_SSH_PRIVATE_KEY`
-
-Configure it in GitHub at:
-
-`Settings -> Secrets and variables -> Actions -> Repository secrets -> AUR_SSH_PRIVATE_KEY`
-
-The AUR workflow does not set `environment:`, so environment secrets are not used.
-
-## AUR Troubleshooting
-
-If the release workflow `aur-sync` job succeeds quickly, that only means the dispatch request was sent. Open the Actions list and look for a separate run named `zejtron - AUR Sync`.
-
-If `zejtron - AUR Sync` does not trigger, check:
-
-- `.github/workflows/aur.yml` exists on the default branch, currently `main`
-- the release workflow dispatches `event_type: aur-sync`
-- the AUR workflow listens to `repository_dispatch` with `types: [aur-sync]`
-
-If `zejtron - AUR Sync` triggers but authentication fails, check that `AUR_SSH_PRIVATE_KEY` is configured as a repository secret, not only as an environment secret.
-
-The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, pins the AUR Ed25519 host key, and clones the AUR repository before copying both `PKGBUILD` and `.SRCINFO`. If clone fails because of authentication or host-key verification, the job fails clearly. If the AUR repository is empty or not initialized yet, the workflow bootstraps a local repository and pushes `master`.
+The release workflow uploads `zejtron-${TAG}-linux-amd64-{v3,v4}-{gnu,musl}.tar.gz` (the four-leg matrix) and matching checksum files.
 
 ## Version Bump Flow
 
@@ -85,8 +55,7 @@ The AUR workflow runs on `ubuntu-latest`, validates committed package metadata, 
 
 The script rewrites every version surface in one pass: `Cargo.toml` and
 `Cargo.lock` (the complete cargo surface - zejtron is a single-crate
-repo, there is no second manifest to ride along), the AUR metadata
-(`aur/zejtron-bin/PKGBUILD` and its regenerated `.SRCINFO`), the release
+repo, there is no second manifest to ride along), the release
 examples in `README.md` and this document, and the `CHANGELOG.md`
 ledger - the bumped version is recorded as a bare line under
 `## [Released]`, newest first, above `## [Unreleased]`. The ledger

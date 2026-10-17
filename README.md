@@ -77,13 +77,6 @@ It consolidates functionality from pidnest and Zenlixem into one binary with one
 
 ## Install
 
-### AUR
-
-```sh
-paru -S zejtron-bin
-yay -S zejtron-bin
-```
-
 ### GitHub Release
 
 The release matrix ships exactly four shapes: the x86-64-v3/v4

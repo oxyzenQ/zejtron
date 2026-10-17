@@ -60,8 +60,8 @@ CI must remain **green** at all times. All changes must pass the full
 run as read-only and must not require broad write tokens.
 
 Release workflows must use the **minimum permissions necessary**. The release
-workflow requires `contents: write` only for creating GitHub Releases and
-dispatching AUR sync. The weekly maintenance workflow may use `contents: write`
+workflow requires `contents: write` only for creating GitHub Releases. The weekly
+maintenance workflow may use `contents: write`
 only to commit a validated dependency refresh directly to the default branch.
 
 ## Supply-Chain Surface
@@ -89,13 +89,6 @@ All code must pass:
 - `cargo clippy --all-targets --all-features --locked -- -D warnings`
 - `cargo test --all-targets --all-features --locked`
 
-## AUR Consistency
-
-The AUR package metadata (`PKGBUILD` and `.SRCINFO`) must remain consistent
-with the released version. The AUR sync workflow must validate that `pkgver`
-matches the release tag and that `pkgdesc` is identical in both files. Both
-`PKGBUILD` and `.SRCINFO` must be committed and copied together.
-
 ## Major Release Design Gates
 
 Major releases (e.g. v5.0.0) carry additional requirements beyond normal
@@ -107,7 +100,7 @@ created:
 - No source file exceeds 1000 LOC.
 - No new high-risk dependencies without written justification in the commit
   message.
-- AUR and release CI workflows stay green on the tagged commit.
+- The release CI workflow stays green on the tagged commit.
 - Documentation and command help text remain consistent with actual behavior.
 - `git diff --check` reports no whitespace errors.
 - `bash -n check.sh version-to.sh` passes syntax validation.
@@ -119,5 +112,5 @@ The major release design plan is documented in [ROADMAP-current.md](ROADMAP-curr
 ## Version Bumps
 
 Version bumps must use the `./scripts/dev/version-to.sh vX.Y.Z` script, which updates
-`Cargo.toml`, `Cargo.lock`, `README.md`, `docs/workflow/about-ci.md`, and the AUR
-metadata in a single, consistent pass. Manual version edits are prohibited.
+`Cargo.toml`, `Cargo.lock`, `README.md`, and `docs/workflow/about-ci.md` in a single,
+consistent pass. Manual version edits are prohibited.

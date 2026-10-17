@@ -39,10 +39,9 @@ rust-version = "1.98.1"
 #   the dependency graph the release lane vetted.
 # - docs/*.md is the top-level docs surface the README links into
 #   (docs/ROADMAP.md, docs/ROADMAP-current.md, docs/VERIFY_RELEASE.md);
-#   the docs/workflow/, docs/archive/ research subdirs and the AUR
-#   packaging lane (aur/) stay repo-only - the sibling manifest's
-#   lean-half rule: the repo keeps them readable, the tarball does
-#   not carry them.
+#   the docs/workflow/ and docs/archive/ research subdirs stay
+#   repo-only - the sibling manifest's lean-half rule: the repo keeps
+#   them readable, the tarball does not carry them.
 # - rust-toolchain.toml ships so a source consumer's default
 #   toolchain matches the channel the release lane used.
 # Everything NOT listed stays repo-only: CI workflows, gates, assets
