@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub mod styles;
+pub(crate) mod ux;
 use clap::{CommandFactory, Parser, Subcommand};
 use std::path::PathBuf;
 
