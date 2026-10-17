@@ -20,14 +20,14 @@ that is exactly what it is for. See
 
 ## Which tier do I need?
 
-Tiers follow your total annual revenue:
+Tiers follow your use, with your total annual revenue as the honest
+self-declaration input:
 
-| Your annual revenue                | Tier                     |
-| ---------------------------------- | ------------------------ |
-| No commercial use (hobby/personal) | Personal (free, GPL-3.0) |
-| Solo dev / freelancer, < $100K     | Individual ($99/year)    |
-| $100K – $10M                       | Business ($5,199/year)   |
-| > $10M, or any redistribution      | Company ($110,199/year)  |
+| Your use                                           | Tier                              |
+| -------------------------------------------------- | --------------------------------- |
+| No commercial use (hobby/personal)                 | Personal (free, GPL-3.0)          |
+| Solo business use (freelancers, small operations)  | Individual Business ($2,199/year) |
+| Company use, SaaS, or any redistribution           | Company ($9,199/year)             |
 
 Redistribution under your own terms is the Company tier regardless of
 revenue — it is the only tier that carries redistribution rights.
