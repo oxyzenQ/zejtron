@@ -110,3 +110,28 @@ External projects or articles referencing Zejtron should:
 
 - Use the correct project name: Zejtron
 - Link to the official repository: <https://github.com/oxyzenQ/zejtron>
+
+---
+
+## 7. The zylaxion Name (lowercase law)
+
+The sibling project name is lowercase `zylaxion` in every context it
+appears in this repository — prose, titles, headings, code, CLI output,
+comments, commit subjects, and file paths — the nginx/curl convention
+(night-improve-20). A capitalized, internally capitalized, or all-caps
+prose form of the name in any tracked file is a gate failure.
+
+Two legal exceptions:
+
+- **Identifier family** — the all-caps form attached with `_` or `-`
+  (an environment-variable prefix such as `ZYLAXION_MODE`, a marker
+  such as `ZYLAXION-DISCLAIMER`).
+- **Banner titles** — the all-caps comment titles heading the
+  `scripts/` gate files.
+
+Enforcement: `scripts/gates/check-name-case.py` (gate-keepers section
+15) scans every tracked file and every tracked path via `git ls-files`
+— nothing excluded — and fails with `file:line:token` on any casing
+outside the two families above. The checker is self-clean by
+construction: the all-caps form is built at runtime from the lowercase
+name.

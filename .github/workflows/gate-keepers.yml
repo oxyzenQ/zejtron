@@ -78,7 +78,7 @@ jobs:
           codespell --version
           actionlint --version
 
-      # The wholesale run: all 13 sections in one shot - exit code 0
+      # The wholesale run: all 15 sections in one shot - exit code 0
       # or the push is blocked.
       - name: Run gate-keepers.sh (wholesale)
         run: bash scripts/gate-keepers.sh
