@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 <p align="center">
   <img src="assets/zejtron-logo-new.png" alt="zejtron logo" width="260">
 </p>

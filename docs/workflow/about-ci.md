@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Release Workflow
 
 This project uses GitHub Actions for CI, GitHub Releases, and optional AUR sync for `zejtron-bin`.

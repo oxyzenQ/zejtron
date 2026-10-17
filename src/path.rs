@@ -318,13 +318,13 @@ fn print_path_audit(path_env: &OsStr) {
                     warnings.push(format!("owned by {owner} (not root)"));
                 }
                 if warnings.is_empty() {
-                    println!("  ✓ {dir_str}");
+                    println!("  ok    {dir_str}");
                 } else {
-                    println!("  ⚠ {dir_str} — {}", warnings.join(", "));
+                    println!("  warn  {dir_str} — {}", warnings.join(", "));
                 }
             }
             Err(_) => {
-                println!("  ✗ {dir_str} — missing");
+                println!("  fail  {dir_str} — missing");
             }
         }
     }

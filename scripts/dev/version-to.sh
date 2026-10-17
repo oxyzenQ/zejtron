@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# OS: Linux only — zejtron is a Linux introspection tool.
 # Single-crate repo note (sibling-manifest lineage): unlike the
 # sibling project's ebpf/ package, zejtron has NO second Cargo.toml -
 # verified live (a repo walk reports ./Cargo.toml as the only

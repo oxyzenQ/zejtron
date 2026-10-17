@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Zejtron Brand Guidelines
 
 This document defines the visual identity and communication standards for the Zejtron project. It ensures consistent branding across all touchpoints — from the GitHub repository to the CLI output and documentation.

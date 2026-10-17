@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Zejtron Future Roadmap
 
 > **Status:** v10.0.0 released. This document is for future development.

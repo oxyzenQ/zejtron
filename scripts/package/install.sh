@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
+# OS: Linux only — zejtron is a Linux introspection tool.
 # Copyright (C) 2026 rezky_nightky (oxyzenQ)
 #
 # Install script for zejtron.
