@@ -33,7 +33,11 @@ pub fn run(
     match command {
         Some(EnvCommands::Save { name }) => {
             // Snapshot of this process's own env only — saving another
-            // process's env to disk would be a credentials leak.
+            // process's env to disk would be a credentials leak. Root is
+            // refused first (night-improve-16): a save under sudo plants
+            // root-owned snapshot files the invoking user cannot read
+            // back.
+            crate::process::refuse_root("environment snapshot save writes files")?;
             save_snapshot(&name, &current_environment(), &data_dir()?)?;
             println!("Saved environment snapshot: {name}");
         }
@@ -42,6 +46,10 @@ pub fn run(
             println!("{}", format_snapshot_list(&names));
         }
         Some(EnvCommands::Delete { name }) => {
+            // Root is refused first (night-improve-16): a delete under
+            // sudo removes snapshot files with root privilege - the
+            // same planted-root-owned-files hazard as save.
+            crate::process::refuse_root("environment snapshot delete removes files")?;
             if delete_snapshot(&name, &data_dir()?)? {
                 println!("Deleted environment snapshot: {name}");
             } else {

@@ -107,12 +107,6 @@ pub fn lookup_username(uid: u32) -> String {
     uid.to_string()
 }
 
-/// Read `/proc/<pid>/cmdline` and split on NUL bytes into argv tokens.
-/// Returns `None` if the file is unreadable or empty.
-///
-/// `/proc/<pid>/cmdline` is NUL-separated (not newline). An empty file
-/// means the process is a kernel thread (`[kworker/...]`) — in that case
-/// callers should fall back to the `Name` field from `/proc/<pid>/status`.
 /// The real UID of the current process, read from /proc/self/status
 /// (the Uid: row's second field is the effective uid). `None` when
 /// procfs is unreadable - callers degrade, never guess.
@@ -129,6 +123,45 @@ pub fn effective_uid() -> Option<u32> {
     None
 }
 
+/// Root refusal wording for the surfaces where root is the hazard
+/// (night-improve-16). A network fetch under sudo inherits root's
+/// environment wholesale, and a filesystem write under sudo plants
+/// root-owned files the invoking user cannot read back - the sibling
+/// pattern from zelynic's update guard, imported verbatim: pure
+/// function of the euid fact so both the decision and the wording
+/// are unit-pinned (CI never runs as root, the tests still pin
+/// every byte).
+pub fn root_refusal(euid_is_root: bool, surface: &str) -> Option<String> {
+    if euid_is_root {
+        Some(format!(
+            "root refused — {surface}, do not use sudo\n  tip: re-run without sudo"
+        ))
+    } else {
+        None
+    }
+}
+
+/// The guard the fatal surfaces call before their first side effect:
+/// `Err(refusal)` on euid 0, `Ok(())` on every non-root identity.
+/// The night-improve-16 audit pinned the fatal set at three:
+/// `--check-update` (network fetch), `env save` and `env delete`
+/// (filesystem writes into the data dir). Every other surface in the
+/// binary is read-only by construction - journalctl/systemctl/git/
+/// package queries only - and stays unguarded on purpose; this doc
+/// line is the audit record, keep it true when surfaces change.
+pub fn refuse_root(surface: &str) -> Result<(), String> {
+    match root_refusal(effective_uid() == Some(0), surface) {
+        Some(refusal) => Err(refusal),
+        None => Ok(()),
+    }
+}
+
+/// Read `/proc/<pid>/cmdline` and split on NUL bytes into argv tokens.
+/// Returns `None` if the file is unreadable or empty.
+///
+/// `/proc/<pid>/cmdline` is NUL-separated (not newline). An empty file
+/// means the process is a kernel thread (`[kworker/...]`) — in that case
+/// callers should fall back to the `Name` field from `/proc/<pid>/status`.
 pub fn read_cmdline(proc_root: &Path, pid: u32) -> Option<String> {
     let path = proc_root.join(pid.to_string()).join("cmdline");
     let bytes = fs::read(&path).ok()?;
@@ -464,6 +497,33 @@ mod tests {
         let s = "VmRSS:\t   8420 kB\n";
         assert_eq!(parse_status_number(s, "VmRSS"), Some(8420));
         assert_eq!(parse_status_number(s, "VmSize"), None);
+    }
+
+    #[test]
+    fn root_refusal_pins_the_sibling_wording() {
+        let refusal = root_refusal(true, "the update check performs a network fetch")
+            .expect("root must be refused");
+        assert_eq!(
+            refusal,
+            "root refused — the update check performs a network fetch, \
+             do not use sudo\n  tip: re-run without sudo"
+        );
+        assert!(refusal.contains("do not use sudo"));
+        assert!(refusal.contains("tip: re-run without sudo"));
+        assert!(root_refusal(false, "anything").is_none());
+    }
+
+    #[test]
+    fn root_refusal_surfaces_interpolate_the_hazard() {
+        for surface in [
+            "the update check performs a network fetch",
+            "environment snapshot save writes files",
+            "environment snapshot delete removes files",
+        ] {
+            let refusal = root_refusal(true, surface).expect("root must be refused");
+            assert!(refusal.starts_with("root refused — "));
+            assert!(refusal.contains(surface));
+        }
     }
 
     #[test]
