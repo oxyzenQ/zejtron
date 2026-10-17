@@ -157,7 +157,7 @@ zejtron --check-update
 `-V` and `--version` print complete version, build, build-time (UTC),
 license, and source metadata. `--check-update` checks the latest
 upstream GitHub release; the `--check-updated` alias is accepted too.
-Evidence timestamps shown by `touch` and `path --verbose` render in
+Evidence timestamps shown by `touch` render in
 UTC with an explicit marker, identical on every host.
 
 ## Compatibility

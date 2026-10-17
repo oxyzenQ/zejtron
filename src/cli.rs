@@ -9,6 +9,11 @@ use std::path::PathBuf;
     name = "zejtron",
     about = "Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics. Boring and serious.",
     disable_version_flag = true,
+    // The mature help surface (night-improve-15, sibling shape): one
+    // help authority - the -h/--help flags - and no auto-generated
+    // `help` subcommand row padding the commands list on every
+    // top-level render.
+    disable_help_subcommand = true,
     styles = crate::styles::clap_styles()
 )]
 pub struct Cli {
@@ -20,10 +25,12 @@ pub struct Cli {
     )]
     pub version: bool,
 
+    // Top-level only (night-improve-15, sibling shape): a network
+    // flag has no business parsing after a subcommand, and demoting
+    // it removes one noise row from every subcommand's help.
     #[arg(
         long = "check-update",
         alias = "check-updated",
-        global = true,
         help = "Check the latest upstream release"
     )]
     pub check_update: bool,
@@ -38,11 +45,6 @@ pub enum Commands {
     Path {
         #[arg(value_name = "COMMAND", help = "Command name to find in PATH")]
         command: String,
-        #[arg(
-            long,
-            help = "Show file metadata (size, owner, perms, mtime) and PATH audit"
-        )]
-        verbose: bool,
     },
     #[command(about = "Show recently modified files")]
     Recent {
@@ -121,8 +123,6 @@ pub enum Commands {
         no_pid: bool,
         #[arg(long, help = "Disable ANSI color output")]
         no_color: bool,
-        #[arg(long, help = "Show cmdline, RSS memory, thread count per process")]
-        verbose: bool,
     },
     #[command(about = "Show processes holding a file, device, or port")]
     Holds {

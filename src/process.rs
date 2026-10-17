@@ -273,7 +273,7 @@ impl ProcessContext {
         parts.join(" ")
     }
 
-    /// Render as a multi-line evidence block (for `why`, `holds --verbose`).
+    /// Render as a multi-line evidence block (the `why` renderer).
     pub fn evidence_block(&self, username: &str) -> Vec<String> {
         let mut lines = Vec::new();
         lines.push(format!("name: {}", self.name));

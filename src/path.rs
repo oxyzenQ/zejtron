@@ -19,29 +19,22 @@ pub struct PathMatch {
     pub symlink_chain: Vec<PathBuf>,
 }
 
-pub fn run(command: &str, verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(command: &str) -> Result<(), Box<dyn std::error::Error>> {
     let path_env = env::var_os("PATH");
     let matches = find_in_path(command, path_env.as_deref())?;
 
     if matches.is_empty() {
         println!("command not found in PATH: {command}");
-        if verbose && let Some(ref pe) = path_env {
-            print_path_audit(pe);
-        }
         return Ok(());
     }
 
-    let report = format_path_report(command, &matches, verbose);
+    let report = format_path_report(command, &matches);
     println!("{report}");
-
-    if verbose && let Some(ref pe) = path_env {
-        print_path_audit(pe);
-    }
 
     Ok(())
 }
 
-pub fn format_path_report(command: &str, matches: &[PathMatch], verbose: bool) -> String {
+pub fn format_path_report(command: &str, matches: &[PathMatch]) -> String {
     let Some((active, duplicates)) = matches.split_first() else {
         return format!("command not found in PATH: {command}");
     };
@@ -55,13 +48,6 @@ pub fn format_path_report(command: &str, matches: &[PathMatch], verbose: bool) -
         "├── package: {}",
         pkg.as_deref().unwrap_or("unknown")
     ));
-
-    if verbose && let Some(meta) = file_metadata(&active.path) {
-        lines.push(format!("├── size: {} bytes", meta.size));
-        lines.push(format!("├── owner: {}", meta.owner));
-        lines.push(format!("├── perms: {}", meta.perms));
-        lines.push(format!("├── mtime: {}", meta.mtime));
-    }
 
     if duplicates.is_empty() {
         lines.push("└── duplicates: none".to_owned());
@@ -265,71 +251,6 @@ fn try_apk(path: &Path) -> Option<String> {
     stdout.trim().to_owned().into()
 }
 
-/// File metadata for --verbose output.
-struct FileMeta {
-    size: u64,
-    owner: String,
-    perms: String,
-    mtime: String,
-}
-
-fn file_metadata(path: &Path) -> Option<FileMeta> {
-    use std::os::unix::fs::MetadataExt;
-    let meta = fs::metadata(path).ok()?;
-    let perms = format!("{:04o}", meta.permissions().mode() & 0o7777);
-    let uid = meta.uid();
-    let owner = crate::process::lookup_username(uid);
-    let mtime = format_system_time(meta.modified().ok()?);
-    Some(FileMeta {
-        size: meta.len(),
-        owner,
-        perms,
-        mtime,
-    })
-}
-
-fn format_system_time(time: std::time::SystemTime) -> String {
-    crate::clock::format_system_time(time)
-}
-
-/// Audit each $PATH component for security-relevant issues:
-/// world-writable directories, missing directories, and directories not
-/// owned by root.
-fn print_path_audit(path_env: &OsStr) {
-    println!();
-    println!("PATH audit:");
-    for directory in env::split_paths(path_env) {
-        let dir_str = directory.display().to_string();
-        if dir_str.is_empty() {
-            continue;
-        }
-        match fs::metadata(&directory) {
-            Ok(meta) => {
-                use std::os::unix::fs::MetadataExt;
-                let mode = meta.permissions().mode();
-                let world_writable = mode & 0o002 != 0;
-                let uid = meta.uid();
-                let owner = crate::process::lookup_username(uid);
-                let mut warnings = Vec::new();
-                if world_writable {
-                    warnings.push("world-writable".to_owned());
-                }
-                if uid != 0 {
-                    warnings.push(format!("owned by {owner} (not root)"));
-                }
-                if warnings.is_empty() {
-                    println!("  ok    {dir_str}");
-                } else {
-                    println!("  warn  {dir_str} — {}", warnings.join(", "));
-                }
-            }
-            Err(_) => {
-                println!("  fail  {dir_str} — missing");
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -405,7 +326,7 @@ mod tests {
         }];
 
         assert_eq!(
-            format_path_report("tool", &matches, false),
+            format_path_report("tool", &matches),
             "tool\n├── active: /usr/bin/tool\n├── executable: yes\n├── package: unknown\n└── duplicates: none"
         );
     }
@@ -426,7 +347,7 @@ mod tests {
         ];
 
         assert_eq!(
-            format_path_report("tool", &matches, false),
+            format_path_report("tool", &matches),
             "tool\n├── active: /usr/bin/tool\n├── executable: yes\n├── package: unknown\n└── duplicates:\n    └── /home/rezky/.local/bin/tool\n       ├── executable: yes\n       └── package: unknown"
         );
     }
