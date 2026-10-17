@@ -27,6 +27,15 @@
 # musl-tools exactly as release.yml does, so the exercised shape is
 # the shipped shape.
 #
+# RUSTUP_TOOLCHAIN is the span's enforcement: without it, rustup's
+# directory override (rust-toolchain.toml pins 1.98.1) silently
+# reroutes EVERY in-repo cargo call to the MSRV channel - the
+# "best specs" legs were testing 1.98.1 under a stable name, and
+# the best-specs musl leg died in E0463 because that auto-installed
+# MSRV channel carries no musl rust-std. Pinning the env var beats
+# the override by rustup's own precedence, so a leg's declared
+# toolchain is the toolchain that actually runs.
+#
 # Trigger discipline (night-improve-28, the sibling's NIGHT-reject-1
 # shape): the weekly schedule is retired - the lane triggers on push
 # through the estate-wide path filter, the same spelling every build
@@ -79,6 +88,12 @@ jobs:
     name: ${{ matrix.title }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # The declared toolchain IS the running toolchain (see the
+      # Toolchain span paragraph above): rust-toolchain.toml's
+      # directory override loses to this env var by rustup
+      # precedence, so the stable legs genuinely ride stable.
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
     strategy:
       fail-fast: false
       matrix:
@@ -127,6 +142,13 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q musl-tools
+
+      # check-all's spell lane (the same pinned codespell
+      # gate-keepers.yml installs); the gnu legs are the check-all
+      # legs, the musl legs build + battery without it.
+      - name: Install codespell (the check-all gate's spell lane)
+        if: matrix.targets == ''
+        run: python3 -m pip install --user codespell==2.4.3
 
       - name: Full gate (gnu leg)
         if: matrix.targets == ''

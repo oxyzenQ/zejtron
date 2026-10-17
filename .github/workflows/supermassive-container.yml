@@ -88,18 +88,17 @@ jobs:
       - name: Run the read-only surfaces inside docker
         run: |
           set -euo pipefail
-          BIN=target/x86_64-unknown-linux-musl/release/zejtron
           docker build -t zejtron-e2e -f- . <<'DOCKERFILE'
           FROM alpine:3.20
           COPY target/x86_64-unknown-linux-musl/release/zejtron /usr/local/bin/zejtron
           DOCKERFILE
 
           echo "=== -V report inside the container ==="
-          docker run --rm zejtron-e2e -V
+          docker run --rm zejtron-e2e zejtron -V
 
           echo "=== doctor inside the container (container evidence expected) ==="
           set +e
-          DOC_OUT=$(docker run --rm zejtron-e2e doctor 2>&1)
+          DOC_OUT=$(docker run --rm zejtron-e2e zejtron doctor 2>&1)
           DOC_RC=$?
           set -e
           echo "${DOC_OUT}"
@@ -118,9 +117,9 @@ jobs:
           fi
 
           echo "=== the read-only surfaces inside the container ==="
-          docker run --rm zejtron-e2e port --tcp --no-pid
-          docker run --rm zejtron-e2e proc --me --depth 1 --no-pid
-          docker run --rm zejtron-e2e net
-          docker run --rm zejtron-e2e shell
+          docker run --rm zejtron-e2e zejtron port --tcp --no-pid
+          docker run --rm zejtron-e2e zejtron proc --me --depth 1 --no-pid
+          docker run --rm zejtron-e2e zejtron net
+          docker run --rm zejtron-e2e zejtron shell
 
           echo "Container E2E complete: every read-only surface behaved."
