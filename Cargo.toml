@@ -46,7 +46,10 @@ rust-version = "1.98.1"
 #   toolchain matches the channel the release lane used.
 # Everything NOT listed stays repo-only: CI workflows, gates, assets
 # (branding, rendered at repository time - no code path reads them),
-# scripts/ (dev and package lanes are maintainer tooling).
+# scripts/ (dev and package lanes are maintainer tooling), and the
+# test/ tree (the single test tree, #[path]-wired from src/ - it
+# compiles into the developer's cargo test run, never into a
+# consumer's build).
 include = [
     "src/**",
     "build.rs",

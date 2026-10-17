@@ -37,9 +37,9 @@
 #        tracked text file; fail blocks, strict detector, exit 1 on
 #        hits)
 #    9.  Rust source LOC cap (scripts/gates/check-loc.sh - hard limit
-#        600 lines, tree-wide by file type; the tracked-debt list is
-#        the explicit IOU for modules that predate the cap, and no
-#        NEW over-cap file can join silently)
+#        600 lines, tree-wide by file type; night-improve-18 retired
+#        the tracked-debt list whole - over the cap FAILS, the
+#        no-mercy law, split a pure move with gates green in between)
 #   10.  Rust toolchain version sync (scripts/gates/check-rust-version-sync.sh -
 #        rust-toolchain.toml pin == Cargo.toml MSRV == workflow
 #        RUST_VERSION pins)

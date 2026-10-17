@@ -51,8 +51,9 @@ src/
   main.rs        — entry point + dispatch (the ONLY file at src/ root,
                    enforced by check-loc.sh)
   cli/           — CLI definition (clap derive) + clap brand styling
+                   + the UX bridge (typo rescue, migration redirects)
   commands/      — the read-only command surfaces (path, recent, port/,
-                   proc, holds, touch/, why, env, service, shell, net,
+                   proc/, holds/, touch/, why, env, service, shell, net,
                    git, doctor/)
   info/          — the -V version report + the std-only civil clock
                    (Hinnant civil_from_days)
@@ -60,12 +61,17 @@ src/
   system/        — /proc readers + username lookup + path/argument
                    guardrails (pathguard)
   update/        — --check-update (curl-backed, refuses root)
+test/            — the single test tree (night-improve-18: every *.rs
+                   test file lives here, #[path]-wired from its src
+                   module; mirrors the src/ layout, cosmostrix
+                   Pattern C)
 scripts/
   build.sh       — the commit gate (check-all) + CLI battery
   gate-keepers.sh — the wholesale non-code gate (self-installs the
                     pre-commit hook)
   gates/         — the individual gate scripts (headers, permissions,
-                    LOC caps, language discipline, version sync, ...)
+                    LOC caps, name case, language discipline,
+                    version sync, ...)
   dev/           — maintainer tooling (version-to.sh)
   package/       — install.sh / uninstall.sh
 docs/            — the docs tree (BRANDING, RULES, VERIFY_RELEASE, ...)
