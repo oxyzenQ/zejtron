@@ -77,6 +77,19 @@ It consolidates functionality from pidnest and Zenlixem into one binary with one
 
 ## Install
 
+### On My Machine (fast setup)
+
+Build for this machine's CPU and install to `/usr/bin` in one
+command:
+
+```sh
+./scripts/package/install-on-my-machine.sh
+```
+
+Detects the x86-64 level (v3/v4), builds the release tier through
+the parity-gated alias, and installs to `/usr/bin` - the one install
+path, no flags. Linux amd64 with rust required.
+
 ### GitHub Release
 
 The release matrix ships exactly four shapes: the x86-64-v3/v4

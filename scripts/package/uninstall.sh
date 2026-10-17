@@ -3,10 +3,11 @@
 # OS: Linux only — zejtron is a Linux introspection tool.
 # Copyright (C) 2026 rezky_nightky (oxyzenQ)
 #
-# Uninstall script for zejtron.
-# Auto-detects and removes the binary from any of:
-#   /usr/bin/, ~/.local/bin/
-# Sudo is used ONLY for system paths. Run WITHOUT sudo.
+# Uninstall script for zejtron (night-improve-27: the path law).
+# The install path is /usr/bin - removed here. A legacy ~/.local/bin
+# copy (from the retired --user install era) is swept too, so old
+# setups do not strand a stale binary on the PATH. Sudo is used ONLY
+# for system paths. Run WITHOUT sudo.
 
 set -uo pipefail
 
@@ -15,30 +16,23 @@ REPO_URL="https://github.com/oxyzenQ/zejtron"
 
 usage() {
     cat <<EOF
-Usage: $0 [--system|--user|--all]
+Usage: $0
 
-  (default)  Auto-detect: scan /usr/bin, ~/.local/bin
-             and remove every ${zejtron} found. Sudo only for system paths.
-  --system   Remove only from /usr/bin (uses sudo).
-  --user     Remove only from ~/.local/bin (no sudo).
-  --all      Same as default.
-
+  Removes ${zejtron} from /usr/bin (the one install path) and sweeps
+  a legacy ~/.local/bin copy if the retired --user install era left
+  one. Sudo only for system paths.
 EOF
 }
 
-MODE="--all"
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --system) MODE="--system"; shift ;;
-        --user)   MODE="--user";   shift ;;
-        --all)    MODE="--all";    shift ;;
         -h|--help) usage; exit 0 ;;
-        *) echo "error: unknown argument: $1" >&2; usage; exit 2 ;;
+        *) echo "error: unknown argument: $1 - this script takes no options" >&2; usage; exit 2 ;;
     esac
 done
 
-SYSTEM_PATHS=(/usr/bin)
-USER_PATH="${HOME}/.local/bin"
+SYSTEM_PATH="/usr/bin"
+LEGACY_USER_PATH="${HOME}/.local/bin"
 removed=0
 
 remove_at() {
@@ -57,22 +51,9 @@ remove_at() {
 
 echo ">> Uninstalling ${zejtron}"
 
-case "${MODE}" in
-    --system)
-        for p in "${SYSTEM_PATHS[@]}"; do
-            remove_at "${p}/${zejtron}" yes
-        done
-        ;;
-    --user)
-        remove_at "${USER_PATH}/${zejtron}" no
-        ;;
-    --all)
-        for p in "${SYSTEM_PATHS[@]}"; do
-            remove_at "${p}/${zejtron}" yes
-        done
-        remove_at "${USER_PATH}/${zejtron}" no
-        ;;
-esac
+remove_at "${SYSTEM_PATH}/${zejtron}" yes
+# The retired --user era's leftover - swept, never installed here again.
+remove_at "${LEGACY_USER_PATH}/${zejtron}" no
 
 if [[ ${removed} -eq 0 ]]; then
     echo "   (nothing found to remove)"
@@ -80,3 +61,4 @@ if [[ ${removed} -eq 0 ]]; then
 fi
 
 echo ">> Done. Removed ${removed} copy/copies."
+echo "   Docs: ${REPO_URL}#readme"
