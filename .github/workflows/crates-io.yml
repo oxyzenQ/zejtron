@@ -7,46 +7,47 @@
 # zejtron is NOT published to the registry yet - the manifest's
 # `documentation` field is withheld until the crate exists and the
 # docs.rs tree is verified live (the sibling's rule: never pre-claim
-# a link). This workflow therefore owns the two things that stay true
-# before and after publication:
-#   1. The ship-set verification: `cargo package --list --locked`
-#      inventory + a full `cargo package` dry run on every manifest
-#      change - the tarball contract can never rot silently.
+# a link). This workflow owns the two things that stay true before
+# and after publication:
+#   1. The ship-set verification on the release tag:
+#      `cargo package --list --locked` inventory + a full
+#      `cargo package` dry run against the exact tree a release tag
+#      names - the tarball is proven at the tree that would ship,
+#      never against a moving branch head.
 #   2. The on-demand publish: `workflow_dispatch` with publish=true
 #      and CARGO_REGISTRY_TOKEN configured. The publish step refuses
 #      to run without the explicit flag and the secret, so the dry-run
 #      lane is the default posture and the actual publish stays the
 #      owner's deliberate act.
+#
+# Trigger discipline (night-improve-33, the sibling's NIGHT-ask-1
+# shape): the registry lane is a release artifact, not a per-push CI
+# lane. It triggers on the owner-pushed release tag - the same `v*`
+# filter release.yml carries - and never on code-surface pushes or
+# pull requests: the fast lane (ci.yml) already owns those, and the
+# estate-wide spelling this file briefly carried (night-improve-32)
+# blurred the two lanes' contracts.
 
 name: zejtron - crates.io publish
 
 'on':
   push:
-    branches: ["main"]
-    paths:
-      # night-improve-32: the estate-wide spelling (the sibling's
-      # NIGHT-boost-10 shape) - the package-verify lane reads the
-      # same code surface every build workflow reads, spelled the
-      # same way, plus this file's own name.
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/crates-io.yml'
-  pull_request:
-    branches: ["main"]
-    paths:
-      # night-improve-32: the estate-wide spelling (the sibling's
-      # NIGHT-boost-10 shape) - the package-verify lane reads the
-      # same code surface every build workflow reads, spelled the
-      # same way, plus this file's own name.
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/crates-io.yml'
+    tags:
+      # night-improve-33 (the sibling's NIGHT-ask-1 shape): the
+      # registry lane wakes on the owner-pushed release tag - the
+      # same 'v*' filter release.yml carries - so the ship-set
+      # verification proves the tarball at the exact tree that
+      # would publish. Code-surface pushes and pull requests are
+      # the fast lane's territory (ci.yml); the estate-wide
+      # spelling this file briefly carried (night-improve-32) was
+      # a publish contract blurred into a build lane.
+      - 'v*'
+  # The manual lane stays (zejtron's pre-publication posture): the
+  # FIRST publish cannot wait for a tag the crate name does not
+  # back yet - the owner dispatches with publish=true once the
+  # registry token is configured. The publish job's own guards
+  # (the explicit input flag plus the configured secret) keep the
+  # dry-run the default posture of every run.
   workflow_dispatch:
     inputs:
       publish:
