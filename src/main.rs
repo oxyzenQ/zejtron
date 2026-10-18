@@ -3,6 +3,7 @@
 
 mod cli;
 mod commands;
+mod ebpf;
 mod info;
 mod output;
 mod system;
@@ -85,7 +86,9 @@ fn main() {
         Some(cli::Commands::Holds { target }) => commands::holds::run(&target),
         Some(cli::Commands::Touch { path }) => commands::touch::run(&path),
         Some(cli::Commands::Why { target }) => commands::why::run(&target),
-        Some(cli::Commands::Doctor) => commands::doctor::run(env!("ZEJTRON_GIT_HASH")),
+        Some(cli::Commands::Doctor { attach, detach }) => {
+            commands::doctor::run(env!("ZEJTRON_GIT_HASH"), attach, detach)
+        }
         Some(cli::Commands::Net) => commands::net::run(),
         None => {
             // The branded builder, not the raw derive command: the

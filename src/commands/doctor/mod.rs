@@ -35,10 +35,39 @@ struct Summary {
     fail: usize,
 }
 
-pub fn run(git_hash: &str) -> Result<(), Box<dyn Error>> {
+pub fn run(git_hash: &str, attach: bool, detach: bool) -> Result<(), Box<dyn Error>> {
+    // The eBPF verbs (night-improve-1): attach/detach print their own
+    // result and skip the snapshot report. The verbs exist in every
+    // build - a featureless binary answers with the honest refusal
+    // and a non-zero exit, never a fake success, and a feature binary
+    // on an incapable host names the reason it refused.
+    if attach {
+        return match crate::ebpf::attach() {
+            Ok(summary) => {
+                println!("{summary}");
+                Ok(())
+            }
+            Err(refusal) => Err(refusal.into()),
+        };
+    }
+    if detach {
+        return match crate::ebpf::detach() {
+            Ok(summary) => {
+                println!("{summary}");
+                Ok(())
+            }
+            Err(refusal) => Err(refusal.into()),
+        };
+    }
+
     let checks = collect_checks(git_hash);
     let summary = summarize(&checks);
-    println!("{}", format_report(&checks, summary, git_hash));
+    // The snapshot report closes with the [eBPF] section
+    // (night-improve-1): always present, always honest about what
+    // this binary and this host can do.
+    let report = format_report(&checks, summary, git_hash);
+    let section = ebpf::section();
+    println!("{report}\n{section}");
     // Non-zero exit on FAIL so CI / automation can gate on doctor.
     if summary.fail > 0 {
         return Err("doctor checks failed".into());
@@ -64,6 +93,7 @@ fn collect_checks(git_hash: &str) -> Vec<CheckResult> {
 }
 
 mod checks;
+mod ebpf;
 
 use checks::{
     check_audit_log, check_container, check_holders, check_journalctl, check_kernel_distro,

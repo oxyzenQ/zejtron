@@ -35,6 +35,11 @@ rust-version = "1.98.1"
 #   repository dependency is .git/HEAD (read opportunistically for
 #   the build-hash env, degraded to "unknown" in a tarball extract
 #   where .git does not exist - by design, no include entry needed).
+# - build/** rides beside build.rs (night-improve-1): the eBPF
+#   staging module build.rs declares via #[path] compiles
+#   unconditionally, so a registry extract without it would fail to
+#   build even with the ebpf feature off. The module's own feature
+#   gate keeps the staging a no-op without --features ebpf.
 # - Cargo.lock ships so `cargo install zejtron --locked` reproduces
 #   the dependency graph the release lane vetted.
 # - docs/*.md is the top-level docs surface the README links into
@@ -53,6 +58,7 @@ rust-version = "1.98.1"
 include = [
     "src/**",
     "build.rs",
+    "build/**",
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",
@@ -93,6 +99,28 @@ autoexamples = false
 clap = { version = "4.5.40", features = ["derive"] }
 ctrlc = "3.4.7"
 regex-lite = "0.1"
+# night-improve-1, the eBPF lane: aya 0.14 is the userspace loader,
+# OPTIONAL - the default dependency graph is unchanged, byte for
+# byte. It is the upstream pairing of the ebpf/ crate's aya-ebpf
+# 0.2.1 (the validated pair the zelynic and zylaxion lineages build
+# on): loads the embedded object, attaches the tracepoint, pins and
+# reads the maps. libc is deliberately NOT pulled in: every Phase 1
+# kernel fact is readable through std fs (/proc/sys/kernel/osrelease,
+# /proc/self/status CapEff, /sys/kernel/security/lockdown) and aya's
+# typed API covers the rest - an unused dependency would violate the
+# dependency policy; a later pass that needs a raw syscall adds it
+# feature-gated, one line.
+aya = { version = "0.14", optional = true }
+
+[features]
+# night-improve-1: the eBPF infrastructure is opt-in. The default
+# build is behaviorally identical to the pre-ebpf tree - no new
+# dependency compiles in, the doctor reports the dormant lane
+# honestly, and `cargo install zejtron` keeps shipping the
+# snapshot-only binary. Phase 5 (a later pass) revisits the default
+# with a prebuilt lane for registry installs.
+default = []
+ebpf = ["dep:aya"]
 
 [dev-dependencies]
 tempfile = "3.20.0"

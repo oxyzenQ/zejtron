@@ -1,0 +1,45 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The pure-Rust eBPF crate (night-improve-1, the zelynic/zylaxion
+# lineage discipline): ONE binary, the no-op tap.
+#
+# zejtron-ebpf — a passive kernel-side counter on the
+# sched_process_exec tracepoint. Phase 1 proves the chain and nothing
+# else: the program loads, the verifier accepts it, the tracepoint
+# fires, the pinned Array counter increments, the loader reads it
+# back, detach unpins every pin. No argument reads, no ring buffer,
+# no business logic — those belong to later passes.
+#
+# The crate is a DETACHED WORKSPACE on purpose (the zylaxion
+# discipline): the empty [workspace] table keeps it outside the root
+# package's build graph, so the default stable-toolchain build
+# (build.sh check-all, the gatekeepers) never enters the nightly
+# path. The toolchain comes from THIS directory's rust-toolchain.toml
+# (the dated nightly pin); any cargo with cwd inside ebpf/ resolves
+# it automatically. Direct build:
+#
+#   cd ebpf && cargo build --release
+#
+# The version mirrors the ROOT crate's version on purpose (the
+# zelynic provenance law): the object ships inside the binary, so a
+# drifting version label would be a provenance hole. The bump is
+# owner-owned like every other version field.
+
+[package]
+name = "zejtron-ebpf"
+version = "11.0.0"
+edition = "2024"
+publish = false
+license = "GPL-3.0-only"
+repository = "https://github.com/oxyzenQ/zejtron"
+description = "Pure-Rust eBPF no-op tap (sched_process_exec counter) for zejtron, cross-compiled with aya-ebpf and embedded by the userspace loader."
+
+[dependencies]
+aya-ebpf = "0.2.1"
+
+[[bin]]
+name = "zejtron-ebpf"
+path = "src/main.rs"
+
+[workspace]

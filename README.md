@@ -209,6 +209,41 @@ cd zejtron
 cargo install --path .
 ```
 
+### eBPF (optional)
+
+The `ebpf` cargo feature is opt-in: the default build (and every
+`cargo install zejtron` from the registry) ships the snapshot-only
+binary — no kernel program loads, nothing pins, the dependency graph
+is unchanged. Building with the feature embeds a pure-Rust tap:
+
+```sh
+./scripts/dev/bootstrap-ebpf.sh        # once per machine: the dated
+                                        # nightly pin + bpf-linker 0.11.1
+cargo build --release --features ebpf
+```
+
+The feature cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
+clang, no libbpf) into a no-op tap on the `sched_process_exec`
+tracepoint and embeds the object into the host binary. The nightly
+toolchain and bpf-linker are build-time prerequisites only — the
+installed binary needs neither, and at runtime it needs no eBPF
+support beyond a capable host: kernel 5.15+, lockdown inactive, and
+`CAP_BPF` + `CAP_PERFMON` in the effective set for attach.
+
+`zejtron doctor` reports the lane honestly in its [eBPF] section in
+every build, and the verbs live on the doctor:
+
+```sh
+sudo zejtron doctor --attach   # plant the tap (pins under /sys/fs/bpf/zejtron/)
+sudo zejtron doctor --detach   # unpin everything, idempotent
+```
+
+After `--attach` the process may exit: the pinned link keeps the tap
+alive and the pinned map keeps the counter. `doctor` reads the event
+count back through the pin — the read side needs no capabilities.
+A featureless binary refuses both verbs by name and exits non-zero;
+never a fake success.
+
 ### Usage
 
 Every command, once — flags live in `--help` (Pro mode owns the
@@ -276,6 +311,11 @@ same stamp.
   the host's. This is a kernel namespace boundary, not a zejtron
   limit; the tool reports what the namespace shows, and the doctor
   names the visibility it is working with.
+- The eBPF lane is opt-in: `cargo install zejtron` (registry) and the
+  default build ship the snapshot-only binary — no eBPF program loads,
+  pins, or counters. Building with `--features ebpf` needs the dated
+  nightly pin and bpf-linker at build time only; a later phase revisits
+  the default.
 
 ## Safety Features
 

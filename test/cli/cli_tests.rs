@@ -34,7 +34,7 @@ fn pro_mode_discloses_every_hidden_alias() {
 #[test]
 fn pro_mode_covers_every_flag_owning_verb() {
     let help = help_command().render_help().to_string();
-    for group in ["recent:", "port:", "proc:", "global:"] {
+    for group in ["recent:", "port:", "proc:", "doctor:", "global:"] {
         assert!(help.contains(group), "Pro mode must own the {group} group");
     }
     for spelling in [
@@ -88,7 +88,35 @@ fn parses_holds_target() {
 fn parses_doctor() {
     let cli = Cli::try_parse_from(["zejtron", "doctor"]).unwrap();
 
-    assert!(matches!(cli.command, Some(Commands::Doctor)));
+    assert!(matches!(cli.command, Some(Commands::Doctor { .. })));
+}
+
+#[test]
+fn parses_doctor_attach_and_detach() {
+    let cli = Cli::try_parse_from(["zejtron", "doctor", "--attach"]).unwrap();
+    match cli.command {
+        Some(Commands::Doctor { attach, detach }) => {
+            assert!(attach);
+            assert!(!detach);
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+
+    let cli = Cli::try_parse_from(["zejtron", "doctor", "--detach"]).unwrap();
+    match cli.command {
+        Some(Commands::Doctor { attach, detach }) => {
+            assert!(!attach);
+            assert!(detach);
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+}
+
+#[test]
+fn doctor_attach_and_detach_conflict() {
+    // Both verbs at once is a usage error: clap's conflicts_with, the
+    // honest answer (never a silent last-one-wins).
+    assert!(Cli::try_parse_from(["zejtron", "doctor", "--attach", "--detach"]).is_err());
 }
 
 #[test]
