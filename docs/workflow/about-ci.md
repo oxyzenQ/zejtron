@@ -123,9 +123,13 @@ stable-lane pass. The musl legs build the static release shape
 (musl-tools, exactly as the release matrix provisions it) and then run
 the CLI battery against the leg's own binary via `ZEJTRON_BIN_PATH` -
 closing the honest gap where the shipped musl binary had never
-executed the runtime battery. Triggers: a weekly schedule,
-`workflow_dispatch`, and a core-paths push filter (a workflow that can
-change its own contract owes itself a run); no pull_request trigger,
-because `zejtron - CI` owns PRs. `scripts/build.sh battery` is the
-lane's reusable entry point: the runtime battery alone, no compile,
-against whatever binary `ZEJTRON_BIN_PATH` names.
+executed the runtime battery. Triggers (night-improve-28): the
+estate-wide push filter - five shared surface globs plus the file's
+own name, the same spelling every build workflow carries (a workflow
+that can change its own contract owes itself a run) - and
+`workflow_dispatch`; the weekly schedule is retired, because the
+heavy lane rides the estate's push surface now instead of a clock.
+No pull_request trigger, because `zejtron - CI` owns PRs.
+`scripts/build.sh battery` is the lane's reusable entry point: the
+runtime battery alone, no compile, against whatever binary
+`ZEJTRON_BIN_PATH` names.
