@@ -111,6 +111,8 @@ The major release design plan is documented in [ROADMAP-current.md](ROADMAP-curr
 
 ## Version Bumps
 
-Version bumps must use the `./scripts/dev/version-to.sh vX.Y.Z` script, which updates
-`Cargo.toml`, `Cargo.lock`, `README.md`, and `docs/workflow/about-ci.md` in a single,
-consistent pass. Manual version edits are prohibited.
+Version bumps must use the `./scripts/dev/version-to.sh` script (`vX.Y.Z`, or
+`vX.Y.Z-pre` for a pre-release cut such as `v12.0.0-rc.1` - the same tag shape
+the release lane validates), which updates `Cargo.toml`, `Cargo.lock`,
+`README.md`, and `docs/workflow/about-ci.md` in a single, consistent pass.
+Manual version edits are prohibited.
