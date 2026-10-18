@@ -46,6 +46,20 @@ cargo build --release --locked --target x86_64-unknown-linux-gnu
 
 The release workflow uploads `zejtron-${TAG}-linux-amd64-{v3,v4}-{gnu,musl}.tar.gz` (the four-leg matrix) and matching checksum files.
 
+## crates.io (the registry lane)
+
+`zejtron - crates.io publish` is the registry arm: it runs the ship-set
+verification (`cargo package --list --locked` inventory plus a full
+`cargo package` dry run) against the exact tree a release tag names.
+Triggers: the owner-pushed `v*` tag - the same filter `release.yml`
+carries - plus a manual `workflow_dispatch`, because zejtron is
+pre-publication and the first publish is the owner's deliberate act:
+dispatch with `publish=true` and the `CARGO_REGISTRY_TOKEN` secret
+configured. Without the explicit flag and secret the publish step
+refuses to run, so the dry-run lane is the default posture.
+Code-surface pushes and pull requests never wake this lane - the fast
+lane (`zejtron - CI`) owns those.
+
 ## Version Bump Flow
 
 ```sh
