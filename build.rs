@@ -3,6 +3,16 @@
 
 use std::process::Command;
 
+// The eBPF object staging machinery (night-improve-1) lives in its
+// own module - the zelynic/zylaxion build/ precedent, demanded by
+// the 600-LOC no-mercy cap. The module is UNCONDITIONAL (not
+// feature-gated): the registry tarball carries build/** beside
+// build.rs (see the Cargo.toml include list), so the module always
+// compiles and the feature gate lives INSIDE it - a no-op without
+// the `ebpf` feature, the honest preflight panics with it.
+#[path = "build/ebpf.rs"]
+mod ebpf;
+
 fn main() {
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs/heads");
@@ -39,6 +49,12 @@ fn main() {
     // family `M/D/YYYY HH:MM (UTC)` contract the `-V` report carries.
     let build_time = format_build_time_utc();
     println!("cargo:rustc-env=ZEJTRON_BUILD_TIME={build_time}");
+
+    // night-improve-1: stage the eBPF object into OUT_DIR for the
+    // loader's include_bytes! embedding. Without the `ebpf` feature
+    // the lane is a no-op (no preflight, no nested build, nothing
+    // staged) - the default build never touches the BPF toolchain.
+    self::ebpf::build_ebpf_object();
 }
 
 fn format_build_time_utc() -> String {

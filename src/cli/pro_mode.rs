@@ -80,6 +80,16 @@ const GROUPS: &[(&str, &[Row])] = &[
         ],
     ),
     (
+        "doctor:",
+        &[
+            ("--attach", "Attach the eBPF tap (the privileged one-shot)"),
+            (
+                "--detach",
+                "Detach the eBPF tap (unpin everything, idempotent)",
+            ),
+        ],
+    ),
+    (
         "global:",
         &[(
             "--check-update",

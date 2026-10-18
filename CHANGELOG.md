@@ -19,6 +19,51 @@ v11.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The eBPF infrastructure lands as an opt-in cargo feature (`cargo
+  build --release --features ebpf`): a detached `ebpf/` workspace
+  cross-compiles one pure-Rust aya-ebpf program (no C, no clang, no
+  libbpf — the repo-local `bpfel-unknown-none` spec with
+  `atomic-cas: true` and cpu v3 for the BPF_ATOMIC counter), the root
+  build.rs stages the object into `OUT_DIR` after structural ELF
+  validation (the zylaxion hardening: prerequisite preflight that
+  panics with the one-command fix, the host-RUSTFLAGS poison strip,
+  the v3 force), and the host embeds it through the AlignedElf wrapper
+  and loads it with aya 0.14 — the upstream pairing of the ebpf
+  crate's aya-ebpf 0.2.1. The loader plants every pin under
+  /sys/fs/bpf/zejtron/ (program, link, map — link first on removal),
+  `doctor --attach`/`--detach` drive the verbs in every build (a
+  featureless binary refuses by name and exits non-zero, never a
+  silent no-op), and the doctor's report closes with an
+  always-present [eBPF] section: feature, kernel, BTF, lockdown,
+  capabilities, the lane verdict, and the pin state — one probe
+  feeding both surfaces, no drift. The counter readback rides the
+  pinned map (`MapData::from_pin`), the attach moment rides the pin's
+  own mtime, and `scripts/dev/bootstrap-ebpf.sh` installs the two
+  build-time prerequisites idempotently (the dated nightly pin +
+  the sha256-verified bpf-linker 0.11.1 release binary). The reading
+  that shaped the pass: the zelynic/zylaxion ebpf workspace layouts
+  (detached workspace, dated nightly pin, custom bpfel spec,
+  bpf-linker preflight, the /sys/fs/bpf/<name>/ pin discipline, the
+  MapData::from_pin readback, the AlignedElf alignment lesson, the
+  dormant honest-refusal lane), Phase 0's tree at 3348738 (the
+  #[path]-wired single test tree, the doctor's CheckResult report
+  shape, the curated tarball include list that keeps the registry
+  lane snapshot-only), and the aya 0.14 API verified against source:
+  take_link lives on the program (not the Ebpf object), and
+  FdLink::pin consumes the fd link into a PinnedLink with no
+  detach-on-drop — which is exactly what keeps the tap alive after
+  the attaching process exits. (night-improve-1)
+
+  Phase 1 lands the eBPF infrastructure: a no-op tap on
+  sched_process_exec proves the chain works end-to-end — the BPF
+  program loads, the verifier accepts it, the tracepoint fires, the
+  counter increments, the loader reads it back, detach unpins every
+  pin. The ebpf feature is opt-in; cargo install zejtron without it
+  still ships the snapshot-only binary. No business logic changed;
+  the chain is proven, and later phases upgrade the first surface.
+
 ### Changed
 
 - The release checksum lane's fast hash upgrades from BLAKE2b-512

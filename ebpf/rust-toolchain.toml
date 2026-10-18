@@ -1,0 +1,34 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The eBPF crate's own toolchain pin (night-improve-1, the zelynic
+# and zylaxion lineage discipline carried over verbatim).
+#
+# The BPF side builds for the tier-3 bpfel-unknown-none target with
+# -Z build-std=core, which exists only on nightly — so this crate
+# carries its OWN dated nightly pin instead of a floating channel:
+# a new nightly can bump LLVM past what the pinned bpf-linker
+# accepts, and a dated pin makes that drift impossible. Any cargo
+# invocation with cwd inside ebpf/ resolves this file automatically,
+# including the nested build the root build.rs drives — the root
+# manifest's rust-toolchain.toml (1.98.1 stable) keeps governing
+# every build outside this directory, so the default pipeline stays
+# stable-only and the rust-version-sync gate (which reads the ROOT
+# file only) is untouched.
+#
+# rust-src is required by build-std. rustfmt is NOT pulled in here:
+# the ebpf tree rides the root crate's formatting gate through the
+# same nightly pin the bootstrap script installs (a component list
+# mismatch between this file and scripts/dev/bootstrap-ebpf.sh would
+# only cost a rustup component add, never a wrong build).
+#
+# Install once per machine — one command:
+#   ./scripts/dev/bootstrap-ebpf.sh
+# (manual alternative: rustup toolchain install nightly-2026-09-18
+#   --profile minimal --component rust-src, plus the bpf-linker
+#   0.11.1 prebuilt binary on PATH).
+
+[toolchain]
+channel = "nightly-2026-09-18"
+profile = "minimal"
+components = ["rust-src"]

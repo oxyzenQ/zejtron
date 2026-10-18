@@ -176,7 +176,16 @@ pub enum Commands {
         target: String,
     },
     #[command(about = "Check Zejtron system capability/readiness")]
-    Doctor,
+    Doctor {
+        #[arg(long, help = "Attach the eBPF tap (the privileged one-shot)")]
+        attach: bool,
+        #[arg(
+            long,
+            conflicts_with = "attach",
+            help = "Detach the eBPF tap (unpin everything, idempotent)"
+        )]
+        detach: bool,
+    },
     #[command(about = "Inspect network interfaces and routing context (read-only)")]
     Net,
 }
