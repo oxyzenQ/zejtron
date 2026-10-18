@@ -31,6 +31,24 @@ v11.0.0
   verification command, and the asset-inventory tripwire pins the
   new suffix (night-weekly-maintenance-1).
 
+- The README's pitch is sharpened: the consolidation table now
+  names the origin projects by name (pidnest, Zenlixem) and a
+  second table names the tools zejtron replaces (which, ss, lsof,
+  ps, systemctl, journalctl, env). The "read-only" claim is
+  qualified to "system files" so the env snapshot write is named
+  honestly. The speed boundary is stated (kernel-native tools are
+  faster for the single-question case; zejtron is the
+  multi-question tool). MSRV is named from rust-toolchain.toml.
+  A container-visibility limitation is added. No code, tests, or
+  CLI surfaces touched.
+
+  The README now says what it was already doing: the consolidation
+  of pidnest and Zenlixem is named as history, the replacement of
+  which/ss/lsof/ps/systemctl/journalctl is named as the pitch, and
+  the boundary of the 'read-only' claim is the system, not the
+  user's own state directory. The boring and serious surface tells
+  the truth about its own shape.
+
 ### Fixed
 
 - The doctor's proc_net check no longer false-alarms on an idle

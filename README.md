@@ -70,14 +70,24 @@ together — each with its own output dialect, none of it deterministic.
 
 zejtron is one binary that answers the incident questions in one
 dialect. The output is deterministic, the timestamps are UTC with an
-explicit marker, and the tool never writes.
+explicit marker, and the tool never writes to the system.
 
 ### What makes zejtron sharp
 
 - **One binary, thirteen surfaces** — path, recent, port, proc, holds,
   touch, why, env, service, shell, net, git, doctor.
+
+  For the single-question case, the kernel-native tools are faster —
+  `ss` asks the kernel directly, `lsof` has decades of tuning. zejtron
+  is the tool for the multi-question case: when you would otherwise
+  string seven tools together and parse seven dialects, the total
+  wall-clock is smaller and the output is diffable.
 - **Read-only by design** — it does not kill processes, close ports,
-  start or stop services, or modify files. Ever.
+  start or stop services, or modify system files. Ever.
+
+  The only writes are the env snapshot under your own state directory
+  (`zejtron env save <name>`); zejtron never writes to a system path,
+  a configuration file, or a file it did not itself create.
 - **Deterministic output** — the same evidence, the same bytes, on
   every host. Piped output carries zero escape bytes.
 - **UTC everywhere** — evidence timestamps render
@@ -99,9 +109,12 @@ lockfile is committed so `cargo install zejtron --locked` reproduces
 the exact graph the release lane vetted. See
 [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md).
 
-### vs the tools it replaces
+### Origin projects (consolidated)
 
-zejtron consolidates two earlier projects into one release flow:
+zejtron is the consolidation of two earlier projects — pidnest and
+Zenlixem — into one release flow. Old muscle memory is honored at the
+CLI: the retired subcommands name their successor instead of
+dead-ending.
 
 | Origin | Tool | zejtron surface |
 | --- | --- | --- |
@@ -112,9 +125,22 @@ zejtron consolidates two earlier projects into one release flow:
 | Zenlixem | doctor (network) | `zejtron net` |
 | Zenlixem | envpath | `zejtron path` |
 
-Old muscle memory is honored at the CLI too: `zejtron whoholds`,
-`lasttouch`, `whyopen`, and `envpath` name their successor instead of
-dead-ending in an unrecognized-subcommand error.
+### Tools it replaces (the pitch)
+
+| The old path | The zejtron surface |
+| --- | --- |
+| `which <cmd>` | `zejtron path <cmd>` |
+| `ss -tlnp` | `zejtron port --tcp --group` |
+| `lsof -i :<port>` | `zejtron holds <port>` |
+| `lsof <path>` | `zejtron holds <path>` |
+| `ps auxf` | `zejtron proc --me` |
+| `systemctl status <unit>` | `zejtron service <unit>` |
+| `journalctl -u <unit>` | `zejtron why <path-or-port>` |
+| `env \| grep <pattern>` | `zejtron env --filter <pattern>` |
+
+Seven tools, seven dialects, one investigation. zejtron answers the
+same questions in one dialect, deterministically, with the output
+diffable and pipeable.
 
 ## Quick Start
 
@@ -122,8 +148,9 @@ dead-ending in an unrecognized-subcommand error.
 
 - Linux with procfs at `/proc` (zejtron is Linux-first; x86-64-v3/v4
   are the shipped shapes)
-- rust (the pinned toolchain, via `rust-toolchain.toml`) for the
-  from-source and on-my-machine lanes
+- rust 1.98.1 (the pinned toolchain in `rust-toolchain.toml`; older
+  rustc versions do not build zejtron) for the from-source and
+  on-my-machine lanes
 - Optional: `systemctl` (for `service`), `journalctl` (touch/why
   journal evidence), `git` (for `git`), `pacman` (package-ownership
   rows in `path` on Arch)
@@ -258,12 +285,19 @@ same stamp.
   subcommands.
 - `path` package ownership requires `pacman` (Arch); other distros
   show the file facts only.
+- Inside a container, zejtron sees the container's own `/proc` — the
+  host's processes, sockets, and services are not visible unless the
+  container was started with `--pid=host` and `/proc` is mounted to
+  the host's. This is a kernel namespace boundary, not a zejtron
+  limit; the tool reports what the namespace shows, and the doctor
+  names the visibility it is working with.
 
 ## Safety Features
 
 - **Read-only by design** — no kill, no port close, no service
-  control, no file writes. `zejtron touch` inspects evidence; it is
-  not shell `touch` and does not create files or change timestamps.
+  control, no system file writes. `zejtron touch` inspects evidence;
+  it is not shell `touch` and does not create files or change
+  timestamps.
 - **Root refusal with a name** — `--check-update` (the network
   surface) and `env save`/`delete` (the filesystem-write surfaces)
   print the named refusal and a rerun tip instead of silently
