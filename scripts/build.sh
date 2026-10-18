@@ -33,16 +33,38 @@ cd "$repo_root"
 #     scope, the stamp file contract, the banner). Needs the nightly
 #     toolchain with the miri component; --no-install is CI's
 #     contract. Sub-flags: --filter <pat>, --no-install, --full.
+#   quiet (-q|--quiet, check-all and battery modes) - essentials
+#     only: the per-command `+ cmd` chatter is suppressed and every
+#     verdict-bearing line (errors, tolerated smokes, the final
+#     verdict) always emits. The CI shape - the fast lane names the
+#     exact invocation in its job title, so a reader can copy the
+#     name straight into a terminal and get the same gate locally.
 MODE="check-all"
+QUIET=0
 case "${1:---check-all}" in
 --check-all | check-all) MODE="check-all" ;;
 --battery | battery) MODE="battery" ;;
 --miri | miri) MODE="miri" ;;
 *)
-	echo "usage: ./scripts/build.sh [--check-all|--battery|--miri]" >&2
+	echo "usage: ./scripts/build.sh [--check-all|--battery|--miri] [-q|--quiet]" >&2
 	exit 2
 	;;
 esac
+if [[ "$MODE" != "miri" ]]; then
+	if [[ "$#" -gt 0 ]]; then
+		shift
+	fi
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--quiet | -q) QUIET=1 ;;
+		*)
+			echo "usage: ./scripts/build.sh [--check-all|--battery|--miri] [-q|--quiet]" >&2
+			exit 2
+			;;
+		esac
+		shift
+	done
+fi
 
 # miri sub-flags (parsed before anything else runs).
 MIRI_FILTER=""
@@ -113,7 +135,9 @@ cleanup() {
 trap cleanup EXIT
 
 run() {
-	echo "+ $*"
+	if [[ "$QUIET" != "1" ]]; then
+		echo "+ $*"
+	fi
 	"$@"
 }
 

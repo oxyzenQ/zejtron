@@ -86,7 +86,7 @@ concurrency:
 jobs:
   supermassive:
     name: ${{ matrix.title }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       # The declared toolchain IS the running toolchain (see the
