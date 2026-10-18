@@ -209,3 +209,69 @@ fn tier_accessors_return_the_constants() {
     assert_eq!(Tier::Ok.index_256(), OK_256);
     assert_eq!(Tier::Brand.index_256(), BRAND_256);
 }
+
+#[test]
+fn forced_lane_takes_the_classic_palette_floor() {
+    // night-improve-37: CLICOLOR_FORCE=1 must never land Mono - a
+    // probe-dead TERM (dumb, empty, unrecognized) takes the Color16
+    // floor (the sibling's improve-73 law), while a TERM that
+    // advertises its true rung still classifies to that rung.
+    assert_eq!(
+        classify(false, false, true, None, Some("dumb"), false),
+        ColorCapability::Color16
+    );
+    assert_eq!(
+        classify(false, false, true, None, None, false),
+        ColorCapability::Color16
+    );
+    assert_eq!(
+        classify(false, false, true, None, Some("xterm"), false),
+        ColorCapability::Color16
+    );
+    assert_eq!(
+        classify(false, false, true, None, Some("xterm-256color"), false),
+        ColorCapability::Color256
+    );
+    // zejtron's precedence: a dumb TERM vetoes even a COLORTERM
+    // truecolor claim (the dumb check runs first), so the forced
+    // lane takes its floor here, not the truecolor rung.
+    assert_eq!(
+        classify(false, false, true, Some("truecolor"), Some("dumb"), false),
+        ColorCapability::Color16
+    );
+    // The non-forced ladder keeps the documented Mono stance for an
+    // unrecognized TERM - the rung is the forced lane's floor only.
+    assert_eq!(
+        classify(false, false, false, None, Some("xterm"), true),
+        ColorCapability::Mono
+    );
+}
+
+#[test]
+fn color16_opens_carry_the_classic_bright_slots() {
+    // The forced lane's floor paints the aixterm bright slots - the
+    // only encoding that never garbles on a probe-dead terminal.
+    assert_eq!(
+        Tier::Error.open(ColorCapability::Color16, false),
+        "\x1b[91m"
+    );
+    assert_eq!(
+        Tier::Error.open(ColorCapability::Color16, true),
+        "\x1b[1;91m"
+    );
+    assert_eq!(Tier::Warn.open(ColorCapability::Color16, false), "\x1b[93m");
+    assert_eq!(
+        Tier::Warn.open(ColorCapability::Color16, true),
+        "\x1b[1;93m"
+    );
+    assert_eq!(Tier::Ok.open(ColorCapability::Color16, false), "\x1b[92m");
+    assert_eq!(Tier::Ok.open(ColorCapability::Color16, true), "\x1b[1;92m");
+    assert_eq!(
+        Tier::Brand.open(ColorCapability::Color16, false),
+        "\x1b[95m"
+    );
+    assert_eq!(
+        Tier::Brand.open(ColorCapability::Color16, true),
+        "\x1b[1;95m"
+    );
+}
