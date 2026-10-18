@@ -1,69 +1,36 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+pub(crate) mod pro_mode;
 pub mod styles;
 pub(crate) mod ux;
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use std::path::PathBuf;
 
-/// The Pro mode section of the help surface (night-improve-25, the
-/// sibling's zelynic shape): every flag of every verb, complete, on
-/// the one reference surface - grouped by the verb that owns each
-/// flag. The top-level Options block only ever shows the globals;
-/// the per-verb flags lived scattered across thirteen per-verb help
-/// renders, so the one surface a user reads end-to-end showed none of
-/// them. Pro mode owns the whole estate: each spelling mirrors the
-/// verb's own help string verbatim (one wording authority - the CLI
-/// structs), the hidden aliases are disclosed next to the flags they
-/// alias (--check-updated, --watch, --no-values), and the layout
-/// rides one description column so the geometry cannot drift per
-/// row. Rendered through clap's after_help: plain text, no embedded
-/// ANSI - piped output keeps its plain bytes and NO_COLOR stays
-/// default, the same law the runtime lane obeys.
-const PRO_MODE_HELP: &str = "\
-Pro mode:
-  The complete flag estate - grouped by the verbs that own them.
-  Each verb's own -h/--help shows its lane; this is the whole
-  estate on one surface.
+fn branded_command() -> clap::Command {
+    let mut cmd = Cli::command();
+    if crate::output::capability() == crate::output::ColorCapability::Color16 {
+        cmd = cmd.styles(styles::clap_styles_16());
+    }
+    // The Pro mode section paints at render time (night-improve-38):
+    // grey grammar on a color stdout, the exact plain bytes on a
+    // pipe - never a frozen string on either lane.
+    cmd.after_help(pro_mode::painted())
+}
 
-  recent:
-    --limit N           Maximum files to show (default 20)
-    --since DURATION    Only show files modified since this duration
-  port:
-    --tcp               Show TCP sockets
-    --udp               Show UDP sockets
-    --listen            Show listening or bound sockets (excludes --all)
-    --all               Show all parsed sockets
-    --numeric           Use numeric addresses and ports
-    --group             Group repeated rendered socket rows
-    --no-pid            Hide process IDs in owner lines
-  proc:
-    --me                Show processes owned by the current user
-    --live              Continuously refresh the process tree
-    --watch             Alias for --live
-    --interval SECONDS  Live refresh interval in seconds
-    --depth N           Limit rendered tree depth
-    --find PATTERN      Show process families matching a name substring
-    --no-pid            Hide pid=<PID> labels
-    --no-color          Disable ANSI color output
-  env:
-    --keys              Show variable names only
-    --no-values         Alias for --keys
-    --filter TEXT       Filter variables by key substring
-    --pid PID           Read /proc/<PID>/environ instead of this process
-    --mask-secrets      Mask common secret patterns (AWS, GitHub, JWT,
-                        private keys)
-  env diff:
-    --show-same         Show unchanged variables in a diff
-  service:
-    --system            Inspect system services
-    --user              Inspect user services
-    --failed            Show failed services only
-    --all               Show all service units
-    --filter TEXT       Filter services by unit name
-  global:
-    --check-update      Alias: --check-updated (same surface, one check)
-";
+/// Parse argv through the branded builder. The UX bridge downstream
+/// ([`ux::exit_clap_error`]) owns everything that is not `Ok`.
+pub(crate) fn parse_branded() -> Result<Cli, clap::error::Error> {
+    let matches = branded_command().try_get_matches_from(std::env::args_os())?;
+    Cli::from_arg_matches(&matches)
+}
+
+/// The branded command for direct help renders (main's bare-`zejtron`
+/// branch, the test pins): the same capability rule as
+/// [`parse_branded`], one truth, no drift between the entries.
+pub(crate) fn help_command() -> clap::Command {
+    branded_command()
+}
 
 #[derive(Debug, Parser)]
 #[command(
@@ -77,7 +44,6 @@ Pro mode:
     // the complete flag estate, grouped by the verbs that own each
     // flag, rendered plain through clap's after_help.
     disable_help_subcommand = true,
-    after_help = PRO_MODE_HELP,
     styles = crate::cli::styles::clap_styles()
 )]
 pub struct Cli {

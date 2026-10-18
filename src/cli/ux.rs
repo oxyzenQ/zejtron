@@ -9,7 +9,7 @@
 //! the one-tip contract, and the brand styles applied at render time
 //! through the same capability ladder every other surface answers to.
 //!
-//! Wiring: `main` parses with [`crate::cli::Cli::try_parse`] and hands
+//! Wiring: `main` parses with [`crate::cli::parse_branded`] and hands
 //! every error here. `DisplayHelp`/`DisplayVersion` still exit 0 on
 //! stdout through clap's own path (the help flag is real); every
 //! other kind is enriched, rendered with zejtron's clap styles, and
@@ -22,7 +22,7 @@
 //! the one-tip contract below already keeps every rescued error at
 //! exactly one tip.
 
-use crate::cli::Cli;
+use crate::cli::help_command;
 use clap::builder::Command;
 use clap::error::{ContextKind, ContextValue, Error, ErrorKind};
 use std::fmt::Write as _;
@@ -293,7 +293,7 @@ pub(crate) fn exit_clap_error(e: Error) -> ! {
         e.exit(); // stdout + exit 0, clap's own path
     }
     let mut e = e;
-    let mut cmd = Cli::command();
+    let mut cmd = help_command();
     let argv: Vec<String> = std::env::args().skip(1).collect();
     enrich_unknown_arg_suggestion(&mut e, &cmd, &argv);
     enrich_removed_subcommand_redirect(&mut e);

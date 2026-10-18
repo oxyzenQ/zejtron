@@ -8,8 +8,6 @@ mod output;
 mod system;
 mod update;
 
-use clap::Parser;
-
 fn main() {
     // Parse through the UX bridge (night-improve-19, the sibling's
     // zelynic contract): usage errors get the migration redirects,
@@ -17,7 +15,7 @@ fn main() {
     // brand styles at render time - exit 2. Help/version requests
     // keep clap's own stdout + exit 0 path. Runtime failures below
     // keep the labeled red renderer and exit 1.
-    let cli = match cli::Cli::try_parse() {
+    let cli = match cli::parse_branded() {
         Ok(cli) => cli,
         Err(e) => cli::ux::exit_clap_error(e),
     };
@@ -121,8 +119,12 @@ fn main() {
         Some(cli::Commands::Net) => commands::net::run(),
         Some(cli::Commands::Git) => commands::git::run(),
         None => {
-            let mut cmd = cli::Cli::command();
-            cmd.print_help().map(|_| println!()).map_err(Into::into)
+            // The branded builder, not the raw derive command: the
+            // bare help render obeys the same capability rule as -h.
+            cli::help_command()
+                .print_help()
+                .map(|_| println!())
+                .map_err(Into::into)
         }
     };
 
