@@ -15,6 +15,14 @@
 # already carries, or a non-standard Released shape warns and writes
 # nothing - never claim a write that did not happen, and a ledger
 # this script did not create is not one it rewrites).
+# The input gate carries the release lane's full tag contract
+# (night-improve-9): release.yml validates a v-prefixed semver with an
+# OPTIONAL pre-release suffix (vX.Y.Z or vX.Y.Z-prerelease - the
+# rc/alpha/beta/dev shapes its previous-tag boundary and --prerelease
+# lanes consume), so the version manager accepts the same shape and
+# every rewrite lane below consumes an optional OLD-version suffix:
+# a tree sitting on v12.0.0-rc.1 bumps to v12.0.0-rc.2 or to v12.0.0
+# with no stale -rc.N tail riding the rewritten surfaces.
 
 set -Eeuo pipefail
 
@@ -24,15 +32,21 @@ error() {
 }
 
 if [[ $# -ne 1 ]]; then
-	error "usage: ./scripts/dev/version-to.sh vX.Y.Z"
+	error "usage: ./scripts/dev/version-to.sh vX.Y.Z[-pre]"
 fi
 
 input="$1"
-if [[ "$input" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+# Stable and pre-release alike: the suffix charset mirrors the
+# sibling's validate_version lane (-[A-Za-z0-9.], e.g. -rc.1, -alpha.2,
+# -beta.3) - the same shape release.yml validates at tag time.
+if [[ "$input" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-([A-Za-z0-9.]+))?$ ]]; then
 	VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+	if [[ -n "${BASH_REMATCH[5]:-}" ]]; then
+		VERSION="${VERSION}-${BASH_REMATCH[5]}"
+	fi
 	TAG="v${VERSION}"
 else
-	error "version must be normal semver: vX.Y.Z or X.Y.Z"
+	error "version must be semver: vX.Y.Z or vX.Y.Z-pre (e.g. vX.Y.Z-rc.1)"
 fi
 
 for command in git cargo; do
@@ -114,19 +128,19 @@ changelog_release() {
 
 echo "Updating zejtron to ${TAG}"
 
-sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+"/version = "'"${VERSION}"'"/' Cargo.toml
+sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?"/version = "'"${VERSION}"'"/' Cargo.toml
 cargo update -p zejtron
 
-sed -i -E 's/^TAG=v[0-9]+\.[0-9]+\.[0-9]+/TAG='"${TAG}"'/' README.md docs/workflow/about-ci.md
-sed -i -E 's#(zejtron-)v[0-9]+\.[0-9]+\.[0-9]+(-linux-)#\1'"${TAG}"'\2#g' README.md docs/workflow/about-ci.md
-sed -i -E 's#(/download/)v[0-9]+\.[0-9]+\.[0-9]+/#\1'"${TAG}"'/#g' README.md docs/workflow/about-ci.md
-sed -i -E 's#(git tag -a )v[0-9]+\.[0-9]+\.[0-9]+#\1'"${TAG}"'#g' docs/workflow/about-ci.md
-sed -i -E 's#(git tag -a v[0-9]+\.[0-9]+\.[0-9]+ -m ")v[0-9]+\.[0-9]+\.[0-9]+(")#\1'"${TAG}"'\2#g' docs/workflow/about-ci.md
-sed -i -E 's#(git push origin )v[0-9]+\.[0-9]+\.[0-9]+#\1'"${TAG}"'#g' docs/workflow/about-ci.md
-sed -i -E 's#(git commit -m "chore: prepare )v[0-9]+\.[0-9]+\.[0-9]+( release")#\1'"${TAG}"'\2#g' docs/workflow/about-ci.md
-sed -i -E 's#(./version-to\.sh )v[0-9]+\.[0-9]+\.[0-9]+#\1'"${TAG}"'#g' README.md docs/workflow/about-ci.md
-sed -i -E 's#(img\.shields\.io/badge/version-)v[0-9]+\.[0-9]+\.[0-9]+-#\1'"${TAG}"'-#g' README.md
-sed -i -E 's#(alt="Version )v[0-9]+\.[0-9]+\.[0-9]+(")#\1'"${TAG}"'\2#g' README.md
+sed -i -E 's/^TAG=v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?/TAG='"${TAG}"'/' README.md docs/workflow/about-ci.md
+sed -i -E 's#(zejtron-)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(-linux-)#\1'"${TAG}"'\3#g' README.md docs/workflow/about-ci.md
+sed -i -E 's#(/download/)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?/#\1'"${TAG}"'/#g' README.md docs/workflow/about-ci.md
+sed -i -E 's#(git tag -a )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' docs/workflow/about-ci.md
+sed -i -E 's#(git tag -a v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)? -m ")v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(")#\1'"${TAG}"'\4#g' docs/workflow/about-ci.md
+sed -i -E 's#(git push origin )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' docs/workflow/about-ci.md
+sed -i -E 's#(git commit -m "chore: prepare )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?( release")#\1'"${TAG}"'\3#g' docs/workflow/about-ci.md
+sed -i -E 's#(./version-to\.sh )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' README.md docs/workflow/about-ci.md
+sed -i -E 's#(img\.shields\.io/badge/version-)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?-#\1'"${TAG}"'-#g' README.md
+sed -i -E 's#(alt="Version )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(")#\1'"${TAG}"'\3#g' README.md
 
 # --- Record the release in CHANGELOG.md (the release ledger line) ---
 changelog_release "${VERSION}"

@@ -77,6 +77,12 @@ writer probes honestly: a missing file, an already-recorded version, or
 a non-standard section shape warns and writes nothing rather than
 claiming a rewrite that did not happen, and the script's final
 verification fails if the ledger line for the new version is absent.
+The pass carries the release lane's full tag shape: the input accepts a
+stable or pre-release version (`vX.Y.Z` or `vX.Y.Z-rc.1`, the optional
+suffix shape `release.yml` validates before flipping the GitHub
+release's prerelease flag), and every rewrite consumes an optional
+old-version suffix, so a tree sitting on an rc cut bumps to the next rc
+or to stable with no stale `-rc.N` tail on any rewritten surface.
 
 ## Release Command Flow
 
