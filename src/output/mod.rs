@@ -22,13 +22,22 @@
 //! |---|---|---|
 //! | TrueColor | `COLORTERM=truecolor/24bit`, `TERM` contains `-direct`/`-truecolor`, or `TERM` names a truecolor-native terminal (alacritty, kitty, ghostty, wezterm, foot, contour) | 24-bit RGB escape |
 //! | Color256 | `TERM` contains `256color` | nearest xterm-256 cube index |
+//! | Color16 | `CLICOLOR_FORCE=1` with `TERM=dumb`/unset/unrecognized - the forced lane's floor, never a probe verdict | classic ANSI bright slots (the palette renders back to VT100) |
 //! | Mono | `NO_COLOR`, `CLICOLOR=0`, `TERM=dumb`/unset, or stderr not a TTY (unless `CLICOLOR_FORCE=1`) | plain text |
 //!
-//! There is no 16-color rung on purpose: an unrecognized `TERM`
-//! would make a 16-color guess a lie on the very terminals the rung
-//! claims to serve, and Mono (plain text) is the only honest output
-//! there. The ladder anchors on STDERR's TTY-ness (the sibling's
-//! rule): this lane's surfaces speak through stderr, and a
+//! There is still no probe-driven 16-color rung: an unrecognized
+//! `TERM` would make a 16-color guess a lie on the very terminals
+//! the rung claims to serve, and Mono (plain text) is the only
+//! honest output there. The one Color16 seat is the forced lane's
+//! floor (night-improve-37, the sibling's improve-73 law):
+//! `CLICOLOR_FORCE=1` is a promise, and before this rung a
+//! probe-dead `TERM` (dumb, empty, unrecognized) vetoed the promise
+//! and landed the forced lane on Mono - the documented force
+//! contract broken exactly where the sibling's had already been
+//! fixed. The classic bright slots render on every terminal back to
+//! VT100, so the forced lane never garbles and never lands Mono.
+//! The ladder anchors on STDERR's TTY-ness (the sibling's rule):
+//! this lane's surfaces speak through stderr, and a
 //! `zejtron ... | grep` pipe on stdout must not cost the error lane
 //! its color. `CLICOLOR_FORCE=1` re-arms color for the wrapper
 //! scripts and CI logs that capture stderr away from a terminal.
@@ -82,10 +91,15 @@ const BRAND_RGB: (u8, u8, u8) = (168, 85, 247);
 const BRAND_256: u8 = 135;
 
 /// The color capability this process renders with, detected once.
+/// `Color16` is the forced lane's floor only (see the module doc): a
+/// probe verdict never lands there, so a plain `TERM` stays Mono and
+/// only `CLICOLOR_FORCE=1` over a probe-dead `TERM` reaches the
+/// classic palette.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ColorCapability {
     TrueColor,
     Color256,
+    Color16,
     Mono,
 }
 
@@ -147,6 +161,20 @@ impl Tier {
             (ColorCapability::Color256, Tier::Ok, true) => "\x1b[1;38;5;84m",
             (ColorCapability::Color256, Tier::Brand, false) => "\x1b[38;5;135m",
             (ColorCapability::Color256, Tier::Brand, true) => "\x1b[1;38;5;135m",
+            // The forced lane's floor (night-improve-37): the
+            // classic bright slots, the aixterm additions every
+            // VT100-era terminal speaks. No RGB here - a
+            // probe-dead terminal's palette is unknown, and the
+            // classic slots are the only encoding that never
+            // garbles on one.
+            (ColorCapability::Color16, Tier::Error, false) => "\x1b[91m",
+            (ColorCapability::Color16, Tier::Error, true) => "\x1b[1;91m",
+            (ColorCapability::Color16, Tier::Warn, false) => "\x1b[93m",
+            (ColorCapability::Color16, Tier::Warn, true) => "\x1b[1;93m",
+            (ColorCapability::Color16, Tier::Ok, false) => "\x1b[92m",
+            (ColorCapability::Color16, Tier::Ok, true) => "\x1b[1;92m",
+            (ColorCapability::Color16, Tier::Brand, false) => "\x1b[95m",
+            (ColorCapability::Color16, Tier::Brand, true) => "\x1b[1;95m",
             (ColorCapability::Mono, _, _) => "",
         }
     }
@@ -173,7 +201,15 @@ fn classify(
         return ColorCapability::Mono;
     }
     let term = term.unwrap_or("");
-    if term == "dumb" {
+    if term == "dumb" || term.is_empty() {
+        // The forced lane's floor (night-improve-37, the
+        // sibling's improve-73 law): CLICOLOR_FORCE=1 promised
+        // color, so a probe-dead TERM must not veto the promise.
+        // The classic palette renders on every terminal back to
+        // VT100 - the forced lane lands Color16, never Mono.
+        if clicolor_force {
+            return ColorCapability::Color16;
+        }
         return ColorCapability::Mono;
     }
     let colorterm_truecolor =
@@ -198,6 +234,13 @@ fn classify(
     if term.contains("256color") {
         return ColorCapability::Color256;
     }
+    // Unrecognized non-dumb TERM: the non-forced ladder keeps the
+    // documented Mono stance (a 16-color guess would be a lie on
+    // the very terminals it claims to serve); the forced lane
+    // takes the classic-palette floor instead.
+    if clicolor_force {
+        return ColorCapability::Color16;
+    }
     ColorCapability::Mono
 }
 
@@ -212,7 +255,12 @@ pub(crate) fn capability() -> ColorCapability {
         classify(
             env_flag("NO_COLOR"),
             env_flag("CLICOLOR") && std::env::var("CLICOLOR").is_ok_and(|v| v == "0"),
-            env_flag("CLICOLOR_FORCE"),
+            // The spec: any non-empty value except "0" forces.
+            // The old env_flag() call forced on CLICOLOR_FORCE=0
+            // too - the opposite of the variable's meaning.
+            std::env::var("CLICOLOR_FORCE")
+                .ok()
+                .is_some_and(|v| !v.is_empty() && v != "0"),
             env_value("COLORTERM").as_deref(),
             env_value("TERM").as_deref(),
             std::io::stderr().is_terminal(),
