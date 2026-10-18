@@ -170,6 +170,19 @@ cargo install zejtron
 
 ### Install from source
 
+Lazy? Skip the manual order entirely — one command runs the WHOLE
+bring-up (bootstrap + the pro-native-gnu flagship build + the rootless
+CLI battery + the four release-shape legs) and ends with a next-steps
+menu:
+
+```sh
+./scripts/setup.sh               # everything
+./scripts/setup.sh --musl        # also build the static musl twin
+./scripts/setup.sh --skip-heavy  # bootstrap + build + self-test only
+```
+
+Prefer the classic path instead:
+
 ```sh
 git clone https://github.com/oxyzenQ/zejtron
 cd zejtron
