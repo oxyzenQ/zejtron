@@ -90,6 +90,17 @@ const BRAND_RGB: (u8, u8, u8) = (168, 85, 247);
 #[cfg(test)]
 const BRAND_256: u8 = 135;
 
+/// Calm grey RGB: #8B8B8B (139,139,139) - the grammar tier (the
+/// sibling's flag-row law): typeable flag spellings on the help
+/// surfaces ride this tier wherever they appear, dimmer than the
+/// data they annotate. 256-color fallback: index 245 (the nearest
+/// grey-ramp rung). Color16 floor: bright black (90), the palette's
+/// only honest grey.
+#[cfg(test)]
+const GRAMMAR_RGB: (u8, u8, u8) = (139, 139, 139);
+#[cfg(test)]
+const GRAMMAR_256: u8 = 245;
+
 /// The color capability this process renders with, detected once.
 /// `Color16` is the forced lane's floor only (see the module doc): a
 /// probe verdict never lands there, so a plain `TERM` stays Mono and
@@ -113,6 +124,7 @@ pub(crate) enum Tier {
     Warn,
     Ok,
     Brand,
+    Grammar,
 }
 
 impl Tier {
@@ -126,6 +138,7 @@ impl Tier {
             Tier::Warn => WARN_RGB,
             Tier::Ok => OK_RGB,
             Tier::Brand => BRAND_RGB,
+            Tier::Grammar => GRAMMAR_RGB,
         }
     }
 
@@ -136,6 +149,7 @@ impl Tier {
             Tier::Warn => WARN_256,
             Tier::Ok => OK_256,
             Tier::Brand => BRAND_256,
+            Tier::Grammar => GRAMMAR_256,
         }
     }
 
@@ -175,6 +189,16 @@ impl Tier {
             (ColorCapability::Color16, Tier::Ok, true) => "\x1b[1;92m",
             (ColorCapability::Color16, Tier::Brand, false) => "\x1b[95m",
             (ColorCapability::Color16, Tier::Brand, true) => "\x1b[1;95m",
+            // The grammar tier (night-improve-38, the sibling's
+            // flag-row law): dimmer than the data it annotates,
+            // bright black (90) at the Color16 floor - the
+            // palette's only honest grey.
+            (ColorCapability::TrueColor, Tier::Grammar, false) => "\x1b[38;2;139;139;139m",
+            (ColorCapability::TrueColor, Tier::Grammar, true) => "\x1b[1;38;2;139;139;139m",
+            (ColorCapability::Color256, Tier::Grammar, false) => "\x1b[38;5;245m",
+            (ColorCapability::Color256, Tier::Grammar, true) => "\x1b[1;38;5;245m",
+            (ColorCapability::Color16, Tier::Grammar, false) => "\x1b[90m",
+            (ColorCapability::Color16, Tier::Grammar, true) => "\x1b[1;90m",
             (ColorCapability::Mono, _, _) => "",
         }
     }
@@ -255,17 +279,22 @@ pub(crate) fn capability() -> ColorCapability {
         classify(
             env_flag("NO_COLOR"),
             env_flag("CLICOLOR") && std::env::var("CLICOLOR").is_ok_and(|v| v == "0"),
-            // The spec: any non-empty value except "0" forces.
-            // The old env_flag() call forced on CLICOLOR_FORCE=0
-            // too - the opposite of the variable's meaning.
-            std::env::var("CLICOLOR_FORCE")
-                .ok()
-                .is_some_and(|v| !v.is_empty() && v != "0"),
+            color_forced(),
             env_value("COLORTERM").as_deref(),
             env_value("TERM").as_deref(),
             std::io::stderr().is_terminal(),
         )
     })
+}
+
+/// The CLICOLOR_FORCE contract: any non-empty value except "0".
+/// One predicate, two consumers - the capability probe and the help
+/// surface's stdout gate (the force flag promises color bytes even
+/// when the stream is captured away from a terminal).
+pub(crate) fn color_forced() -> bool {
+    std::env::var("CLICOLOR_FORCE")
+        .ok()
+        .is_some_and(|v| !v.is_empty() && v != "0")
 }
 
 /// The reset sequence: closes any open color/style. Empty in Mono so
@@ -319,6 +348,14 @@ pub(crate) fn ok(msg: &str) -> String {
 /// Plain text when color is off.
 pub(crate) fn brand(msg: &str) -> String {
     wrap(msg, Tier::Brand)
+}
+
+/// Wrap `msg` in the calm-grey grammar tier (regular weight). Plain
+/// text when color is off. The help-surface seat: flag spellings are
+/// typeable grammar, and grammar is grey wherever it appears (the
+/// sibling's flag-row law).
+pub(crate) fn grammar_grey(msg: &str) -> String {
+    wrap(msg, Tier::Grammar)
 }
 
 /// Print a labeled error block to stderr: `error: <msg>` with the

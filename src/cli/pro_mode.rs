@@ -1,0 +1,193 @@
+// SPDX-FileCopyrightText: 2026 rezky_nightky
+// SPDX-License-Identifier: GPL-3.0-only
+
+//! The Pro mode section of the help surface (night-improve-25, the
+//! sibling's zelynic shape): every flag of every verb, complete, on
+//! the one reference surface - grouped by the verb that owns each
+//! flag. The top-level Options block only ever shows the globals;
+//! the per-verb flags lived scattered across thirteen per-verb help
+//! renders, so the one surface a user reads end-to-end showed none
+//! of them. Pro mode owns the whole estate: each spelling mirrors
+//! the verb's own help string verbatim (one wording authority - the
+//! CLI structs), the hidden aliases are disclosed next to the flags
+//! they alias (--check-updated, --watch, --no-values), and the
+//! layout rides one description column so the geometry cannot drift
+//! per row.
+//!
+//! Rendering (night-improve-38, the sibling's flag-row law): the
+//! spellings are typeable grammar, and grammar is grey wherever it
+//! appears - each row paints its flag token through the output
+//! ladder's grammar tier ([`crate::output::grammar_grey`]), while
+//! value tokens (N, DURATION, SECONDS, PID, TEXT) stay in the
+//! terminal default color: values are content, not grammar. The
+//! capability law the runtime lane obeys holds here too: Mono (or a
+//! non-terminal stdout without the force flag) renders the exact
+//! plain bytes - piped output keeps its plain bytes and NO_COLOR
+//! stays default; a color terminal gets the grey grammar.
+
+use crate::output::{ColorCapability, capability, grammar_grey};
+use std::io::IsTerminal;
+
+/// One flag row: the spelling cell (flag token plus its value token,
+/// verbatim from the CLI structs) and the description (verbatim from
+/// the verb's own help string; an embedded newline carries the
+/// description's wrapped continuation, re-indented to the column).
+type Row = (&'static str, &'static str);
+
+/// The complete flag estate, grouped by the verb that owns each flag.
+/// The single wording authority for the section's rows; the renderer
+/// computes the column, the data never encodes geometry.
+const GROUPS: &[(&str, &[Row])] = &[
+    (
+        "recent:",
+        &[
+            ("--limit N", "Maximum files to show (default 20)"),
+            (
+                "--since DURATION",
+                "Only show files modified since this duration",
+            ),
+        ],
+    ),
+    (
+        "port:",
+        &[
+            ("--tcp", "Show TCP sockets"),
+            ("--udp", "Show UDP sockets"),
+            (
+                "--listen",
+                "Show listening or bound sockets (excludes --all)",
+            ),
+            ("--all", "Show all parsed sockets"),
+            ("--numeric", "Use numeric addresses and ports"),
+            ("--group", "Group repeated rendered socket rows"),
+            ("--no-pid", "Hide process IDs in owner lines"),
+        ],
+    ),
+    (
+        "proc:",
+        &[
+            ("--me", "Show processes owned by the current user"),
+            ("--live", "Continuously refresh the process tree"),
+            ("--watch", "Alias for --live"),
+            ("--interval SECONDS", "Live refresh interval in seconds"),
+            ("--depth N", "Limit rendered tree depth"),
+            (
+                "--find PATTERN",
+                "Show process families matching a name substring",
+            ),
+            ("--no-pid", "Hide pid=<PID> labels"),
+            ("--no-color", "Disable ANSI color output"),
+        ],
+    ),
+    (
+        "env:",
+        &[
+            ("--keys", "Show variable names only"),
+            ("--no-values", "Alias for --keys"),
+            ("--filter TEXT", "Filter variables by key substring"),
+            (
+                "--pid PID",
+                "Read /proc/<PID>/environ instead of this process",
+            ),
+            (
+                "--mask-secrets",
+                "Mask common secret patterns (AWS, GitHub, JWT,\nprivate keys)",
+            ),
+        ],
+    ),
+    (
+        "env diff:",
+        &[("--show-same", "Show unchanged variables in a diff")],
+    ),
+    (
+        "service:",
+        &[
+            ("--system", "Inspect system services"),
+            ("--user", "Inspect user services"),
+            ("--failed", "Show failed services only"),
+            ("--all", "Show all service units"),
+            ("--filter TEXT", "Filter services by unit name"),
+        ],
+    ),
+    (
+        "global:",
+        &[(
+            "--check-update",
+            "Alias: --check-updated (same surface, one check)",
+        )],
+    ),
+];
+
+/// The intro block, verbatim (night-improve-25's wording).
+const INTRO: &str = "\
+Pro mode:
+  The complete flag estate - grouped by the verbs that own them.
+  Each verb's own -h/--help shows its lane; this is the whole
+  estate on one surface.
+
+";
+
+/// The row indent: two under the group's own two.
+const ROW_INDENT: usize = 4;
+
+/// True when the help surface may carry escape bytes: the capability
+/// ladder says color AND the render destination can speak it - a
+/// terminal stdout, or the force flag's piped promise (the same two
+/// conditions clap's own help gate answers to, so the Pro mode
+/// section and clap's Options block always agree).
+fn stdout_paintable() -> bool {
+    if capability() == ColorCapability::Mono {
+        return false;
+    }
+    std::io::stdout().is_terminal() || crate::output::color_forced()
+}
+
+/// Build the Pro mode section: grey grammar on a color stdout, the
+/// exact plain bytes otherwise. The description column is computed
+/// from the data (longest spelling cell + two), so the geometry
+/// cannot drift per row and the plain render stays byte-identical
+/// to the surface the tests pin.
+#[must_use]
+pub(crate) fn painted() -> String {
+    let paint = stdout_paintable();
+    let longest = GROUPS
+        .iter()
+        .flat_map(|group| group.1.iter())
+        .map(|(spelling, _)| spelling.chars().count())
+        .max()
+        .unwrap_or(0);
+    let column = ROW_INDENT + longest + 2;
+
+    let mut out = String::from(INTRO);
+    for (group, rows) in GROUPS {
+        out.push_str("  ");
+        out.push_str(group);
+        out.push('\n');
+        for (spelling, desc) in rows.iter() {
+            let pad = column - ROW_INDENT - spelling.chars().count();
+            let flag_token = spelling.split(' ').next().unwrap_or(spelling);
+            let value_token = &spelling[flag_token.len()..];
+            out.push_str(&" ".repeat(ROW_INDENT));
+            if paint {
+                out.push_str(&grammar_grey(flag_token));
+            } else {
+                out.push_str(flag_token);
+            }
+            out.push_str(value_token);
+            out.push_str(&" ".repeat(pad));
+            let continuation = &" ".repeat(column);
+            for (i, line) in desc.split('\n').enumerate() {
+                if i > 0 {
+                    out.push('\n');
+                    out.push_str(continuation);
+                }
+                out.push_str(line);
+            }
+            out.push('\n');
+        }
+    }
+    // The trailing newline the frozen section carried stays: clap
+    // appends its own spacing after the section, so the byte shape
+    // of the whole help render stays identical to the old surface.
+    out
+}

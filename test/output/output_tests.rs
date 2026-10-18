@@ -275,3 +275,36 @@ fn color16_opens_carry_the_classic_bright_slots() {
         "\x1b[1;95m"
     );
 }
+
+#[test]
+fn grammar_tier_rides_the_documented_grey_rungs() {
+    // night-improve-38: the grammar tier is the sibling's flag-row
+    // grey - RGB 139/139/139 at the truecolor rung, cube index 245
+    // at the 256 rung, bright black (90) at the Color16 floor.
+    assert_eq!(
+        Tier::Grammar.open(ColorCapability::TrueColor, false),
+        "\x1b[38;2;139;139;139m"
+    );
+    assert_eq!(
+        Tier::Grammar.open(ColorCapability::Color256, false),
+        "\x1b[38;5;245m"
+    );
+    assert_eq!(
+        Tier::Grammar.open(ColorCapability::Color16, false),
+        "\x1b[90m"
+    );
+    assert_eq!(
+        Tier::Grammar.open(ColorCapability::Color16, true),
+        "\x1b[1;90m"
+    );
+    assert_eq!(Tier::Grammar.open(ColorCapability::Mono, false), "");
+    assert_eq!(Tier::Grammar.rgb(), (139, 139, 139));
+    assert_eq!(Tier::Grammar.index_256(), 245);
+}
+
+#[test]
+fn grammar_grey_stays_plain_when_mono() {
+    // The wrapper short-circuit: piped tests run Mono, so the
+    // grammar wrap must return the plain message bytes.
+    assert_eq!(grammar_grey("--limit"), "--limit");
+}

@@ -347,7 +347,7 @@ them.
 
 ## Test Results
 
-The suite is the contract: 300 tests green at every landing, plus the
+The suite is the contract: 302 tests green at every landing, plus the
 CLI battery run against the built binary per supermassive leg (MSRV
 and stable, gnu and musl), the miri UB lane, and the container end-to-end
 leg. CI blocks the merge on every one of them — a green pipeline has

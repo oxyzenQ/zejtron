@@ -12,7 +12,7 @@ use super::*;
 /// The Pro mode section is on the help surface (night-improve-25).
 #[test]
 fn help_carries_pro_mode_section() {
-    let help = Cli::command().render_help().to_string();
+    let help = help_command().render_help().to_string();
     assert!(help.contains("Pro mode:"));
 }
 
@@ -20,7 +20,7 @@ fn help_carries_pro_mode_section() {
 /// that names them next to the flags they alias.
 #[test]
 fn pro_mode_discloses_every_hidden_alias() {
-    let help = Cli::command().render_help().to_string();
+    let help = help_command().render_help().to_string();
     for alias in ["--check-updated", "--watch", "--no-values"] {
         assert!(
             help.contains(alias),
@@ -33,7 +33,7 @@ fn pro_mode_discloses_every_hidden_alias() {
 /// and the advanced knobs are spelled on the surface.
 #[test]
 fn pro_mode_covers_every_flag_owning_verb() {
-    let help = Cli::command().render_help().to_string();
+    let help = help_command().render_help().to_string();
     for group in [
         "recent:",
         "port:",

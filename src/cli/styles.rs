@@ -28,7 +28,7 @@
 //! [`crate::cli::Cli`] styles the whole command tree.
 
 use clap::builder::Styles;
-use clap::builder::styling::{Color, Effects, RgbColor, Style};
+use clap::builder::styling::{AnsiColor, Color, Effects, RgbColor, Style};
 
 /// The brand clap styles: purple headings, grey grammar, aligned errors.
 #[must_use]
@@ -53,4 +53,38 @@ pub(crate) fn clap_styles() -> Styles {
         )
         .valid(Style::new().fg_color(Some(Color::Rgb(RgbColor(139, 139, 139)))))
         .invalid(Style::new().fg_color(Some(Color::Rgb(RgbColor(255, 235, 60)))))
+}
+
+/// The 16-color clap palette (night-improve-38, the sibling's bridge
+/// law): the same brand shape one rung down the ladder, since clap
+/// cannot speak RGB at a 16-color terminal and the brand purple
+/// would garble. Brand purple falls to bold magenta, error red to
+/// bold red, the grammar grey to bright black (90, the palette's
+/// only honest grey), the invalid yellow to yellow. The branded
+/// entries ([`cli::parse_branded`], [`cli::help_command`], the ux
+/// bridge) swap these in when the capability ladder reports Color16,
+/// so a forced 16-color terminal never receives RGB bytes from any
+/// clap render.
+#[must_use]
+pub(crate) fn clap_styles_16() -> Styles {
+    Styles::styled()
+        .header(
+            Style::new()
+                .effects(Effects::BOLD)
+                .fg_color(Some(Color::Ansi(AnsiColor::Magenta))),
+        )
+        .usage(
+            Style::new()
+                .effects(Effects::BOLD)
+                .fg_color(Some(Color::Ansi(AnsiColor::Magenta))),
+        )
+        .literal(Style::new().effects(Effects::BOLD))
+        .placeholder(Style::new())
+        .error(
+            Style::new()
+                .effects(Effects::BOLD)
+                .fg_color(Some(Color::Ansi(AnsiColor::Red))),
+        )
+        .valid(Style::new().fg_color(Some(Color::Ansi(AnsiColor::BrightBlack))))
+        .invalid(Style::new().fg_color(Some(Color::Ansi(AnsiColor::Yellow))))
 }

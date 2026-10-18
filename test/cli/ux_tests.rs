@@ -8,6 +8,7 @@
 //! inline tests did.
 
 use super::*;
+use crate::cli::Cli;
 use clap::Parser;
 
 fn parse_err(args: &[&str]) -> Error {
