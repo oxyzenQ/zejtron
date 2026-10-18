@@ -10,7 +10,10 @@
 #
 # The contract: every `uses:` reference in the CI estate stays on
 # the freshest version the upstream publishes, so the workflows
-# never rot on stale pins. Two seats, one engine:
+# never rot on stale pins. Three seats, one engine:
+#   - automatic report: the pre-commit hook (check-commit-gate.sh
+#     delegates here, advisory) - every commit on a wired clone
+#     reads the pins' freshness; skips stay skips, never blocks
 #   - on-demand read:   ./scripts/gates/check-actions-pins.sh
 #   - maintainer heal:  ./scripts/gates/check-actions-pins.sh --apply
 #       (the healed pins are committed like any other change)
@@ -33,9 +36,11 @@
 #   - a branch pin (dtolnay/rust-toolchain @stable): not a version
 #     pin - reported as SKIP, healed by a human decision, never by
 #     a guess.
-#   - a SHA pin: the pin's identity is the commit; without the
-#     sibling's version-comment contract zejtron carries no SHA
-#     pins, and one appearing is reported as SKIP for a human call.
+#   - a SHA pin: the pin's identity is the commit. The estate does
+#     carry SHA pins (the supply-chain-sensitive lanes), but none
+#     carry the sibling's trailing version-comment note, so a SHA
+#     pin's freshness is not machine-checkable here - it is
+#     reported as SKIP for a human call.
 #   - local (./...) and docker:// refs: out of scope by
 #     construction.
 #   - a pin AHEAD of the latest release: a deliberate pin wins over
@@ -62,9 +67,9 @@
 #   ./scripts/gates/check-actions-pins.sh --apply    # heal tag pins
 #   ./scripts/gates/check-actions-pins.sh --apply --strict
 #
-# Exit codes: 0 current (or advisory skips only); 1 stale verdict
-# under --strict; 2 usage error, API contract failure under
-# --strict, or a diff-guard violation under --apply.
+# Exit codes: 0 current (or advisory skips only); 1 a KNOWN-stale
+# verdict under --strict; 2 usage error, a missing curl, or a
+# diff-guard violation under --apply.
 
 set -Eeuo pipefail
 
