@@ -175,75 +175,10 @@ pub enum Commands {
         )]
         target: String,
     },
-    #[command(about = "Inspect and compare environment variables")]
-    Env {
-        #[command(subcommand)]
-        command: Option<EnvCommands>,
-        #[arg(long, help = "Show variable names only")]
-        keys: bool,
-        #[arg(long, value_name = "TEXT", help = "Filter variables by key substring")]
-        filter: Option<String>,
-        #[arg(long, help = "Alias for --keys")]
-        no_values: bool,
-        #[arg(
-            long,
-            value_name = "PID",
-            help = "Read environment from /proc/<PID>/environ instead of this process"
-        )]
-        pid: Option<u32>,
-        #[arg(
-            long,
-            help = "Mask common secret patterns (AWS, GitHub, JWT, private keys)"
-        )]
-        mask_secrets: bool,
-    },
-    #[command(about = "Inspect systemd services (read-only)")]
-    Service {
-        /// Optional unit name to show detailed info (MainPID, ExecStart, etc.)
-        #[arg(value_name = "UNIT")]
-        unit: Option<String>,
-        #[arg(long, conflicts_with = "user", help = "Inspect system services")]
-        system: bool,
-        #[arg(long, help = "Inspect user services")]
-        user: bool,
-        #[arg(long, help = "Show failed services only")]
-        failed: bool,
-        #[arg(long, help = "Show all service units")]
-        all: bool,
-        #[arg(long, value_name = "TEXT", help = "Filter services by unit name")]
-        filter: Option<String>,
-    },
     #[command(about = "Check Zejtron system capability/readiness")]
     Doctor,
-    #[command(about = "Inspect current shell context (read-only)")]
-    Shell,
     #[command(about = "Inspect network interfaces and routing context (read-only)")]
     Net,
-    #[command(about = "Inspect git repository context (read-only)")]
-    Git,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum EnvCommands {
-    #[command(about = "Save current environment snapshot")]
-    Save {
-        #[arg(value_name = "NAME")]
-        name: String,
-    },
-    #[command(about = "List saved environment snapshots")]
-    List,
-    #[command(about = "Delete saved environment snapshot")]
-    Delete {
-        #[arg(value_name = "NAME")]
-        name: String,
-    },
-    #[command(about = "Compare saved environment snapshot with current environment")]
-    Diff {
-        #[arg(value_name = "NAME")]
-        name: String,
-        #[arg(long, help = "Show unchanged variables")]
-        show_same: bool,
-    },
 }
 
 impl Cli {

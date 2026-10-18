@@ -86,7 +86,7 @@ pub(super) fn scan_pid_fds_for_file(pid: u32, target: FileId) -> ProcRead<Vec<(i
     ProcRead::Ok(fds)
 }
 
-/// Read /proc/<pid>/fdinfo/<fd> and parse the `flags:` field to determine
+/// Read `/proc/<pid>/fdinfo/<fd>` and parse the `flags:` field to determine
 /// the FD access mode (O_RDONLY=0, O_WRONLY=1, O_RDWR=2). Returns
 /// FdMode::Unknown when fdinfo is unreadable or the flags line is missing.
 pub(super) fn read_fd_mode(pid: u32, fd: i32) -> FdMode {

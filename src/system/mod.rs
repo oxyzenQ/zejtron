@@ -17,6 +17,7 @@
 
 #![allow(dead_code)]
 
+pub mod pacman;
 pub mod pathguard;
 use std::fs;
 use std::path::Path;
@@ -145,11 +146,14 @@ pub fn root_refusal(euid_is_root: bool, surface: &str) -> Option<String> {
 /// The guard the fatal surfaces call before their first side effect:
 /// `Err(refusal)` on euid 0, `Ok(())` on every non-root identity.
 /// The night-improve-16 audit pinned the fatal set at three:
-/// `--check-update` (network fetch), `env save` and `env delete`
-/// (filesystem writes into the data dir). Every other surface in the
-/// binary is read-only by construction - journalctl/systemctl/git/
-/// package queries only - and stays unguarded on purpose; this doc
-/// line is the audit record, keep it true when surfaces change.
+/// `--check-update` (network fetch) and the two environment-snapshot
+/// writes of the era (filesystem writes into the data dir). The v80
+/// surface reduction (night-improve-0) retired both snapshot
+/// surfaces, so the fatal set is one: `--check-update`. Every other
+/// surface in the binary is read-only by construction -
+/// journalctl/package-db queries only - and stays unguarded on
+/// purpose; this doc line is the audit record, keep it true when
+/// surfaces change.
 pub fn refuse_root(surface: &str) -> Result<(), String> {
     match root_refusal(effective_uid() == Some(0), surface) {
         Some(refusal) => Err(refusal),
@@ -225,7 +229,7 @@ pub fn extract_systemd_unit(cgroup: &str) -> Option<String> {
     None
 }
 
-/// Read /proc/<pid>/cgroup and extract the systemd unit name.
+/// Read `/proc/<pid>/cgroup` and extract the systemd unit name.
 pub fn read_systemd_unit(proc_root: &Path, pid: u32) -> Option<String> {
     let cgroup = fs::read_to_string(proc_root.join(pid.to_string()).join("cgroup")).ok()?;
     // Take the last non-empty line (usually the unified v2 line)

@@ -170,34 +170,6 @@ expect_fail_contains() {
 	fi
 }
 
-service_smoke() {
-	local name="$1"
-	shift
-
-	set +e
-	"$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
-	local status=$?
-	set -e
-
-	if [[ "$status" -eq 0 ]]; then
-		cat "$tmpdir/${name}.out"
-		return
-	fi
-
-	if grep -Eqi "systemctl failed|Failed to connect|System has not been booted|No such file or directory|No medium found" \
-		"$tmpdir/${name}.out" "$tmpdir/${name}.err"; then
-		echo "+ service smoke tolerated because systemd is unavailable: $*"
-		cat "$tmpdir/${name}.out"
-		cat "$tmpdir/${name}.err" >&2
-		return
-	fi
-
-	echo "error: service smoke failed unexpectedly: $*" >&2
-	cat "$tmpdir/${name}.out" >&2
-	cat "$tmpdir/${name}.err" >&2
-	exit 1
-}
-
 # The runner file is linted by the same quad as its own entry;
 # re-resolving the dynamic path here adds nothing to that verdict.
 # shellcheck disable=SC1091
@@ -218,7 +190,6 @@ fi
 
 run "$ZEJTRON_BIN" --help
 run "$ZEJTRON_BIN" doctor
-run "$ZEJTRON_BIN" service --help
 
 capture version "$ZEJTRON_BIN" --version
 if ! grep -q "zejtron" "$tmpdir/version.out"; then
@@ -292,20 +263,6 @@ if ! grep -q "why file with spaces" "$tmpdir/why_spaces.out"; then
 	cat "$tmpdir/why_spaces.err" >&2
 	exit 1
 fi
-run "$ZEJTRON_BIN" env --keys
-run "$ZEJTRON_BIN" env --filter PATH
-env XDG_DATA_HOME="$tmpdir/xdg-data" "$ZEJTRON_BIN" env save check-base
-env XDG_DATA_HOME="$tmpdir/xdg-data" "$ZEJTRON_BIN" env list
-env XDG_DATA_HOME="$tmpdir/xdg-data" "$ZEJTRON_BIN" env diff check-base
-env XDG_DATA_HOME="$tmpdir/xdg-data" "$ZEJTRON_BIN" env delete check-base
-if command -v systemctl >/dev/null 2>&1; then
-	service_smoke service_failed "$ZEJTRON_BIN" service --failed
-	service_smoke service_filter "$ZEJTRON_BIN" service --filter systemd
-	service_smoke service_all "$ZEJTRON_BIN" service --all
-else
-	echo "+ service smoke skipped because systemctl is unavailable"
-fi
-
 capture recent_zero "$ZEJTRON_BIN" recent . --limit 0
 if [[ ! -s "$tmpdir/recent_zero.out" ]]; then
 	echo "error: recent --limit 0 produced empty output" >&2
@@ -325,7 +282,6 @@ expect_fail_contains why_zero "invalid port" "$ZEJTRON_BIN" why 0
 expect_fail_contains why_too_high "invalid port" "$ZEJTRON_BIN" why 65536
 expect_fail_contains why_missing "path not found" "$ZEJTRON_BIN" why "$tmpdir/missing path"
 expect_fail_contains proc_invalid_interval "must be between" "$ZEJTRON_BIN" proc --me --live --interval 1
-expect_fail_contains service_scope_conflict "cannot be used" "$ZEJTRON_BIN" service --system --user
 
 if [[ "$MODE" == "check-all" ]]; then
 	if [[ "${SKIP_CODESPELL:-0}" == "1" ]]; then

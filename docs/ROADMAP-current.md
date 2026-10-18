@@ -122,10 +122,8 @@ system without modifying it. Specifically:
 
 - Process, port, and file holder inspection.
 - File modification evidence and explanation.
-- Environment variable snapshot and diff.
-- Service status inspection.
+- Network state inspection.
 - System readiness checks.
-- (Proposed) Shell environment, network state, and git repository inspection.
 
 ## What Does Not Belong in Zejtron
 

@@ -28,13 +28,13 @@ zejtron-honest - no borrowed feature claims.
 ## Q1 - What exactly is zejtron?
 
 A unified, read-only Linux introspection toolkit: where a command
-comes from (`path`), what holds a port or file (`holds`, `port`),
+comes from (`path`, with package ownership read straight from the
+pacman database on Arch), what holds a port or file (`holds`, `port`),
 who touched a path (`touch`, `why`), what the process tree looks like
-for a user (`proc`), what changed recently (`recent`), the service and
-shell and network context (`service`, `shell`, `net`, `git`), and an
-environment snapshot store (`env`). One binary, no config files, no
-daemons, read-only by design. The tagline is the contract: "Boring and
-serious."
+for a user (`proc`), what changed recently (`recent`), the network
+context (`net`), and host readiness (`doctor`). One binary, no config
+files, no daemons, read-only by design - the claim is literal: zejtron
+writes nothing. The tagline is the contract: "Boring and serious."
 
 ## Q2 - Is zejtron suitable for a crates.io release?
 

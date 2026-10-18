@@ -49,6 +49,41 @@ v11.0.0
   user's own state directory. The boring and serious surface tells
   the truth about its own shape.
 
+- The `path` surface's package ownership on Arch reads
+  `/var/lib/pacman/local` directly (each package's `desc` for the
+  name and version, its `files` for the path list, walked lazily for
+  the queried path - no whole-tree index, no pacman binary). An
+  unowned file on an Arch host now prints "unowned by any package"
+  - the database's own answer - where the old shell-out fell
+  through to "unknown"; non-Arch hosts are unchanged (the
+  dpkg/rpm/apk backends still shell out, and `/var/lib/pacman`
+  absent means the pacman backend simply reports nothing). The row
+  shape is unchanged. (night-improve-0)
+
+### Removed
+
+- The four wrapper subcommands: `env` (`--filter` was `env | grep`;
+  `save`/`delete` wrote files - the only writes zejtron ever made;
+  `diff` required persisted state a stateless tool does not carry),
+  `shell` (`echo $SHELL`, `pwd`, `$0` - the shell already answers),
+  `git` (shelled out to `git`, which is richer than any partial
+  reimplementation), and `service` (shelled out to `systemctl`; a
+  D-Bus client would be a new heavy dependency for state only
+  systemd knows, and systemd ships `systemctl`). Running any of them
+  now returns clap's standard unknown-subcommand error - no
+  deprecation alias, that is the honest answer. The pidnest/Zenlixem
+  migration redirects (whoholds, lasttouch, whyopen, envpath) are
+  untouched and land on surviving surfaces.
+
+  Four wrapper subcommands died today — env, shell, git, service.
+  None of them read the kernel or the filesystem directly; each
+  shelled out to a binary whose presence was guaranteed only when
+  the wrapper's own dependency was already in use. The
+  read-only-by-design claim is now literal: env save was the only
+  write, and it is gone. The path surface replaces pacman -Qo with
+  a native reader of /var/lib/pacman — one fewer external binary,
+  one more source-of-truth read. External binaries: 5 → 4.
+
 ### Fixed
 
 - The doctor's proc_net check no longer false-alarms on an idle

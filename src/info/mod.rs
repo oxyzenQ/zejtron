@@ -109,7 +109,7 @@ fn version_body() -> String {
 /// Build-time: 10/17/2026 09:15 (UTC)
 /// Copyright: (c) 2026 rezky_nightky (oxyzenQ)
 /// License: GPL-3.0-only
-/// Source: https://github.com/oxyzenQ/zejtron
+/// Source: `<https://github.com/oxyzenQ/zejtron>`
 /// ```
 pub mod clock;
 pub fn print_version_report() {
