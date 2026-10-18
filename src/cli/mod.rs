@@ -175,11 +175,23 @@ pub enum Commands {
             help = "Filesystem path or port number to inspect"
         )]
         target: String,
+        #[arg(
+            value_name = "DURATION",
+            long,
+            help = "Event window width (s/m/h, default 10s, clamped to [1s, 1h])"
+        )]
+        since: Option<String>,
     },
     #[command(about = "Inspect last modification evidence for a path (read-only)")]
     Touch {
         #[arg(value_name = "PATH", help = "Path to inspect without modifying it")]
         path: PathBuf,
+        #[arg(
+            value_name = "DURATION",
+            long,
+            help = "Event window width (s/m/h, default 10s, clamped to [1s, 1h])"
+        )]
+        since: Option<String>,
     },
     #[command(about = "Explain visible evidence for a path or port (read-only)")]
     Why {
@@ -188,6 +200,19 @@ pub enum Commands {
             help = "Filesystem path or port number to explain"
         )]
         target: String,
+        #[arg(
+            value_name = "DURATION",
+            long,
+            help = "Event window width (s/m/h, default 10s, clamped to [1s, 1h])"
+        )]
+        since: Option<String>,
+        #[arg(
+            long,
+            help = "Append how zejtron knows each row (the explainability ladder)"
+        )]
+        trace: bool,
+        #[arg(long, help = "Append the raw kernel events as drained (drill-down)")]
+        raw: bool,
     },
     #[command(about = "Check zejtron system capability/readiness")]
     Doctor {

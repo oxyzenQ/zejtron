@@ -266,7 +266,7 @@ pub(super) fn parse_socket_inode(path: &Path) -> Option<u64> {
     inode.parse().ok()
 }
 
-pub(super) fn parse_status_value(status: &str, key: &str) -> Option<String> {
+pub(crate) fn parse_status_value(status: &str, key: &str) -> Option<String> {
     let prefix = format!("{key}:");
     status
         .lines()

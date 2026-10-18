@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-mod audit;
+pub(crate) mod audit;
+pub(crate) mod ledger;
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -74,18 +75,13 @@ pub(crate) struct ProcessEvidence {
     pub(crate) pid: Option<u32>,
 }
 
-impl ProcessEvidence {
-    pub(crate) fn label(&self) -> String {
-        match self.pid {
-            Some(pid) => format!("{} pid={pid}", self.name),
-            None => self.name.clone(),
-        }
-    }
-}
+impl ProcessEvidence {}
 
-pub fn run(path: &Path) -> Result<(), Box<dyn Error>> {
-    let info = inspect_path(path)?;
-    println!("{}", format_report(&info));
+pub fn run(path: &Path, since: Option<&str>) -> Result<(), Box<dyn Error>> {
+    let (window, window_label) =
+        crate::commands::lane::resolve_window(since).map_err(TouchError)?;
+    let output = ledger::build_report(path, window, window_label)?;
+    println!("{output}");
     Ok(())
 }
 
@@ -187,79 +183,12 @@ fn absolute_path(path: &Path) -> Option<PathBuf> {
     std::env::current_dir().ok().map(|cwd| cwd.join(path))
 }
 
-fn format_report(info: &TouchInfo) -> String {
-    let mut lines = vec![info.path.display().to_string()];
-
-    // Metadata block (size, owner, perms, timestamps, inode)
-    if let Some(ref meta) = info.meta {
-        let uname = parse_passwd()
-            .ok()
-            .and_then(|u| u.get(&meta.uid).cloned())
-            .unwrap_or_else(|| meta.uid.to_string());
-        let gname = parse_passwd()
-            .ok()
-            .and_then(|u| u.get(&meta.gid).cloned())
-            .unwrap_or_else(|| meta.gid.to_string());
-
-        lines.push(format!("├── type: {}", meta.file_type));
-        if meta.is_symlink
-            && let Some(ref target) = meta.symlink_target
-        {
-            lines.push(format!("├── symlink-target: {target}"));
-        }
-        lines.push(format!("├── size: {} bytes", meta.size));
-        lines.push(format!(
-            "├── owner: {}:{} (uid={} gid={})",
-            uname, gname, meta.uid, meta.gid
-        ));
-        lines.push(format!("├── perms: {}", meta.perms_octal));
-        lines.push(format!("├── inode: {} (dev={})", meta.inode, meta.dev));
-        lines.push(format!(
-            "├── modified: {}",
-            format_system_time(meta.modified)
-        ));
-        lines.push(format!(
-            "├── accessed: {}",
-            format_system_time(meta.accessed)
-        ));
-        lines.push(format!(
-            "├── changed:  {}",
-            format_system_time(meta.changed)
-        ));
-    } else {
-        lines.push(format!(
-            "├── modified: {}",
-            format_system_time(info.modified)
-        ));
-    }
-
-    lines.push(format!("├── source: {}", info.source.label()));
-
-    if let Some(process) = &info.process {
-        lines.push(format!("├── actor: {}", info.actor));
-        lines.push(format!("└── process: {}", process.label()));
-    } else {
-        lines.push(format!("└── actor: {}", info.actor));
-    }
-
-    lines.push(String::new());
-    lines.push(match info.source {
-        EvidenceSource::Metadata => {
-            "note: filesystem metadata shows when the path changed, not who changed it".to_owned()
-        }
-        EvidenceSource::Audit | EvidenceSource::Journal => {
-            "note: actor inference is best-effort and depends on available logs".to_owned()
-        }
-    });
-
-    lines.join("\n")
-}
-
+#[cfg(test)]
 pub(crate) fn format_system_time(time: SystemTime) -> String {
     crate::info::clock::format_system_time(time)
 }
 
-fn parse_passwd() -> io::Result<HashMap<u32, String>> {
+pub(crate) fn parse_passwd() -> io::Result<HashMap<u32, String>> {
     parse_passwd_contents(&fs::read_to_string("/etc/passwd")?)
 }
 
@@ -279,7 +208,7 @@ fn parse_passwd_contents(contents: &str) -> io::Result<HashMap<u32, String>> {
     Ok(users)
 }
 
-pub(super) fn uid_to_user(uid: u32, users: &HashMap<u32, String>) -> String {
+pub(crate) fn uid_to_user(uid: u32, users: &HashMap<u32, String>) -> String {
     users.get(&uid).cloned().unwrap_or_else(|| uid.to_string())
 }
 

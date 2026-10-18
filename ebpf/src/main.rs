@@ -5,45 +5,93 @@
 // zelynic/zylaxion lineage precedent: there is no C twin, the
 // aya-ebpf program IS the production source).
 //
-// TWO programs, one object (night-improve-2 grows the tap by one;
-// nothing of phase 1 changes shape — the sched_process_exec counter
-// is exactly what it was):
+// FOUR programs, one object (night-improve-3 grows the tap by two
+// kprobes; nothing of phases 1-2 changes shape — the exec counter
+// and the socket-state tap are exactly what they were):
 //
 //   1. sched_process_exec (phase 1, untouched): count process
 //      executions. The tracepoint fires, the counter increments —
 //      the chain proof, still the doctor's readback.
 //
-//   2. inet_sock_set_state (phase 2, the port surface's event
-//      window): the first context-reading program. At every inet
-//      socket state change the kernel fires
-//      tracepoint:sock:inet_sock_set_state with the socket's facts
-//      laid out in the context record; this program reads them at
-//      the pinned offsets, filters to the port-surface transitions
-//      (TCP LISTEN enter/leave, UDP close — the shared predicate
-//      in events.rs, the same bytes the host tests pin), and
-//      publishes a 32-byte SockEvent to the sock_events ring buffer
-//      with the pid of the process whose syscall made the change.
-//      The /proc snapshot can only see who holds an fd NOW; this
-//      record carries who changed the socket, at the moment it
-//      happened — the truth that makes the event window race-free
-//      by construction.
+//   2. inet_sock_set_state (phase 2, untouched): the port surface's
+//      event window, reading the socket facts at the pinned offsets,
+//      filtering to the port-surface transitions, and publishing
+//      the 32-byte SockEvent with the changer's pid.
 //
-//   stats        (Array<AtomicU64>) — phase 1's counter, one slot,
-//                                 unchanged. stats[0] counts
-//                                 sched_process_exec events since
-//                                 attach; BPF_ATOMIC fetch_add only.
-//   sock_events  (RingBuf)          — phase 2's event stream. The
-//                                 kernel-side filter bounds the
-//                                 traffic (ESTABLISHED churn never
-//                                 crosses); 256 KiB holds 8192
-//                                 32-byte records of history, and
-//                                 the host drains it through the
-//                                 pin.
+//   3. open_tap on vfs_open (phase 3, the Evidence Ledger pass): a
+//      kprobe at the head of the syscall open path. vfs_open(const
+//      struct path *, struct file *) hands this program the path
+//      being bound; it walks path->dentry->d_inode for the inode,
+//      path->mnt->mnt_sb->s_dev for the device, checks the
+//      tracked_inodes filter map FIRST (the price control: vfs_open
+//      fires on every open on the host — only the queried file's
+//      events are allowed to cross), and publishes a 40-byte
+//      FileEvent with the acting process's pid to the file_events
+//      ring. The tap records the binding attempt at entry; whether
+//      the open later failed is not recorded (the same residual
+//      class as vfs_write at entry). O_PATH peeks never reach
+//      vfs_open and are not recorded — an O_PATH fd is not an open
+//      in the data sense.
 //
-// Deliberately absent (later passes own them): no second counter,
-// no keying by pid or uid, no address reads (the record carries the
-// port and the changer; the bind address stays the snapshot's
-// truth), no process or file events (later passes).
+//   4. write_tap on vfs_write (phase 3): a kprobe at the head of
+//      write(2). vfs_write(struct file *, ...) hands this program
+//      the file; it walks file->f_inode for the inode and
+//      file->f_path.mnt->mnt_sb->s_dev for the device, checks the
+//      filter map, publishes op=2. writev/pwritev ride
+//      vfs_writev/io_write_iter and never cross this probe; mmap'd
+//      writes cross no syscall at all — both gaps are named in the
+//      README's Limitations and the log lane (audit) may still
+//      catch them.
+//
+//   stats           (Array<AtomicU64>) — phase 1's counter, one slot,
+//                                    unchanged. stats[0] counts
+//                                    sched_process_exec events since
+//                                    attach; BPF_ATOMIC fetch_add only.
+//   sock_events     (RingBuf)          — phase 2's event stream, the
+//                                    port surface's window.
+//   tracked_inodes  (HashMap<u64, u8>) — phase 3's filter map. The
+//                                    host inserts (inode<<32)|device
+//                                    for the one file a command is
+//                                    asking about, and removes it
+//                                    when the command ends; the
+//                                    kprobes check it before
+//                                    recording. 1024 entries bounds
+//                                    the leak of an interrupted
+//                                    command (a stale key dies with
+//                                    the map at detach).
+//   file_events     (RingBuf)          — phase 3's event stream. The
+//                                    kernel-side filter is the bound
+//                                    (only tracked inodes cross);
+//                                    256 KiB holds 6553 40-byte
+//                                    records of history.
+//   offsets         (Array<u64>, 8)    — phase 3's struct offsets,
+//                                    written once at attach from the
+//                                    host's own BTF. Every struct
+//                                    walk below reads its offsets
+//                                    from THIS map, never from
+//                                    compiled-in constants: struct
+//                                    inode's i_ino sat at @64 on this
+//                                    repo's own reference probe
+//                                    (kernel 5.10.134, where the
+//                                    textbook order would say @16) —
+//                                    offsets that vary by version or
+//                                    build config are data, not
+//                                    code, and a wrong hardcoded
+//                                    offset would read garbage
+//                                    SILENTLY. Refusing to attach
+//                                    without a BTF-verified set
+//                                    (src/ebpf/btf.rs) is the loud
+//                                    alternative.
+//
+// Deliberately absent (later passes own them): no keying by pid or
+// uid, no address reads (the sock record carries the port and the
+// changer; the bind address stays the snapshot's truth), no
+// file-content or file-sequence reads anywhere (a path is metadata;
+// the record carries inode + device + action + pid, nothing else),
+// no vfs_unlink kprobe (its signature churned across the floor —
+// mnt_userns in 5.12 moved dentry from arg1 to arg2 — so no single
+// argument position serves the range; op=3 stays reserved and the
+// gap is named in README Limitations).
 //
 // Map update discipline: the counter rides a 64-bit BPF_ATOMIC
 // fetch_add (the zelynic NIGHT-improve-29 lost-update lesson — the
@@ -71,10 +119,10 @@
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use aya_ebpf::{
-    helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns},
-    macros::{map, tracepoint},
-    maps::{Array, RingBuf},
-    programs::TracePointContext,
+    helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns, bpf_probe_read_kernel},
+    macros::{kprobe, map, tracepoint},
+    maps::{Array, HashMap, RingBuf},
+    programs::{ProbeContext, TracePointContext},
 };
 
 // The record contract, single-sourced: the userspace crate owns the
@@ -84,12 +132,20 @@ use aya_ebpf::{
 #[path = "../../src/ebpf/events.rs"]
 mod events;
 
-use events::{SOCK_EVENT_BYTES, SockEvent, is_port_surface_event};
+use events::{
+    FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITE, FileEvent, OFF_SLOTS,
+    OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH,
+    OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV,
+    OFF_SLOT_VFSMOUNT_MNT_SB, SOCK_EVENT_BYTES, SockEvent, device_token_from_kernel,
+    is_port_surface_event, pack_filter_key,
+};
 
-// The compile-time layout pin on the BPF side: the record the ring
-// carries is exactly 32 bytes, asserted where the output() call
-// lives (its internal align assert covers the 8-byte half).
+// The compile-time layout pins on the BPF side: the sock record the
+// ring carries is exactly 32 bytes, the file record exactly 40,
+// asserted where the output() calls live (their internal align
+// asserts cover the 8-byte halves).
 const _: () = assert!(SOCK_EVENT_BYTES == 32);
+const _: () = assert!(FILE_EVENT_BYTES == 40);
 
 /// The one stats slot: the count of sched_process_exec events since
 /// attach. The index contract with the userspace read side
@@ -115,6 +171,32 @@ static stats: Array<AtomicU64> = Array::with_max_entries(1, 0);
 #[allow(non_upper_case_globals)]
 #[map(name = "sock_events")]
 static sock_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
+
+/// The tracked_inodes filter map (night-improve-3): BPF_HASH<u64,
+/// u8>, 1024 entries. Present = tracked: the kprobes check this map
+/// BEFORE recording, so only the queried file's events reach the
+/// ring — the in-kernel price control that keeps a busy host's open
+/// traffic from flooding the ring with events nobody asked for. The
+/// host writes and clears it through the pin (src/ebpf/tracked.rs);
+/// the value is always 1 (presence is the whole meaning).
+#[allow(non_upper_case_globals)]
+#[map(name = "tracked_inodes")]
+static tracked_inodes: HashMap<u64, u8> = HashMap::with_max_entries(1024, 0);
+
+/// The file_events ring buffer (night-improve-3): 256 KiB, 6553
+/// records of 40 bytes. The filter map is the bound; a failed
+/// reservation drops the event without failing the probe.
+#[allow(non_upper_case_globals)]
+#[map(name = "file_events")]
+static file_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
+
+/// The offsets config map (night-improve-3): Array<u64>, 8 slots,
+/// written once at attach time from the host's own BTF
+/// (src/ebpf/btf.rs). The slot indices are the shared contract in
+/// events.rs — OFF_SLOT_* on both sides.
+#[allow(non_upper_case_globals)]
+#[map(name = "offsets")]
+static offsets: Array<u64> = Array::with_max_entries(OFF_SLOTS, 0);
 
 // The inet_sock_set_state context layout — the field offsets of
 // struct trace_event_raw_inet_sock_set_state, verified against
@@ -235,6 +317,153 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
     // window keeps the newest history.
     let _ = sock_events.output::<SockEvent>(&event, 0);
 
+    0
+}
+
+// ── The file taps (night-improve-3, the Evidence Ledger pass) ────────
+//
+// Shared reading helpers: every struct walk reads its offset from the
+// `offsets` map (written at attach from the host's own BTF) and every
+// memory read is probe-read (a bad address returns an error, never a
+// fault). A read that fails drops the event — a passive probe never
+// fails the kernel path it is riding.
+
+/// Read one u64 field of a kernel struct: `base + offset`.
+///
+/// # Safety
+/// The caller passes a kernel address; the read is probe-read, so a
+/// bad address returns `None` instead of faulting.
+unsafe fn read_u64_at(base: usize, offset: u64) -> Option<u64> {
+    unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const u64).ok() }
+}
+
+/// Read one u32 field (dev_t-sized scalars like s_dev).
+///
+/// # Safety
+/// Same contract as [`read_u64_at`].
+unsafe fn read_u32_at(base: usize, offset: u64) -> Option<u32> {
+    unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const u32).ok() }
+}
+
+/// Read one pointer field, returned as the raw address.
+///
+/// # Safety
+/// Same contract as [`read_u64_at`].
+unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
+    unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const usize).ok() }
+}
+
+/// The offset set, read from the `offsets` map in one pass. `None`
+/// (an unparsable or absent map) drops the event — the host wrote
+/// these at attach; an unreadable set this late is a chain that was
+/// never alive.
+unsafe fn read_offset_set() -> Option<[u64; 8]> {
+    let mut set = [0u64; 8];
+    for slot in 0..8 {
+        set[slot as usize] = *offsets.get(slot)?;
+    }
+    Some(set)
+}
+
+/// The open tap: vfs_open hands the program the path being bound to
+/// a file. The walk: path->dentry->d_inode for the inode,
+/// path->mnt->mnt_sb->s_dev for the device; the filter map decides
+/// whether the event is worth a ring slot; the record carries the
+/// acting process's pid (bpf_get_current_pid_tgid's tgid half).
+///
+/// Every aya-ebpf call inside is an `unsafe fn` (ctx arg reads, probe
+/// reads, the ktime and pid helpers) — the unsafe block is that API
+/// contract, nothing more.
+#[kprobe(function = "vfs_open")]
+pub fn open_tap(ctx: ProbeContext) -> u32 {
+    unsafe {
+        // arg0: const struct path * — extraction failure drops the
+        // event (never fail the probed path).
+        let Some(path) = ctx.arg::<u64>(0) else { return 0 };
+        let path = path as usize;
+        if path == 0 {
+            return 0;
+        }
+        let Some(o) = read_offset_set() else { return 0 };
+
+        let Some(dentry) = read_ptr_at(path, o[OFF_SLOT_PATH_DENTRY as usize]) else {
+            return 0;
+        };
+        let Some(inode) = read_ptr_at(dentry, o[OFF_SLOT_DENTRY_D_INODE as usize]) else {
+            return 0;
+        };
+        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else { return 0 };
+        let Some(mnt) = read_ptr_at(path, o[OFF_SLOT_PATH_MNT as usize]) else { return 0 };
+        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else { return 0 };
+        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else { return 0 };
+
+        let device = device_token_from_kernel(s_dev);
+        let key = pack_filter_key(ino, device);
+        if tracked_inodes.get(&key).is_none() {
+            // Not the file anyone asked about — this is the whole
+            // price control: the check happens in the kernel, before
+            // a single byte of ring traffic is spent.
+            return 0;
+        }
+
+        let _ = file_events.output::<FileEvent>(
+            &FileEvent {
+                timestamp_ns: bpf_ktime_get_ns(),
+                op: FILE_OP_OPEN,
+                _pad: [0; 7],
+                inode: ino,
+                device,
+                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
+                _pad2: 0,
+            },
+            0,
+        );
+    }
+    0
+}
+
+/// The write tap: vfs_write hands the program the file being
+/// written. The walk: file->f_inode for the inode,
+/// file->f_path.mnt->mnt_sb->s_dev for the device (f_path is an
+/// embedded struct path, so the path-member offsets apply to the
+/// f_path base). The filter and the record mirror the open tap.
+#[kprobe(function = "vfs_write")]
+pub fn write_tap(ctx: ProbeContext) -> u32 {
+    unsafe {
+        // arg0: struct file *.
+        let Some(file) = ctx.arg::<u64>(0) else { return 0 };
+        let file = file as usize;
+        if file == 0 {
+            return 0;
+        }
+        let Some(o) = read_offset_set() else { return 0 };
+
+        let Some(inode) = read_ptr_at(file, o[OFF_SLOT_FILE_F_INODE as usize]) else { return 0 };
+        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else { return 0 };
+        let f_path = file.wrapping_add(o[OFF_SLOT_FILE_F_PATH as usize] as usize);
+        let Some(mnt) = read_ptr_at(f_path, o[OFF_SLOT_PATH_MNT as usize]) else { return 0 };
+        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else { return 0 };
+        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else { return 0 };
+
+        let device = device_token_from_kernel(s_dev);
+        let key = pack_filter_key(ino, device);
+        if tracked_inodes.get(&key).is_none() {
+            return 0;
+        }
+
+        let _ = file_events.output::<FileEvent>(
+            &FileEvent {
+                timestamp_ns: bpf_ktime_get_ns(),
+                op: FILE_OP_WRITE,
+                _pad: [0; 7],
+                inode: ino,
+                device,
+                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
+                _pad2: 0,
+            },
+            0,
+        );
+    }
     0
 }
 

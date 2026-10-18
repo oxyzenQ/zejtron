@@ -227,30 +227,30 @@ printf 'hello\n' >"$tmpdir/touched file"
 mkdir "$tmpdir/touched dir"
 printf 'hello\n' >"$tmpdir/why file with spaces"
 capture holds_temp "$ZEJTRON_BIN" holds "$tmpdir/held file"
-if ! grep -q "No holders found" "$tmpdir/holds_temp.out"; then
-	echo "error: holds temp file output did not mention no holders" >&2
+if ! grep -q "nothing visibly holds the path now" "$tmpdir/holds_temp.out"; then
+	echo "error: holds temp file output did not mention the no-holder verdict" >&2
 	cat "$tmpdir/holds_temp.out" >&2
 	cat "$tmpdir/holds_temp.err" >&2
 	exit 1
 fi
 capture touch_file "$ZEJTRON_BIN" touch "$tmpdir/touched file"
-if ! grep -q "filesystem metadata" "$tmpdir/touch_file.out"; then
-	echo "error: touch temp file output did not mention filesystem metadata" >&2
+if ! grep -q "type file" "$tmpdir/touch_file.out"; then
+	echo "error: touch temp file output did not mention the metadata rows" >&2
 	cat "$tmpdir/touch_file.out" >&2
 	cat "$tmpdir/touch_file.err" >&2
 	exit 1
 fi
 capture touch_dir "$ZEJTRON_BIN" touch "$tmpdir/touched dir"
-if ! grep -q "actor: unknown" "$tmpdir/touch_dir.out"; then
-	echo "error: touch temp directory output did not mention unknown actor" >&2
+if ! grep -q "type directory" "$tmpdir/touch_dir.out"; then
+	echo "error: touch temp directory output did not mention the metadata rows" >&2
 	cat "$tmpdir/touch_dir.out" >&2
 	cat "$tmpdir/touch_dir.err" >&2
 	exit 1
 fi
 run "$ZEJTRON_BIN" why 53
 capture why_readme "$ZEJTRON_BIN" why README.md
-if ! grep -q "reason:" "$tmpdir/why_readme.out"; then
-	echo "error: why README output did not mention reason" >&2
+if ! grep -q "The evidence supports:" "$tmpdir/why_readme.out"; then
+	echo "error: why README output did not mention the verdict" >&2
 	cat "$tmpdir/why_readme.out" >&2
 	cat "$tmpdir/why_readme.err" >&2
 	exit 1

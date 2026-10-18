@@ -275,14 +275,20 @@ zejtron proc rezky --find python
 zejtron proc rezky --live --interval 6
 
 # Who holds a file, device, or port? (sudo shows more on hardened hosts)
+# --since opens the event window (s/m/h, default 10s)
 zejtron holds 53
 zejtron holds /etc/resolv.conf
+zejtron holds /etc/resolv.conf --since 30s
 
 # Last modification evidence for a path — metadata + audit + journal
 zejtron touch /etc/resolv.conf
+zejtron touch /etc/resolv.conf --since 30s
 
 # The evidence report for a path or port, without inferring intent
+# --trace appends how zejtron knows each row; --raw appends the
+# kernel events as drained
 zejtron why /etc/resolv.conf
+zejtron why /etc/resolv.conf --since 30s --trace --raw
 
 # Network context
 zejtron net
@@ -328,6 +334,19 @@ same stamp.
 - `port`'s event window requires the ebpf feature, root (or
   `CAP_BPF`+`CAP_PERFMON`), BTF, and a kernel >= 5.15. Without any of
   those, `port` prints snapshot-only and names the missing piece.
+- The `holds`/`touch`/`why` event windows ride the same requirements:
+  the ebpf feature, root (or `CAP_BPF`+`CAP_PERFMON`), BTF, and a
+  kernel >= 5.15. Without them the three surfaces fall back to
+  journalctl (audit.log first) when it is available, or to
+  snapshot-only with an honest unaccounted block naming the missing
+  window. The log lane is `[inferred]` however strong an audit record
+  reads - the tag is the truth about the source.
+- The live file taps record what crossed them: writev, pwritev, and
+  mmap'd writes never cross write(2), O_PATH peeks never reach
+  vfs_open, and no vfs_unlink kprobe ships (its signature churned
+  across the floor - mnt_userns in 5.12 moved dentry from arg1 to
+  arg2 - so no single offset serves the range). The log lane may
+  still catch what the kernel lane does not.
 
 ## Safety Features
 
@@ -350,7 +369,9 @@ One crate, one binary, one discipline:
 src/
   main.rs        — entry point + dispatch (the ONLY file at src/ root)
   cli/           — clap derive definition, brand styling, the UX bridge
-  commands/      — the nine read-only surfaces
+  commands/      — the nine read-only surfaces (+ lane/, the shared
+                   fallback ladder for holds/touch/why)
+  evidence/      — the Evidence Ledger format (rows, tiers, render)
   info/          — the -V report + the std-only civil clock
   output/        — the runtime color tier (capability ladder, error lane)
   system/        — /proc readers, the pacman reader, path guardrails
@@ -361,6 +382,24 @@ Every `.rs` file rides under 600 lines (the no-mercy cap, enforced),
 every test file lives under `test/` (#[path]-wired), and every gate
 runs in CI — the tree cannot drift back. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the full map.
+
+### The Evidence Ledger (holds, touch, why)
+
+`holds`, `touch`, and `why` answer with one report format, the
+Evidence Ledger: a subject, a mode line naming which lane ran, an
+Evidence block, an Unaccounted block, and a two-line verdict. Every
+row carries exactly one provenance tag — `[observed]` (from an eBPF
+kernel event: vfs_open / vfs_write, filtered in-kernel by the
+tracked-inodes map so only the queried file's events reach the
+ring), `[measured]` (from a snapshot read at the instant of the
+query: /proc scans, stat(2)), `[inferred]` (from indirect evidence:
+audit.log or journalctl records, replayed), `[unaccounted]` (what
+the report cannot see — the block, not a row). Four tiers, no
+fifth, ever; the tag is the truth about the source, not marketing.
+The ladder is exclusive and every run names its lane: live
+(the kernel recorded it), journal fallback (the log answered), or
+no event lane available (the honest unavailability line). This
+paragraph is the contract; `src/evidence/` is its implementation.
 
 ## Philosophy
 

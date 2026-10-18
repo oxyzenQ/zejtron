@@ -30,6 +30,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Format a wall-clock timestamp as `YYYY-MM-DD HH:MM:SS (UTC)`.
 /// Sub-second precision is truncated (never rounded). Pre-epoch
 /// timestamps render through the same signed arithmetic.
+/// The wall-clock wrapper. Its default-build callers are the
+/// feature-gated doctor and the test pins; a default non-test build
+/// has none - the nested allow is the honest count of that split.
+#[cfg_attr(not(test), cfg_attr(not(feature = "ebpf"), allow(dead_code)))]
 pub(crate) fn format_system_time(time: SystemTime) -> String {
     let total_secs: i64 = match time.duration_since(UNIX_EPOCH) {
         Ok(delta) => i64::try_from(delta.as_secs()).unwrap_or(i64::MAX),

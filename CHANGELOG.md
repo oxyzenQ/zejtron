@@ -117,8 +117,87 @@ v11.0.0
   the snapshot's truth, so an event row prints `*:<port>` with the
   family riding the protocol token (TCP4/TCP6/UDP4/UDP6).
 
+- night-improve-3, the flagship pass. The Evidence Ledger lands:
+  holds, touch, and why now answer three questions instead of one —
+  what happened, how do you know, and what can't you see. Every row
+  carries a provenance tag ([observed] from eBPF events, [measured]
+  from the snapshot, [inferred] from indirect evidence, [unaccounted]
+  from what the report cannot see). The event windows come from
+  vfs_open and vfs_write kprobes, filtered in the kernel by the
+  tracked inodes map so only the queried file's events reach the
+  ring. Without the ebpf feature, journalctl remains the fallback
+  lane — the primary evidence path is no longer journalctl, it is
+  the kernel itself. The format is one grammar across three
+  surfaces; defensibility is the point.
+
+  The reading that shaped the pass: the three surfaces each answered
+  one question from one instant. `holds` parsed /proc into a holders
+  tree (who has this open NOW — a snapshot that ages the moment it
+  prints, blind to everything before it); `touch` replayed audit.log
+  and journalctl for the last modification (a log's memory of a
+  write, best-effort, retention-bounded, and the log lane cannot
+  distinguish an open from a write); `why` cross-referenced both
+  into a synthesis tree whose evidence line named the parsers but
+  never the gaps. This pass adds the second truth to all three: the
+  event window, recorded by the kernel at the moment the action
+  happened, with the acting process's pid — plus the format that
+  makes every row name its source and every report name its
+  blindness. The three surfaces keep their parsers untouched; the
+  Ledger wraps their output, it does not rewrite them.
+
+  The shape of the added machinery, named piece by piece: two
+  kprobes (open_tap on vfs_open, write_tap on vfs_write — exported
+  symbols, stable first-argument shapes, role-named programs with
+  the kernel symbol passed at attach); the tracked_inodes filter map
+  (BPF_HASH<u64, u8>, 1024 entries, key (inode << 32) | device, the
+  in-kernel price control — vfs_open fires on every open on the
+  host, and only the queried file's events are allowed to cross);
+  the file_events ring (256 KiB, 40-byte records, the same
+  rolling-cap drain the sock ring rides); and the offsets config
+  map, written at attach from the host's own /sys/kernel/btf/vmlinux
+  (src/ebpf/btf.rs) — every struct walk in the kprobes reads its
+  offset from that map, never from compiled-in constants, because
+  struct inode's i_ino sat at @64 on this repo's reference probe
+  where the textbook order would say @16: offsets that vary by
+  version or build config are data, not code, and a wrong hardcoded
+  offset goes blind silently. Refusing to attach without a
+  BTF-verified set is the loud alternative.
+
+  Three honest skips, named: no vfs_unlink kprobe (its signature
+  churned across the floor — mnt_userns prepended in 5.12 moved
+  dentry from arg1 to arg2 — so no single offset serves the range;
+  op=3 stays reserved in the record contract); the write tap
+  records write(2) at entry, so writev, pwritev, and mmap'd writes
+  never cross it (the log lane may still catch them; the verdict
+  names the gap); and the live lane collects over its duration —
+  `holds --since 30s` waits 30 seconds, because the filter map only
+  lets the queried file's events cross while the key is in the map.
+  A ring read still consumes; the default build, and the feature
+  build without a live chain, are the Phase 2 surfaces wrapped in
+  the Ledger — byte-identical facts, verified against a Phase 2
+  worktree (every holder, fd, mmap, cwd, size, perm, inode, actor,
+  count, and note mapped into the new grammar, zero missing; the
+  feature build's fallback renders byte-identical to the default
+  build's).
+
+  `why` gains `--since` with `--trace` (the explainability ladder:
+  how zejtron knows each class of row — which probe, which parser,
+  which fallback) and `--raw` (the kernel records as drained, for
+  drill-down). The doctor's [eBPF] section renames its Tracepoints
+  row to Probes and lists all four attach points; the pin set grows
+  from six to thirteen (4 links, 4 programs, 5 maps).
+
 ### Changed
 
+- journalctl is now a fallback lane, not the primary evidence path
+  (night-improve-3): holds, touch, and why consult it (audit.log
+  first, journalctl second) only when the kernel lane cannot serve,
+  and its rows carry [inferred], never [observed] — the tag is the
+  truth about the source, not marketing. The mode line names the
+  lane that ran; the log lane's row actions are source-true (an
+  audit record is `modified (audit log)`, a journal grep hit is a
+  `journal mention` — the log cannot distinguish an open from a
+  write, and the actions say so).
 - `port` now shows the event window when the ebpf feature is built
   in and the chain is attached; snapshot-only otherwise — same
   output shape, richer evidence when the chain is live. The default

@@ -57,16 +57,51 @@ pub const PIN_LINK_SOCK: &str = "/sys/fs/bpf/zejtron/sock_tap_link";
 /// window drains it through this pin; night-improve-2).
 pub const PIN_MAP_SOCK_EVENTS: &str = "/sys/fs/bpf/zejtron/sock_events";
 
-/// Every pin the attach lane plants, in removal order (both links
+/// Program pin - the file-open tap (night-improve-3's kprobe on
+/// vfs_open).
+pub const PIN_PROG_OPEN: &str = "/sys/fs/bpf/zejtron/open_tap";
+
+/// Link pin - the file-open tap's attachment.
+pub const PIN_LINK_OPEN: &str = "/sys/fs/bpf/zejtron/open_tap_link";
+
+/// Program pin - the file-write tap (night-improve-3's kprobe on
+/// vfs_write).
+pub const PIN_PROG_WRITE: &str = "/sys/fs/bpf/zejtron/write_tap";
+
+/// Link pin - the file-write tap's attachment.
+pub const PIN_LINK_WRITE: &str = "/sys/fs/bpf/zejtron/write_tap_link";
+
+/// Map pin - the tracked_inodes filter map (the in-kernel price
+/// control: the kprobes check it before recording; the holds/touch/
+/// why windows write and clear it through this pin).
+pub const PIN_MAP_TRACKED_INODES: &str = "/sys/fs/bpf/zejtron/tracked_inodes";
+
+/// Map pin - the file_events ring buffer (the Evidence Ledger's
+/// event stream).
+pub const PIN_MAP_FILE_EVENTS: &str = "/sys/fs/bpf/zejtron/file_events";
+
+/// Map pin - the offsets config map (the struct offsets parsed from
+/// the host's own BTF at attach; the kprobes read their walks from
+/// it).
+pub const PIN_MAP_OFFSETS: &str = "/sys/fs/bpf/zejtron/offsets";
+
+/// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
 /// last).
-pub const ALL_PINS: [&str; 6] = [
+pub const ALL_PINS: [&str; 13] = [
     PIN_LINK,
     PIN_LINK_SOCK,
+    PIN_LINK_OPEN,
+    PIN_LINK_WRITE,
     PIN_PROG,
     PIN_PROG_SOCK,
+    PIN_PROG_OPEN,
+    PIN_PROG_WRITE,
     PIN_MAP_STATS,
     PIN_MAP_SOCK_EVENTS,
+    PIN_MAP_TRACKED_INODES,
+    PIN_MAP_FILE_EVENTS,
+    PIN_MAP_OFFSETS,
 ];
 
 /// True when every pin of a complete attach exists. A partial pin set
@@ -356,14 +391,21 @@ pub mod embedded;
 #[cfg(feature = "ebpf")]
 pub mod events;
 
-/// The loader (attach/detach), the counter readback, and the
-/// sock_events ring reader - feature builds only.
+#[cfg(feature = "ebpf")]
+pub mod btf;
+#[cfg(feature = "ebpf")]
+pub mod filetap;
+/// The loader (attach/detach), the counter readback, the two ring
+/// readers, the BTF offsets parser, the filter-map writer, and the
+/// file-window capture - feature builds only.
 #[cfg(feature = "ebpf")]
 pub mod loader;
 #[cfg(feature = "ebpf")]
 pub mod readback;
 #[cfg(feature = "ebpf")]
 pub mod ringbuf;
+#[cfg(feature = "ebpf")]
+pub mod tracked;
 
 /// The verb surface both lanes expose: the same signatures, so the
 /// doctor's dispatch cannot tell them apart.

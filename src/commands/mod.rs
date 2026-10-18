@@ -9,6 +9,7 @@
 
 pub mod doctor;
 pub mod holds;
+pub mod lane;
 pub mod net;
 pub mod path;
 pub mod port;

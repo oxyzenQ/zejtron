@@ -5,18 +5,19 @@
 //! ALWAYS honest, in every build: a featureless binary reports the
 //! dormant lane by name, never a fake live one, and a feature binary
 //! on an incapable host reports the snapshot lane with the reason.
-//! The rows are the contract (night-improve-2 adds the Tracepoints
+//! The rows are the contract (night-improve-2 added the Tracepoints
 //! row - the one doctor change the pass is allowed):
 //!
 //! ```text
-//! [eBPF]
+//! \[eBPF]
 //!   Feature:     enabled (this binary)
 //!   Kernel:      6.1.11
 //!   BTF:         present (/sys/kernel/btf/vmlinux exists)
 //!   Lockdown:    none
 //!   Caps:        CAP_BPF + CAP_PERFMON present
 //!   Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))
-//!   Tracepoints: sched_process_exec, inet_sock_set_state
+//!   Probes: sched_process_exec, inet_sock_set_state, vfs_open, vfs_write
+
 //!   Pins:        /sys/fs/bpf/zejtron (present: tap, tap_link, stats, sock_tap, sock_tap_link, sock_events)
 //! ```
 //!
@@ -43,7 +44,7 @@ pub(super) fn section() -> String {
         facts.lockdown.label(),
         &facts.caps_label(),
         &lane_row(&verdict),
-        &tracepoints_row(),
+        &probes_row(),
         &pins_row(),
     )
 }
@@ -98,11 +99,13 @@ fn attached_detail() -> String {
     "counter unreadable (this binary was built without the ebpf feature)".to_owned()
 }
 
-/// The Tracepoints row (night-improve-2): the events the tap
-/// listens to, by name - the binary's contract, not host state (the
-/// tap object carries both programs whatever the host allows).
-fn tracepoints_row() -> String {
-    "sched_process_exec, inet_sock_set_state".to_owned()
+/// The Probes row (night-improve-2 opened it as Tracepoints,
+/// night-improve-3 renames it to carry the file taps too): the
+/// events the tap listens to, by name - the binary's contract, not
+/// host state (the tap object carries all four programs whatever the
+/// host allows).
+fn probes_row() -> String {
+    "sched_process_exec, inet_sock_set_state, vfs_open, vfs_write".to_owned()
 }
 
 /// The Pins row: the whole pin set, a partial set named honestly (a
@@ -161,7 +164,7 @@ fn format_section(
     lockdown: &str,
     caps: &str,
     lane: &str,
-    tracepoints: &str,
+    probes: &str,
     pins: &str,
 ) -> String {
     let mut out = String::from("[eBPF]\n");
@@ -171,7 +174,7 @@ fn format_section(
     out.push_str(&format!("  Lockdown:    {lockdown}\n"));
     out.push_str(&format!("  Caps:        {caps}\n"));
     out.push_str(&format!("  Lane:        {lane}\n"));
-    out.push_str(&format!("  Tracepoints: {tracepoints}\n"));
+    out.push_str(&format!("  Probes:      {probes}\n"));
     out.push_str(&format!("  Pins:        {pins}"));
     out
 }

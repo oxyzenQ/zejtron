@@ -18,8 +18,9 @@ fn section_shape_pins_every_row() {
         "none",
         "CAP_BPF + CAP_PERFMON present",
         "live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))",
-        "sched_process_exec, inet_sock_set_state",
-        "/sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, tap, sock_tap, stats, sock_events)",
+        "sched_process_exec, inet_sock_set_state, vfs_open, vfs_write",
+        "/sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, open_tap_link, write_tap_link, \
+tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, file_events, offsets)",
     );
     assert_eq!(
         section,
@@ -30,8 +31,10 @@ fn section_shape_pins_every_row() {
          Lockdown:    none\n  \
          Caps:        CAP_BPF + CAP_PERFMON present\n  \
          Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))\n  \
-         Tracepoints: sched_process_exec, inet_sock_set_state\n  \
-         Pins:        /sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, tap, sock_tap, stats, sock_events)"
+         Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write\n  \
+         Pins:        /sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, open_tap_link, \
+write_tap_link, tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, \
+file_events, offsets)"
     );
 }
 
@@ -48,8 +51,8 @@ fn live_section_renders_nine_lines() {
         assert!(row.starts_with("  "), "every row is indented: {row}");
     }
     assert_eq!(
-        lines[7], "  Tracepoints: sched_process_exec, inet_sock_set_state",
-        "the tracepoints row is the binary's contract, host-independent"
+        lines[7], "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write",
+        "the probes row is the binary's contract, host-independent"
     );
 }
 
@@ -109,10 +112,17 @@ fn pins_row_lists_every_pin_in_planting_order() {
         vec![
             "tap_link",
             "sock_tap_link",
+            "open_tap_link",
+            "write_tap_link",
             "tap",
             "sock_tap",
+            "open_tap",
+            "write_tap",
             "stats",
-            "sock_events"
+            "sock_events",
+            "tracked_inodes",
+            "file_events",
+            "offsets"
         ]
     );
 }
