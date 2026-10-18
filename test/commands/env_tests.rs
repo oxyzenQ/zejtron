@@ -113,10 +113,15 @@ fn missing_snapshot_error_message_is_clear() {
 }
 
 #[test]
-fn delete_missing_snapshot_returns_false() {
+fn delete_missing_snapshot_errors_with_the_action_contract() {
     let dir = tempdir().unwrap();
 
-    assert!(!delete_snapshot("base", dir.path()).unwrap());
+    // The load_snapshot contract (night-improve-6): deleting a
+    // snapshot that does not exist is a refused action - the same
+    // message load_snapshot refuses a diff with, riding the error
+    // lane, never a plain stdout answer that exits 0.
+    let error = delete_snapshot("base", dir.path()).unwrap_err().to_string();
+    assert_eq!(error, "No saved environment snapshot named 'base'.");
 }
 
 #[test]
@@ -126,7 +131,7 @@ fn save_list_and_delete_snapshot_with_temp_dir() {
 
     assert_eq!(list_snapshots(dir.path()).unwrap(), vec!["base"]);
     assert_eq!(load_snapshot("base", dir.path()).unwrap()["PATH"], "/bin");
-    assert!(delete_snapshot("base", dir.path()).unwrap());
+    delete_snapshot("base", dir.path()).unwrap();
     assert!(list_snapshots(dir.path()).unwrap().is_empty());
 }
 

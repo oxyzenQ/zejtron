@@ -50,11 +50,8 @@ pub fn run(
             // sudo removes snapshot files with root privilege - the
             // same planted-root-owned-files hazard as save.
             crate::system::refuse_root("environment snapshot delete removes files")?;
-            if delete_snapshot(&name, &data_dir()?)? {
-                println!("Deleted environment snapshot: {name}");
-            } else {
-                println!("No saved environment snapshot named '{name}'.");
-            }
+            delete_snapshot(&name, &data_dir()?)?;
+            println!("Deleted environment snapshot: {name}");
         }
         Some(EnvCommands::Diff { name, show_same }) => {
             let base_dir = data_dir()?;
@@ -165,11 +162,17 @@ fn list_snapshots(base_dir: &Path) -> io::Result<Vec<String>> {
     Ok(names)
 }
 
-fn delete_snapshot(name: &str, base_dir: &Path) -> Result<bool, Box<dyn Error>> {
+fn delete_snapshot(name: &str, base_dir: &Path) -> Result<(), Box<dyn Error>> {
     let path = snapshot_path(name, base_dir)?;
     match fs::remove_file(path) {
-        Ok(()) => Ok(true),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+        Ok(()) => Ok(()),
+        // The load_snapshot contract (night-improve-6): an action
+        // whose named target does not exist is a refused action -
+        // the same message, the same error lane (red, exit 1) - not
+        // a quiet stdout answer while the process exits 0.
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Err(Box::new(EnvError(format!(
+            "No saved environment snapshot named '{name}'."
+        )))),
         Err(error) => Err(Box::new(error)),
     }
 }
