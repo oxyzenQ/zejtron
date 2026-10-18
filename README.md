@@ -223,8 +223,9 @@ cargo build --release --features ebpf
 ```
 
 The feature cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
-clang, no libbpf) into a no-op tap on the `sched_process_exec`
-tracepoint and embeds the object into the host binary. The nightly
+clang, no libbpf) into two taps — the `sched_process_exec` counter
+and the `inet_sock_set_state` socket-event stream — and embeds the
+object into the host binary. The nightly
 toolchain and bpf-linker are build-time prerequisites only — the
 installed binary needs neither, and at runtime it needs no eBPF
 support beyond a capable host: kernel 5.15+, lockdown inactive, and
@@ -243,6 +244,13 @@ alive and the pinned map keeps the counter. `doctor` reads the event
 count back through the pin — the read side needs no capabilities.
 A featureless binary refuses both verbs by name and exits non-zero;
 never a fake success.
+
+With the feature built in and the chain attached, `port` now shows
+what is listening (snapshot) and what entered or left LISTEN
+recently (event window), with the PID that made the change
+(`--since`, `--events-only`, `--snapshot-only`; the window drains a
+pinned ring buffer, so each run shows the events since the previous
+run). Without eBPF, `port` is the snapshot-only tool it was.
 
 ### Usage
 
@@ -317,6 +325,9 @@ same stamp.
   pins, or counters. Building with `--features ebpf` needs the dated
   nightly pin and bpf-linker at build time only; a later phase revisits
   the default.
+- `port`'s event window requires the ebpf feature, root (or
+  `CAP_BPF`+`CAP_PERFMON`), BTF, and a kernel >= 5.15. Without any of
+  those, `port` prints snapshot-only and names the missing piece.
 
 ## Safety Features
 

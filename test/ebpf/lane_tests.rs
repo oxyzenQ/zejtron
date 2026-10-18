@@ -158,8 +158,11 @@ fn pin_constants_carry_the_removal_order() {
     // Link first (unlinking the link detaches the tap), program and
     // map last - ALL_PINS is the removal order, not a set.
     assert_eq!(ALL_PINS[0], PIN_LINK);
-    assert_eq!(ALL_PINS[1], PIN_PROG);
-    assert_eq!(ALL_PINS[2], PIN_MAP_STATS);
+    assert_eq!(ALL_PINS[1], PIN_LINK_SOCK);
+    assert_eq!(ALL_PINS[2], PIN_PROG);
+    assert_eq!(ALL_PINS[3], PIN_PROG_SOCK);
+    assert_eq!(ALL_PINS[4], PIN_MAP_STATS);
+    assert_eq!(ALL_PINS[5], PIN_MAP_SOCK_EVENTS);
     for pin in ALL_PINS {
         assert!(
             pin.starts_with("/sys/fs/bpf/zejtron/"),

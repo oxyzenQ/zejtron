@@ -65,7 +65,69 @@ v11.0.0
   still ships the snapshot-only binary. No business logic changed;
   the chain is proven, and later phases upgrade the first surface.
 
+- The port surface gains its event window (night-improve-2): a
+  second BPF program on tracepoint sock/inet_sock_set_state reads
+  the socket facts at the offsets verified against vmlinux BTF
+  (skaddr 8, oldstate 16, newstate 20, sport 24, dport 26, family
+  28, protocol 30 — a prefix layout stable since 4.16), filters to
+  the port-surface transitions (TCP LISTEN enter/leave, UDP close —
+  the shared predicate in src/ebpf/events.rs, single-sourced into
+  the BPF crate via #[path] so the kernel side and the host tests
+  compile the same bytes), and publishes a 32-byte SockEvent record
+  to the pinned sock_events ring buffer with the pid of the process
+  whose syscall made the change. Every offset inside the record is
+  pinned by test (timestamp_ns 0 through pid 28); the ring holds
+  256 KiB (8192 records) and the host drains it through the pin
+  into a rolling 4096-entry window — the pump runs for the
+  command's lifetime only, no daemon, no thread. `port` gains
+  `--since <s|m|h>` (default 60s, clamped to [1s, 1h]),
+  `--events-only`, and `--snapshot-only`; every row carries its
+  provenance — [snapshot] or [event] — and the unaccounted block
+  counts the events whose pid is no longer visible (a namespace
+  boundary, or an exit between the change and the query). The
+  doctor's [eBPF] section gains one row (Tracepoints) and the pin
+  set grows to six: sock_tap, sock_tap_link, and sock_events join
+  tap, tap_link, and stats; attach plants both programs, detach
+  unpins all six, idempotent as before.
+
+  The reading that shaped the pass: the phase-1 port answered one
+  question — which ports are open and who holds them — from a
+  snapshot assembled by parsing /proc/net at one instant and
+  scanning /proc/*/fd at another, a two-instant race the tool could
+  disclose but never close, while the doctor's [eBPF] section
+  already carried the lane verdict and the counter readback. This
+  pass adds the second question — what changed recently — answered
+  by the kernel itself: the record is written at the moment of the
+  state change, not inferred from a later scan. The port surface now
+  tells two truths instead of one: what is listening at the instant
+  of the query (snapshot, from /proc as before), and what entered or
+  left LISTEN in the last N seconds (events, from
+  inet_sock_set_state via eBPF). Every row carries its provenance —
+  [snapshot] or [event] — and the unaccounted block names what
+  neither can see. The race condition between the /proc/net parse
+  and the /proc/*/fd scan stops mattering: the event window already
+  recorded who made the change, at the moment it happened. Without
+  the ebpf feature, port is the snapshot-only tool it was — same
+  output, same behavior, no degradation.
+
+  Two semantics named honestly: a ring buffer read consumes, so each
+  `port` shows the events accumulated since the previous drain (or
+  since attach, for the first); and the event record carries the
+  port and the changer but not the bind address — the address stays
+  the snapshot's truth, so an event row prints `*:<port>` with the
+  family riding the protocol token (TCP4/TCP6/UDP4/UDP6).
+
 ### Changed
+
+- `port` now shows the event window when the ebpf feature is built
+  in and the chain is attached; snapshot-only otherwise — same
+  output shape, richer evidence when the chain is live. The default
+  build, and the feature build without a live chain, are
+  byte-identical to phase 1 for any given host (the fallback
+  contract: nothing degrades, nothing upgrades); `--events-only` on
+  a run that cannot capture events prints the named refusal line
+  instead of a fake empty window, and `--snapshot-only` is the
+  phase-1 behavior in every lane.
 
 - The release checksum lane's fast hash upgrades from BLAKE2b-512
   to BLAKE3: every release tarball now ships a `*.b3sum` sibling

@@ -292,7 +292,7 @@ pub fn should_show_unreadable_note(stats: &ScanStats) -> bool {
     stats.unreadable_processes > 0 || stats.unreadable_fds > 0
 }
 
-fn append_note(lines: &mut Vec<String>, stats: &ScanStats) {
+pub(crate) fn append_note(lines: &mut Vec<String>, stats: &ScanStats) {
     if should_show_unreadable_note(stats) {
         lines.push(String::new());
         lines.push(

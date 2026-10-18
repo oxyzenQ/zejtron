@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 pub(crate) type OwnerMap = std::collections::HashMap<u64, Vec<ProcessInfo>>;
 pub(crate) type ProcScan = (Vec<SocketEntry>, OwnerMap, ScanStats);
@@ -85,9 +86,18 @@ pub struct PortOptions {
     pub numeric: bool,
     pub group: bool,
     pub no_pid: bool,
+    /// The event window width (night-improve-2): clamped into
+    /// [1s, 3600s] by the parse, `60s` when `--since` is absent.
+    pub window: Duration,
+    /// `--events-only`: skip the snapshot, show only the window (or
+    /// the named refusal when the chain is not live).
+    pub events_only: bool,
+    /// `--snapshot-only`: the phase-1 behavior, byte-identical, in
+    /// every lane - the escape hatch that never changes.
+    pub snapshot_only: bool,
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct PortFlags {
     pub tcp: bool,
     pub udp: bool,
@@ -96,6 +106,11 @@ pub struct PortFlags {
     pub numeric: bool,
     pub group: bool,
     pub no_pid: bool,
+    /// The raw `--since` argument ("60s" shape); parsed and clamped
+    /// by [`super::window`] into `PortOptions::window`.
+    pub since: Option<String>,
+    pub events_only: bool,
+    pub snapshot_only: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

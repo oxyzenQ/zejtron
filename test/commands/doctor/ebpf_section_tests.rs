@@ -18,33 +18,39 @@ fn section_shape_pins_every_row() {
         "none",
         "CAP_BPF + CAP_PERFMON present",
         "live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))",
-        "/sys/fs/bpf/zejtron (present: tap, tap_link, stats)",
+        "sched_process_exec, inet_sock_set_state",
+        "/sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, tap, sock_tap, stats, sock_events)",
     );
     assert_eq!(
         section,
         "[eBPF]\n  \
-         Feature:   enabled (this binary)\n  \
-         Kernel:    6.1.11\n  \
-         BTF:       present (/sys/kernel/btf/vmlinux exists)\n  \
-         Lockdown:  none\n  \
-         Caps:      CAP_BPF + CAP_PERFMON present\n  \
-         Lane:      live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))\n  \
-         Pins:      /sys/fs/bpf/zejtron (present: tap, tap_link, stats)"
+         Feature:     enabled (this binary)\n  \
+         Kernel:      6.1.11\n  \
+         BTF:         present (/sys/kernel/btf/vmlinux exists)\n  \
+         Lockdown:    none\n  \
+         Caps:        CAP_BPF + CAP_PERFMON present\n  \
+         Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))\n  \
+         Tracepoints: sched_process_exec, inet_sock_set_state\n  \
+         Pins:        /sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, tap, sock_tap, stats, sock_events)"
     );
 }
 
 #[test]
-fn live_section_renders_eight_lines() {
+fn live_section_renders_nine_lines() {
     // The live section (host-probing) still renders the contract
-    // shape: the header plus exactly seven rows, whatever the host
+    // shape: the header plus exactly eight rows, whatever the host
     // says - a broken renderer cannot hide behind host variance.
     let section = section();
     let lines: Vec<&str> = section.lines().collect();
-    assert_eq!(lines.len(), 8, "the section is the header + 7 rows");
+    assert_eq!(lines.len(), 9, "the section is the header + 8 rows");
     assert_eq!(lines[0], "[eBPF]");
     for row in &lines[1..] {
         assert!(row.starts_with("  "), "every row is indented: {row}");
     }
+    assert_eq!(
+        lines[7], "  Tracepoints: sched_process_exec, inet_sock_set_state",
+        "the tracepoints row is the binary's contract, host-independent"
+    );
 }
 
 #[test]
@@ -89,4 +95,24 @@ fn feature_and_btf_rows_name_both_states() {
     } else {
         assert_eq!(feature_row(), "disabled (this binary)");
     }
+}
+
+#[test]
+fn pins_row_lists_every_pin_in_planting_order() {
+    // The present list names the whole set from ALL_PINS - the same
+    // list attach prints, the same set detach removes. On a host
+    // with no pins the row says absent; the pin-name source itself
+    // is what this pins (the order, the spelling).
+    let names = pin_names();
+    assert_eq!(
+        names,
+        vec![
+            "tap_link",
+            "sock_tap_link",
+            "tap",
+            "sock_tap",
+            "stats",
+            "sock_events"
+        ]
+    );
 }

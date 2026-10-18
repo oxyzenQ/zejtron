@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
 //! The tap loader - attach and detach (night-improve-1, the
-//! zylaxion orchestration lineage, trimmed to Phase 1's one tracepoint).
+//! zylaxion orchestration lineage; night-improve-2 grows the chain
+//! to two tracepoints and a ring buffer).
 //!
 //! This is the privileged one-shot. `doctor --attach` loads the
-//! embedded tap object, loads the tracepoint program, attaches it to
-//! sched/sched_process_exec, and pins EVERYTHING to bpffs - program,
-//! link, map - then the process may exit, because the pinned link
-//! keeps the tap alive and the pinned map keeps the counter alive.
+//! embedded tap object, loads BOTH tracepoint programs (phase 1's
+//! sched/sched_process_exec counter and phase 2's
+//! sock/inet_sock_set_state socket-event tap), attaches each, and
+//! pins EVERYTHING to bpffs - programs, links, maps - then the
+//! process may exit, because the pinned links keep the taps alive
+//! and the pinned maps keep the counter and the event ring alive.
 //! After `attach` returns, nothing of zejtron is resident in
-//! userspace. `doctor --detach` unpins everything; the link pin goes
+//! userspace. `doctor --detach` unpins everything; the link pins go
 //! first so an interrupted cleanup leaves a DETACHED tap, never a
 //! half-attached one.
 //!
@@ -29,8 +32,8 @@ use aya::programs::links::FdLink;
 
 use super::embedded;
 use super::{
-    LaneVerdict, PIN_DIR, PIN_LINK, PIN_MAP_STATS, PIN_PROG, any_pin_present, lane_verdict,
-    probe_kernel,
+    LaneVerdict, PIN_DIR, PIN_LINK, PIN_LINK_SOCK, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS, PIN_PROG,
+    PIN_PROG_SOCK, any_pin_present, lane_verdict, probe_kernel,
 };
 
 /// The embedded pure-Rust tap object (night-improve-1): the aya-ebpf
@@ -42,7 +45,7 @@ static TAP_ELF: &[u8] =
     &embedded::AlignedElf::new(*include_bytes!(concat!(env!("OUT_DIR"), "/zejtron-ebpf.o"))).bytes;
 
 /// The program name in the tap object (the ELF symbol - the fn name
-/// in ebpf/src/main.rs).
+/// in ebpf/src/main.rs) - phase 1's exec counter.
 const PROGRAM: &str = "sched_process_exec";
 
 /// The tracepoint category (the attach-time half of the attach point;
@@ -55,6 +58,17 @@ const TRACEPOINT_EVENT: &str = "sched_process_exec";
 /// The stats map name in the tap object (the \#\[map\] name in
 /// ebpf/src/main.rs - the userspace mirror of the same contract).
 const MAP_STATS: &str = "stats";
+
+/// The socket-state program's name (night-improve-2) - phase 2's
+/// inet_sock_set_state tap.
+const SOCK_PROGRAM: &str = "inet_sock_set_state";
+
+/// The socket-state tracepoint's category and event.
+const SOCK_TRACEPOINT_CATEGORY: &str = "sock";
+const SOCK_TRACEPOINT_EVENT: &str = "inet_sock_set_state";
+
+/// The sock_events ring map name in the tap object.
+const MAP_SOCK_EVENTS: &str = "sock_events";
 
 /// Attach the tap: the privileged one-shot.
 ///
@@ -158,54 +172,89 @@ pub fn attach() -> Result<String, String> {
                 .map(|n| format!("N={n}"))
                 .unwrap_or_else(|e| format!("counter unreadable ({e})"));
             Ok(format!(
-                "tap attached: tracepoint {TRACEPOINT_CATEGORY}/{TRACEPOINT_EVENT}, \
-                 counter live; events since attach: {count}\npins: {PIN_DIR} \
-                 (tap, tap_link, stats)"
+                "tap attached: tracepoints sched/sched_process_exec + \
+                 sock/inet_sock_set_state, counter live; events since attach: \
+                 {count}\npins: {PIN_DIR} (tap, tap_link, stats, sock_tap, \
+                 sock_tap_link, sock_events)"
             ))
         }
         Err(e) => Err(fail(e)),
     }
 }
 
-/// The plant step: load the program, attach, pin program + link + map.
-/// Any error names itself; the caller's fail() protocol cleans up.
+/// The plant step: load both programs, attach each to its
+/// tracepoint, pin both programs + links + maps. Any error names
+/// itself; the caller's fail() protocol cleans up everything the
+/// attempt planted - never a half-attached tap.
 fn plant(bpf: &mut Ebpf) -> Result<(), String> {
+    plant_tracepoint(
+        bpf,
+        PROGRAM,
+        TRACEPOINT_CATEGORY,
+        TRACEPOINT_EVENT,
+        PIN_PROG,
+        PIN_LINK,
+    )?;
+    plant_tracepoint(
+        bpf,
+        SOCK_PROGRAM,
+        SOCK_TRACEPOINT_CATEGORY,
+        SOCK_TRACEPOINT_EVENT,
+        PIN_PROG_SOCK,
+        PIN_LINK_SOCK,
+    )?;
+    bpf.take_map(MAP_STATS)
+        .ok_or_else(|| format!("the tap object carries no '{MAP_STATS}' map"))?
+        .pin(PIN_MAP_STATS)
+        .map_err(|e| format!("the map pin {PIN_MAP_STATS} failed: {e}"))?;
+    bpf.take_map(MAP_SOCK_EVENTS)
+        .ok_or_else(|| format!("the tap object carries no '{MAP_SOCK_EVENTS}' map"))?
+        .pin(PIN_MAP_SOCK_EVENTS)
+        .map_err(|e| format!("the map pin {PIN_MAP_SOCK_EVENTS} failed: {e}"))?;
+    Ok(())
+}
+
+/// Plant ONE tracepoint program: load, attach, pin the link first
+/// (the pin is what keeps the tap alive after this process exits),
+/// then the program. aya 0.14's chain: take_link hands the link over
+/// from the program's registry (dropping the wrapper would detach
+/// it), the TracePointLink converts into its FdLink backing (a
+/// tracepoint attach is fd-backed), and FdLink::pin consumes the fd
+/// link into a PinnedLink - which, unlike the wrapper, has NO
+/// detach-on-drop: once pinned, the link stays attached for exactly
+/// as long as the pin file exists. Unlinking the pin (detach's
+/// clear_pins) is what detaches the tap.
+fn plant_tracepoint(
+    bpf: &mut Ebpf,
+    program_name: &str,
+    category: &str,
+    event: &str,
+    prog_pin: &str,
+    link_pin: &str,
+) -> Result<(), String> {
     let program: &mut TracePoint = bpf
-        .program_mut(PROGRAM)
-        .ok_or_else(|| format!("the tap object carries no '{PROGRAM}' program"))?
+        .program_mut(program_name)
+        .ok_or_else(|| format!("the tap object carries no '{program_name}' program"))?
         .try_into()
-        .map_err(|e| format!("'{PROGRAM}' is not a tracepoint program: {e}"))?;
+        .map_err(|e| format!("'{program_name}' is not a tracepoint program: {e}"))?;
     program
         .load()
-        .map_err(|e| format!("the verifier refused the tap program: {e}"))?;
+        .map_err(|e| format!("the verifier refused the '{program_name}' program: {e}"))?;
     let link_id = program
-        .attach(TRACEPOINT_CATEGORY, TRACEPOINT_EVENT)
-        .map_err(|e| format!("the {TRACEPOINT_CATEGORY}/{TRACEPOINT_EVENT} attach failed: {e}"))?;
-    // Pinning the link is what keeps the tap alive after this process
-    // exits. aya 0.14's chain: take_link hands the link over from the
-    // program's registry (dropping the wrapper would detach it), the
-    // TracePointLink converts into its FdLink backing (a tracepoint
-    // attach is fd-backed), and FdLink::pin consumes the fd link into
-    // a PinnedLink - which, unlike the wrapper, has NO detach-on-drop:
-    // once pinned, the link stays attached for exactly as long as the
-    // pin file exists. Unlinking the pin (detach's clear_pins) is what
-    // detaches the tap.
+        .attach(category, event)
+        .map_err(|e| format!("the {category}/{event} attach failed: {e}"))?;
     let link = program
         .take_link(link_id)
         .map_err(|e| format!("the attached link could not be taken: {e}"))?;
     let fd_link: FdLink = link
         .try_into()
-        .map_err(|e| format!("the tracepoint link is not fd-backed (cannot pin): {e}"))?;
+        .map_err(|e| format!("the {category}/{event} link is not fd-backed (cannot pin): {e}"))?;
     fd_link
-        .pin(PIN_LINK)
-        .map_err(|e| format!("the link pin {PIN_LINK} failed: {e}"))?;
+        .pin(link_pin)
+        .map_err(|e| format!("the link pin {link_pin} failed: {e}"))?;
     program
-        .pin(PIN_PROG)
-        .map_err(|e| format!("the program pin {PIN_PROG} failed: {e}"))?;
-    bpf.take_map(MAP_STATS)
-        .ok_or_else(|| format!("the tap object carries no '{MAP_STATS}' map"))?
-        .pin(PIN_MAP_STATS)
-        .map_err(|e| format!("the map pin {PIN_MAP_STATS} failed: {e}"))?;
+        .pin(prog_pin)
+        .map_err(|e| format!("the program pin {prog_pin} failed: {e}"))?;
     Ok(())
 }
 
