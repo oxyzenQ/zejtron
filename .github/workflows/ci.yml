@@ -63,7 +63,13 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # The display name says what the job runs (the sibling's
+    # NIGHT-boost-11 lineage): a reader who wants the exact contract
+    # copies the name straight into a terminal and gets the same gate
+    # locally.
+    name: build.sh check-all -q
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
@@ -83,4 +89,4 @@ jobs:
         run: python3 -m pip install --user codespell
 
       - name: Run checks
-        run: ./scripts/build.sh
+        run: ./scripts/build.sh check-all -q
