@@ -175,7 +175,7 @@ pub enum Commands {
         )]
         target: String,
     },
-    #[command(about = "Check Zejtron system capability/readiness")]
+    #[command(about = "Check zejtron system capability/readiness")]
     Doctor {
         #[arg(long, help = "Attach the eBPF tap (the privileged one-shot)")]
         attach: bool,

@@ -4,35 +4,43 @@
 # PLATFORM: UNIX-only (Linux). zejtron is a Linux-only tool.
 #
 # ZYLAXION NAME-CASE CHECK (night-improve-20)
+# ZEJTRON NAME-CASE CHECK (night-improve-1.5)
 #
 """Check the lowercase family-name rule (docs/BRANDING.md section 7).
 
-The sibling project name is lowercase `zylaxion` in every context it
-appears in this repository — prose, titles, headings, code, CLI
-output, comments, commit subjects, and file paths — the nginx/curl
-convention the owner mandated (night-improve-20). This gate scans
+Both family names — the sibling `zylaxion` and this project's own
+`zejtron` — are lowercase in every context they appear in this
+repository: prose, titles, headings, code, CLI output, comments,
+commit subjects, and file paths — the nginx/curl convention the
+owner mandated for the sibling (night-improve-20) and extended to
+the project's own name (night-improve-1.5). Until that extension
+this gate checked only the sibling name, so a capitalized or
+all-caps form of the project's own name passed unnoticed — a gate
+gap that would have shipped to the first publish. This gate scans
 EVERY tracked file and EVERY tracked path (git ls-files: the .cargo/
 and .github/ hidden trees included — nothing excluded) and fails on
-any casing outside the two legal families BRANDING section 7 codifies:
+any casing outside the two legal families BRANDING section 7
+codifies, for either name:
 
   1. lowercase — the name itself, always;
   2. the identifier family — the all-caps form attached with `_` or
-     `-` (an environment-variable prefix such as `ZYLAXION_MODE`, a
-     marker such as `ZYLAXION-DISCLAIMER`), plus the all-caps banner
-     comment titles heading the scripts/ gate files (a comment line
-     opening with the all-caps name).
+     `-` (an environment-variable prefix such as `ZYLAXION_MODE` or
+     `ZEJTRON_BIN_PATH`, a marker such as `ZEJTRON-DISCLAIMER`),
+     plus the all-caps banner comment titles heading the scripts/
+     gate files (a comment line opening with the all-caps name).
 
 Every other casing — a capitalized first letter, internal capitals,
 or all-caps prose — fails with file:line:token. A stray capitalized
-or internally-capitalized form of the name in any file is a gate
-failure, per the owner's strict reading: the family name never rides
-a capital in this repo (this docstring spells no forbidden literal —
-the checker must stay self-clean, flagging nothing of its own).
+or internally-capitalized form of either name in any file is a gate
+failure, per the owner's strict reading: a family name never rides
+a capital in this repo (this docstring spells no forbidden literal
+— the checker must stay self-clean, flagging nothing of its own).
 
-The checker is self-clean by construction: the all-caps form is built
-at runtime from the lowercase name, so this file carries no literal it
-would flag itself on (the banner comment above is the one legal
-all-caps occurrence, legal by the banner rule it documents).
+The checker is self-clean by construction: every all-caps form is
+built at runtime from the lowercase name, so this file carries no
+literal it would flag itself on (the banner comments above are the
+one legal all-caps occurrences per name, legal by the banner rule
+they document).
 """
 
 from __future__ import annotations
@@ -43,11 +51,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-NAME = "zylaxion"
-UPPER = NAME.upper()
+NAMES = ("zylaxion", "zejtron")
+UPPERS = {name: name.upper() for name in NAMES}
+BANNER_RES = {
+    name: re.compile(r"^\s*#\s*" + name.upper() + r"(\s|$)") for name in NAMES
+}
 IDENTIFIER_CHARS = ("_", "-")
 BANNER_SUFFIXES = {".sh", ".py"}
-BANNER_RE = re.compile(r"^\s*#\s*" + UPPER + r"(\s|$)")
 MAX_REPORTED = 50
 
 
@@ -61,52 +71,84 @@ def tracked_paths() -> list[str]:
             capture_output=True,
         ).stdout
     except subprocess.CalledProcessError as exc:
-        print("zylaxion name-case check: FAIL")
+        print("name-case check: FAIL")
         print(f"git ls-files failed (exit {exc.returncode}) — run from a repo checkout")
         raise SystemExit(1) from exc
     return sorted(p.decode("utf-8", "surrogateescape") for p in out.split(b"\0") if p)
 
 
-def banner_title(path: str, line: str) -> bool:
+def banner_title(name: str, path: str, line: str) -> bool:
     """True when the line is a banner title heading a scripts/ gate file."""
     if not path.startswith("scripts/"):
         return False
     if Path(path).suffix not in BANNER_SUFFIXES:
         return False
-    return BANNER_RE.match(line) is not None
+    return BANNER_RES[name].match(line) is not None
 
 
-def violation_reason(path: str, line: str, token: str, prev: str, nxt: str) -> str | None:
+def violation_reason(
+    name: str, upper: str, path: str, line: str, token: str, prev: str, nxt: str
+) -> str | None:
     """None when the occurrence is legal, else the failure reason."""
-    if token == NAME:
+    if token == name:
         return None
-    if token == UPPER:
+    if token == upper:
         if nxt in IDENTIFIER_CHARS or prev in IDENTIFIER_CHARS:
             return None
-        if banner_title(path, line):
+        if banner_title(name, path, line):
             return None
         return "all-caps outside the identifier family (docs/BRANDING.md section 7)"
     return "the name is lowercase in every context (docs/BRANDING.md section 7)"
 
 
+def check_path(path: str, failures: list[str]) -> None:
+    """Path tokens: the lowercase name, never a capitalized ride."""
+    for name in NAMES:
+        lowered = path.lower()
+        pos = lowered.find(name)
+        while pos != -1:
+            end = pos + len(name)
+            if path[pos:end] != name:
+                bad = path[pos:end]
+                failures.append(
+                    f"FAIL PATH   {path} '{bad}' — path tokens must be lowercase"
+                )
+            pos = lowered.find(name, end)
+
+
+def check_line(
+    path: str, lineno: int, line: str, failures: list[str], stats: dict[str, int]
+) -> None:
+    """Content tokens: lowercase, identifier family, or banner — else fail."""
+    for name in NAMES:
+        upper = UPPERS[name]
+        lowered = line.lower()
+        pos = lowered.find(name)
+        while pos != -1:
+            end = pos + len(name)
+            token = line[pos:end]
+            prev = line[pos - 1] if pos > 0 else ""
+            nxt = line[end] if end < len(line) else ""
+            stats["tokens"] += 1
+            reason = violation_reason(name, upper, path, line, token, prev, nxt)
+            if reason is None:
+                if token == name:
+                    stats["lowercase"] += 1
+                else:
+                    stats["family"] += 1
+            else:
+                failures.append(f"FAIL CASE   {path}:{lineno} '{token}' — {reason}")
+            pos = lowered.find(name, end)
+
+
 def main() -> int:
     failures: list[str] = []
     files = 0
-    tokens = 0
-    lowercase = 0
-    family = 0
+    stats = {"tokens": 0, "lowercase": 0, "family": 0}
 
     for path in tracked_paths():
         files += 1
-
-        lowered = path.lower()
-        pos = lowered.find(NAME)
-        while pos != -1:
-            end = pos + len(NAME)
-            if path[pos:end] != NAME:
-                bad = path[pos:end]
-                failures.append(f"FAIL PATH   {path} '{bad}' — path tokens must be lowercase")
-            pos = lowered.find(NAME, end)
+        check_path(path, failures)
 
         target = ROOT / path
         if not target.is_file():
@@ -116,38 +158,25 @@ def main() -> int:
         except OSError:
             continue
         for lineno, line in enumerate(text.splitlines(), 1):
-            lowered = line.lower()
-            pos = lowered.find(NAME)
-            while pos != -1:
-                end = pos + len(NAME)
-                token = line[pos:end]
-                prev = line[pos - 1] if pos > 0 else ""
-                nxt = line[end] if end < len(line) else ""
-                tokens += 1
-                reason = violation_reason(path, line, token, prev, nxt)
-                if reason is None:
-                    if token == NAME:
-                        lowercase += 1
-                    else:
-                        family += 1
-                else:
-                    failures.append(f"FAIL CASE   {path}:{lineno} '{token}' — {reason}")
-                pos = lowered.find(NAME, end)
+            check_line(path, lineno, line, failures, stats)
 
-    print("zylaxion name-case check: " + ("FAIL" if failures else "PASS"))
+    print(
+        "name-case check (zylaxion, zejtron): " + ("FAIL" if failures else "PASS")
+    )
     for failure in failures[:MAX_REPORTED]:
         print(failure)
     if len(failures) > MAX_REPORTED:
         print(f"... and {len(failures) - MAX_REPORTED} more violation(s) not listed")
     print(
-        f"Checked {files} tracked file(s) and path(s), {tokens} name token(s): "
-        f"{lowercase} lowercase, {family} identifier/banner family, "
-        f"{len(failures)} violation(s)."
+        f"Checked {files} tracked file(s) and path(s), {stats['tokens']} name "
+        f"token(s): {stats['lowercase']} lowercase, {stats['family']} "
+        f"identifier/banner family, {len(failures)} violation(s)."
     )
     if failures:
-        print("The rule (docs/BRANDING.md section 7): the family name is lowercase in")
-        print("every context; the all-caps identifier family (attached with '_' or '-')")
-        print("and the scripts/ banner titles are the only uppercase survivors.")
+        print("The rule (docs/BRANDING.md section 7): both family names — zylaxion")
+        print("and zejtron — are lowercase in every context; the all-caps identifier")
+        print("family (attached with '_' or '-') and the scripts/ banner titles are")
+        print("the only uppercase survivors.")
         return 1
     return 0
 

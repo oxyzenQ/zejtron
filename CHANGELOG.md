@@ -132,6 +132,25 @@ v11.0.0
 
 ### Fixed
 
+- The README's Limitations list named two dead subcommands (`service`
+  needing systemd/systemctl, `git` needing the git binary) and one
+  dead verb in a survivors list (`env`) - all four wrappers died in
+  phase 0 and no surviving surface shells out anymore. The list now
+  names the surviving truth: no subcommand wraps an external tool,
+  the nine surfaces read /proc and /sys directly, and the only
+  optional external evidence sources are auditctl/journalctl and
+  pacman.
+- The name-case gate checked the sibling name (zylaxion) but not the
+  project's own: a capitalized or all-caps form of the project name
+  in any tracked file passed unnoticed - a gate gap that would have
+  shipped to the first publish. The gate now enforces the lowercase
+  law for both family names (docs/BRANDING.md section 7), and the 33
+  stale capitalized occurrences it immediately caught - across the
+  design docs, the branding prescriptions, the CLI about string, two
+  source comments, and one workflow banner - were lowercased. The
+  README, this changelog, and Cargo.toml were already clean; the
+  lowercase convention the v80 passes wrote in is now the enforced
+  law for every file the repo tracks.
 - The doctor's proc_net check no longer false-alarms on an idle
   network namespace: the verdict now rides on how many /proc/net
   files are readable (the surface working), not on how many sockets

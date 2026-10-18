@@ -1,15 +1,15 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Zejtron Brand Guidelines
+# zejtron Brand Guidelines
 
-This document defines the visual identity and communication standards for the Zejtron project. It ensures consistent branding across all touchpoints — from the GitHub repository to the CLI output and documentation.
+This document defines the visual identity and communication standards for the zejtron project. It ensures consistent branding across all touchpoints — from the GitHub repository to the CLI output and documentation.
 
 ---
 
 ## 1. Brand Identity
 
-**Zejtron** is a lightweight, efficient terminal utility. The brand reflects:
+**zejtron** is a lightweight, efficient terminal utility. The brand reflects:
 
 - **Simplicity** — focused functionality
 - **Performance** — fast, Rust-powered execution
@@ -19,18 +19,32 @@ This document defines the visual identity and communication standards for the Ze
 
 ## 2. Name Usage
 
-### 2.1. Correct forms
+The project name is **zejtron** (all lowercase) in every context —
+prose, titles, headings, code, CLI output, comments, commit subjects,
+and file paths. There is no context where a capital first letter or
+an internal capital is correct, including the start of a sentence.
 
 | Context | Format |
 |---|---|
-| Running text / prose | Zejtron |
-| Titles / headings | Zejtron |
+| Running text / prose | zejtron |
+| Titles / headings | zejtron |
 | Code / CLI | `zejtron` (lowercase) |
 
-### 2.2. Incorrect forms
+The one uppercase family that survives is identifiers, never the
+name itself: the `ZEJTRON_*` environment variables and build stamps
+(`ZEJTRON_GIT_HASH`, `ZEJTRON_BUILD_TIME`, ...), plus the all-caps
+banner comment titles heading the scripts/ gate files — shell and
+identifier conventions, not brand displays.
 
-- ~~ZejTron~~ (no internal capitalization)
-- ~~ZejtronX~~ (derivative form)
+Incorrect forms (the name-case gate rejects every one of them):
+
+- a capitalized first letter, or any internal capital, in any
+  context — even at the start of a sentence;
+- all-caps prose uses outside the identifier family;
+- derivative forms with a suffix glued to any casing of the name.
+
+Since night-improve-1.5 the rule is machine-enforced for this name
+exactly as it already was for the sibling name (section 7 below).
 
 ---
 
@@ -49,7 +63,7 @@ The official logo is located at [`assets/zejtron-logo-new.png`](assets/zejtron-l
 
 ## 4. Tone of Voice
 
-Zejtron's communication should be direct, technical, and helpful.
+zejtron's communication should be direct, technical, and helpful.
 
 - **Factual** — describe capabilities clearly
 - **Concise** — respect the user's time
@@ -106,32 +120,34 @@ crate, no timezone database in the binary:
 
 ## 6. Third-party Usage
 
-External projects or articles referencing Zejtron should:
+External projects or articles referencing zejtron should:
 
-- Use the correct project name: Zejtron
+- Use the correct project name: zejtron (lowercase, per section 2)
 - Link to the official repository: <https://github.com/oxyzenQ/zejtron>
 
 ---
 
-## 7. The zylaxion Name (lowercase law)
+## 7. The Family Names (lowercase law)
 
-The sibling project name is lowercase `zylaxion` in every context it
-appears in this repository — prose, titles, headings, code, CLI output,
-comments, commit subjects, and file paths — the nginx/curl convention
-(night-improve-20). A capitalized, internally capitalized, or all-caps
-prose form of the name in any tracked file is a gate failure.
+Both family names — the sibling `zylaxion` and this project's own
+`zejtron` — are lowercase in every context they appear in this
+repository: prose, titles, headings, code, CLI output, comments,
+commit subjects, and file paths — the nginx/curl convention
+(night-improve-20 for the sibling name, night-improve-1.5 for the
+project's own). A capitalized, internally capitalized, or all-caps
+prose form of either name in any tracked file is a gate failure.
 
-Two legal exceptions:
+Two legal exceptions, per name:
 
 - **Identifier family** — the all-caps form attached with `_` or `-`
-  (an environment-variable prefix such as `ZYLAXION_MODE`, a marker
-  such as `ZYLAXION-DISCLAIMER`).
+  (an environment-variable prefix such as `ZYLAXION_MODE` or
+  `ZEJTRON_BIN_PATH`, a marker such as `ZEJTRON-DISCLAIMER`).
 - **Banner titles** — the all-caps comment titles heading the
   `scripts/` gate files.
 
 Enforcement: `scripts/gates/check-name-case.py` (gate-keepers section
 15) scans every tracked file and every tracked path via `git ls-files`
 — nothing excluded — and fails with `file:line:token` on any casing
-outside the two families above. The checker is self-clean by
-construction: the all-caps form is built at runtime from the lowercase
-name.
+outside the two families above, for either name. The checker is
+self-clean by construction: every all-caps form is built at runtime
+from the lowercase name.

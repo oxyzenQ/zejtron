@@ -62,10 +62,11 @@
 #        the release optimization tier bit-for-bit; a one-file edit
 #        can no longer silently break that contract)
 #
-#   15.  Family name case (scripts/gates/check-name-case.py: the
-#        sibling name zylaxion is lowercase in every context, docs/
-#        BRANDING.md section 7 - every tracked file and path scanned,
-#        nothing excluded; a mixed-case form fails the gate)
+#   15.  Family name case (scripts/gates/check-name-case.py: both
+#        family names - the sibling zylaxion and this project's own
+#        zejtron - are lowercase in every context, docs/BRANDING.md
+#        section 7 - every tracked file and path scanned, nothing
+#        excluded; a mixed-case form of either name fails the gate)
 #
 # Pre-commit hook: the first wholesale run on a clone self-installs
 # .githooks/pre-commit (git config core.hooksPath=.githooks - repo-
@@ -428,7 +429,7 @@ else
 fi
 
 # ── 15. Family name case ────────────────────────────────────────────────
-header "15. Family name case (zylaxion lowercase law)"
+header "15. Family name case (zylaxion + zejtron lowercase law)"
 if python3 scripts/gates/check-name-case.py; then
 	pass "15. name case"
 else

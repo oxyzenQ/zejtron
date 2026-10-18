@@ -296,13 +296,14 @@ same stamp.
 - Without sudo, port owners and some holder details show as
   `unknown` on hardened systems — the kernel hides other users'
   process context; zejtron reports what is genuinely visible.
-- `service` requires systemd and `systemctl`. Most commands work
-  without it: `path`, `recent`, `port`, `env`, `proc`, `holds`,
-  `touch`, `why`, and `doctor`.
+- No subcommand wraps an external tool: Phase 0 removed the `env`,
+  `shell`, `git`, and `service` wrappers, and the nine surviving
+  surfaces (`path`, `recent`, `port`, `proc`, `holds`, `touch`,
+  `why`, `net`, `doctor`) read `/proc` and `/sys` directly. The only
+  external commands that can still add evidence are the optional
+  `auditctl`/`journalctl` and `pacman` sources named in this list.
 - Audit and journal evidence in `touch`/`why` is best-effort — it
   depends on `auditctl`/`journalctl` availability and retention.
-- `git` requires the `git` binary and only invokes read-only
-  subcommands.
 - `path` package ownership requires `pacman` (Arch); other distros
   show the file facts only.
 - Inside a container, zejtron sees the container's own `/proc` — the

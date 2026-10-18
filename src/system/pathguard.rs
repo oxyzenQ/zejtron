@@ -5,7 +5,7 @@
 //!
 //! ## Scope
 //!
-//! Zejtron is a Linux introspection tool — by design it reads arbitrary
+//! zejtron is a Linux introspection tool — by design it reads arbitrary
 //! user-specified paths (`zejtron why /etc/shadow`, `zejtron touch ~/.ssh/id_rsa`).
 //! Those read-only investigation commands are NOT gated here.
 //!
@@ -85,7 +85,7 @@ fn is_dangerous(canonical: &Path) -> bool {
         .unwrap_or_default();
 
     // System paths — never valid for zejtron state, even if XDG env vars
-    // point here. Zejtron is a user-space tool; its state must live under
+    // point here. zejtron is a user-space tool; its state must live under
     // the user's home or proper XDG dirs, NOT in /etc, /usr, /var, etc.
     let deny_prefixes: &[&str] = &[
         "/etc/", "/usr/", "/var/", "/bin/", "/sbin/", "/lib/", "/lib64/", "/boot/", "/root/",
