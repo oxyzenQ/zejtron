@@ -5,17 +5,19 @@
 //! ALWAYS honest, in every build: a featureless binary reports the
 //! dormant lane by name, never a fake live one, and a feature binary
 //! on an incapable host reports the snapshot lane with the reason.
-//! The rows are the contract:
+//! The rows are the contract (night-improve-2 adds the Tracepoints
+//! row - the one doctor change the pass is allowed):
 //!
 //! ```text
 //! [eBPF]
-//!   Feature:   enabled (this binary)
-//!   Kernel:    6.1.11
-//!   BTF:       present (/sys/kernel/btf/vmlinux exists)
-//!   Lockdown:  none
-//!   Caps:      CAP_BPF + CAP_PERFMON present
-//!   Lane:      live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))
-//!   Pins:      /sys/fs/bpf/zejtron (present: tap, tap_link, stats)
+//!   Feature:     enabled (this binary)
+//!   Kernel:      6.1.11
+//!   BTF:         present (/sys/kernel/btf/vmlinux exists)
+//!   Lockdown:    none
+//!   Caps:        CAP_BPF + CAP_PERFMON present
+//!   Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))
+//!   Tracepoints: sched_process_exec, inet_sock_set_state
+//!   Pins:        /sys/fs/bpf/zejtron (present: tap, tap_link, stats, sock_tap, sock_tap_link, sock_events)
 //! ```
 //!
 //! One probe feeds every row (the same `probe_kernel` + `lane_verdict`
@@ -29,7 +31,7 @@ use std::path::Path;
 use crate::ebpf::{self, LaneVerdict};
 
 /// Render the live section: probe once, classify once, print the
-/// seven rows. Feature builds additionally read the counter and the
+/// eight rows. Feature builds additionally read the counter and the
 /// attach moment when (and only when) the tap is attached.
 pub(super) fn section() -> String {
     let facts = ebpf::probe_kernel();
@@ -41,6 +43,7 @@ pub(super) fn section() -> String {
         facts.lockdown.label(),
         &facts.caps_label(),
         &lane_row(&verdict),
+        &tracepoints_row(),
         &pins_row(),
     )
 }
@@ -95,11 +98,20 @@ fn attached_detail() -> String {
     "counter unreadable (this binary was built without the ebpf feature)".to_owned()
 }
 
+/// The Tracepoints row (night-improve-2): the events the tap
+/// listens to, by name - the binary's contract, not host state (the
+/// tap object carries both programs whatever the host allows).
+fn tracepoints_row() -> String {
+    "sched_process_exec, inet_sock_set_state".to_owned()
+}
+
 /// The Pins row: the whole pin set, a partial set named honestly (a
-/// crashed attach is diagnosed, not papered over), or absent.
+/// crashed attach is diagnosed, not papered over), or absent. The
+/// present list names every pin in planting order - the same list
+/// attach prints and the same set detach removes.
 fn pins_row() -> String {
     if ebpf::all_pins_present() {
-        format!("{} (present: tap, tap_link, stats)", ebpf::PIN_DIR)
+        format!("{} (present: {})", ebpf::PIN_DIR, pin_names().join(", "))
     } else if ebpf::any_pin_present() {
         let missing: Vec<&str> = ebpf::ALL_PINS
             .iter()
@@ -121,10 +133,27 @@ fn pins_row() -> String {
     }
 }
 
+/// The pin base names in ALL_PINS order (tap_link, sock_tap_link,
+/// tap, sock_tap, stats, sock_events) - one source of truth for the
+/// present list, shared by every future row that names the set.
+fn pin_names() -> Vec<&'static str> {
+    ebpf::ALL_PINS
+        .iter()
+        .map(|p| {
+            Path::new(p)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(p)
+        })
+        .collect()
+}
+
 /// The pure row renderer - separated from [`section`] so the shape is
 /// unit-pinnable without probing the host. The alignment matches the
 /// doctor's table discipline: fixed label column, plain text, no
-/// color (the section is facts, not verdicts).
+/// color (the section is facts, not verdicts). Eight rows is the
+/// contract; the allow is the honest count, not an escape hatch.
+#[allow(clippy::too_many_arguments)]
 fn format_section(
     feature: &str,
     kernel: &str,
@@ -132,16 +161,18 @@ fn format_section(
     lockdown: &str,
     caps: &str,
     lane: &str,
+    tracepoints: &str,
     pins: &str,
 ) -> String {
     let mut out = String::from("[eBPF]\n");
-    out.push_str(&format!("  Feature:   {feature}\n"));
-    out.push_str(&format!("  Kernel:    {kernel}\n"));
-    out.push_str(&format!("  BTF:       {btf}\n"));
-    out.push_str(&format!("  Lockdown:  {lockdown}\n"));
-    out.push_str(&format!("  Caps:      {caps}\n"));
-    out.push_str(&format!("  Lane:      {lane}\n"));
-    out.push_str(&format!("  Pins:      {pins}"));
+    out.push_str(&format!("  Feature:     {feature}\n"));
+    out.push_str(&format!("  Kernel:      {kernel}\n"));
+    out.push_str(&format!("  BTF:         {btf}\n"));
+    out.push_str(&format!("  Lockdown:    {lockdown}\n"));
+    out.push_str(&format!("  Caps:        {caps}\n"));
+    out.push_str(&format!("  Lane:        {lane}\n"));
+    out.push_str(&format!("  Tracepoints: {tracepoints}\n"));
+    out.push_str(&format!("  Pins:        {pins}"));
     out
 }
 

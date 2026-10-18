@@ -5,11 +5,12 @@ mod model;
 mod owners;
 mod parser;
 mod render;
+mod window;
 
 use std::error::Error;
 
 use model::{PortError, PortOptions, Protocol, SocketEntry};
-use render::format_report;
+use window::WINDOW_DEFAULT;
 
 pub use model::PortFlags;
 
@@ -20,7 +21,7 @@ pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
     let options = parse_options(port, flags)?;
     let (sockets, owners, stats) = parser::scan_proc()?;
     let selected = filter_sockets(&sockets, &options);
-    let output = format_report(&selected, &owners, &stats, &options);
+    let output = window::format_port_output(&selected, &owners, &stats, &options);
     println!("{output}");
     Ok(())
 }
@@ -29,6 +30,16 @@ pub fn parse_options(port: Option<&str>, flags: PortFlags) -> Result<PortOptions
     if flags.listen && flags.all {
         return Err(PortError("--listen cannot be used with --all".to_owned()));
     }
+    if flags.events_only && flags.snapshot_only {
+        return Err(PortError(
+            "--events-only cannot be used with --snapshot-only".to_owned(),
+        ));
+    }
+
+    let window = match flags.since.as_deref() {
+        Some(raw) => window::clamp_window(window::parse_window(raw)?),
+        None => WINDOW_DEFAULT,
+    };
 
     Ok(PortOptions {
         port: port.map(validate_port).transpose()?,
@@ -39,6 +50,9 @@ pub fn parse_options(port: Option<&str>, flags: PortFlags) -> Result<PortOptions
         numeric: flags.numeric,
         group: flags.group,
         no_pid: flags.no_pid,
+        window,
+        events_only: flags.events_only,
+        snapshot_only: flags.snapshot_only,
     })
 }
 

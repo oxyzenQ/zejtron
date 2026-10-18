@@ -48,6 +48,9 @@ fn main() {
             numeric,
             group,
             no_pid,
+            since,
+            events_only,
+            snapshot_only,
         }) => commands::port::run(
             port.as_deref(),
             commands::port::PortFlags {
@@ -58,6 +61,9 @@ fn main() {
                 numeric,
                 group,
                 no_pid,
+                since,
+                events_only,
+                snapshot_only,
             },
         ),
         Some(cli::Commands::Proc {

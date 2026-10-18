@@ -40,6 +40,9 @@ fn options() -> PortOptions {
         numeric: false,
         group: false,
         no_pid: false,
+        window: std::time::Duration::from_secs(60),
+        events_only: false,
+        snapshot_only: false,
     }
 }
 

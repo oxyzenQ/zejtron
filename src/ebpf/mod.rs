@@ -34,20 +34,40 @@ use std::path::Path;
 /// kernel lives under this one directory - `detach` removes it whole.
 pub const PIN_DIR: &str = "/sys/fs/bpf/zejtron";
 
-/// Program pin (the tap program itself, for introspection and reload).
+/// Program pin - the exec tap (the tap program itself, for
+/// introspection and reload).
 pub const PIN_PROG: &str = "/sys/fs/bpf/zejtron/tap";
 
-/// Link pin (the attachment - this is what keeps the tap alive after
-/// the attach process exits; unlinking it detaches the tap).
+/// Link pin - the exec tap's attachment (unlinking it detaches the
+/// tap).
 pub const PIN_LINK: &str = "/sys/fs/bpf/zejtron/tap_link";
 
 /// Map pin - the stats counter (`stats[0]` counts sched_process_exec
 /// events since attach; the doctor reads it through this pin).
 pub const PIN_MAP_STATS: &str = "/sys/fs/bpf/zejtron/stats";
 
-/// Every pin the attach lane plants, in removal order (link first -
-/// unlinking the link detaches the tap; program and map last).
-pub const ALL_PINS: [&str; 3] = [PIN_LINK, PIN_PROG, PIN_MAP_STATS];
+/// Program pin - the socket-state tap (night-improve-2's
+/// inet_sock_set_state program).
+pub const PIN_PROG_SOCK: &str = "/sys/fs/bpf/zejtron/sock_tap";
+
+/// Link pin - the socket-state tap's attachment.
+pub const PIN_LINK_SOCK: &str = "/sys/fs/bpf/zejtron/sock_tap_link";
+
+/// Map pin - the sock_events ring buffer (the port surface's event
+/// window drains it through this pin; night-improve-2).
+pub const PIN_MAP_SOCK_EVENTS: &str = "/sys/fs/bpf/zejtron/sock_events";
+
+/// Every pin the attach lane plants, in removal order (both links
+/// first - unlinking a link detaches its program; programs and maps
+/// last).
+pub const ALL_PINS: [&str; 6] = [
+    PIN_LINK,
+    PIN_LINK_SOCK,
+    PIN_PROG,
+    PIN_PROG_SOCK,
+    PIN_MAP_STATS,
+    PIN_MAP_SOCK_EVENTS,
+];
 
 /// True when every pin of a complete attach exists. A partial pin set
 /// (a crashed attach, a manual rm) reads as NOT attached - `attach`
@@ -329,12 +349,21 @@ fn cap_bit_present(bit: u32) -> bool {
 #[cfg(feature = "ebpf")]
 pub mod embedded;
 
-/// The loader (attach/detach) and the counter readback - feature
-/// builds only.
+/// The socket-event record contract (night-improve-2) - shared with
+/// the BPF crate via #[path], compiled in the feature lane only on
+/// the host side (the default build has no reader and no renderer
+/// for it; the ebpf crate compiles the same file unconditionally).
+#[cfg(feature = "ebpf")]
+pub mod events;
+
+/// The loader (attach/detach), the counter readback, and the
+/// sock_events ring reader - feature builds only.
 #[cfg(feature = "ebpf")]
 pub mod loader;
 #[cfg(feature = "ebpf")]
 pub mod readback;
+#[cfg(feature = "ebpf")]
+pub mod ringbuf;
 
 /// The verb surface both lanes expose: the same signatures, so the
 /// doctor's dispatch cannot tell them apart.

@@ -112,6 +112,20 @@ pub enum Commands {
         group: bool,
         #[arg(long, help = "Hide process IDs in owner lines")]
         no_pid: bool,
+        #[arg(
+            value_name = "DURATION",
+            long,
+            help = "Event window width (s/m/h, default 60s, clamped to [1s, 1h])"
+        )]
+        since: Option<String>,
+        #[arg(
+            long,
+            conflicts_with = "snapshot_only",
+            help = "Show only the event window (no snapshot)"
+        )]
+        events_only: bool,
+        #[arg(long, help = "Show only the snapshot (the phase-1 behavior)")]
+        snapshot_only: bool,
     },
     #[command(about = "Inspect process trees by user or UID")]
     Proc {
