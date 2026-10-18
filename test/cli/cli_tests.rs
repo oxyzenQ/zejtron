@@ -21,7 +21,7 @@ fn help_carries_pro_mode_section() {
 #[test]
 fn pro_mode_discloses_every_hidden_alias() {
     let help = help_command().render_help().to_string();
-    for alias in ["--check-updated", "--watch", "--no-values"] {
+    for alias in ["--check-updated", "--watch"] {
         assert!(
             help.contains(alias),
             "Pro mode must disclose the hidden alias {alias}"
@@ -34,15 +34,7 @@ fn pro_mode_discloses_every_hidden_alias() {
 #[test]
 fn pro_mode_covers_every_flag_owning_verb() {
     let help = help_command().render_help().to_string();
-    for group in [
-        "recent:",
-        "port:",
-        "proc:",
-        "env:",
-        "env diff:",
-        "service:",
-        "global:",
-    ] {
+    for group in ["recent:", "port:", "proc:", "global:"] {
         assert!(help.contains(group), "Pro mode must own the {group} group");
     }
     for spelling in [
@@ -51,9 +43,6 @@ fn pro_mode_covers_every_flag_owning_verb() {
         "--interval SECONDS",
         "--depth N",
         "--find PATTERN",
-        "--mask-secrets",
-        "--show-same",
-        "--filter TEXT",
     ] {
         assert!(
             help.contains(spelling),
@@ -63,21 +52,9 @@ fn pro_mode_covers_every_flag_owning_verb() {
 }
 
 #[test]
-fn parses_shell() {
-    let cli = Cli::try_parse_from(["zejtron", "shell"]).unwrap();
-    assert!(matches!(cli.command, Some(Commands::Shell)));
-}
-
-#[test]
 fn parses_net() {
     let cli = Cli::try_parse_from(["zejtron", "net"]).unwrap();
     assert!(matches!(cli.command, Some(Commands::Net)));
-}
-
-#[test]
-fn parses_git() {
-    let cli = Cli::try_parse_from(["zejtron", "git"]).unwrap();
-    assert!(matches!(cli.command, Some(Commands::Git)));
 }
 
 #[test]

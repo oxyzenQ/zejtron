@@ -8,15 +8,11 @@
 //! enforces that no stray *.rs file ever joins src/ root again.
 
 pub mod doctor;
-pub mod env;
-pub mod git;
 pub mod holds;
 pub mod net;
 pub mod path;
 pub mod port;
 pub mod proc;
 pub mod recent;
-pub mod service;
-pub mod shell;
 pub mod touch;
 pub mod why;

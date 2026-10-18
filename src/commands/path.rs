@@ -35,6 +35,18 @@ pub fn run(command: &str) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn format_path_report(command: &str, matches: &[PathMatch]) -> String {
+    format_path_report_with(command, matches, &package_owner_multi)
+}
+
+/// The test seam: the same renderer with the owner lookup injected,
+/// so the render pins stay hermetic on every host's package
+/// databases (the real chain answers differently on an Arch host
+/// than on Debian - the row shape must not depend on either).
+pub(crate) fn format_path_report_with(
+    command: &str,
+    matches: &[PathMatch],
+    owner: &dyn Fn(&Path) -> Option<String>,
+) -> String {
     let Some((active, duplicates)) = matches.split_first() else {
         return format!("command not found in PATH: {command}");
     };
@@ -43,7 +55,7 @@ pub fn format_path_report(command: &str, matches: &[PathMatch]) -> String {
 
     lines.push(format!("├── active: {}", display_match_path(active)));
     lines.push(format!("├── executable: {}", yes_no(active.executable)));
-    let pkg = package_owner_multi(&active.path);
+    let pkg = owner(&active.path);
     lines.push(format!(
         "├── package: {}",
         pkg.as_deref().unwrap_or("unknown")
@@ -74,9 +86,7 @@ pub fn format_path_report(command: &str, matches: &[PathMatch]) -> String {
         ));
         lines.push(format!(
             "{detail_prefix}└── package: {}",
-            package_owner_multi(&path_match.path)
-                .as_deref()
-                .unwrap_or("unknown")
+            owner(&path_match.path).as_deref().unwrap_or("unknown")
         ));
     }
 
@@ -168,11 +178,15 @@ fn yes_no(value: bool) -> &'static str {
 }
 
 /// Multi-backend package owner lookup. Tries each backend in order of
-/// availability: pacman (Arch), dpkg (Debian/Ubuntu), rpm (Fedora/RHEL),
-/// apk (Alpine). Returns the first match.
+/// availability: the native pacman database reader (Arch, no binary
+/// invoked), dpkg (Debian/Ubuntu), rpm (Fedora/RHEL), apk (Alpine).
+/// Returns the first answer. A pacman `Unowned` verdict is terminal
+/// (the database exists and answered); an `Absent` verdict (no
+/// /var/lib/pacman - not an Arch host) falls through to the next
+/// backend unchanged.
 fn package_owner_multi(path: &Path) -> Option<String> {
     if let Some(pkg) = try_pacman(path) {
-        return Some(format!("{pkg} (pacman)"));
+        return Some(pkg);
     }
     if let Some(pkg) = try_dpkg(path) {
         return Some(format!("{pkg} (dpkg)"));
@@ -186,17 +200,21 @@ fn package_owner_multi(path: &Path) -> Option<String> {
     None
 }
 
+/// The pacman backend reads /var/lib/pacman/local directly
+/// (night-improve-0): the binary is no longer invoked. The database's
+/// existence is the Arch signal - `Absent` falls through to the
+/// other backends, `Unowned` is the database's own answer, an owned
+/// path names the package (backend label kept for the row shape).
 fn try_pacman(path: &Path) -> Option<String> {
-    let output = Command::new("pacman")
-        .args(["-Qo", "--quiet"])
-        .arg(path)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
+    match crate::system::pacman::pacman_ownership(path) {
+        crate::system::pacman::PacmanOwnership::Owned { name, .. } => {
+            Some(format!("{name} (pacman)"))
+        }
+        crate::system::pacman::PacmanOwnership::Unowned => {
+            Some("unowned by any package".to_owned())
+        }
+        crate::system::pacman::PacmanOwnership::Absent => None,
     }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout.trim().to_owned().into()
 }
 
 fn try_dpkg(path: &Path) -> Option<String> {

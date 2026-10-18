@@ -47,7 +47,7 @@ pub(crate) enum Evidence {
     Mmap(MmapPerms),
 }
 
-/// FD access mode decoded from /proc/<pid>/fdinfo/<fd> flags field.
+/// FD access mode decoded from `/proc/<pid>/fdinfo/<fd>` flags field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum FdMode {
     Read,
@@ -77,7 +77,7 @@ impl FdMode {
     }
 }
 
-/// mmap permissions decoded from /proc/<pid>/maps column 2 (e.g., "r-xp").
+/// mmap permissions decoded from `/proc/<pid>/maps` column 2 (e.g., "r-xp").
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct MmapPerms {
     pub(crate) read: bool,

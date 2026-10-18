@@ -10,7 +10,7 @@
 //! of them. Pro mode owns the whole estate: each spelling mirrors
 //! the verb's own help string verbatim (one wording authority - the
 //! CLI structs), the hidden aliases are disclosed next to the flags
-//! they alias (--check-updated, --watch, --no-values), and the
+//! they alias (--check-updated, --watch), and the
 //! layout rides one description column so the geometry cannot drift
 //! per row.
 //!
@@ -77,36 +77,6 @@ const GROUPS: &[(&str, &[Row])] = &[
             ),
             ("--no-pid", "Hide pid=<PID> labels"),
             ("--no-color", "Disable ANSI color output"),
-        ],
-    ),
-    (
-        "env:",
-        &[
-            ("--keys", "Show variable names only"),
-            ("--no-values", "Alias for --keys"),
-            ("--filter TEXT", "Filter variables by key substring"),
-            (
-                "--pid PID",
-                "Read /proc/<PID>/environ instead of this process",
-            ),
-            (
-                "--mask-secrets",
-                "Mask common secret patterns (AWS, GitHub, JWT,\nprivate keys)",
-            ),
-        ],
-    ),
-    (
-        "env diff:",
-        &[("--show-same", "Show unchanged variables in a diff")],
-    ),
-    (
-        "service:",
-        &[
-            ("--system", "Inspect system services"),
-            ("--user", "Inspect user services"),
-            ("--failed", "Show failed services only"),
-            ("--all", "Show all service units"),
-            ("--filter TEXT", "Filter services by unit name"),
         ],
     ),
     (

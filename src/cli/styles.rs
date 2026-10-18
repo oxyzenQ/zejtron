@@ -61,10 +61,10 @@ pub(crate) fn clap_styles() -> Styles {
 /// would garble. Brand purple falls to bold magenta, error red to
 /// bold red, the grammar grey to bright black (90, the palette's
 /// only honest grey), the invalid yellow to yellow. The branded
-/// entries ([`cli::parse_branded`], [`cli::help_command`], the ux
-/// bridge) swap these in when the capability ladder reports Color16,
-/// so a forced 16-color terminal never receives RGB bytes from any
-/// clap render.
+/// entries ([`crate::cli::parse_branded`], [`crate::cli::help_command`],
+/// the ux bridge) swap these in when the capability ladder reports
+/// Color16, so a forced 16-color terminal never receives RGB bytes
+/// from any clap render.
 #[must_use]
 pub(crate) fn clap_styles_16() -> Styles {
     Styles::styled()

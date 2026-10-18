@@ -1,0 +1,23 @@
+%NAME%
+bash
+
+%VERSION%
+5.2.37-1
+
+%BASE%
+bash
+
+%DESC%
+The GNU Bourne Again shell
+
+%ARCH%
+x86_64
+
+%BUILDDATE%
+1735689600
+
+%PACKAGER%
+Arch Linux (user fixture)
+
+%REASON%
+1

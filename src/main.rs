@@ -85,39 +85,8 @@ fn main() {
         Some(cli::Commands::Holds { target }) => commands::holds::run(&target),
         Some(cli::Commands::Touch { path }) => commands::touch::run(&path),
         Some(cli::Commands::Why { target }) => commands::why::run(&target),
-        Some(cli::Commands::Env {
-            command,
-            keys,
-            filter,
-            no_values,
-            pid,
-            mask_secrets,
-        }) => commands::env::run(
-            command,
-            keys || no_values,
-            filter.as_deref(),
-            pid,
-            mask_secrets,
-        ),
-        Some(cli::Commands::Service {
-            unit,
-            system,
-            user,
-            failed,
-            all,
-            filter,
-        }) => commands::service::run(commands::service::ServiceFlags {
-            unit,
-            system,
-            user,
-            failed,
-            all,
-            filter,
-        }),
         Some(cli::Commands::Doctor) => commands::doctor::run(env!("ZEJTRON_GIT_HASH")),
-        Some(cli::Commands::Shell) => commands::shell::run(),
         Some(cli::Commands::Net) => commands::net::run(),
-        Some(cli::Commands::Git) => commands::git::run(),
         None => {
             // The branded builder, not the raw derive command: the
             // bare help render obeys the same capability rule as -h.

@@ -70,12 +70,12 @@ together — each with its own output dialect, none of it deterministic.
 
 zejtron is one binary that answers the incident questions in one
 dialect. The output is deterministic, the timestamps are UTC with an
-explicit marker, and the tool never writes to the system.
+explicit marker, and the tool never writes.
 
 ### What makes zejtron sharp
 
-- **One binary, thirteen surfaces** — path, recent, port, proc, holds,
-  touch, why, env, service, shell, net, git, doctor.
+- **One binary, nine surfaces** — path, recent, port, proc, holds,
+  touch, why, net, doctor.
 
   For the single-question case, the kernel-native tools are faster —
   `ss` asks the kernel directly, `lsof` has decades of tuning. zejtron
@@ -83,20 +83,15 @@ explicit marker, and the tool never writes to the system.
   string seven tools together and parse seven dialects, the total
   wall-clock is smaller and the output is diffable.
 - **Read-only by design** — it does not kill processes, close ports,
-  start or stop services, or modify system files. Ever.
-
-  The only writes are the env snapshot under your own state directory
-  (`zejtron env save <name>`); zejtron never writes to a system path,
-  a configuration file, or a file it did not itself create.
+  start or stop services, or modify files. Ever.
 - **Deterministic output** — the same evidence, the same bytes, on
   every host. Piped output carries zero escape bytes.
 - **UTC everywhere** — evidence timestamps render
   `YYYY-MM-DD HH:MM:SS (UTC)`, computed by Howard Hinnant's
   civil_from_days on `std::time` only. No timezone database, no local
   guesses in containers.
-- **Root-honest** — `--check-update` and the env snapshot writes
-  refuse sudo by name; `git` output redacts credentials embedded in
-  remote URLs.
+- **Root-honest** — `--check-update`, the one network surface,
+  refuses sudo by name.
 - **Pro mode on `--help`** — the complete flag estate on one surface,
   grouped by the verbs that own them, aliases disclosed.
 
@@ -134,11 +129,9 @@ dead-ending.
 | `lsof -i :<port>` | `zejtron holds <port>` |
 | `lsof <path>` | `zejtron holds <path>` |
 | `ps auxf` | `zejtron proc --me` |
-| `systemctl status <unit>` | `zejtron service <unit>` |
 | `journalctl -u <unit>` | `zejtron why <path-or-port>` |
-| `env \| grep <pattern>` | `zejtron env --filter <pattern>` |
 
-Seven tools, seven dialects, one investigation. zejtron answers the
+Five tools, five dialects, one investigation. zejtron answers the
 same questions in one dialect, deterministically, with the output
 diffable and pipeable.
 
@@ -151,9 +144,9 @@ diffable and pipeable.
 - rust 1.98.1 (the pinned toolchain in `rust-toolchain.toml`; older
   rustc versions do not build zejtron) for the from-source and
   on-my-machine lanes
-- Optional: `systemctl` (for `service`), `journalctl` (touch/why
-  journal evidence), `git` (for `git`), `pacman` (package-ownership
-  rows in `path` on Arch)
+- Optional: `journalctl` (touch/why journal evidence); an Arch
+  pacman database at `/var/lib/pacman` (package-ownership rows in
+  `path` — read directly, no pacman binary invoked)
 
 ### Install on my machine (fast setup)
 
@@ -248,16 +241,8 @@ zejtron touch /etc/resolv.conf
 # The evidence report for a path or port, without inferring intent
 zejtron why /etc/resolv.conf
 
-# Environment — current, filtered, snapshotted, diffed (secrets masked)
-zejtron env --filter path
-zejtron env save base
-zejtron env diff base
-
-# systemd services, shell context, network context, git context
-zejtron service --failed
-zejtron shell
+# Network context
 zejtron net
-zejtron git
 
 # Host readiness — procfs visibility, socket parsing, evidence lanes
 zejtron doctor
@@ -295,16 +280,12 @@ same stamp.
 ## Safety Features
 
 - **Read-only by design** — no kill, no port close, no service
-  control, no system file writes. `zejtron touch` inspects evidence;
+  control, no file writes. `zejtron touch` inspects evidence;
   it is not shell `touch` and does not create files or change
   timestamps.
 - **Root refusal with a name** — `--check-update` (the network
-  surface) and `env save`/`delete` (the filesystem-write surfaces)
-  print the named refusal and a rerun tip instead of silently
-  misbehaving under sudo.
-- **Secret hygiene** — `env --mask-secrets` masks common secret
-  patterns (AWS, GitHub, JWT, private keys); `git` redacts
-  credentials embedded in remote URLs as `<redacted>`.
+  surface) prints the named refusal and a rerun tip instead of
+  silently misbehaving under sudo.
 - **Capability-honest color** — truecolor when the terminal truly
   supports it, plain bytes when piped; `NO_COLOR` is honored
   everywhere.
@@ -317,10 +298,10 @@ One crate, one binary, one discipline:
 src/
   main.rs        — entry point + dispatch (the ONLY file at src/ root)
   cli/           — clap derive definition, brand styling, the UX bridge
-  commands/      — the thirteen read-only surfaces
+  commands/      — the nine read-only surfaces
   info/          — the -V report + the std-only civil clock
   output/        — the runtime color tier (capability ladder, error lane)
-  system/        — /proc readers, username lookup, path guardrails
+  system/        — /proc readers, the pacman reader, path guardrails
   update/        — --check-update (refuses root, fail-closed)
 ```
 
@@ -351,11 +332,15 @@ maintain.
 - A daemon, an agent, or a telemetry endpoint
 - A tool that guesses instead of showing evidence
 
-### Stable API (from v11.0.0)
+### Stable API
 
-The CLI surface is frozen: no breaking changes to commands, flags, or
-output format from v11.0.0 onward. Future releases focus on bug
-fixes, procfs/sysfs compatibility, and internal performance.
+The CLI surface froze at v11.0.0; the road to v80.0.0 lifts that
+freeze once — the four wrapper subcommands (`env`, `shell`, `git`,
+`service`) are removed, and the surviving nine surfaces keep their
+spellings, flags, and output format. From v80.0.0 the freeze applies
+again: no breaking changes to commands, flags, or output format.
+Future releases focus on bug fixes, procfs/sysfs compatibility, and
+internal performance.
 
 ### Release channels
 
@@ -373,10 +358,9 @@ root discipline. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
-zejtron is read-only; its own attack surface is the honest surface:
+zejtron writes nothing; its own attack surface is the honest one:
 the network lane (`--check-update`) refuses root and verifies tags
-fail-closed, snapshots stay under the user's own state directory, and
-credentials never survive in output. Report vulnerabilities per
+fail-closed. Report vulnerabilities per
 [SECURITY.md](SECURITY.md) — please do not open public issues for
 them.
 
@@ -394,7 +378,7 @@ them.
 
 ## Test Results
 
-The suite is the contract: 302 tests green at every landing, plus the
+The suite is the contract: 205 tests green at every landing, plus the
 CLI battery run against the built binary per supermassive leg (MSRV
 and stable, gnu and musl), the miri UB lane, and the container end-to-end
 leg. CI blocks the merge on every one of them — a green pipeline has

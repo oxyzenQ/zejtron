@@ -57,7 +57,7 @@ fn format_build_time_utc() -> String {
 ///
 /// Algorithm: split `total_secs` into days + seconds-of-day, then use
 /// Howard Hinnant's `civil_from_days` algorithm
-/// (http://howardhinnant.github.io/date_algorithms.html) to convert
+/// (`<http://howardhinnant.github.io/date_algorithms.html>`) to convert
 /// days-since-epoch to (year, month, day). All arithmetic is on `i64`
 /// to avoid unsigned-underflow issues when subtracting the 719468-day
 /// shift constant.

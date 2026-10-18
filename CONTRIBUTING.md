@@ -103,9 +103,10 @@ docs/            — the docs tree (BRANDING, RULES, VERIFY_RELEASE, ...)
    across rust-toolchain.toml / Cargo.toml MSRV / CI pins is enforced
    by `scripts/gates/check-rust-version-sync.sh`.
 6. **Read-only discipline**: zejtron never modifies system state — no
-   kill, no close, no service control, no file writes outside the
-   user's own XDG data dir (the env snapshot store). A contribution
-   that breaks this contract is rejected by definition.
+   kill, no close, no service control, no file writes at all (the
+   claim is literal since the v80 surface reduction removed the env
+   snapshot writes). A contribution that breaks this contract is
+   rejected by definition.
 7. **Dependency discipline** (the sibling supply-chain rule): every
    direct dependency needs live call sites and an entry in
    `docs/DEPENDENCY_AUDIT.md`; feature lists are trimmed to the

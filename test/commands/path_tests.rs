@@ -80,7 +80,7 @@ fn report_uses_duplicates_none_for_single_match() {
     }];
 
     assert_eq!(
-        format_path_report("tool", &matches),
+        format_path_report_with("tool", &matches, &|_| None),
         "tool\n├── active: /usr/bin/tool\n├── executable: yes\n├── package: unknown\n└── duplicates: none"
     );
 }
@@ -101,7 +101,7 @@ fn report_lists_only_non_active_duplicates() {
     ];
 
     assert_eq!(
-        format_path_report("tool", &matches),
+        format_path_report_with("tool", &matches, &|_| None),
         "tool\n├── active: /usr/bin/tool\n├── executable: yes\n├── package: unknown\n└── duplicates:\n    └── /home/rezky/.local/bin/tool\n       ├── executable: yes\n       └── package: unknown"
     );
 }

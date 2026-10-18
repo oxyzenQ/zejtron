@@ -9,17 +9,21 @@
 //! user-specified paths (`zejtron why /etc/shadow`, `zejtron touch ~/.ssh/id_rsa`).
 //! Those read-only investigation commands are NOT gated here.
 //!
-//! This module only protects zejtron's own STATE I/O — currently just the
-//! `env save/list/diff/delete` snapshot directory at
-//! `$XDG_DATA_HOME/zejtron/env/` (or `~/.local/share/zejtron/env/`).
+//! This module only protects zejtron's own STATE I/O. Its one
+//! consumer — the retired environment-snapshot lane (a state
+//! directory under `$XDG_DATA_HOME/zejtron/`, or
+//! `~/.local/share/zejtron/`) — was removed in the v80 surface
+//! reduction (night-improve-0): the
+//! read-only claim is literal and zejtron no longer writes state.
+//! The guard stays as the tested foundation for any future lane that
+//! would reintroduce state I/O; nothing in the current tree writes.
 //!
 //! ## Threat model
 //!
 //! Without this guard, a malicious or careless environment could redirect
 //! zejtron's state writes via `XDG_DATA_HOME=/etc` or `XDG_DATA_HOME=~/.ssh`,
-//! causing env snapshots to be written into protected directories. While the
-//! snapshot contents are plain `KEY=VALUE` user environment strings (not
-//! credentials), writing them into system or credential directories violates
+//! causing state files to be written into protected directories. Writing
+//! them into system or credential directories violates
 //! the principle of least privilege and could mask other attacks.
 //!
 //! ## Policy

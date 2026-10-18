@@ -19,7 +19,7 @@
 //! `YYYY-MM-DD HH:MM:SS` core and appends the honest ` (UTC)` suffix.
 //!
 //! Algorithm: Howard Hinnant's `civil_from_days`
-//! (http://howardhinnant.github.io/date_algorithms.html) converts
+//! (`<http://howardhinnant.github.io/date_algorithms.html>`) converts
 //! days-since-1970-01-01 to (year, month, day) in the proleptic
 //! Gregorian calendar. All arithmetic is on `i64` so pre-epoch
 //! timestamps (negative seconds) ride the same floor-division math

@@ -438,7 +438,7 @@ fn parse_status_u64(contents: &str, key: &str) -> Option<u64> {
         .and_then(|n| n.parse::<u64>().ok())
 }
 
-/// Read the state character from /proc/<pid>/stat field 3.
+/// Read the state character from `/proc/<pid>/stat` field 3.
 /// The comm field (field 2) can contain spaces and parens, so we find the
 /// LAST ')' and take the char right after it.
 fn read_state_char(proc_dir: &std::path::Path) -> Option<String> {
