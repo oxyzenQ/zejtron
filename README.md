@@ -168,7 +168,7 @@ microarch levels for both libc flavors (v3 covers Haswell 2013+,
 v4 covers AVX-512-era 2017+; musl builds are fully static).
 
 ```sh
-TAG=v11.0.0
+TAG=v80.0.0-alpha.1
 SHAPE=linux-amd64-v3-gnu   # or v4-gnu / v3-musl / v4-musl
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
