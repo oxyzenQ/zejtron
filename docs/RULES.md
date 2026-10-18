@@ -8,20 +8,32 @@ All contributors and maintainers must follow these rules.
 
 ## LOC Discipline
 
-Core engine source files must stay under **1000 lines of code (LOC)**.
+### Rust sources (hard cap 600, no mercy)
 
-This rule applies to all code files: `*.rs`, `*.c`, `*.css`, and similar
-source files that contain program logic.
+Rust source files must stay under **600 lines of code**. The scope is
+every tracked `*.rs` file anywhere in the tree: `src/**`, `test/**`,
+and `build.rs` (`scripts/gates/check-loc.sh`, wired as gate-keepers
+section 9; the checker walks the git index by file type, so a new
+over-cap file fails before the commit). When a file approaches the
+cap, it must be split by responsibility before it becomes a
+maintenance burden - a pure move with the gates green in between -
+and each resulting file keeps one clear, single purpose such as
+parsing, data models, output rendering, or owner mapping. There is no
+exemption path.
 
-Documentation and plain-text files are excluded from this rule: `*.md`,
-`*.txt`, `*.sh` (scripts), and other non-code files are not subject to the
-LOC limit.
+### Scripts (hard cap 1000)
 
-When a source file approaches or exceeds the 1000 LOC threshold, it must
-be split by responsibility before it becomes a maintenance burden. The split
-should follow the principle of cohesion: each resulting file should have a
-clear, single purpose such as parsing, data models, output rendering, or
-owner mapping.
+Every `.sh` and `.py` file under `scripts/` (recursive) must stay
+under **1000 lines** (`scripts/gates/check-scripts-loc.sh`,
+gate-keepers section 12). The budget is wider than Rust's on purpose:
+a one-shot harness legitimately bundles its constants, its stage
+table, and its verdict plumbing in one self-contained file - but no
+script grows unbounded; the split into modules is the remedy.
+
+### Exclusions
+
+Documentation and plain-text files are not subject to the LOC limits:
+`*.md`, `*.txt`, lockfiles, and assets.
 
 ## main.rs Scope
 
@@ -29,6 +41,23 @@ owner mapping.
 preferred range is **100 to 300 LOC**. It should parse CLI arguments and
 dispatch commands to the appropriate modules, without containing substantive
 business logic.
+
+## src/ Structure
+
+- **Root single-file policy**: `src/` root holds exactly ONE `.rs`
+  file - `main.rs`. Every other module lives in its subsystem
+  directory; a stray root-level module fails the build
+  (`scripts/gates/check-loc.sh` checks the root layout before it
+  counts a single line).
+- **Subsystem directories** each own a `mod.rs` that carries the
+  module declarations and re-exports: `cli/`, `commands/`, `info/`,
+  `output/`, `system/`, `update/`.
+- **Nested command modules** ride the `command.rs` + `command/`
+  group idiom: the `.rs` file owns the command's entry surface, the
+  same-named directory owns its submodules (see `commands/proc.rs`
+  with `commands/proc/`).
+- The colocated `src/RULES.md` reminds a contributor standing in the
+  source tree of both disciplines; this document stays canonical.
 
 ## Feature Freeze
 
