@@ -112,3 +112,132 @@ pub fn is_port_surface_event(family: u16, protocol: u8, oldstate: u8, newstate: 
         _ => false,
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// night-improve-3, the file-event contract (the Evidence Ledger pass).
+// Same file, same discipline: the record, the filter key, the device
+// tokens, and the offsets-map slot indices live here once, compiled
+// into the bpfel object AND into the host binary through #[path] -
+// one truth for both sides of the ring.
+// ─────────────────────────────────────────────────────────────────────
+
+/// `op` for FileEvent: a file was opened (the vfs_open kprobe fired
+/// on the queried inode's path).
+pub const FILE_OP_OPEN: u8 = 1;
+
+/// `op` for FileEvent: a file was written (the vfs_write kprobe fired
+/// on the queried inode's file).
+pub const FILE_OP_WRITE: u8 = 2;
+
+/// `op` for FileEvent: a file was unlinked. DEFINED but not produced
+/// (night-improve-3): the vfs_unlink kprobe was skipped - its
+/// signature churned across the floor (mnt_userns prepended in 5.12
+/// shifted dentry from arg1 to arg2, the idmap args landed in 6.x),
+/// so no single offset serves the floor-to-now range. The gap is
+/// named in README Limitations; op=3 stays reserved so the record
+/// contract never renumbers. The host's op label match carries the
+/// reserved arm; the BPF side compiles this file for the record
+/// contract and never reads the constant - the scoped allow names
+/// exactly that split.
+#[allow(dead_code)]
+pub const FILE_OP_UNLINK: u8 = 3;
+
+/// One file action, as the kernel saw it at the moment it happened.
+///
+/// Offsets (repr(C), natural alignment, pinned by test):
+/// timestamp_ns 0, op 8 (pad 9..16), inode 16, device 24, pid 32
+/// (pad2 36..40); total 40 bytes.
+///
+/// `device` is the canonical device token - the kernel's dev_t
+/// encoding (major << 20) | minor, the same integer the superblock's
+/// s_dev carries - so the record, the filter key, and the host's
+/// stat(2) all speak one number for one device.
+///
+/// `pid` is the tgid half of bpf_get_current_pid_tgid: the process
+/// whose syscall made the change - the fact no snapshot can see.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FileEvent {
+    /// CLOCK_MONOTONIC nanoseconds at the action.
+    pub timestamp_ns: u64,
+    /// One of FILE_OP_OPEN / FILE_OP_WRITE / FILE_OP_UNLINK.
+    pub op: u8,
+    /// Padding to 8-byte alignment (pinned by test at 9..16).
+    pub _pad: [u8; 7],
+    /// The inode number, full 64 bits (the display truth).
+    pub inode: u64,
+    /// The canonical device token (see [`device_token_from_kernel`]).
+    pub device: u64,
+    /// The acting process (tgid).
+    pub pid: u32,
+    /// Padding to 40 bytes (pinned by test at 36..40).
+    pub _pad2: u32,
+}
+
+/// The size of one file_events ring record, in bytes.
+pub const FILE_EVENT_BYTES: usize = core::mem::size_of::<FileEvent>();
+
+/// The canonical device token from the kernel's own dev_t
+/// (super_block.s_dev): the kernel form already IS
+/// (major << 20) | minor, so this is the identity cast to u64.
+///
+/// BPF-side-only by design (the host's stat decode is
+/// [`device_token_from_stat`]); the scoped allow names the split,
+/// the mirror of from_stat's allow.
+#[allow(dead_code)]
+pub fn device_token_from_kernel(s_dev: u32) -> u64 {
+    u64::from(s_dev)
+}
+
+/// Pack the filter-map key for one file: (inode << 32) | device.
+///
+/// Named residuals, accepted once and pinned by test:
+/// - inodes >= 2^32 alias into the low 32 bits of another inode on
+///   the same device (no filesystem in common use assigns numbers
+///   that high; the full 64-bit inode rides the record, so the host
+///   drops any event whose full identity does not match the query -
+///   an alias can waste ring space, never render a wrong row);
+/// - devices with major > 4095 (none in mainline use) compare on
+///   their low 32 bits like every other device.
+pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
+    (inode << 32) | (device & 0xFFFF_FFFF)
+}
+
+// ── The offsets config map slots ────────────────────────────────────
+//
+// Every struct offset the two kprobes read is written into the
+// `offsets` Array<u64> map at attach time, parsed from the host's
+// own /sys/kernel/btf/vmlinux (src/ebpf/btf.rs). The programs read
+// their offsets from the map; the slot indices below are the
+// contract between the host writer and the BPF readers. Fixed at
+// eight so the map never renumbers.
+
+/// offsets[0]: struct dentry, member d_inode.
+pub const OFF_SLOT_DENTRY_D_INODE: u32 = 0;
+/// offsets[1]: struct inode, member i_ino.
+pub const OFF_SLOT_INODE_I_INO: u32 = 1;
+/// offsets[2]: struct file, member f_path.
+pub const OFF_SLOT_FILE_F_PATH: u32 = 2;
+/// offsets[3]: struct file, member f_inode.
+pub const OFF_SLOT_FILE_F_INODE: u32 = 3;
+/// offsets[4]: struct vfsmount, member mnt_sb.
+pub const OFF_SLOT_VFSMOUNT_MNT_SB: u32 = 4;
+/// offsets[5]: struct super_block, member s_dev.
+pub const OFF_SLOT_SUPER_BLOCK_S_DEV: u32 = 5;
+/// offsets[6]: struct path, member mnt.
+pub const OFF_SLOT_PATH_MNT: u32 = 6;
+/// offsets[7]: struct path, member dentry.
+pub const OFF_SLOT_PATH_DENTRY: u32 = 7;
+
+/// The number of slots the offsets map carries (the map's
+/// max_entries on the BPF side, the write count on the host side).
+///
+/// BPF-side-only by design (the BPF crate sizes the offsets Array
+/// with it; the host writes the slots by OFF_SLOT_* index and never
+/// needs the count); the scoped allow names the split.
+#[allow(dead_code)]
+pub const OFF_SLOTS: u32 = 8;
+
+#[cfg(test)]
+#[path = "../../test/ebpf/file_events_tests.rs"]
+mod tests;

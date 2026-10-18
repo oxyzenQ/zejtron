@@ -5,7 +5,7 @@ mod model;
 mod owners;
 mod parser;
 mod render;
-mod window;
+pub(crate) mod window;
 
 use std::error::Error;
 

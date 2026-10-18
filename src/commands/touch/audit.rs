@@ -15,7 +15,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use super::{EvidenceSource, ProcessEvidence, TouchInfo, uid_to_user};
 
-pub(super) fn try_audit_log(
+pub(crate) fn try_audit_log(
     display_path: &Path,
     lookup_path: &Path,
     users: &HashMap<u32, String>,
@@ -113,7 +113,7 @@ pub(super) fn try_audit_log(
     })
 }
 
-pub(super) fn try_journalctl(
+pub(crate) fn try_journalctl(
     display_path: &Path,
     lookup_path: &Path,
     users: &HashMap<u32, String>,

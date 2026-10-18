@@ -9,11 +9,14 @@ use std::io;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
+pub(crate) mod ledger;
 mod procfs;
 
+pub(crate) use procfs::parse_status_value;
+
 use procfs::{
-    ProcRead, dev_major_minor, list_pids, parse_status_value, read_fd_mode, read_proc_net_sockets,
-    resolve_username, scan_pid_fds_for_file, scan_pid_fds_for_sockets, scan_pid_maps_for_file,
+    ProcRead, dev_major_minor, list_pids, read_fd_mode, read_proc_net_sockets, resolve_username,
+    scan_pid_fds_for_file, scan_pid_fds_for_sockets, scan_pid_maps_for_file,
 };
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Target {
@@ -168,18 +171,13 @@ struct MapEntry {
     perms: MmapPerms,
 }
 
-pub fn run(target: &str) -> Result<(), Box<dyn Error>> {
+pub fn run(target: &str, since: Option<&str>) -> Result<(), Box<dyn Error>> {
     let target = parse_target(target)?;
+    let (window, window_label) =
+        crate::commands::lane::resolve_window(since).map_err(HoldsError)?;
     let output = match target {
-        Target::Port(port) => {
-            let (holders, stats) = scan_port_holders(port)?;
-            format_port_report(port, &holders, &stats)
-        }
-        Target::Path(path) => {
-            let display = path.display().to_string();
-            let (holders, stats) = scan_path_holders(&path)?;
-            format_path_report(&display, &holders, &stats)
-        }
+        Target::Port(port) => ledger::build_port_report(port, window, window_label)?,
+        Target::Path(path) => ledger::build_path_report(&path, window, window_label)?,
     };
     println!("{output}");
     Ok(())
@@ -320,89 +318,6 @@ fn read_holder(pid: u32, evidence: Vec<Evidence>) -> Option<Holder> {
         cwd,
         evidence,
     })
-}
-
-fn format_port_report(port: u16, holders: &[Holder], stats: &ScanStats) -> String {
-    if holders.is_empty() {
-        let mut lines = vec![format!("No holders found for port {port}.")];
-        append_note(&mut lines, stats);
-        return lines.join("\n");
-    }
-
-    let mut lines = vec![format!(":{port}")];
-    append_holder_lines(&mut lines, holders, true);
-    lines.push(String::new());
-    lines.push(format!(
-        "{} {}",
-        holders.len(),
-        plural(holders.len(), "holder", "holders")
-    ));
-    append_note(&mut lines, stats);
-    lines.join("\n")
-}
-
-fn format_path_report(path: &str, holders: &[Holder], stats: &ScanStats) -> String {
-    if holders.is_empty() {
-        let mut lines = vec![format!("No holders found for '{path}'.")];
-        append_note(&mut lines, stats);
-        return lines.join("\n");
-    }
-
-    let mut lines = vec![path.to_owned()];
-    append_holder_lines(&mut lines, holders, false);
-    lines.push(String::new());
-    lines.push(format!(
-        "{} {}",
-        holders.len(),
-        plural(holders.len(), "holder", "holders")
-    ));
-    append_note(&mut lines, stats);
-    lines.join("\n")
-}
-
-fn append_holder_lines(lines: &mut Vec<String>, holders: &[Holder], show_cwd: bool) {
-    for (index, holder) in holders.iter().enumerate() {
-        let last = index + 1 == holders.len();
-        let branch = if last { "└──" } else { "├──" };
-        let child_indent = if last { "    " } else { "│   " };
-        lines.push(format!(
-            "{branch} {} pid={} user={}",
-            holder.name, holder.pid, holder.user
-        ));
-
-        // Build a list of sub-rows: cwd first (if requested), then evidence.
-        let mut sub_rows: Vec<String> = Vec::new();
-        if show_cwd {
-            if let Some(cwd) = &holder.cwd {
-                sub_rows.push(format!("cwd {}", cwd.display()));
-            } else {
-                sub_rows.push("cwd (unreadable)".to_owned());
-            }
-        }
-        for evidence in &holder.evidence {
-            sub_rows.push(evidence.label());
-        }
-
-        for (sub_index, row) in sub_rows.iter().enumerate() {
-            let sub_last = sub_index + 1 == sub_rows.len();
-            let sub_branch = if sub_last { "└──" } else { "├──" };
-            lines.push(format!("{child_indent}{sub_branch} {row}"));
-        }
-    }
-}
-
-fn append_note(lines: &mut Vec<String>, stats: &ScanStats) {
-    if stats.has_unreadable() {
-        lines.push(String::new());
-        lines.push(
-            "note: some processes were not readable; try sudo for complete holder details"
-                .to_owned(),
-        );
-    }
-}
-
-fn plural<'a>(count: usize, singular: &'a str, plural: &'a str) -> &'a str {
-    if count == 1 { singular } else { plural }
 }
 
 #[cfg(test)]

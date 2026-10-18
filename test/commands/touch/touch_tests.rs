@@ -11,48 +11,6 @@ use super::*;
 use std::os::unix::fs::symlink;
 use tempfile::TempDir;
 
-fn metadata_info(path: &str) -> TouchInfo {
-    TouchInfo {
-        path: PathBuf::from(path),
-        modified: UNIX_EPOCH + Duration::from_secs(1_700_000_000),
-        source: EvidenceSource::Metadata,
-        actor: "unknown".to_owned(),
-        process: None,
-        meta: None,
-    }
-}
-
-#[test]
-fn renders_metadata_fallback_for_file() {
-    let output = format_report(&metadata_info("/tmp/example"));
-
-    assert!(output.contains("/tmp/example\n├── modified: "));
-    assert!(output.contains("├── source: filesystem metadata"));
-    assert!(output.contains("└── actor: unknown"));
-    assert!(
-        output
-            .contains("note: filesystem metadata shows when the path changed, not who changed it")
-    );
-}
-
-#[test]
-fn renders_audit_evidence_with_process() {
-    let info = TouchInfo {
-        path: PathBuf::from("/tmp/example"),
-        modified: UNIX_EPOCH + Duration::from_secs(1_700_000_000),
-        source: EvidenceSource::Audit,
-        actor: "rezky".to_owned(),
-        process: Some(ProcessEvidence {
-            name: "nano".to_owned(),
-            pid: Some(1234),
-        }),
-        meta: None,
-    };
-
-    assert!(format_report(&info).contains("└── process: nano pid=1234"));
-    assert!(format_report(&info).contains("note: actor inference is best-effort"));
-}
-
 #[test]
 fn accepts_directory_metadata() {
     let directory = TempDir::new().unwrap();

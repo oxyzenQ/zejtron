@@ -77,7 +77,7 @@ fn parses_holds_target() {
     let cli = Cli::try_parse_from(["zejtron", "holds", "/tmp/file with spaces"]).unwrap();
 
     match cli.command {
-        Some(Commands::Holds { target }) => {
+        Some(Commands::Holds { target, .. }) => {
             assert_eq!(target, "/tmp/file with spaces");
         }
         other => panic!("unexpected command: {other:?}"),
@@ -124,7 +124,7 @@ fn parses_touch_path() {
     let cli = Cli::try_parse_from(["zejtron", "touch", "/tmp/file with spaces"]).unwrap();
 
     match cli.command {
-        Some(Commands::Touch { path }) => {
+        Some(Commands::Touch { path, .. }) => {
             assert_eq!(path, PathBuf::from("/tmp/file with spaces"));
         }
         other => panic!("unexpected command: {other:?}"),
@@ -136,7 +136,7 @@ fn parses_why_target() {
     let cli = Cli::try_parse_from(["zejtron", "why", "/tmp/file with spaces"]).unwrap();
 
     match cli.command {
-        Some(Commands::Why { target }) => {
+        Some(Commands::Why { target, .. }) => {
             assert_eq!(target, "/tmp/file with spaces");
         }
         other => panic!("unexpected command: {other:?}"),

@@ -4,6 +4,7 @@
 mod cli;
 mod commands;
 mod ebpf;
+mod evidence;
 mod info;
 mod output;
 mod system;
@@ -89,9 +90,16 @@ fn main() {
                 no_color,
             },
         ),
-        Some(cli::Commands::Holds { target }) => commands::holds::run(&target),
-        Some(cli::Commands::Touch { path }) => commands::touch::run(&path),
-        Some(cli::Commands::Why { target }) => commands::why::run(&target),
+        Some(cli::Commands::Holds { target, since }) => {
+            commands::holds::run(&target, since.as_deref())
+        }
+        Some(cli::Commands::Touch { path, since }) => commands::touch::run(&path, since.as_deref()),
+        Some(cli::Commands::Why {
+            target,
+            since,
+            trace,
+            raw,
+        }) => commands::why::run(&target, since.as_deref(), trace, raw),
         Some(cli::Commands::Doctor { attach, detach }) => {
             commands::doctor::run(env!("ZEJTRON_GIT_HASH"), attach, detach)
         }
