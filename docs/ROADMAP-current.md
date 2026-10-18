@@ -1,10 +1,10 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Zejtron Roadmap
+# zejtron Roadmap
 
 This document describes the design direction and staged delivery plan for
-future Zejtron releases. Nothing here is implemented. This is a design-only
+future zejtron releases. Nothing here is implemented. This is a design-only
 reference to guide deliberate, disciplined development when the project exits
 stabilization mode.
 
@@ -12,7 +12,7 @@ See [docs/v5.md](v5.md) for the full v5.0.0 design specification.
 
 ## Project Identity
 
-Zejtron is a Linux introspection tool. It exists to answer operational
+zejtron is a Linux introspection tool. It exists to answer operational
 questions about processes, ports, files, services, and system readiness from a
 single terminal binary. The project serves operators, engineers, and incident
 responders who need fast, reliable answers without installing a toolkit of
@@ -21,7 +21,7 @@ independent utilities.
 The following identity constraints are non-negotiable:
 
 - Linux-first, procfs-based. No cross-platform ambitions.
-- Read-only by default. Zejtron never modifies system state.
+- Read-only by default. zejtron never modifies system state.
 - Single binary distribution. No runtime dependencies beyond what ships
   with standard Linux systems.
 - Low maintenance burden. Minimal dependency footprint, disciplined LOC
@@ -115,7 +115,7 @@ All releases must satisfy the following conditions before tagging:
 9. Documentation and command help text remain consistent.
 10. `codespell` passes on all documentation.
 
-## What Belongs in Zejtron
+## What Belongs in zejtron
 
 Introspection commands that answer operational questions about the current
 system without modifying it. Specifically:
@@ -125,7 +125,7 @@ system without modifying it. Specifically:
 - Network state inspection.
 - System readiness checks.
 
-## What Does Not Belong in Zejtron
+## What Does Not Belong in zejtron
 
 - Any command that modifies system state (process killing, file writing,
   service management, package installation).
@@ -138,7 +138,7 @@ system without modifying it. Specifically:
 ## Separate Projects
 
 The following capabilities are valuable but should remain independent
-projects rather than being absorbed into Zejtron:
+projects rather than being absorbed into zejtron:
 
 - Process killing or signal management (e.g. pkill, kill).
 - Package management or system updates.

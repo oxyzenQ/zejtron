@@ -1,9 +1,9 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Zejtron Project Maintenance Rules
+# zejtron Project Maintenance Rules
 
-This document codifies the maintenance discipline for the Zejtron project.
+This document codifies the maintenance discipline for the zejtron project.
 All contributors and maintainers must follow these rules.
 
 ## LOC Discipline
@@ -61,7 +61,7 @@ business logic.
 
 ## Feature Freeze
 
-Zejtron is currently **feature-frozen**. No new commands or runtime features
+zejtron is currently **feature-frozen**. No new commands or runtime features
 should be added. The project is in stabilization mode, and all work should
 focus on:
 
@@ -77,7 +77,7 @@ project exits stabilization mode.
 
 ## Read-Only Behavior
 
-Zejtron is designed to be **read-only by default**. It must not kill
+zejtron is designed to be **read-only by default**. It must not kill
 processes, close ports, start or stop services, modify files, or alter system
 state in any way. Any change that would introduce write side-effects must be
 rejected during review.
