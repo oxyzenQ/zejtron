@@ -99,8 +99,8 @@ git push origin v11.0.0
 ## Actions-Pin Health
 
 The workflows' `uses:` pins are kept fresh by a contributor-carried
-gate (the sibling project's actions-pin contract, one engine for both
-seats):
+gate (the sibling project's actions-pin contract, one engine for all
+three seats):
 
 ```sh
 ./scripts/gates/check-actions-pins.sh            # report only
@@ -111,12 +111,19 @@ The gate reads every `uses:` reference against GitHub's latest stable
 release (with a tags fallback), classifies it, and - under `--apply` -
 heals tag pins sitting behind the upstream major in place. Branch pins
 (the `dtolnay/rust-toolchain@stable` shape) and SHA pins are reported
-as skips for a human decision, never healed by a guess. The heal is
-advisory-lane tooling, never wired into the offline commit gate: pin
-freshness is a remote fact, and a check that needs the network has no
-seat in a check that must stay fast. `--apply` fails closed if
-anything outside `.github/workflows/` changes, and `GITHUB_TOKEN`
-(optional, standard convention) lifts the unauthenticated API quota.
+as skips for a human decision, never healed by a guess.
+
+Three seats, one engine. The automatic seat is the pre-commit hook:
+`check-commit-gate.sh` delegates to the engine on every commit of a
+wired clone (gate-keepers self-installs `core.hooksPath=.githooks`),
+advisory - it reports and never blocks, because pin freshness is a
+remote fact and a commit must not hinge on one. The offline full gate
+(`scripts/build.sh check-all`) carries no seat at all: a check that
+needs the network has no place in a check that must stay fast. The
+on-demand seats are the report and the maintainer heal: `--apply`
+rewrites stale tag pins in place and fails closed if anything outside
+`.github/workflows/` changes, and `GITHUB_TOKEN` (optional, standard
+convention) lifts the unauthenticated API quota.
 
 ## Supermassive (the heavy lane)
 

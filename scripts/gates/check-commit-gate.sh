@@ -13,13 +13,16 @@
 # What it enforces at the moment a commit is created:
 #   1. CI actions-pin health (delegated to check-actions-pins.sh,
 #      night-improve-8): the freshness of every `uses:` pin against
-#      upstream, classified MAJOR/MINOR/PATCH - the actions-pin
-#      health contract's one automatic seat.
+#      upstream - the actions-pin health contract's one automatic
+#      seat. The classification is this engine's major-tier verdict
+#      (CURRENT / STALE / AHEAD, plus its honest skip classes); the
+#      sibling's MAJOR/MINOR/PATCH table belongs to its bigger sweep
+#      and is not this engine's vocabulary.
 #
 # Advisory by default: pin freshness is a REMOTE fact that needs the
 # network and the API's quota right now - a gate that blocks a commit
 # on facts it cannot reach would be a dishonest gate. The full
-# contract (cache, budget, honesty rules) lives in
+# contract (memoization, timeouts, honesty rules) lives in
 # check-actions-pins.sh's header. The escape hatch is git's own:
 # --no-verify skips any local hook (a git contract, not a hole).
 #
@@ -37,9 +40,10 @@ if ! bash scripts/gates/check-actions-pins.sh; then
 fi
 
 if [ "${GATE_FAILED}" -ne 0 ]; then
-	echo "FAIL: commit gate - the actions-pin health contract blocked this commit"
-	echo "      (a known-stale verdict in strict mode, or an auto-mode heal -"
-	echo "      the once-only re-commit that carries the healed pins)"
+	echo "FAIL: commit gate - the actions-pin health seat exited non-zero"
+	echo "      (the advisory wiring here can only produce that under a KNOWN-stale"
+	echo "      verdict with --strict, which this hook does not pass - if this fires,"
+	echo "      the seat's own output above names the verdict)"
 	exit 1
 fi
 
