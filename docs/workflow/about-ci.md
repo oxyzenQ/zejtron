@@ -54,8 +54,10 @@ verification (`cargo package --list --locked` inventory plus a full
 Triggers: the owner-pushed `v*` tag - the same filter `release.yml`
 carries - plus a manual `workflow_dispatch`, because zejtron is
 pre-publication and the first publish is the owner's deliberate act:
-dispatch with `publish=true` and the `CARGO_REGISTRY_TOKEN` secret
-configured. Without the explicit flag and secret the publish step
+dispatch with `publish=true` and the `CRATES_IO_TOKEN` secret
+configured (the cargo-side variable the lane derives from it is
+`CARGO_REGISTRY_TOKEN` - the mapping lives in the workflow). Without
+the explicit flag and secret the publish step
 refuses to run, so the dry-run lane is the default posture.
 Code-surface pushes and pull requests never wake this lane - the fast
 lane (`zejtron - CI`) owns those.
