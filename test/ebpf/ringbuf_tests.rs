@@ -205,11 +205,16 @@ fn rolling_window_never_grows_past_cap_one_at_a_time() {
 #[test]
 fn drain_on_a_clean_host_reads_nothing() {
     // On a host with no attached chain the pin is absent and the
-    // drain names it - the honest diagnosis, not a generic failure.
+    // open names it - the honest diagnosis, not a generic failure.
     // (On a host WITH the chain attached this pin would race the
     // live ring, so it only asserts the clean-host shape.)
     if !std::path::Path::new(PIN_MAP_SOCK_EVENTS).exists() {
-        let err = drain_sock_events().expect_err("absent pin must not drain");
+        // match, not expect_err: the Ok half (a live RingBuf) carries
+        // no Debug, and the test only ever wants the refusal text.
+        let err = match open_sock_ring() {
+            Err(err) => err,
+            Ok(_) => panic!("absent pin must not open"),
+        };
         assert!(
             err.contains("sock_events"),
             "the error names the pin: {err}"

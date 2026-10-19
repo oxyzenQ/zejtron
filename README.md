@@ -248,9 +248,14 @@ never a fake success.
 With the feature built in and the chain attached, `port` now shows
 what is listening (snapshot) and what entered or left LISTEN
 recently (event window), with the PID that made the change
-(`--since`, `--events-only`, `--snapshot-only`; the window drains a
-pinned ring buffer, so each run shows the events since the previous
-run). Without eBPF, `port` is the snapshot-only tool it was.
+(`--since`, `--events-only`, `--snapshot-only`). The window collects
+over its duration, the same grammar every `--since` surface speaks:
+`port --since 60s` waits 60 seconds, draining the pinned ring
+continuously, so a section labeled "last 60s" really watched the
+last 60s (the wait is the collection; `--snapshot-only` stays
+instant, and a ring read consumes, so a second run re-collects over
+its own wait rather than re-showing the first run's window).
+Without eBPF, `port` is the snapshot-only tool it was.
 
 ### Usage
 
