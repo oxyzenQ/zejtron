@@ -55,16 +55,6 @@
        style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
 </p>
 
-<p align="center">
-  <video src="assets/demo-proc-live.webm"
-         width="640"
-         autoplay
-         loop
-         muted
-         style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
-  </video>
-</p>
-
 ## Why zejtron?
 
 An investigation fragments across seven tools: `which` for the binary,
@@ -251,18 +241,17 @@ cargo build --release                  # a git checkout source-builds
 ```
 
 The feature cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
-clang, no libbpf) into six taps — the `sched_process_exec` counter
-(with its exec lifecycle event), the `sched_process_fork` and
-`sched_process_exit` lifecycle taps, the `inet_sock_set_state`
-socket-event stream, and the `vfs_open`/`vfs_write` file taps — and
-embeds the object into the host binary. The nightly
+clang, no libbpf) into four taps — the `sched_process_exec` counter,
+the `inet_sock_set_state` socket-event stream, and the
+`vfs_open`/`vfs_write` file taps — and embeds the object into the
+host binary. The nightly
 toolchain and bpf-linker are build-time prerequisites only — the
 installed binary needs neither, and at runtime it needs no eBPF
 support beyond a capable host: kernel 5.15+, lockdown inactive, and
 `CAP_BPF` + `CAP_PERFMON` in the effective set for attach. Attach
-also verifies every struct and tracepoint-context offset against
-the host's own vmlinux BTF and refuses - by naming the missing
-struct - on a kernel whose BTF omits one.
+also verifies every struct offset the file taps walk against the
+host's own vmlinux BTF and refuses - by naming the missing struct -
+on a kernel whose BTF omits one.
 
 `zejtron doctor` reports the lane honestly in its [eBPF] section in
 every build, and the verbs live on the doctor:
@@ -290,15 +279,12 @@ instant, and a ring read consumes, so a second run re-collects over
 its own wait rather than re-showing the first run's window).
 Without eBPF, `port` is the snapshot-only tool it was.
 
-With the chain attached, `proc --live` renders the process
-lifecycle stream as an Evidence Ledger report: the exec, fork, and
-exit events the kernel recorded while the command watched, with
-PID, comm, ppid, and the runtime a paired birth and death show.
-`--since` is the window width (default 30s, clamped to [1s, 10m]);
-the wait is the collection, the same grammar as every other
-window. Without eBPF, `proc --live` prints the honest unavailability
-line - no event is ever fabricated - and plain `proc` (the snapshot
-tree) is unchanged.
+`proc` is the process snapshot tree and stays one: zejtron does not
+watch process lifecycles. It is a read-only detective, not a monitor -
+the lifecycle stream surface was removed (night-improve-34), and the
+cost is named honestly in `doctor --symptom ram`'s Unaccounted block:
+processes that allocated memory and exited before a snapshot can no
+longer be attributed.
 
 ### Usage
 
@@ -320,11 +306,6 @@ zejtron port 3000
 # Process trees — by user or UID, the current user, depth, name filter
 zejtron proc --me --depth 1
 zejtron proc rezky --find python
-
-# The process lifecycle stream — the kernel's own exec/fork/exit
-# records for the whole host (eBPF feature + attached tap); --since
-# is the window width (s/m/h, default 30s, clamped to [1s, 10m])
-zejtron proc --live --since 30s
 
 # Who holds a file, device, or port? (sudo shows more on hardened hosts)
 # --since opens the event window (s/m/h, default 10s)
@@ -417,14 +398,6 @@ same stamp.
   counted in the report's Unaccounted block - never silently
   dropped. `slow`, `disk`, and `network` are named deferrals this
   version: the flag prints the honest line and exits 0.
-- `proc --live` rides the same requirements as `port`'s window (the
-  ebpf feature, root or `CAP_BPF`+`CAP_PERFMON`, BTF, kernel >=
-  5.15) plus the tracepoint context structs in the host's vmlinux
-  BTF - attach refuses, naming the missing struct, on a kernel
-  whose BTF omits one. The stream records task-level truth: thread
-  births and deaths also fire sched_process_fork/_exit, so thread
-  churn shows as task events; that residual is named in every
-  report's Unaccounted block.
 
 ## Safety Features
 

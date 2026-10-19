@@ -203,66 +203,6 @@ pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
     (inode << 32) | (device & 0xFFFF_FFFF)
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// night-improve-4, the process-lifecycle contract (Part C). Same file,
-// same discipline: the record and the offset-map slot indices live
-// here once, compiled into the bpfel object AND into the host binary
-// through #[path] - one truth for both sides of the ring.
-// ─────────────────────────────────────────────────────────────────────
-
-/// `op` for ProcEvent: the task executed a new program image
-/// (sched_process_exec - the image swap, not a birth).
-pub const PROC_OP_EXEC: u8 = 1;
-
-/// `op` for ProcEvent: a task was created (sched_process_fork - the
-/// birth; the child inherits the creator's comm until it execs).
-pub const PROC_OP_FORK: u8 = 2;
-
-/// `op` for ProcEvent: a task died (sched_process_exit).
-pub const PROC_OP_EXIT: u8 = 3;
-
-/// One process lifecycle event, as the kernel saw it at the moment
-/// it happened.
-///
-/// Offsets (repr(C), natural alignment, pinned by test):
-/// timestamp_ns 0, op 8 (pad 9..12), pid 12, ppid 16, uid 20,
-/// comm 24..40; total 40 bytes.
-///
-/// `pid` is the event's own task identifier: the tgid half of
-/// bpf_get_current_pid_tgid for exec, the tracepoint's child_pid for
-/// fork, the tracepoint's pid for exit. `ppid` is the creating task's
-/// pid: the fork tracepoint's parent_pid for fork, the
-/// BTF-verified task_struct.real_parent walk for exec and exit (0
-/// when the walk was refused - the absent fact stays absent). `comm`
-/// is the 16-byte task comm as the kernel holds it (NUL-padded):
-/// the exec'ing image's name, the fork's inherited name, the dying
-/// task's name.
-///
-/// Thread births and deaths also cross sched_process_fork/_exit (a
-/// thread is a task); the stream records what the tracepoints say,
-/// task-level, and the README names that residual.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ProcEvent {
-    /// CLOCK_MONOTONIC nanoseconds at the lifecycle event.
-    pub timestamp_ns: u64,
-    /// One of PROC_OP_EXEC / PROC_OP_FORK / PROC_OP_EXIT.
-    pub op: u8,
-    /// Padding to 4-byte alignment (pinned by test at 9..12).
-    pub _pad: [u8; 3],
-    /// The task the event is about.
-    pub pid: u32,
-    /// The creating task's pid (0 when unavailable).
-    pub ppid: u32,
-    /// The task's effective uid at the event.
-    pub uid: u32,
-    /// The 16-byte task comm, NUL-padded.
-    pub comm: [u8; 16],
-}
-
-/// The size of one proc_events ring record, in bytes.
-pub const PROC_EVENT_BYTES: usize = core::mem::size_of::<ProcEvent>();
-
 // ── The offsets config map slots ────────────────────────────────────
 //
 // Every struct offset the two kprobes read is written into the
@@ -288,41 +228,20 @@ pub const OFF_SLOT_SUPER_BLOCK_S_DEV: u32 = 5;
 pub const OFF_SLOT_PATH_MNT: u32 = 6;
 /// `offsets[7]`: struct path, member dentry.
 pub const OFF_SLOT_PATH_DENTRY: u32 = 7;
-/// `offsets[8]`: struct trace_event_raw_sched_process_fork, member
-/// parent_pid (the fork tracepoint's context layout, parsed from the
-/// host's own BTF at attach - the Phase 3 pattern applied to
-/// tracepoint contexts).
-pub const OFF_SLOT_TP_FORK_PARENT_PID: u32 = 8;
-/// `offsets[9]`: struct trace_event_raw_sched_process_fork, member
-/// child_pid.
-pub const OFF_SLOT_TP_FORK_CHILD_PID: u32 = 9;
-/// `offsets[10]`: struct trace_event_raw_sched_process_exit, member
-/// pid (the dying task's pid in the exit tracepoint's context).
-pub const OFF_SLOT_TP_EXIT_PID: u32 = 10;
-/// `offsets[11]`: struct task_struct, member real_parent (the pointer
-/// the exec/exit ppid walk dereferences).
-pub const OFF_SLOT_TASK_REAL_PARENT: u32 = 11;
-/// `offsets[12]`: struct task_struct, member tgid (read through the
-/// real_parent pointer for the parent's process id).
-pub const OFF_SLOT_TASK_TGID: u32 = 12;
 
 /// The number of slots the offsets map carries (the map's
 /// max_entries on the BPF side, the write count on the host side).
-/// Eight through night-improve-3; night-improve-4 grows it to
-/// thirteen for the process stream's tracepoint and task_struct
-/// offsets. The map was never renumbered - the file slots stay
-/// 0..8, the proc slots append.
+/// Eight: the file-walk slots. The map was never renumbered - the
+/// five process-stream slots night-improve-4 appended (8..13) are
+/// gone with the lifecycle stream (night-improve-34), and the file
+/// slots keep their indices.
 ///
 /// BPF-side-only by design (the BPF crate sizes the offsets Array
 /// with it; the host writes the slots by OFF_SLOT_* index and never
 /// needs the count); the scoped allow names the split.
 #[allow(dead_code)]
-pub const OFF_SLOTS: u32 = 13;
+pub const OFF_SLOTS: u32 = 8;
 
 #[cfg(test)]
 #[path = "../../test/ebpf/file_events_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "../../test/ebpf/proc_events_tests.rs"]
-mod proc_tests;

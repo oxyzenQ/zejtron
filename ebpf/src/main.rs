@@ -5,19 +5,14 @@
 // zelynic/zylaxion lineage precedent: there is no C twin, the
 // aya-ebpf program IS the production source).
 //
-// SIX programs, one object (night-improve-4 grows the tap by the two
-// sched_process lifecycle tracepoints; the four programs of phases
-// 1-3 keep their shapes except where the process record needs them):
+// FOUR programs, one object (night-improve-34 removes the two
+// sched_process lifecycle tracepoints the `proc --live` surface
+// drove; the four programs of phases 1-3 keep their shapes):
 //
-//   1. sched_process_exec (phase 1, extended in night-improve-4):
-//      count process executions AND publish the exec lifecycle
-//      event. The counter is the phase-1 chain proof, still the
-//      doctor's readback; the ProcEvent (op=1) rides the same
-//      tracepoint - pid from bpf_get_current_pid_tgid's tgid half,
-//      ppid from the BTF-verified task_struct walk, comm from
-//      bpf_get_current_comm (the new image's name at exec time).
-//      The emit helper and the ppid walk live in proctap.rs, shared
-//      with the fork and exit taps.
+//   1. sched_process_exec (phase 1, unchanged since): count process
+//      executions. The counter is the phase-1 chain proof, still the
+//      doctor's readback. The exec event emission night-improve-4
+//      rode on this tracepoint is gone with `proc --live`.
 //
 //   2. inet_sock_set_state (phase 2, untouched): the port surface's
 //      event window, reading the socket facts at the pinned offsets,
@@ -49,15 +44,6 @@
 //      README's Limitations and the log lane (audit) may still
 //      catch them.
 //
-//   5. sched_process_fork (night-improve-4, proctap.rs): the birth
-//      half of the lifecycle stream - the tracepoint's own
-//      parent_pid/child_pid pair, read at BTF-verified offsets, no
-//      task_struct walk needed.
-//
-//   6. sched_process_exit (night-improve-4, proctap.rs): the death
-//      half - the dying task's pid from the BTF-verified context
-//      offset, the ppid from the task_struct walk.
-//
 //   stats           (Array<AtomicU64>) — phase 1's counter, one slot,
 //                                    unchanged. stats[0] counts
 //                                    sched_process_exec events since
@@ -79,27 +65,15 @@
 //                                    (only tracked inodes cross);
 //                                    256 KiB holds 6553 40-byte
 //                                    records of history.
-//   proc_events     (RingBuf)          — night-improve-4's lifecycle
-//                                    stream (op 1/2/3, 40-byte
-//                                    ProcEvent). No filter map: the
-//                                    spec's rate argument names the
-//                                    host's own task churn, and the
-//                                    ring's rolling window is the
-//                                    bound; the README names the
-//                                    thread residual.
-//   offsets         (Array<u64>, 13)   — phase 3's struct offsets
-//                                    (8 file-walk slots), grown by
-//                                    night-improve-4 to thirteen:
-//                                    the fork/exit tracepoint
-//                                    context offsets and the
-//                                    task_struct pair the ppid walk
-//                                    dereferences, written once at
-//                                    attach from the host's own BTF
-//                                    (src/ebpf/btf.rs). Every struct
-//                                    walk below reads its offsets
-//                                    from THIS map, never from
-//                                    compiled-in constants: struct
-//                                    inode's i_ino sat at @64 on this
+//   offsets         (Array<u64>, 8)    — phase 3's struct offsets, the
+//                                    eight file-walk slots, written
+//                                    once at attach from the host's
+//                                    own BTF (src/ebpf/btf.rs).
+//                                    Every struct walk below reads
+//                                    its offsets from THIS map,
+//                                    never from compiled-in
+//                                    constants: struct inode's
+//                                    i_ino sat at @64 on this
 //                                    repo's own reference probe
 //                                    (kernel 5.10.134, where the
 //                                    textbook order would say @16) -
@@ -165,24 +139,16 @@ use events::{
     FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITE, FileEvent, OFF_SLOTS,
     OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH,
     OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV,
-    OFF_SLOT_VFSMOUNT_MNT_SB, PROC_EVENT_BYTES, PROC_OP_EXEC, SOCK_EVENT_BYTES, SockEvent,
-    device_token_from_kernel, is_port_surface_event, pack_filter_key,
+    OFF_SLOT_VFSMOUNT_MNT_SB, SOCK_EVENT_BYTES, SockEvent, device_token_from_kernel,
+    is_port_surface_event, pack_filter_key,
 };
 
-// The process-lifecycle taps (night-improve-4): the fork and exit
-// tracepoint programs and the shared emit/ppid-walk helpers, one
-// module so the exec tap's extension stays a two-line change here.
-mod proctap;
-
-use proctap::{current_ppid, emit_proc_event};
-
 // The compile-time layout pins on the BPF side: the sock record the
-// ring carries is exactly 32 bytes, the file and proc records exactly
-// 40, asserted where the output() calls live (their internal align
+// ring carries is exactly 32 bytes, the file record exactly 40,
+// asserted where the output() calls live (their internal align
 // asserts cover the 8-byte halves).
 const _: () = assert!(SOCK_EVENT_BYTES == 32);
 const _: () = assert!(FILE_EVENT_BYTES == 40);
-const _: () = assert!(PROC_EVENT_BYTES == 40);
 
 /// The one stats slot: the count of sched_process_exec events since
 /// attach. The index contract with the userspace read side
@@ -227,19 +193,8 @@ static tracked_inodes: HashMap<u64, u8> = HashMap::with_max_entries(1024, 0);
 #[map(name = "file_events")]
 static file_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
 
-/// The proc_events ring buffer (night-improve-4): 256 KiB, 6553
-/// records of 40 bytes, the lifecycle stream's bound. No filter map
-/// rides it - the spec's rate argument names the host's own task
-/// churn - so this ring is the one map whose traffic scales with
-/// everything the host does; the rolling window keeps the newest
-/// history when a busy host outruns the reader.
-#[allow(non_upper_case_globals)]
-#[map(name = "proc_events")]
-static proc_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
-
-/// The offsets config map (night-improve-3): Array<u64>, 8 slots
-/// through night-improve-3, grown to 13 by night-improve-4 (the
-/// proc slots append - see events.rs OFF_SLOT_*), written once at
+/// The offsets config map (night-improve-3): Array<u64>, the eight
+/// file-walk slots (see events.rs OFF_SLOT_*), written once at
 /// attach time from the host's own BTF
 /// (src/ebpf/btf.rs). The slot indices are the shared contract in
 /// events.rs — OFF_SLOT_* on both sides.
@@ -273,14 +228,10 @@ mod ctx_offsets {
     pub const PROTOCOL: usize = 30;
 }
 
-/// The tap: increment stats[STATS_EVENTS] on every process exec and
-/// publish the exec lifecycle event (night-improve-4) to the
-/// proc_events ring. The counter is the phase-1 chain proof -
-/// unchanged, still the doctor's readback; the event rides the same
-/// tracepoint through the shared proctap helpers: pid from the tgid
-/// half, ppid from the BTF-verified task_struct walk (0 when the
-/// walk refuses - the absent fact stays absent), comm from the
-/// current task (the new image's name at exec time).
+/// The tap: increment stats[STATS_EVENTS] on every process exec.
+/// The counter is the phase-1 chain proof - the doctor's readback.
+/// (night-improve-34: the exec lifecycle event emission is gone with
+/// `proc --live`; the tap reads no tracepoint context fields.)
 ///
 /// Returning 0 is the tracepoint contract:
 /// the return value is recorded but never acts as a filter.
@@ -292,9 +243,6 @@ pub fn sched_process_exec(_ctx: TracePointContext) -> u32 {
     if let Some(counter) = stats.get(STATS_EVENTS) {
         counter.fetch_add(1, Ordering::Relaxed);
     }
-    emit_proc_event(PROC_OP_EXEC, (bpf_get_current_pid_tgid() >> 32) as u32, unsafe {
-        current_ppid()
-    });
 
     0
 }
@@ -415,11 +363,10 @@ unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
 /// (an unparsable or absent map) drops the event — the host wrote
 /// these at attach; an unreadable set this late is a chain that was
 /// never alive. The array length is the shared OFF_SLOTS contract
-/// (13 since night-improve-4) - proctap.rs reads the same map
-/// through this same helper, and a map resize cannot desync the
-/// two files.
-pub(crate) unsafe fn read_offset_set() -> Option<[u64; 13]> {
-    let mut set = [0u64; 13];
+/// (eight) - the kprobes read the same map, and a map resize cannot
+/// desync the two files.
+pub(crate) unsafe fn read_offset_set() -> Option<[u64; 8]> {
+    let mut set = [0u64; 8];
     for slot in 0..OFF_SLOTS {
         set[slot as usize] = *offsets.get(slot)?;
     }

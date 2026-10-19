@@ -21,12 +21,16 @@ fn help_carries_pro_mode_section() {
 #[test]
 fn pro_mode_discloses_every_hidden_alias() {
     let help = help_command().render_help().to_string();
-    for alias in ["--check-updated", "--watch"] {
-        assert!(
-            help.contains(alias),
-            "Pro mode must disclose the hidden alias {alias}"
-        );
-    }
+    // --watch died with the lifecycle surface (night-improve-34); no
+    // alias of it survives to disclose.
+    assert!(
+        help.contains("--check-updated"),
+        "Pro mode must disclose the hidden alias --check-updated"
+    );
+    assert!(
+        !help.contains("--watch"),
+        "the removed --watch alias must not reappear in Pro mode help"
+    );
 }
 
 /// The estate is complete: every flag-owning verb has its group,
@@ -194,19 +198,14 @@ fn parses_why_target() {
 }
 
 #[test]
-fn parses_proc_watch_alias_and_since() {
-    let cli = Cli::try_parse_from(["zejtron", "proc", "--watch", "--since", "45s"]).unwrap();
-
-    match cli.command {
-        Some(Commands::Proc { watch, since, .. }) => {
-            assert!(watch);
-            assert_eq!(since.as_deref(), Some("45s"));
-        }
-        other => panic!("unexpected command: {other:?}"),
-    }
-
-    // The refresh-loop flag died with the lifecycle stream: --interval
-    // is not part of the grammar anymore, by name.
+fn the_live_flags_are_gone_from_the_grammar() {
+    // night-improve-34 removed the lifecycle surface: --watch (the
+    // old --live alias), the lifecycle --since window, and --interval
+    // before them. None of the three parses any more - the honest
+    // unknown-argument error is the answer, no deprecation alias.
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--watch"]).is_err());
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--live"]).is_err());
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--since", "45s"]).is_err());
     assert!(Cli::try_parse_from(["zejtron", "proc", "--watch", "--interval", "3"]).is_err());
 }
 

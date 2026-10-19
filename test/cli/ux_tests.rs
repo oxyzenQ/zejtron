@@ -24,7 +24,7 @@ fn jaro_ci_is_case_insensitive() {
 
 #[test]
 fn closest_long_flag_ci_rescues_case_variants() {
-    let candidates = ["me", "live", "depth", "no-pid"];
+    let candidates = ["me", "listen", "depth", "no-pid"];
     assert_eq!(
         closest_long_flag_ci("ME", &candidates).as_deref(),
         Some("me")
@@ -34,6 +34,24 @@ fn closest_long_flag_ci_rescues_case_variants() {
         Some("depth")
     );
     assert_eq!(closest_long_flag_ci("fortnight", &candidates), None);
+}
+
+#[test]
+fn the_live_flag_is_unknown_and_stays_unknown() {
+    // night-improve-34 removed `proc --live` (and its --watch alias)
+    // with the whole lifecycle surface. There is no deprecation
+    // alias: the flag is gone, and clap's unknown-argument error is
+    // the honest answer. The pin holds so a future flag cannot
+    // silently resurrect a watching surface under the same name.
+    let err = parse_err(&["proc", "--live"]);
+    assert_eq!(err.kind(), ErrorKind::UnknownArgument);
+    let err = parse_err(&["proc", "--watch"]);
+    assert_eq!(err.kind(), ErrorKind::UnknownArgument);
+    // The --since window grammar was the lifecycle stream's own; it
+    // is gone from proc with the stream (the --since windows on
+    // holds/touch/why/port stay - they collect and report once).
+    let err = parse_err(&["proc", "--since", "30s"]);
+    assert_eq!(err.kind(), ErrorKind::UnknownArgument);
 }
 
 #[test]

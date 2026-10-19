@@ -9,7 +9,6 @@ use std::io;
 use std::path::Path;
 
 mod forest;
-pub(crate) mod live;
 
 use forest::{build_forest, limit_depth, matching_process_ids, prune_for_matches};
 
@@ -59,9 +58,6 @@ impl TargetUser {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ProcFlags {
     pub me: bool,
-    pub live: bool,
-    pub watch: bool,
-    pub since: Option<String>,
     pub depth: Option<usize>,
     pub find: Option<String>,
     pub no_pid: bool,
@@ -90,61 +86,7 @@ pub fn run(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), Box<dyn Er
 }
 
 fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> {
-    let live = is_live_mode(flags.live, flags.watch);
     let find = validate_find(flags.find)?;
-
-    if live {
-        // The lifecycle stream is host-wide by design - the kernel
-        // records every task - so the snapshot-shaping flags do not
-        // apply to it, named one by one. Never silently ignored.
-        if flags.me {
-            return Err(
-                "--me renders the snapshot tree; --live renders the host-wide lifecycle \
-                 stream, so it does not apply"
-                    .to_owned(),
-            );
-        }
-        if user_or_uid.is_some() {
-            return Err(
-                "USER_OR_UID renders the snapshot tree; --live renders the host-wide \
-                 lifecycle stream, so it does not apply"
-                    .to_owned(),
-            );
-        }
-        if flags.depth.is_some() {
-            return Err(
-                "--depth shapes the snapshot tree; --live renders the lifecycle ledger, \
-                 so it does not apply"
-                    .to_owned(),
-            );
-        }
-        if let Some(pattern) = &find {
-            return Err(format!(
-                "--find shapes the snapshot tree; --live renders the lifecycle ledger, \
-                 so it does not apply (got {pattern})"
-            ));
-        }
-        if flags.no_pid {
-            return Err(
-                "--no-pid shapes the snapshot tree; --live renders the lifecycle ledger, \
-                 so it does not apply"
-                    .to_owned(),
-            );
-        }
-        if flags.no_color {
-            return Err(
-                "--no-color shapes the snapshot tree's paint; --live renders the plain \
-                 ledger, so it does not apply"
-                    .to_owned(),
-            );
-        }
-        return run_live_window(flags.since.as_deref());
-    }
-
-    // The snapshot path (phase 1's surface, unchanged).
-    if let Some(raw) = flags.since {
-        return Err(format!("--since requires --live (got {raw})"));
-    }
 
     let target = resolve_target(flags.me, user_or_uid)?;
     let view = ViewOptions {
@@ -164,10 +106,6 @@ fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> 
     // SECURITY.md's hardening posture.
     print!("{}", render_snapshot(&target, !flags.no_pid, &view)?);
     Ok(())
-}
-
-pub fn is_live_mode(live: bool, watch: bool) -> bool {
-    live || watch
 }
 
 fn validate_find(find: Option<String>) -> Result<Option<String>, String> {
@@ -266,24 +204,6 @@ fn parse_passwd_entries(contents: &str) -> io::Result<Vec<PasswdEntry>> {
         });
     }
     Ok(entries)
-}
-
-/// The lifecycle stream (night-improve-4, Part C): the host's own
-/// process events, drained over the window and rendered as an
-/// Evidence Ledger report. Host-wide by design - the kernel records
-/// every task's lifecycle, and a user filter would be a later
-/// enhancement, not a silent no-op. The snapshot-shaping flags are
-/// refused by name (see run_inner); the window rides the shared
-/// window grammar with this surface's own clamp [1s, 10m].
-fn run_live_window(since: Option<&str>) -> Result<(), String> {
-    let window = match since {
-        Some(raw) => live::clamp_window(
-            crate::commands::port::window::parse_window(raw).map_err(|e| format!("{e}"))?,
-        ),
-        None => live::WINDOW_DEFAULT,
-    };
-    print!("{}", live::report(window));
-    Ok(())
 }
 
 fn render_snapshot(

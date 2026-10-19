@@ -9,7 +9,6 @@
 
 use super::*;
 use std::collections::BTreeSet;
-use std::time::Duration;
 use tempfile::TempDir;
 
 fn target() -> TargetUser {
@@ -50,103 +49,6 @@ fn view(max_depth: Option<usize>, find: Option<&str>) -> ViewOptions {
         max_depth,
         find: find.map(str::to_owned),
     }
-}
-
-use super::live::{WINDOW_CEILING, WINDOW_DEFAULT, WINDOW_FLOOR, clamp_window, window_label};
-
-#[test]
-fn the_lifecycle_window_defaults_to_30s() {
-    assert_eq!(WINDOW_DEFAULT, Duration::from_secs(30));
-}
-
-#[test]
-fn the_lifecycle_window_clamps_into_1s_10m() {
-    // The pinned clamps: 0s -> 1s, 1h -> 600s - and the in-range
-    // values pass through untouched.
-    assert_eq!(clamp_window(Duration::from_secs(0)), WINDOW_FLOOR);
-    assert_eq!(
-        clamp_window(Duration::from_secs(3600)),
-        Duration::from_secs(600)
-    );
-    assert_eq!(
-        clamp_window(Duration::from_secs(90)),
-        Duration::from_secs(90)
-    );
-    assert_eq!(WINDOW_CEILING, Duration::from_secs(600));
-}
-
-#[test]
-fn the_lifecycle_window_label_is_compact() {
-    assert_eq!(window_label(Duration::from_secs(30)), "30s");
-    assert_eq!(window_label(Duration::from_secs(600)), "10m");
-    assert_eq!(window_label(Duration::from_secs(45)), "45s");
-}
-
-#[test]
-fn watch_behaves_like_live() {
-    assert!(is_live_mode(false, true));
-    assert!(is_live_mode(true, false));
-    assert!(!is_live_mode(false, false));
-}
-
-#[test]
-fn since_requires_live_mode() {
-    // The snapshot path refuses --since by name - the flag belongs
-    // to the lifecycle window, never a silently ignored request.
-    let err = run_inner(
-        None,
-        ProcFlags {
-            since: Some("30s".to_owned()),
-            ..Default::default()
-        },
-    )
-    .expect_err("--since without --live must be refused");
-    assert!(err.contains("--since requires --live"), "{err}");
-}
-
-#[test]
-fn the_lifecycle_stream_refuses_snapshot_shaping_flags_by_name() {
-    // Host-wide by design: the snapshot flags do not apply to --live,
-    // each named, none silently ignored.
-    for flags in [
-        ProcFlags {
-            live: true,
-            me: true,
-            ..Default::default()
-        },
-        ProcFlags {
-            live: true,
-            depth: Some(2),
-            ..Default::default()
-        },
-        ProcFlags {
-            live: true,
-            find: Some("py".to_owned()),
-            ..Default::default()
-        },
-        ProcFlags {
-            live: true,
-            no_pid: true,
-            ..Default::default()
-        },
-        ProcFlags {
-            live: true,
-            no_color: true,
-            ..Default::default()
-        },
-    ] {
-        let err = run_inner(None, flags).expect_err("snapshot flags must not ride --live");
-        assert!(err.contains("does not apply"), "{err}");
-    }
-    let err = run_inner(
-        Some("rezky"),
-        ProcFlags {
-            live: true,
-            ..Default::default()
-        },
-    )
-    .expect_err("USER_OR_UID must not ride --live");
-    assert!(err.contains("does not apply"), "{err}");
 }
 
 #[test]

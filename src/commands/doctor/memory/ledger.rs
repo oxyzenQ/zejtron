@@ -301,6 +301,18 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
             );
         }
     }
+    // The post-exit attribution loss, named always (night-improve-34):
+    // the lifecycle stream surface is gone, so a process that
+    // allocated memory and exited before this snapshot cannot be
+    // attributed any more. The report names the cost plainly -
+    // zejtron is a read-only detective, not a monitor - and leaves
+    // the trade-off where the reader can weigh it.
+    lines.push(
+        "  processes that allocated memory and exited before this snapshot: \
+         attribution lost (zejtron does not watch process lifecycles - it is \
+         a read-only detective, not a monitor)  [unaccounted]"
+            .to_owned(),
+    );
     // The permission boundaries, named always - a report that only
     // mentions them when they fired would read as "everything was
     // visible" on the runs where they did not fire.

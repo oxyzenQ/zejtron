@@ -70,9 +70,6 @@ fn main() {
         Some(cli::Commands::Proc {
             user_or_uid,
             me,
-            live,
-            watch,
-            since,
             depth,
             find,
             no_pid,
@@ -81,9 +78,6 @@ fn main() {
             user_or_uid.as_deref(),
             commands::proc::ProcFlags {
                 me,
-                live,
-                watch,
-                since,
                 depth,
                 find,
                 no_pid,

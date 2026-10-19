@@ -10,7 +10,9 @@
 //! of them. Pro mode owns the whole estate: each spelling mirrors
 //! the verb's own help string verbatim (one wording authority - the
 //! CLI structs), the hidden aliases are disclosed next to the flags
-//! they alias (--check-updated, --watch), and the
+//! they alias (--check-updated is the one that survives;
+//! the lifecycle alias is gone with its surface, night-improve-34),
+//! and the
 //! layout rides one description column so the geometry cannot drift
 //! per row.
 //!
@@ -67,15 +69,6 @@ const GROUPS: &[(&str, &[Row])] = &[
         "proc:",
         &[
             ("--me", "Show processes owned by the current user"),
-            (
-                "--live",
-                "Render the host's process lifecycle stream (the kernel's own event records)",
-            ),
-            ("--watch", "Alias for --live"),
-            (
-                "--since DURATION",
-                "Lifecycle window width with --live (s/m/h, default 30s, clamped to [1s, 10m])",
-            ),
             ("--depth N", "Limit rendered tree depth"),
             (
                 "--find PATTERN",
