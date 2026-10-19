@@ -94,6 +94,18 @@ jobs:
           toolchain: nightly
           components: miri
 
+      # The eBPF support is unconditional (night-weekly-maintenance-1):
+      # the miri build compiles the whole crate, and the build.rs
+      # preflight hard-requires the toolchain pair before any compile
+      # time is spent (the dormant --no-default-features graph this
+      # lane rode before night-weekly-maintenance-1 no longer exists).
+      # The bootstrap installs the dated nightly pin, bpf-linker, and
+      # the pinned b3sum - the same step the CI and CodeQL lanes run.
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Run Miri verification (stamp + log land in target/)
         run: ./scripts/build.sh miri --no-install
 

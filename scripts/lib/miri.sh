@@ -187,13 +187,17 @@ run_miri() {
 	fi
 
 	# 6. Run Miri. --locked: the lockfile-freeze contract every other
-	#    gate rides. --no-default-features (night-improve-5): the
-	#    audited families are the feature-independent pure-Rust core,
-	#    so the miri lane stays on the dormant graph - the eBPF loader
-	#    is not miri's subject, and the dormant graph keeps the lane
-	#    free of the BPF build prerequisites. MIRIFLAGS disables
-	#    isolation so the pure pins that read env vars, clocks, or
-	#    temp paths do not fail spuriously.
+	#    gate rides. (night-weekly-maintenance-1: the eBPF support is
+	#    unconditional now - the dormant --no-default-features graph
+	#    this lane rode since night-improve-5 no longer exists, so the
+	#    build compiles the whole crate and the build.rs preflight
+	#    needs the BPF toolchain pair; the miri workflow bootstraps
+	#    them, and a local run without the pair gets the preflight's
+	#    one-command fix.) The audited families remain the
+	#    feature-independent pure-Rust core - the eBPF loader is not
+	#    miri's subject. MIRIFLAGS disables isolation so the pure pins
+	#    that read env vars, clocks, or temp paths do not fail
+	#    spuriously.
 	#    Test filters ride the harness argv (after --); the cargo
 	#    options stay before it.
 	local start_ms end_ms duration_ms
@@ -203,7 +207,7 @@ run_miri() {
 	rm -f "${MIRI_LOG_FILE}"
 	local miri_exit=0
 	MIRIFLAGS="${MIRIFLAGS:--Zmiri-disable-isolation}" \
-		cargo "+${nightly_name}" miri test --locked --no-default-features -- "${harness_args[@]}" 2>&1 | tee "${MIRI_LOG_FILE}" || miri_exit=1
+		cargo "+${nightly_name}" miri test --locked -- "${harness_args[@]}" 2>&1 | tee "${MIRI_LOG_FILE}" || miri_exit=1
 
 	end_ms=$(date +%s%3N 2>/dev/null || date +%s)
 	duration_ms=$((end_ms - start_ms))
