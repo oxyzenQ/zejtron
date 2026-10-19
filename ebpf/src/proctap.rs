@@ -100,7 +100,7 @@ pub(crate) fn emit_proc_event(op: u8, pid: u32, ppid: Option<u32>) {
         _pad: [0; 3],
         pid,
         ppid: ppid.unwrap_or(0),
-        uid: unsafe { bpf_get_current_uid_gid() } as u32,
+        uid: bpf_get_current_uid_gid() as u32,
         comm,
     };
     let _ = proc_events.output::<ProcEvent>(&event, 0);

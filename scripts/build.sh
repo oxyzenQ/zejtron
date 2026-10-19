@@ -185,6 +185,12 @@ if [[ "$MODE" == "check-all" ]]; then
         run cargo check --all-targets --all-features --locked
         run cargo clippy --all-targets --all-features --locked -- -D warnings
         run cargo test --all-targets --all-features --locked
+        # The dormant lane (night-improve-5): --no-default-features is
+        # the documented opt-out (the README names it), so the battery
+        # guards it the same way it guards the default - the snapshot-
+        # only surface must never rot behind the feature flip.
+        run cargo clippy --all-targets --no-default-features --locked -- -D warnings
+        run cargo test --all-targets --no-default-features --locked
         run cargo build --release --locked
 elif [[ "$MODE" == "miri" ]]; then
         run_miri

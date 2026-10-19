@@ -48,6 +48,24 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      # The ebpf feature is the default (night-improve-5): the validate
+      # build source-builds the kernel object, so the prerequisites
+      # ride the same bootstrap the fast lane uses (the zylaxion CI
+      # precedent).
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
