@@ -40,6 +40,14 @@ rust-version = "1.98.1"
 #   unconditionally, so a registry extract without it would fail to
 #   build even with the ebpf feature off. The module's own feature
 #   gate keeps the staging a no-op without --features ebpf.
+# - ebpf-prebuilt/** rides beside build/** (night-improve-5): the
+#   maintainer-built kernel object plus its provenance manifest -
+#   the registry lane's object source. A registry extract with the
+#   ebpf feature on stages this object (manifest-verified, see
+#   build/prebuilt.rs) instead of source-building ebpf/, so the
+#   install needs no nightly and no bpf-linker on the target
+#   machine. scripts/dev/regenerate-ebpf-prebuilt.sh is the lane's
+#   one writer; the commit gate enforces its pins.
 # - Cargo.lock ships so `cargo install zejtron --locked` reproduces
 #   the dependency graph the release lane vetted.
 # - docs/*.md is the top-level docs surface the README links into
@@ -59,6 +67,7 @@ include = [
     "src/**",
     "build.rs",
     "build/**",
+    "ebpf-prebuilt/**",
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",
