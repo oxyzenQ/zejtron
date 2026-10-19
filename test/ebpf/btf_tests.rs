@@ -357,11 +357,16 @@ fn the_live_host_parses_when_btf_exists() {
     // Two honest outcomes on a host that ships vmlinux BTF:
     //
     // - the parse succeeds: assert only what holds BY CONSTRUCTION
-    //   on any 64-bit host. No absolute layout number is pinned
-    //   here - the host's kernel version is unknowable from the
-    //   test, and the reference numbers (measured on 5.10.134) are
-    //   already pinned in the synthetic-blob test, where the layout
-    //   is chosen by the test itself;
+    //   on any 64-bit host. No layout number is pinned here - not an
+    //   absolute one and not a relational one - because kernel
+    //   internals move: the ubuntu-24.04 runner kernel carries a
+    //   12-byte trace_entry (parent_pid@12, child_pid@20), so even
+    //   the tracepoint contexts' relative geometry is kernel-owned,
+    //   not ours. What the Ok arm guarantees is the attach contract
+    //   itself: the host's BTF carries all nine structs and the ten
+    //   members, and the probe reads THE HOST's numbers. The layout
+    //   math is pinned in the synthetic-blob test, whose layout is
+    //   chosen by the test itself;
     // - the parse refuses because the kernel's BTF omits one of the
     //   nine structs (some trimmed cloud kernels ship BTF without
     //   the trace_event_raw_sched_process_* contexts): the refusal
@@ -387,23 +392,21 @@ fn the_live_host_parses_when_btf_exists() {
             }
             // struct path is {mnt, dentry} - two back-to-back
             // pointers, so dentry sits at mnt + 8 by construction.
+            // This is UAPI-shaped and stable; the trace contexts are
+            // not (see the comment above) and are deliberately not
+            // asserted here.
             assert_eq!(offsets[7], offsets[6] + 8, "path.dentry is path.mnt + 8");
-            // The fork tracepoint context reads parent_pid then
-            // child_pid - two adjacent 4-byte ints after the 8-byte
-            // trace_entry, so the pair stays 4 bytes apart.
-            assert_eq!(
-                offsets[9],
-                offsets[8] + 4,
-                "tp_fork.child_pid is parent_pid + 4"
-            );
             // The parse is deterministic: a second walk over the
             // same vmlinux lands on exactly the same thirteen.
             let again = parse_probe_offsets().expect("the second parse succeeds");
             assert_eq!(offsets, again, "the parse must be deterministic");
         }
         Err(err) => {
+            // Every named refusal qualifies: a missing struct and a
+            // missing member are both honest attach-time refusals -
+            // the parser names the piece it could not find.
             assert!(
-                err.contains("not found in BTF"),
+                err.contains("not found in BTF") || err.contains("has no member"),
                 "a BTF-present host refuses by naming the missing struct: {err}"
             );
         }
