@@ -301,6 +301,13 @@ zejtron net
 # Host readiness — procfs visibility, socket parsing, evidence lanes
 zejtron doctor
 
+# Why is my RAM eaten? The memory symptom - /proc only, no eBPF:
+# per-process PSS, tmpfs files with holders, deleted-but-open files,
+# memfd files, page cache, slab, and the unaccounted residual.
+# --raw appends the verbatim /proc reads (drill-down)
+zejtron doctor --symptom ram
+zejtron doctor --symptom ram --raw
+
 # Version + build report; the upstream release check (refuses sudo)
 zejtron -V
 zejtron --check-update
@@ -352,6 +359,12 @@ same stamp.
   across the floor - mnt_userns in 5.12 moved dentry from arg1 to
   arg2 - so no single offset serves the range). The log lane may
   still catch what the kernel lane does not.
+- `doctor --symptom ram` reads /proc alone: another user's process
+  memory (smaps_rollup), fd tables, and /proc/slabinfo are
+  permission-gated, and everything this invocation cannot see is
+  counted in the report's Unaccounted block - never silently
+  dropped. `slow`, `disk`, and `network` are named deferrals this
+  version: the flag prints the honest line and exits 0.
 
 ## Safety Features
 

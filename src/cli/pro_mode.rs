@@ -87,6 +87,14 @@ const GROUPS: &[(&str, &[Row])] = &[
                 "--detach",
                 "Detach the eBPF tap (unpin everything, idempotent)",
             ),
+            (
+                "--symptom SYMPTOM",
+                "Analyze a symptom instead of the readiness check (ram | slow | disk | network)",
+            ),
+            (
+                "--raw",
+                "With --symptom: append the raw /proc reads (drill-down)",
+            ),
         ],
     ),
     (

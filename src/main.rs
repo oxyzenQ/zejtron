@@ -100,9 +100,18 @@ fn main() {
             trace,
             raw,
         }) => commands::why::run(&target, since.as_deref(), trace, raw),
-        Some(cli::Commands::Doctor { attach, detach }) => {
-            commands::doctor::run(env!("ZEJTRON_GIT_HASH"), attach, detach)
-        }
+        Some(cli::Commands::Doctor {
+            attach,
+            detach,
+            symptom,
+            raw,
+        }) => commands::doctor::run(
+            env!("ZEJTRON_GIT_HASH"),
+            attach,
+            detach,
+            symptom.as_deref(),
+            raw,
+        ),
         Some(cli::Commands::Net) => commands::net::run(),
         None => {
             // The branded builder, not the raw derive command: the
