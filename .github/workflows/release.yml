@@ -136,6 +136,19 @@ jobs:
           toolchain: "1.98.1"
           targets: ${{ matrix.target }}
 
+      # The ebpf feature is the default (night-improve-5): every leg's
+      # build source-builds the kernel object host-side (the target
+      # triple does not change the build script's host), so each leg
+      # installs the prerequisites (the zylaxion CI precedent). The
+      # nested build inherits the leg's -D warnings rustflags (the
+      # poison strip keeps the lint, drops the host-cpu token, and
+      # re-forces the v3 codegen level) - the tap source is held to
+      # the same warning-free bar as the host crate.
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
         with:

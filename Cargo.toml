@@ -108,8 +108,10 @@ autoexamples = false
 clap = { version = "4.5.40", features = ["derive"] }
 regex-lite = "0.1"
 # night-improve-1, the eBPF lane: aya 0.14 is the userspace loader,
-# OPTIONAL - the default dependency graph is unchanged, byte for
-# byte. It is the upstream pairing of the ebpf/ crate's aya-ebpf
+# and since night-improve-5 it rides the DEFAULT feature set - the
+# registry install lands the full-featured binary through the
+# prebuilt lane (see the [features] note below). It is the upstream
+# pairing of the ebpf/ crate's aya-ebpf
 # 0.2.1 (the validated pair the zelynic and zylaxion lineages build
 # on): loads the embedded object, attaches the tracepoint, pins and
 # reads the maps. libc is deliberately NOT pulled in: every Phase 1
@@ -121,13 +123,19 @@ regex-lite = "0.1"
 aya = { version = "0.14", optional = true }
 
 [features]
-# night-improve-1: the eBPF infrastructure is opt-in. The default
-# build is behaviorally identical to the pre-ebpf tree - no new
-# dependency compiles in, the doctor reports the dormant lane
-# honestly, and `cargo install zejtron` keeps shipping the
-# snapshot-only binary. Phase 5 (a later pass) revisits the default
-# with a prebuilt lane for registry installs.
-default = []
+# night-improve-5 (the zylaxion night-improve-23 shape): `ebpf` is the
+# DEFAULT - a plain `cargo install zejtron` must land the full-featured
+# binary, not a dormant one. On a git checkout the loader embeds the
+# source-built object (the nested nightly build build.rs drives); on a
+# registry tarball it embeds the maintainer-built object staged from
+# ebpf-prebuilt/ (manifest-verified, provenance in
+# ebpf-prebuilt/manifest.toml) - either way the install needs NO
+# nightly toolchain and no bpf-linker on the target machine.
+# --no-default-features is the explicit dormant opt-out: the
+# snapshot-only binary, the honest unavailability line on every
+# eBPF-requiring verb, and the default dependency graph without aya.
+# The doctor reports the lane honestly in every build.
+default = ["ebpf"]
 ebpf = ["dep:aya"]
 
 [dev-dependencies]

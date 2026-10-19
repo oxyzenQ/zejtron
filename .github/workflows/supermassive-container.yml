@@ -70,6 +70,15 @@ jobs:
           toolchain: "1.98.1"
           targets: x86_64-unknown-linux-musl
 
+      # The ebpf feature is the default (night-improve-5): the build is
+      # the source-built lane host-side (the musl target does not
+      # change the build script's host), so the prerequisites ride the
+      # tree's bootstrap (the zylaxion CI precedent).
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
         with:

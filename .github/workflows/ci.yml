@@ -82,6 +82,26 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      # The ebpf feature is the default (night-improve-5), so the
+      # source-built lane runs on every check here - the tree's own
+      # bootstrap installs the dated nightly pin and the pinned
+      # bpf-linker (the zylaxion CI precedent), and ebpf/target rides
+      # the runner cache so the nested build is warm after the first
+      # run.
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
