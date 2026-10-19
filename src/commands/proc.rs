@@ -151,6 +151,17 @@ fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> 
         max_depth: flags.depth,
         find,
     };
+    // The snapshot's disclosure is the product, by design: every row
+    // (username, uid, pid, cmdline) is kernel-exposed process
+    // metadata - the same disclosure class as ps(1) - and the reader
+    // is the invoking user's own terminal, never a persisted log.
+    // CodeQL's cleartext-logging rule taints this print from NAME
+    // heuristics alone (the passwd_entries call and the *_uid
+    // identifiers); the flagged data is the account name and the
+    // cmdlines, not credential material, and nothing the kernel
+    // hides from this uid is ever shown. Triaged 2026-10-19
+    // (night-improve-33); the verdict and the reasoning live in
+    // SECURITY.md's hardening posture.
     print!("{}", render_snapshot(&target, !flags.no_pid, &view)?);
     Ok(())
 }
