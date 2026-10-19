@@ -73,10 +73,23 @@ jobs:
           ./scripts/dev/bootstrap-ebpf.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      # Restore-only. The CodeQL lane is a pure reader: it builds a
+      # throwaway database for the scanner and nothing downstream
+      # consumes its cache, so writing one is pure risk. Measured on
+      # run 39278106335: once the estate's 10 GB cache budget evicted
+      # this lane's entry (the 15:04 push wave re-saved seven
+      # multi-GB lanes), the next run fell back to a full save - a
+      # silent tar+zstd of the whole target tree plus upload that ran
+      # ~27 minutes AFTER the analysis had already finished and
+      # uploaded. Post steps have no per-step timeout, so the only
+      # backstop was the 45-minute job timeout. save-if: false
+      # removes the write entirely: the hang class cannot recur, and
+      # the worst case is a cold autobuild (minutes) inside a
+      # 45-minute budget.
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
         with:
-          cache-on-failure: true
+          save-if: false
 
       # Pinned to rust: the security surface users run is the Rust
       # binary - the whole shipped code is Rust.
