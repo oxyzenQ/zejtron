@@ -42,6 +42,8 @@ use super::render::format_report;
 use super::model::{ProcessInfo, Protocol};
 #[cfg(feature = "ebpf")]
 use super::render::append_note;
+#[cfg(feature = "ebpf")]
+use std::time::Instant;
 
 /// The window floor: a zero or sub-second window is not a window.
 pub const WINDOW_FLOOR: Duration = Duration::from_secs(1);
@@ -186,7 +188,7 @@ fn default_output(
 use crate::ebpf::events::SockEvent;
 
 /// Capture the window: the pin state first (a partial chain is not a
-/// live chain - `doctor --attach` heals it), then the drain, then
+/// live chain - `doctor --attach` heals it), then the collection, then
 /// the window/protocol/port filters. `None` is every not-live shape;
 /// the caller renders the fallback, and the refusal line (when the
 /// user asked explicitly) names the doctor as the place the exact
@@ -196,11 +198,53 @@ pub fn capture_window(options: &PortOptions) -> Option<Vec<SockEvent>> {
     if !crate::ebpf::all_pins_present() {
         return None;
     }
-    let drained = crate::ebpf::ringbuf::drain_sock_events().ok()?;
-    Some(window_events(&drained, options))
+    let mut ring = crate::ebpf::ringbuf::open_sock_ring().ok()?;
+    let mut collected: Vec<SockEvent> = Vec::new();
+    collect_over_window(&mut ring, &mut collected, options.window);
+    Some(window_events(&collected, options))
 }
 
-/// Filter the drained events to the requested window and selection,
+/// The drain slice: how often the collection wakes to empty the ring
+/// while it waits. Short enough that a busy host cannot overflow the
+/// ring's 8192 records between two drains, long enough that the
+/// wakeup cost is noise next to the wait itself.
+#[cfg(feature = "ebpf")]
+const POLL_SLICE: Duration = Duration::from_millis(100);
+
+/// Collect over the window's duration - the wait IS the collection
+/// (night-improve-4, Fix 2: the same grammar holds/touch/why already
+/// speak; their live lane sleeps the window because the filter map
+/// only lets events cross while the key is planted, and the port
+/// surface now waits for the same reason the label is only honest
+/// after the wait: "Changes in the last Ns" is a claim, and the
+/// claim is only true when the last Ns were actually watched).
+///
+/// The ring is kept OPEN for the whole wait and drained slice by
+/// slice: the first drain takes whatever history the ring held (the
+/// events since the previous drain, or since attach), every later
+/// drain takes what crossed while we slept, and the cutoff filter in
+/// [`window_events`] trims the union to the requested window. The
+/// rolling cap bounds the Vec no matter how busy the host was. No
+/// daemon, no reader beyond the command's own lifetime - the pump
+/// exists for exactly this wait and dies with it.
+#[cfg(feature = "ebpf")]
+fn collect_over_window(
+    ring: &mut aya::maps::RingBuf<aya::maps::MapData>,
+    out: &mut Vec<SockEvent>,
+    window: Duration,
+) {
+    let deadline = Instant::now() + window;
+    loop {
+        crate::ebpf::ringbuf::drain_sock_events_from(ring, out);
+        let now = Instant::now();
+        if now >= deadline {
+            break;
+        }
+        std::thread::sleep(POLL_SLICE.min(deadline - now));
+    }
+}
+
+/// Filter the collected events to the requested window and selection,
 /// ascending by timestamp. The clock arithmetic is CLOCK_MONOTONIC
 /// end to end: the records are `bpf_ktime_get_ns` stamps, and "now"
 /// comes from /proc/uptime - the std-only monotonic source (10 ms
@@ -209,10 +253,13 @@ pub fn capture_window(options: &PortOptions) -> Option<Vec<SockEvent>> {
 /// that strict monotonic would drop - the error direction that
 /// over-includes, never under-reports).
 ///
-/// One semantic rides on the drain itself: a ring buffer read
-/// CONSUMES (the consumer position lives in the kernel map), so each
-/// run shows the events accumulated since the previous drain, or
-/// since attach for the first. No daemon, no persistent reader - the
+/// One semantic rides on the collection itself: a ring buffer read
+/// CONSUMES (the consumer position lives in the kernel map), so the
+/// collected set is the ring's history (since the previous drain or
+/// attach) plus everything that crossed during the wait - and the
+/// cutoff trims that union to the requested window. Since the wait
+/// itself covers the full window, the label below is backed by real
+/// observation, end to end. No daemon, no persistent reader - the
 /// honest shape of a command-lifetime pump.
 #[cfg(feature = "ebpf")]
 fn window_events(events: &[SockEvent], options: &PortOptions) -> Vec<SockEvent> {

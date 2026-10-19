@@ -38,6 +38,26 @@ use super::events::{FILE_EVENT_BYTES, FileEvent, SOCK_EVENT_BYTES, SockEvent};
 /// same 256 KiB; the same cap bounds both.
 pub const ROLLING_CAP: usize = 4096;
 
+/// Open one pinned ring buffer by its pin path. The shared half of
+/// every drain: the map is opened through its pin (a missing pin is
+/// a diagnosis, never a generic failure) and converted to a live
+/// consumer. Reopening is safe across runs - the consumer position
+/// lives in the kernel map itself, so each drain continues where the
+/// previous one stopped (that is why a run shows the events since
+/// the previous drain, or since attach for the first).
+pub fn open_ring(pin: &str, label: &str) -> Result<RingBuf<MapData>, String> {
+    let map_data = MapData::from_pin(pin).map_err(|e| format!("pinned {label} map {pin}: {e}"))?;
+    RingBuf::try_from(Map::RingBuf(map_data))
+        .map_err(|e| format!("the pinned {label} map is not a ring buffer: {e}"))
+}
+
+/// The sock_events ring, opened: the port surface's window-shaped
+/// capture (night-improve-4) holds one ring for the whole wait and
+/// drains it slice by slice.
+pub fn open_sock_ring() -> Result<RingBuf<MapData>, String> {
+    open_ring(PIN_MAP_SOCK_EVENTS, "sock_events")
+}
+
 /// Push one event into the rolling window: newest kept, oldest
 /// dropped when the cap is full. Generic over the record type so
 /// both rings share the one rolling discipline; separated from the
@@ -50,20 +70,17 @@ pub fn push_rolling<T>(window: &mut Vec<T>, event: T, cap: usize) {
     window.push(event);
 }
 
-/// Drain every record the pinned sock_events ring holds (the port
-/// surface's window) into a bounded, rolling Vec (capacity
-/// [`ROLLING_CAP`], newest kept). Errors name the pin path — a
-/// missing pin reads as a diagnosis, not a generic failure. A record
-/// whose length is not exactly [`SOCK_EVENT_BYTES`] is skipped,
-/// never failed: a passive reader never fails the window.
-pub fn drain_sock_events() -> Result<Vec<SockEvent>, String> {
-    let map_data = MapData::from_pin(PIN_MAP_SOCK_EVENTS)
-        .map_err(|e| format!("pinned sock_events map {PIN_MAP_SOCK_EVENTS}: {e}"))?;
-    let owned = Map::RingBuf(map_data);
-    let mut ring = RingBuf::try_from(owned)
-        .map_err(|e| format!("the pinned sock_events map is not a ring buffer: {e}"))?;
-
-    let mut window: Vec<SockEvent> = Vec::new();
+/// Drain the records currently available on an OPEN sock_events ring
+/// into a rolling Vec, without reopening the map. The window-shaped
+/// half (night-improve-4): a caller that collects over a duration
+/// keeps one ring open and drains it slice by slice — the consumer
+/// position advances with every call, so the Vec accumulates exactly
+/// what crossed while the caller waited, and the rolling cap bounds
+/// the Vec no matter how long the wait. The one-shot shape this
+/// function replaced (open, drain once, drop) died with Fix 2: the
+/// port window now collects over its duration, so every caller keeps
+/// the ring for the whole wait.
+pub fn drain_sock_events_from(ring: &mut RingBuf<MapData>, out: &mut Vec<SockEvent>) {
     while let Some(record) = ring.next() {
         if record.len() != SOCK_EVENT_BYTES {
             continue;
@@ -74,21 +91,15 @@ pub fn drain_sock_events() -> Result<Vec<SockEvent>, String> {
         // struct from a byte slice the kernel wrote is the one
         // unsafe step aya's API leaves to the caller.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const SockEvent) };
-        push_rolling(&mut window, event, ROLLING_CAP);
+        push_rolling(out, event, ROLLING_CAP);
     }
-    Ok(window)
 }
 
 /// Drain every record the pinned file_events ring holds (the
 /// Evidence Ledger's window) into a bounded, rolling Vec. The same
 /// contract as [`drain_sock_events`], record for record.
 pub fn drain_file_events() -> Result<Vec<FileEvent>, String> {
-    let map_data = MapData::from_pin(PIN_MAP_FILE_EVENTS)
-        .map_err(|e| format!("pinned file_events map {PIN_MAP_FILE_EVENTS}: {e}"))?;
-    let owned = Map::RingBuf(map_data);
-    let mut ring = RingBuf::try_from(owned)
-        .map_err(|e| format!("the pinned file_events map is not a ring buffer: {e}"))?;
-
+    let mut ring = open_ring(PIN_MAP_FILE_EVENTS, "file_events")?;
     let mut window: Vec<FileEvent> = Vec::new();
     while let Some(record) = ring.next() {
         if record.len() != FILE_EVENT_BYTES {

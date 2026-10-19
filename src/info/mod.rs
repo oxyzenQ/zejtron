@@ -103,7 +103,7 @@ fn version_body() -> String {
 /// body is always plain.
 ///
 /// ```text
-/// zejtron: v11.0.0
+/// zejtron: vX.Y.Z
 /// Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics. Boring and serious.
 /// Build: linux-amd64-gnu (3ae9dda)
 /// Build-time: 10/17/2026 09:15 (UTC)
