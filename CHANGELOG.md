@@ -218,6 +218,18 @@ v11.0.0
   row to Probes and lists all four attach points; the pin set grows
   from six to thirteen (4 links, 4 programs, 5 maps).
 
+- The help surface now teaches: every verb in the -h output carries
+  a one-line example, and a Quick examples block at the bottom
+  shows the five most useful invocations for a new user. Colors
+  follow the tree's tier (green for primary, grey for secondary),
+  degrade to plain text on pipe and under NO_COLOR. The flag list
+  itself is unchanged; the examples were the missing piece. The
+  verb about lines ride the same pass (night-improve-35): each
+  description is reworded to the question the verb answers, so the
+  example under it reads as the answer, and the example rows live
+  in one data table whose completeness the tests pin — a verb added
+  without an example row fails the suite.
+
 ### Changed
 
 - journalctl is now a fallback lane, not the primary evidence path
