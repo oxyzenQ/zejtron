@@ -10,7 +10,7 @@
 // include_bytes! embedding.
 //
 // The hard rule the prompt-level contract names: the manifest's
-// object sha256 MUST match the staged bytes before anything is
+// object blake3 MUST match the staged bytes before anything is
 // staged - a stale or tampered lane panics naming both hashes, never
 // silently embeds an object the manifest does not describe. The
 // structural ELF validation (the same law the source-built lane
@@ -32,7 +32,7 @@ pub(super) const STAGED_OBJECT_NAME: &str = "zejtron-ebpf.o";
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct PrebuiltPin {
     pub(super) name: String,
-    pub(super) sha256: String,
+    pub(super) blake3: String,
     pub(super) size: u64,
 }
 
@@ -56,7 +56,7 @@ pub(super) fn stage_prebuilt_object(manifest_dir: &Path, out_dir: &Path) {
     });
     let pin = parse_prebuilt_manifest(&pin_text).unwrap_or_else(|| {
         panic!(
-            "{} does not carry a parsable [[object]] row (name/sha256/size) - the \
+            "{} does not carry a parsable [[object]] row (name/blake3/size) - the \
              manifest is generator-controlled by \
              scripts/dev/regenerate-ebpf-prebuilt.sh; a hand-edited or truncated \
              manifest is a broken lane, and the build refuses it by name",
@@ -102,8 +102,8 @@ pub(super) fn stage_prebuilt_object(manifest_dir: &Path, out_dir: &Path) {
 }
 
 /// The prebuilt lane's contract, factored out pure: the staged bytes
-/// must match the manifest pin's size and sha256. The Err text names
-/// the exact drift (both hashes on a sha mismatch) - it rides the
+/// must match the manifest pin's size and blake3. The Err text names
+/// the exact drift (both hashes on a hash mismatch) - it rides the
 /// panic verbatim.
 pub(super) fn verify_prebuilt_bytes(data: &[u8], pin: &PrebuiltPin) -> Result<(), String> {
     if data.len() as u64 != pin.size {
@@ -114,54 +114,54 @@ pub(super) fn verify_prebuilt_bytes(data: &[u8], pin: &PrebuiltPin) -> Result<()
             data.len()
         ));
     }
-    let actual = crate::sha256::sha256_hex(data);
-    if actual != pin.sha256 {
+    let actual = crate::blake3::blake3_hex(data);
+    if actual != pin.blake3 {
         return Err(format!(
-            "object sha256 drift: the manifest pins {} but the staged object hashes to {}",
-            pin.sha256, actual
+            "object blake3 drift: the manifest pins {} but the staged object hashes to {}",
+            pin.blake3, actual
         ));
     }
     Ok(())
 }
 
 /// Anchored parse of the generator-controlled manifest shape: the
-/// first `name = "..."`, `sha256 = "..."`, and `size = N` lines in
+/// first `name = "..."`, `blake3 = "..."`, and `size = N` lines in
 /// document order form the [[object]] row. The anchor is
-/// line-start-exact, so the header's ebpf_tree_sha256 key (a longer
-/// name sharing the sha256 suffix) can never satisfy the object
+/// line-start-exact, so the header's ebpf_tree_blake3 key (a longer
+/// name sharing the blake3 suffix) can never satisfy the object
 /// anchor, and comments cannot satisfy any of the three. Each line is
 /// offered to every still-empty slot, so key order cannot skew the
 /// parse.
 pub(super) fn parse_prebuilt_manifest(text: &str) -> Option<PrebuiltPin> {
     let mut name: Option<String> = None;
-    let mut sha256: Option<String> = None;
+    let mut blake3: Option<String> = None;
     let mut size: Option<u64> = None;
     for line in text.lines() {
         let line = line.trim_start();
         if name.is_none() {
             name = quoted_value(line, "name = \"").map(str::to_owned);
         }
-        if sha256.is_none() {
-            sha256 = quoted_value(line, "sha256 = \"").map(str::to_owned);
+        if blake3.is_none() {
+            blake3 = quoted_value(line, "blake3 = \"").map(str::to_owned);
         }
         if size.is_none() {
             size = line
                 .strip_prefix("size = ")
                 .and_then(|rest| rest.trim().parse::<u64>().ok());
         }
-        if name.is_some() && sha256.is_some() && size.is_some() {
+        if name.is_some() && blake3.is_some() && size.is_some() {
             break;
         }
     }
-    // All three keys must answer, and a sha pin is 64 lowercase hex
+    // All three keys must answer, and a hash pin is 64 lowercase hex
     // characters - a manifest that fails either shape is not a lane.
-    let sha256 = sha256?;
-    if sha256.len() != 64 || !sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
+    let blake3 = blake3?;
+    if blake3.len() != 64 || !blake3.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;
     }
     Some(PrebuiltPin {
         name: name?,
-        sha256,
+        blake3,
         size: size?,
     })
 }
@@ -183,16 +183,16 @@ mod tests {
     /// Byte-for-byte the shape regenerate-ebpf-prebuilt.sh writes
     /// (comments trimmed, keys and order preserved).
     const CANONICAL: &str = r#"# generated header comment
-schema = 1
+schema = 2
 generated = "2026-10-19T05:33:03Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_sha256 = "4af33fd76ce329dd69f3ca0901604ae4b89ea9cbae0890717d459251a4964119"
+ebpf_tree_blake3 = "4af33fd76ce329dd69f3ca0901604ae4b89ea9cbae0890717d459251a4964119"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-sha256 = "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed"
+blake3 = "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed"
 size = 11112
 
 [contract]
@@ -205,37 +205,37 @@ version = "80.0.0-alpha.1"
         let pin = parse_prebuilt_manifest(CANONICAL).expect("canonical shape parses");
         assert_eq!(pin.name, "zejtron-ebpf");
         assert_eq!(
-            pin.sha256,
+            pin.blake3,
             "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed"
         );
         assert_eq!(pin.size, 11112);
     }
 
     #[test]
-    fn the_tree_sha_header_key_never_satisfies_the_object_anchor() {
-        // The header carries ebpf_tree_sha256 = "..." BEFORE the
-        // [[object]] row; the anchor is "sha256 = \"" at line start,
+    fn the_tree_hash_header_key_never_satisfies_the_object_anchor() {
+        // The header carries ebpf_tree_blake3 = "..." BEFORE the
+        // [[object]] row; the anchor is "blake3 = \"" at line start,
         // so the tree pin must not be mistaken for the object pin.
         let pin = parse_prebuilt_manifest(CANONICAL).expect("parses");
         assert_ne!(
-            pin.sha256,
+            pin.blake3,
             "4af33fd76ce329dd69f3ca0901604ae4b89ea9cbae0890717d459251a4964119"
         );
     }
 
     #[test]
     fn a_missing_object_key_refuses_to_parse() {
-        // No sha256 row anywhere: not a lane, None - the caller panics
+        // No hash row anywhere: not a lane, None - the caller panics
         // naming the manifest instead of hallucinating a pin.
-        let broken = CANONICAL.replace("sha256 = \"1b714569", "xsha256 = \"1b714569");
+        let broken = CANONICAL.replace("blake3 = \"1b714569", "xblake3 = \"1b714569");
         assert_eq!(parse_prebuilt_manifest(&broken), None);
     }
 
     #[test]
-    fn a_non_hex_sha_pin_refuses_to_parse() {
+    fn a_non_hex_hash_pin_refuses_to_parse() {
         let broken = CANONICAL.replace(
-            "sha256 = \"1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed\"",
-            "sha256 = \"not-a-hash\"",
+            "blake3 = \"1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed\"",
+            "blake3 = \"not-a-hash\"",
         );
         assert_eq!(parse_prebuilt_manifest(&broken), None);
     }
@@ -244,7 +244,7 @@ version = "80.0.0-alpha.1"
     fn size_drift_is_named_with_both_sides() {
         let pin = PrebuiltPin {
             name: "zejtron-ebpf".to_owned(),
-            sha256: "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed".to_owned(),
+            blake3: "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed".to_owned(),
             size: 11112,
         };
         let err = verify_prebuilt_bytes(&[0u8; 100], &pin).unwrap_err();
@@ -252,17 +252,17 @@ version = "80.0.0-alpha.1"
     }
 
     #[test]
-    fn sha_drift_is_named_with_both_hashes() {
+    fn hash_drift_is_named_with_both_hashes() {
         let pin = PrebuiltPin {
             name: "zejtron-ebpf".to_owned(),
-            sha256: "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed".to_owned(),
+            blake3: "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed".to_owned(),
             size: 3,
         };
         let err = verify_prebuilt_bytes(b"abc", &pin).unwrap_err();
-        assert!(err.contains("sha256 drift"), "{err}");
+        assert!(err.contains("blake3 drift"), "{err}");
         // The drift names the pinned hash AND the actual one.
         assert!(err.contains("1b714569"), "{err}");
-        assert!(err.contains(&crate::sha256::sha256_hex(b"abc")), "{err}");
+        assert!(err.contains(&crate::blake3::blake3_hex(b"abc")), "{err}");
     }
 
     #[test]
@@ -270,7 +270,7 @@ version = "80.0.0-alpha.1"
         let data = b"abc";
         let pin = PrebuiltPin {
             name: "zejtron-ebpf".to_owned(),
-            sha256: crate::sha256::sha256_hex(data),
+            blake3: crate::blake3::blake3_hex(data),
             size: 3,
         };
         assert_eq!(verify_prebuilt_bytes(data, &pin), Ok(()));

@@ -21,12 +21,14 @@ mod ebpf;
 #[path = "build/prebuilt.rs"]
 mod prebuilt;
 
-// The std-only SHA-256 the prebuilt lane verifies the manifest's
-// object pin with - build.rs stays dependency-free (the Cargo.toml
-// comment block's law), so the algorithm lives beside its only
-// caller, tested by the standing standalone runner.
-#[path = "build/sha256.rs"]
-mod sha256;
+// The std-only BLAKE3 the prebuilt lane verifies the manifest's
+// object pin with (night-weekly-maintenance-1: the checksum lane
+// upgraded from the night-improve-5 SHA-256) - build.rs stays
+// dependency-free (the Cargo.toml comment block's law), so the
+// algorithm lives beside its only caller, tested by the standing
+// standalone runner against the reference b3sum's vectors.
+#[path = "build/blake3.rs"]
+mod blake3;
 
 fn main() {
     println!("cargo:rerun-if-changed=.git/HEAD");

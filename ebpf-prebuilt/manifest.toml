@@ -2,31 +2,32 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # zejtron prebuilt eBPF object manifest (night-improve-5, the zylaxion
-# night-improve-23 shape). Regenerated ONLY by
-# scripts/dev/regenerate-ebpf-prebuilt.sh - the one writer of the
-# lane; scripts/gates/check-commit-gate.sh enforces the pins at commit
-# time through the same script's read-only --check verdict, and
-# build/ebpf.rs's registry lane verifies the object sha against the
-# staged bytes before embedding them. ebpf_tree_sha256 pins the exact
-# ebpf/ source tree the object was built from: the sha256 over the
-# LC_ALL=C byte-sorted (NUL-separated) sha256sum listing of the
+# night-improve-23 shape; schema 2 since night-weekly-maintenance-1 -
+# the digest algorithm is blake3, upgraded from sha256). Regenerated
+# ONLY by scripts/dev/regenerate-ebpf-prebuilt.sh - the one writer of
+# the lane; scripts/gates/check-commit-gate.sh enforces the pins at
+# commit time through the same script's read-only --check verdict, and
+# build/ebpf.rs's registry lane verifies the object blake3 against the
+# staged bytes before embedding them. ebpf_tree_blake3 pins the exact
+# ebpf/ source tree the object was built from: the blake3 over the
+# LC_ALL=C byte-sorted (NUL-separated) b3sum listing of the
 # git-tracked ebpf/ files - one "digest  path" line per file, list
-# hashed as a whole (the zylaxion night-improve-31 recipe). The
-# [contract] version is the version mirror law: it must equal the
+# hashed as a whole (the zylaxion night-improve-31 recipe, re-hashed).
+# The [contract] version is the version mirror law: it must equal the
 # root Cargo.toml and ebpf/Cargo.toml versions, and the --check
 # verdict fails the commit when the three disagree. These are the
 # bytes a registry-install build embeds.
 
-schema = 1
-generated = "2026-10-19T05:47:44Z"
+schema = 2
+generated = "2026-10-19T16:36:00Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_sha256 = "6aa5224e610e16d486e12b4cfc4dde7d23dc67bf444dfad8e3c63d6ec34df656"
+ebpf_tree_blake3 = "e0edb4cab7418d5ab4a8a664d1b380fa6cdf9e39eb6febc1c3afb2d8d5623c43"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-sha256 = "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed"
+blake3 = "a7173ffe72fbb0e0f99dff0a72fc7e55466ba70bc4704ae5f6bfc0fe3d1cad8e"
 size = 11112
 
 [contract]
