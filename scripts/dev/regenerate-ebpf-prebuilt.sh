@@ -44,7 +44,7 @@
 # (or the build/prerequisite step failed); 2 usage error.
 
 set -euo pipefail
-cd "$(dirname "$0")/../.."   # repo root
+cd "$(dirname "$0")/../.." # repo root
 
 OBJECT_NAME="zejtron-ebpf"
 STAGED_OBJECT="ebpf-prebuilt/${OBJECT_NAME}.o"
@@ -64,69 +64,105 @@ ATTACH_TARGETS="\"sched_process_exec\", \"inet_sock_set_state\", \"vfs_open\", \
 # --check verdict enforces the triple; the rewrite derives its version
 # from the ebpf/ tree it describes.
 tree_version() {
-        awk -F'"' '/^version = /{print $2; exit}' ebpf/Cargo.toml
+	awk -F'"' '/^version = /{print $2; exit}' ebpf/Cargo.toml
 }
 
 root_version() {
-        awk -F'"' '/^version = /{print $2; exit}' Cargo.toml
+	awk -F'"' '/^version = /{print $2; exit}' Cargo.toml
 }
 
 tree_sha256() {
-        git ls-files -z -- ebpf/ | LC_ALL=C sort -z | xargs -0 -r sha256sum | sha256sum | awk '{print $1}'
+	git ls-files -z -- ebpf/ | LC_ALL=C sort -z | xargs -0 -r sha256sum | sha256sum | awk '{print $1}'
 }
 
 toolchain_pin() {
-        awk -F'"' '/^channel/{print $2; exit}' ebpf/rust-toolchain.toml
+	awk -F'"' '/^channel/{print $2; exit}' ebpf/rust-toolchain.toml
 }
 
 if [ "${1:-}" = "--check" ]; then
-        [ "$#" -eq 1 ] || { echo "usage: $0 [--check]" >&2; exit 2; }
-        STALE=0
-        [ -f "$MANIFEST" ] || { echo "stale: $MANIFEST is missing entirely"; exit 1; }
-        [ -f "$STAGED_OBJECT" ] || { echo "stale: the staged $STAGED_OBJECT is missing"; exit 1; }
+	[ "$#" -eq 1 ] || {
+		echo "usage: $0 [--check]" >&2
+		exit 2
+	}
+	STALE=0
+	[ -f "$MANIFEST" ] || {
+		echo "stale: $MANIFEST is missing entirely"
+		exit 1
+	}
+	[ -f "$STAGED_OBJECT" ] || {
+		echo "stale: the staged $STAGED_OBJECT is missing"
+		exit 1
+	}
 
-        TREE_NOW="$(tree_sha256)"
-        STAGED_SHA="$(sha256sum "$STAGED_OBJECT" | awk '{print $1}')"
-        STAGED_SIZE="$(stat -c %s "$STAGED_OBJECT")"
-        PIN_TREE="$(awk -F'"' '/^ebpf_tree_sha256 = /{print $2}' "$MANIFEST")"
-        PIN_OBJ="$(awk -F'"' '/^sha256 = /{print $2; exit}' "$MANIFEST")"
-        PIN_SIZE="$(awk -F' = ' '/^size = /{print $2; exit}' "$MANIFEST")"
-        PIN_TOOLCHAIN="$(awk -F'"' '/^toolchain = /{print $2; exit}' "$MANIFEST")"
-        PIN_VERSION="$(awk -F'"' '/^version = /{print $2; exit}' "$MANIFEST")"
+	TREE_NOW="$(tree_sha256)"
+	STAGED_SHA="$(sha256sum "$STAGED_OBJECT" | awk '{print $1}')"
+	STAGED_SIZE="$(stat -c %s "$STAGED_OBJECT")"
+	PIN_TREE="$(awk -F'"' '/^ebpf_tree_sha256 = /{print $2}' "$MANIFEST")"
+	PIN_OBJ="$(awk -F'"' '/^sha256 = /{print $2; exit}' "$MANIFEST")"
+	PIN_SIZE="$(awk -F' = ' '/^size = /{print $2; exit}' "$MANIFEST")"
+	PIN_TOOLCHAIN="$(awk -F'"' '/^toolchain = /{print $2; exit}' "$MANIFEST")"
+	PIN_VERSION="$(awk -F'"' '/^version = /{print $2; exit}' "$MANIFEST")"
 
-        [ "$TREE_NOW" = "$PIN_TREE" ] || { echo "stale: manifest ebpf_tree_sha256 lags the ebpf/ tree ($PIN_TREE -> $TREE_NOW)"; STALE=1; }
-        [ "$STAGED_SHA" = "$PIN_OBJ" ] || { echo "stale: the staged $STAGED_OBJECT is not the pinned object bytes ($PIN_OBJ -> $STAGED_SHA)"; STALE=1; }
-        [ "$STAGED_SIZE" = "$PIN_SIZE" ] || { echo "stale: the staged object size no longer matches the pin ($PIN_SIZE -> $STAGED_SIZE)"; STALE=1; }
-        [ "$(toolchain_pin)" = "$PIN_TOOLCHAIN" ] || { echo "stale: manifest toolchain lags ebpf/rust-toolchain.toml ($PIN_TOOLCHAIN -> $(toolchain_pin))"; STALE=1; }
+	[ "$TREE_NOW" = "$PIN_TREE" ] || {
+		echo "stale: manifest ebpf_tree_sha256 lags the ebpf/ tree ($PIN_TREE -> $TREE_NOW)"
+		STALE=1
+	}
+	[ "$STAGED_SHA" = "$PIN_OBJ" ] || {
+		echo "stale: the staged $STAGED_OBJECT is not the pinned object bytes ($PIN_OBJ -> $STAGED_SHA)"
+		STALE=1
+	}
+	[ "$STAGED_SIZE" = "$PIN_SIZE" ] || {
+		echo "stale: the staged object size no longer matches the pin ($PIN_SIZE -> $STAGED_SIZE)"
+		STALE=1
+	}
+	[ "$(toolchain_pin)" = "$PIN_TOOLCHAIN" ] || {
+		echo "stale: manifest toolchain lags ebpf/rust-toolchain.toml ($PIN_TOOLCHAIN -> $(toolchain_pin))"
+		STALE=1
+	}
 
-        # The version mirror, enforced with the rest of the pins: the
-        # manifest, the ebpf/ tree, and the root manifest must agree.
-        [ "$(tree_version)" = "$PIN_VERSION" ] || { echo "stale: manifest [contract] version lags ebpf/Cargo.toml ($PIN_VERSION -> $(tree_version))"; STALE=1; }
-        [ "$(root_version)" = "$(tree_version)" ] || { echo "stale: the version mirror is broken - root Cargo.toml ($(root_version)) != ebpf/Cargo.toml ($(tree_version))"; STALE=1; }
+	# The version mirror, enforced with the rest of the pins: the
+	# manifest, the ebpf/ tree, and the root manifest must agree.
+	[ "$(tree_version)" = "$PIN_VERSION" ] || {
+		echo "stale: manifest [contract] version lags ebpf/Cargo.toml ($PIN_VERSION -> $(tree_version))"
+		STALE=1
+	}
+	[ "$(root_version)" = "$(tree_version)" ] || {
+		echo "stale: the version mirror is broken - root Cargo.toml ($(root_version)) != ebpf/Cargo.toml ($(tree_version))"
+		STALE=1
+	}
 
-        [ "$STALE" -eq 0 ] && { echo "in sync: manifest pins match the ebpf/ tree, the staged copy, the toolchain pin, and the version mirror"; exit 0; }
-        exit 1
+	[ "$STALE" -eq 0 ] && {
+		echo "in sync: manifest pins match the ebpf/ tree, the staged copy, the toolchain pin, and the version mirror"
+		exit 0
+	}
+	exit 1
 fi
 
-[ "$#" -eq 0 ] || { echo "usage: $0 [--check]" >&2; exit 2; }
+[ "$#" -eq 0 ] || {
+	echo "usage: $0 [--check]" >&2
+	exit 2
+}
 
 # ── Preflight: the two source-build prerequisites, named on failure ──
 # Mirrors build/ebpf.rs's preflight (the same pair, the same fix
 # message shape) so both entries into the nested build fail the same
 # way before compile time is spent.
 PIN="$(toolchain_pin)"
-[ -n "$PIN" ] || { echo "could not read the channel pin from ebpf/rust-toolchain.toml - the file is part of the tree; restore it or re-clone" >&2; exit 1; }
-if ! command -v rustup >/dev/null 2>&1 \
-        || ! rustup toolchain list 2>/dev/null | grep -q "^${PIN}-"; then
-        echo "the eBPF source-build needs the dated nightly pin ${PIN} (rust-src included) and it is not installed." >&2
-        echo "One command: rustup toolchain install ${PIN} --profile minimal --component rust-src (or ./scripts/dev/bootstrap-ebpf.sh)" >&2
-        exit 1
+[ -n "$PIN" ] || {
+	echo "could not read the channel pin from ebpf/rust-toolchain.toml - the file is part of the tree; restore it or re-clone" >&2
+	exit 1
+}
+if ! command -v rustup >/dev/null 2>&1 ||
+	! rustup toolchain list 2>/dev/null | grep -q "^${PIN}-"; then
+	echo "the eBPF source-build needs the dated nightly pin ${PIN} (rust-src included) and it is not installed." >&2
+	echo "One command: rustup toolchain install ${PIN} --profile minimal --component rust-src (or ./scripts/dev/bootstrap-ebpf.sh)" >&2
+	exit 1
 fi
 LINKER_REPORT="$(bpf-linker --version 2>/dev/null || true)"
 if ! printf '%s' "$LINKER_REPORT" | grep -q "$BPF_LINKER_VERSION"; then
-        echo "the eBPF source-build needs bpf-linker ${BPF_LINKER_VERSION} on PATH and rustc cannot invoke it ('${LINKER_REPORT:-no answer}')." >&2
-        echo "One command: ./scripts/dev/bootstrap-ebpf.sh (installs the pin plus the pinned linker release)" >&2
-        exit 1
+	echo "the eBPF source-build needs bpf-linker ${BPF_LINKER_VERSION} on PATH and rustc cannot invoke it ('${LINKER_REPORT:-no answer}')." >&2
+	echo "One command: ./scripts/dev/bootstrap-ebpf.sh (installs the pin plus the pinned linker release)" >&2
+	exit 1
 fi
 
 # ── The nested build: the same invocation build/ebpf.rs drives ───────
@@ -138,27 +174,30 @@ fi
 # are poison for bpfel; the v3 level is what selects BPF_ATOMIC).
 FLAGS="${RUSTFLAGS:-}"
 if [ -n "${CARGO_ENCODED_RUSTFLAGS:-}" ]; then
-        FLAGS="${FLAGS} ${CARGO_ENCODED_RUSTFLAGS//$'\x1f'/ }"
+	FLAGS="${FLAGS} ${CARGO_ENCODED_RUSTFLAGS//$'\x1f'/ }"
 fi
 FILTERED=""
 for token in $FLAGS; do
-        case "$token" in
-                *target-cpu* | *linker=* | *link-self-contained*) ;; # host poison, dropped
-                *) FILTERED="${FILTERED}${FILTERED:+ }${token}" ;;
-        esac
+	case "$token" in
+	*target-cpu* | *linker=* | *link-self-contained*) ;; # host poison, dropped
+	*) FILTERED="${FILTERED}${FILTERED:+ }${token}" ;;
+	esac
 done
 export RUSTFLAGS="${FILTERED} -Ctarget-cpu=v3"
 
 echo "building the tap object (${PIN}, bpf-linker ${BPF_LINKER_VERSION})..."
 (
-        cd ebpf
-        env -u CARGO_ENCODED_RUSTFLAGS -u RUSTC -u RUSTC_WORKSPACE_WRAPPER -u RUSTC_WRAPPER \
-                rustup run "$PIN" cargo build --release --locked \
-                --target bpfel-unknown-none.json --package zejtron-ebpf \
-                -Z build-std=core -Z json-target-spec
+	cd ebpf
+	env -u CARGO_ENCODED_RUSTFLAGS -u RUSTC -u RUSTC_WORKSPACE_WRAPPER -u RUSTC_WRAPPER \
+		rustup run "$PIN" cargo build --release --locked \
+		--target bpfel-unknown-none.json --package zejtron-ebpf \
+		-Z build-std=core -Z json-target-spec
 )
 
-[ -f "$BUILT_OBJECT" ] || { echo "the build reported success but no object landed at $BUILT_OBJECT" >&2; exit 1; }
+[ -f "$BUILT_OBJECT" ] || {
+	echo "the build reported success but no object landed at $BUILT_OBJECT" >&2
+	exit 1
+}
 
 # ── The rewrite: stage the object, recompute every pin, write ────────
 TREE_SHA="$(tree_sha256)"
@@ -166,14 +205,14 @@ OBJ_SHA="$(sha256sum "$BUILT_OBJECT" | awk '{print $1}')"
 OBJ_SIZE="$(stat -c %s "$BUILT_OBJECT")"
 GENERATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 VERSION="$(tree_version)"
-BUILT_BY="$(git config user.name >/dev/null 2>&1 && git config user.email >/dev/null 2>&1 \
-        && printf '%s <%s>' "$(git config user.name)" "$(git config user.email)" \
-        || printf 'oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>')"
+BUILT_BY="$(git config user.name >/dev/null 2>&1 && git config user.email >/dev/null 2>&1 &&
+	printf '%s <%s>' "$(git config user.name)" "$(git config user.email)" ||
+	printf 'oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>')"
 
 mkdir -p ebpf-prebuilt
 install -m 644 "$BUILT_OBJECT" "$STAGED_OBJECT"
 
-cat > "$MANIFEST" <<EOF
+cat >"$MANIFEST" <<EOF
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #

@@ -356,7 +356,12 @@ fn the_live_host_parses_when_btf_exists() {
     }
     // Two honest outcomes on a host that ships vmlinux BTF:
     //
-    // - the parse succeeds: pin the stable offsets (below);
+    // - the parse succeeds: assert only what holds BY CONSTRUCTION
+    //   on any 64-bit host. No absolute layout number is pinned
+    //   here - the host's kernel version is unknowable from the
+    //   test, and the reference numbers (measured on 5.10.134) are
+    //   already pinned in the synthetic-blob test, where the layout
+    //   is chosen by the test itself;
     // - the parse refuses because the kernel's BTF omits one of the
     //   nine structs (some trimmed cloud kernels ship BTF without
     //   the trace_event_raw_sched_process_* contexts): the refusal
@@ -366,24 +371,35 @@ fn the_live_host_parses_when_btf_exists() {
     match parse_probe_offsets() {
         Ok(offsets) => {
             for off in offsets {
-                // 64 KiB: the file-walk offsets sit under 4 KiB, but
-                // task_struct grew past 4 KiB on 6.x - the bound
-                // names the class (a byte offset into a kernel
-                // struct), not a magic architecture number.
+                // Class bound, not a magic number: every value is a
+                // byte offset into a kernel struct. task_struct grew
+                // past 4 KiB on 6.x; nothing on any shipping kernel
+                // approaches 64 KiB.
                 assert!(off < 65536, "implausible offset {off}");
             }
-            // struct file f_path@16 / f_inode@32 have been stable
-            // across 5.10-6.x; pin the two most load-bearing members.
-            assert_eq!(offsets[2], 16, "file.f_path");
-            assert_eq!(offsets[3], 32, "file.f_inode");
-            // The sched tracepoint contexts are textbook-stable: the
-            // 8-byte trace_entry, then parent_pid@8 / child_pid@12
-            // for fork and comm[16] before pid@24 for exit. The
-            // BTF-verified offsets must agree with the layout the
-            // programs read.
-            assert_eq!(offsets[8], 8, "tp_fork.parent_pid");
-            assert_eq!(offsets[9], 12, "tp_fork.child_pid");
-            assert_eq!(offsets[10], 24, "tp_exit.pid");
+            // Pointer members are naturally aligned: d_inode, i_ino,
+            // f_inode, mnt_sb, path.mnt, path.dentry and
+            // task_struct.real_parent are 8-byte-typed on a 64-bit
+            // kernel, so their byte offsets are multiples of 8 by
+            // construction - on every kernel this probe can meet.
+            for slot in [0, 1, 3, 4, 6, 7, 11] {
+                assert_eq!(offsets[slot] % 8, 0, "slot {slot} is not pointer-aligned");
+            }
+            // struct path is {mnt, dentry} - two back-to-back
+            // pointers, so dentry sits at mnt + 8 by construction.
+            assert_eq!(offsets[7], offsets[6] + 8, "path.dentry is path.mnt + 8");
+            // The fork tracepoint context reads parent_pid then
+            // child_pid - two adjacent 4-byte ints after the 8-byte
+            // trace_entry, so the pair stays 4 bytes apart.
+            assert_eq!(
+                offsets[9],
+                offsets[8] + 4,
+                "tp_fork.child_pid is parent_pid + 4"
+            );
+            // The parse is deterministic: a second walk over the
+            // same vmlinux lands on exactly the same thirteen.
+            let again = parse_probe_offsets().expect("the second parse succeeds");
+            assert_eq!(offsets, again, "the parse must be deterministic");
         }
         Err(err) => {
             assert!(

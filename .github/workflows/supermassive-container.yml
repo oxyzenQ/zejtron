@@ -129,6 +129,6 @@ jobs:
           docker run --rm zejtron-e2e zejtron port --tcp --no-pid
           docker run --rm zejtron-e2e zejtron proc --me --depth 1 --no-pid
           docker run --rm zejtron-e2e zejtron net
-          docker run --rm zejtron-e2e zejtron shell
+          docker run --rm zejtron-e2e zejtron why /etc/resolv.conf
 
           echo "Container E2E complete: every read-only surface behaved."
