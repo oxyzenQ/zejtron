@@ -171,46 +171,8 @@ fn snapshot_only_is_the_phase_one_renderer_whatever_the_lane() {
     );
 }
 
-#[cfg(not(feature = "ebpf"))]
-#[test]
-fn featureless_events_only_is_the_refusal() {
-    // The featureless lane: the explicit window request gets the
-    // named refusal, never a fake empty window.
-    let options = PortOptions {
-        events_only: true,
-        ..options()
-    };
-    assert_eq!(
-        format_port_output(&[], &HashMap::new(), &ScanStats::default(), &options),
-        unavailability_line(WINDOW_DEFAULT)
-    );
-}
+// ── The live rendering pins ──────────────────
 
-#[cfg(not(feature = "ebpf"))]
-#[test]
-fn featureless_default_is_the_phase_one_renderer() {
-    // The fallback contract itself: without the feature, plain port
-    // is the snapshot-only tool phase 1 shipped.
-    let sockets = vec![SocketEntry {
-        protocol: Protocol::Tcp,
-        address: "0.0.0.0".to_owned(),
-        port: 22,
-        remote_address: "0.0.0.0".to_owned(),
-        remote_port: 0,
-        state: Some("LISTEN".to_owned()),
-        inode: 100,
-    }];
-    let owners: OwnerMap = HashMap::new();
-    let stats = ScanStats::default();
-    assert_eq!(
-        format_port_output(&sockets, &owners, &stats, &options()),
-        format_report(&sockets, &owners, &stats, &options())
-    );
-}
-
-// ── The live rendering pins (feature builds only) ──────────────────
-
-#[cfg(feature = "ebpf")]
 mod live {
     use super::*;
     use crate::ebpf::events::{

@@ -65,27 +65,6 @@ fn lane_rows_for_host_independent_verdicts() {
         )),
         "snapshot (kernel 5.10.1 is below the 5.15 floor)"
     );
-    assert_eq!(
-        lane_row(&LaneVerdict::Dormant),
-        "dormant (built without the ebpf feature)"
-    );
-}
-
-#[test]
-fn lane_row_live_attached_is_honest_in_the_dormant_lane() {
-    // In a featureless build the LiveAttached row is never reached
-    // (the verdict is Dormant first), but the arm compiles and the
-    // honest stub stands: the binary names what it cannot do.
-    if !cfg!(feature = "ebpf") {
-        assert_eq!(
-            lane_row(&LaneVerdict::LiveAttached),
-            "live (attached, counter unreadable (this binary was built \
-             without the ebpf feature))"
-        );
-    }
-    // In a feature build the row reads the live counter through the
-    // pin - host state, exercised live by the owner's session, not
-    // pinned here.
 }
 
 #[test]
@@ -93,11 +72,8 @@ fn feature_and_btf_rows_name_both_states() {
     assert_eq!(btf_row(true), "present (/sys/kernel/btf/vmlinux exists)");
     assert_eq!(btf_row(false), "absent");
 
-    if cfg!(feature = "ebpf") {
-        assert_eq!(feature_row(), "enabled (this binary)");
-    } else {
-        assert_eq!(feature_row(), "disabled (this binary)");
-    }
+    // The support is unconditional - the row is a constant.
+    assert_eq!(feature_row(), "enabled (this binary)");
 }
 
 #[test]

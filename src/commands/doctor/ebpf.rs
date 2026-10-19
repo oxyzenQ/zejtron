@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
 //! The doctor's \[eBPF\] section (night-improve-1). ALWAYS present and
-//! ALWAYS honest, in every build: a featureless binary reports the
-//! dormant lane by name, never a fake live one, and a feature binary
-//! on an incapable host reports the snapshot lane with the reason.
+//! ALWAYS honest: the eBPF support is unconditional
+//! (night-weekly-maintenance-1), so the verdict is the host's alone -
+//! an incapable host reports the snapshot lane with the reason, an
+//! attached one reports the live pins.
 //! The rows are the contract (night-improve-2 added the Tracepoints
 //! row - the one doctor change the pass is allowed):
 //!
@@ -50,12 +51,10 @@ pub(super) fn section() -> String {
 }
 
 /// The Feature row: what THIS binary can do, by compile-time fact.
+/// The eBPF support is unconditional (night-weekly-maintenance-1) -
+/// every binary carries the full lane, so the row is a constant.
 fn feature_row() -> String {
-    if cfg!(feature = "ebpf") {
-        "enabled (this binary)".to_owned()
-    } else {
-        "disabled (this binary)".to_owned()
-    }
+    "enabled (this binary)".to_owned()
 }
 
 /// The BTF row: the vmlinux BTF file, present or absent.
@@ -74,16 +73,11 @@ fn lane_row(verdict: &LaneVerdict) -> String {
         LaneVerdict::Live => "live (attach available)".to_owned(),
         LaneVerdict::LiveAttached => format!("live (attached, {})", attached_detail()),
         LaneVerdict::Snapshot(reason) => format!("snapshot ({reason})"),
-        LaneVerdict::Dormant => "dormant (built without the ebpf feature)".to_owned(),
     }
 }
 
 /// The attached Lane detail: the counter and the attach moment, read
-/// through the pins. Feature builds read them live; a featureless
-/// build can never reach this row (its verdict is Dormant before the
-/// pin state is even consulted), and the honest stub below keeps that
-/// arm compiling in both lanes.
-#[cfg(feature = "ebpf")]
+/// through the pins.
 fn attached_detail() -> String {
     let count = ebpf::readback::read_events_counter()
         .map(|n| format!("N={n} events"))
@@ -92,11 +86,6 @@ fn attached_detail() -> String {
         .map(crate::info::clock::format_system_time)
         .unwrap_or_else(|| "unknown".to_owned());
     format!("{count} since {since}")
-}
-
-#[cfg(not(feature = "ebpf"))]
-fn attached_detail() -> String {
-    "counter unreadable (this binary was built without the ebpf feature)".to_owned()
 }
 
 /// The Probes row (night-improve-2 opened it as Tracepoints,

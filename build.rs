@@ -5,11 +5,11 @@ use std::process::Command;
 
 // The eBPF object staging machinery (night-improve-1) lives in its
 // own module - the zelynic/zylaxion build/ precedent, demanded by
-// the 600-LOC no-mercy cap. The module is UNCONDITIONAL (not
-// feature-gated): the registry tarball carries build/** beside
-// build.rs (see the Cargo.toml include list), so the module always
-// compiles and the feature gate lives INSIDE it - a no-op without
-// the `ebpf` feature, the honest preflight panics with it.
+// the 600-LOC no-mercy cap. The module is UNCONDITIONAL: the
+// registry tarball carries build/** beside build.rs (see the
+// Cargo.toml include list), so the module always compiles, and since
+// night-weekly-maintenance-1 the eBPF support itself is
+// unconditional too - every build stages the object.
 #[path = "build/ebpf.rs"]
 mod ebpf;
 
@@ -67,10 +67,10 @@ fn main() {
     let build_time = format_build_time_utc();
     println!("cargo:rustc-env=ZEJTRON_BUILD_TIME={build_time}");
 
-    // night-improve-1, retargeted by night-improve-5: stage the eBPF
+    // night-improve-1, retargeted by night-improve-5 and made
+    // unconditional by night-weekly-maintenance-1: stage the eBPF
     // object into OUT_DIR for the loader's include_bytes! embedding.
-    // The lane selection lives in build/ebpf.rs: without the `ebpf`
-    // feature the lane is dormant (nothing staged); on a git checkout
+    // The lane selection lives in build/ebpf.rs: on a git checkout
     // the source-built lane runs (preflight + nested nightly build);
     // on a registry tarball (no ebpf/ tree) the registry-prebuilt
     // lane stages the manifest-verified ebpf-prebuilt/ object - the

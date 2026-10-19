@@ -46,10 +46,10 @@ pub(super) fn stage_prebuilt_object(manifest_dir: &Path, out_dir: &Path) {
 
     let pin_text = std::fs::read_to_string(&manifest_path).unwrap_or_else(|e| {
         panic!(
-            "the ebpf feature was requested and this extract carries no ebpf/ tree (a \
-             registry tarball), so the prebuilt lane is the only object source - but {} \
-             is unreadable ({e}). The crate is incomplete: the ebpf-prebuilt/ lane must \
-             ride the tarball (see the Cargo.toml include list); report this as a \
+            "this extract carries no ebpf/ tree (a registry tarball), so the \
+             prebuilt lane is the only object source - but {} is unreadable \
+             ({e}). The crate is incomplete: the ebpf-prebuilt/ lane must ride \
+             the tarball (see the Cargo.toml include list); report this as a \
              packaging bug",
             manifest_path.display()
         )

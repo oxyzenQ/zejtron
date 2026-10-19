@@ -148,13 +148,6 @@ pub fn attach() -> Result<String, String> {
     //    The LiveAttached shape is the idempotence case handled below.
     let facts = probe_kernel();
     match lane_verdict(&facts) {
-        LaneVerdict::Dormant => {
-            return Err(
-                "this binary was built without the ebpf feature - rebuild with \
-                 --features ebpf to attach the tap"
-                    .to_owned(),
-            );
-        }
         LaneVerdict::Snapshot(reason) => {
             return Err(format!(
                 "attach refused: {reason}. The eBPF lane needs kernel >= {} (probed: {}), \
