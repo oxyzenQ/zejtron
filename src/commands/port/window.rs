@@ -223,7 +223,7 @@ const POLL_SLICE: Duration = Duration::from_millis(100);
 /// slice: the first drain takes whatever history the ring held (the
 /// events since the previous drain, or since attach), every later
 /// drain takes what crossed while we slept, and the cutoff filter in
-/// [`window_events`] trims the union to the requested window. The
+/// [`window_events`] cuts the union to the requested window. The
 /// rolling cap bounds the Vec no matter how busy the host was. No
 /// daemon, no reader beyond the command's own lifetime - the pump
 /// exists for exactly this wait and dies with it.
@@ -257,7 +257,7 @@ fn collect_over_window(
 /// CONSUMES (the consumer position lives in the kernel map), so the
 /// collected set is the ring's history (since the previous drain or
 /// attach) plus everything that crossed during the wait - and the
-/// cutoff trims that union to the requested window. Since the wait
+/// cutoff narrows that union to the requested window. Since the wait
 /// itself covers the full window, the label below is backed by real
 /// observation, end to end. No daemon, no persistent reader - the
 /// honest shape of a command-lifetime pump.
