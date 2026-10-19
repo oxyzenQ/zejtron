@@ -6,15 +6,15 @@
 set -Eeuo pipefail
 
 check_command() {
-	local command="$1"
-	local label="${2:-$1}"
-	if ! command -v "$command" >/dev/null 2>&1; then
-		echo "error: required command not found: $label" >&2
-		if [[ "$label" == "codespell" ]]; then
-			echo "hint: install codespell or run SKIP_CODESPELL=1 ./scripts/build.sh" >&2
-		fi
-		exit 1
-	fi
+        local command="$1"
+        local label="${2:-$1}"
+        if ! command -v "$command" >/dev/null 2>&1; then
+                echo "error: required command not found: $label" >&2
+                if [[ "$label" == "codespell" ]]; then
+                        echo "hint: install codespell or run SKIP_CODESPELL=1 ./scripts/build.sh" >&2
+                fi
+                exit 1
+        fi
 }
 
 repo_root="$(git rev-parse --show-toplevel)"
@@ -46,24 +46,24 @@ case "${1:---check-all}" in
 --battery | battery) MODE="battery" ;;
 --miri | miri) MODE="miri" ;;
 *)
-	echo "usage: ./scripts/build.sh [--check-all|--battery|--miri] [-q|--quiet]" >&2
-	exit 2
-	;;
+        echo "usage: ./scripts/build.sh [--check-all|--battery|--miri] [-q|--quiet]" >&2
+        exit 2
+        ;;
 esac
 if [[ "$MODE" != "miri" ]]; then
-	if [[ "$#" -gt 0 ]]; then
-		shift
-	fi
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-		--quiet | -q) QUIET=1 ;;
-		*)
-			echo "usage: ./scripts/build.sh [--check-all|--battery|--miri] [-q|--quiet]" >&2
-			exit 2
-			;;
-		esac
-		shift
-	done
+        if [[ "$#" -gt 0 ]]; then
+                shift
+        fi
+        while [[ $# -gt 0 ]]; do
+                case "$1" in
+                --quiet | -q) QUIET=1 ;;
+                *)
+                        echo "usage: ./scripts/build.sh [--check-all|--battery|--miri] [-q|--quiet]" >&2
+                        exit 2
+                        ;;
+                esac
+                shift
+        done
 fi
 
 # miri sub-flags (parsed before anything else runs).
@@ -75,27 +75,27 @@ MIRI_FULL=0
 # unused-variable verdict is disabled for this parse block.
 # shellcheck disable=SC2034
 if [[ "$MODE" == "miri" ]]; then
-	shift
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-		--filter)
-			MIRI_FILTER="$2"
-			shift 2
-			;;
-		--no-install)
-			MIRI_NO_INSTALL=1
-			shift
-			;;
-		--full)
-			MIRI_FULL=1
-			shift
-			;;
-		*)
-			echo "usage: ./scripts/build.sh miri [--filter <pat>|--no-install|--full]" >&2
-			exit 2
-			;;
-		esac
-	done
+        shift
+        while [[ $# -gt 0 ]]; do
+                case "$1" in
+                --filter)
+                        MIRI_FILTER="$2"
+                        shift 2
+                        ;;
+                --no-install)
+                        MIRI_NO_INSTALL=1
+                        shift
+                        ;;
+                --full)
+                        MIRI_FULL=1
+                        shift
+                        ;;
+                *)
+                        echo "usage: ./scripts/build.sh miri [--filter <pat>|--no-install|--full]" >&2
+                        exit 2
+                        ;;
+                esac
+        done
 fi
 
 # The binary the battery exercises. Override for cross-shape legs
@@ -103,71 +103,74 @@ fi
 ZEJTRON_BIN="${ZEJTRON_BIN_PATH:-target/release/zejtron}"
 
 if [[ "$MODE" == "battery" ]]; then
-	if [[ ! -x "$ZEJTRON_BIN" ]]; then
-		echo "error: battery mode needs a built binary - none at $ZEJTRON_BIN" >&2
-		echo "hint: build it first (cargo build --release [--target ...]) or run the full check-all" >&2
-		exit 1
-	fi
+        if [[ ! -x "$ZEJTRON_BIN" ]]; then
+                echo "error: battery mode needs a built binary - none at $ZEJTRON_BIN" >&2
+                echo "hint: build it first (cargo build --release [--target ...]) or run the full check-all" >&2
+                exit 1
+        fi
 elif [[ "$MODE" == "miri" ]]; then
-	# miri's own tool needs (nightly cargo + rustc with the miri
-	# component, which the caller or --install provides) - it never
-	# runs the rustfmt/clippy/codespell lint estate, so demanding it
-	# here only wedged the CI lane that installs just the miri
-	# toolchain (the Dragon Guard leg's codespell red).
-	check_command cargo
-	check_command rustc
-	check_command git
+        # miri's own tool needs (nightly cargo + rustc with the miri
+        # component, which the caller or --install provides) - it never
+        # runs the rustfmt/clippy/codespell lint estate, so demanding it
+        # here only wedged the CI lane that installs just the miri
+        # toolchain (the Dragon Guard leg's codespell red).
+        check_command cargo
+        check_command rustc
+        check_command git
 else
-	check_command cargo
-	check_command rustc
-	check_command git
-	check_command rustfmt
-	check_command cargo-clippy clippy
-	if [[ "${SKIP_CODESPELL:-0}" != "1" ]]; then
-		check_command codespell
-	fi
+        check_command cargo
+        check_command rustc
+        check_command git
+        check_command rustfmt
+        check_command cargo-clippy clippy
+        if [[ "${SKIP_CODESPELL:-0}" != "1" ]]; then
+                check_command codespell
+        fi
 fi
 
 tmpdir="$(mktemp -d)"
 cleanup() {
-	rm -rf "$tmpdir"
+        rm -rf "$tmpdir"
 }
 trap cleanup EXIT
 
 run() {
-	if [[ "$QUIET" != "1" ]]; then
-		echo "+ $*"
-	fi
-	"$@"
+        if [[ "$QUIET" != "1" ]]; then
+                echo "+ $*"
+        fi
+        "$@"
 }
 
 capture() {
-	local name="$1"
-	shift
-	"$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
+        local name="$1"
+        shift
+        "$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
 }
 
 expect_fail_contains() {
-	local name="$1"
-	local expected="$2"
-	shift 2
+        local name="$1"
+        local expected="$2"
+        shift 2
 
-	set +e
-	"$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
-	local status=$?
-	set -e
+        set +e
+        "$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
+        local status=$?
+        set -e
 
-	if [[ "$status" -eq 0 ]]; then
-		echo "error: $* unexpectedly succeeded" >&2
-		cat "$tmpdir/${name}.out" >&2
-		exit 1
-	fi
-	if ! grep -q "$expected" "$tmpdir/${name}.out" "$tmpdir/${name}.err"; then
-		echo "error: $* did not mention '$expected'" >&2
-		cat "$tmpdir/${name}.out" >&2
-		cat "$tmpdir/${name}.err" >&2
-		exit 1
-	fi
+        if [[ "$status" -eq 0 ]]; then
+                echo "error: $* unexpectedly succeeded" >&2
+                cat "$tmpdir/${name}.out" >&2
+                exit 1
+        fi
+        # grep -- : the expected text may lead with a dash (a flag's
+        # own error line); without the separator it parses as an
+        # option and the smoke reports a tool failure, not a verdict.
+        if ! grep -q -- "$expected" "$tmpdir/${name}.out" "$tmpdir/${name}.err"; then
+                echo "error: $* did not mention '$expected'" >&2
+                cat "$tmpdir/${name}.out" >&2
+                cat "$tmpdir/${name}.err" >&2
+                exit 1
+        fi
 }
 
 # The runner file is linted by the same quad as its own entry;
@@ -176,16 +179,16 @@ expect_fail_contains() {
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/miri.sh"
 
 if [[ "$MODE" == "check-all" ]]; then
-	run rustc --version
-	run cargo --version
-	run cargo fmt --all -- --check
-	run cargo check --all-targets --all-features --locked
-	run cargo clippy --all-targets --all-features --locked -- -D warnings
-	run cargo test --all-targets --all-features --locked
-	run cargo build --release --locked
+        run rustc --version
+        run cargo --version
+        run cargo fmt --all -- --check
+        run cargo check --all-targets --all-features --locked
+        run cargo clippy --all-targets --all-features --locked -- -D warnings
+        run cargo test --all-targets --all-features --locked
+        run cargo build --release --locked
 elif [[ "$MODE" == "miri" ]]; then
-	run_miri
-	exit $?
+        run_miri
+        exit $?
 fi
 
 run "$ZEJTRON_BIN" --help
@@ -193,24 +196,24 @@ run "$ZEJTRON_BIN" doctor
 
 capture version "$ZEJTRON_BIN" --version
 if ! grep -q "zejtron" "$tmpdir/version.out"; then
-	echo "error: version output did not contain 'zejtron'" >&2
-	cat "$tmpdir/version.out" >&2
-	cat "$tmpdir/version.err" >&2
-	exit 1
+        echo "error: version output did not contain 'zejtron'" >&2
+        cat "$tmpdir/version.out" >&2
+        cat "$tmpdir/version.err" >&2
+        exit 1
 fi
 
 capture path_sh "$ZEJTRON_BIN" path sh
 if ! grep -q "active:" "$tmpdir/path_sh.out"; then
-	echo "error: path sh output did not contain 'active:'" >&2
-	cat "$tmpdir/path_sh.out" >&2
-	cat "$tmpdir/path_sh.err" >&2
-	exit 1
+        echo "error: path sh output did not contain 'active:'" >&2
+        cat "$tmpdir/path_sh.out" >&2
+        cat "$tmpdir/path_sh.err" >&2
+        exit 1
 fi
 if ! grep -q "duplicates:" "$tmpdir/path_sh.out"; then
-	echo "error: path sh output did not contain 'duplicates:'" >&2
-	cat "$tmpdir/path_sh.out" >&2
-	cat "$tmpdir/path_sh.err" >&2
-	exit 1
+        echo "error: path sh output did not contain 'duplicates:'" >&2
+        cat "$tmpdir/path_sh.out" >&2
+        cat "$tmpdir/path_sh.err" >&2
+        exit 1
 fi
 
 run "$ZEJTRON_BIN" recent . --limit 5
@@ -228,46 +231,46 @@ mkdir "$tmpdir/touched dir"
 printf 'hello\n' >"$tmpdir/why file with spaces"
 capture holds_temp "$ZEJTRON_BIN" holds "$tmpdir/held file"
 if ! grep -q "nothing visibly holds the path now" "$tmpdir/holds_temp.out"; then
-	echo "error: holds temp file output did not mention the no-holder verdict" >&2
-	cat "$tmpdir/holds_temp.out" >&2
-	cat "$tmpdir/holds_temp.err" >&2
-	exit 1
+        echo "error: holds temp file output did not mention the no-holder verdict" >&2
+        cat "$tmpdir/holds_temp.out" >&2
+        cat "$tmpdir/holds_temp.err" >&2
+        exit 1
 fi
 capture touch_file "$ZEJTRON_BIN" touch "$tmpdir/touched file"
 if ! grep -q "type file" "$tmpdir/touch_file.out"; then
-	echo "error: touch temp file output did not mention the metadata rows" >&2
-	cat "$tmpdir/touch_file.out" >&2
-	cat "$tmpdir/touch_file.err" >&2
-	exit 1
+        echo "error: touch temp file output did not mention the metadata rows" >&2
+        cat "$tmpdir/touch_file.out" >&2
+        cat "$tmpdir/touch_file.err" >&2
+        exit 1
 fi
 capture touch_dir "$ZEJTRON_BIN" touch "$tmpdir/touched dir"
 if ! grep -q "type directory" "$tmpdir/touch_dir.out"; then
-	echo "error: touch temp directory output did not mention the metadata rows" >&2
-	cat "$tmpdir/touch_dir.out" >&2
-	cat "$tmpdir/touch_dir.err" >&2
-	exit 1
+        echo "error: touch temp directory output did not mention the metadata rows" >&2
+        cat "$tmpdir/touch_dir.out" >&2
+        cat "$tmpdir/touch_dir.err" >&2
+        exit 1
 fi
 run "$ZEJTRON_BIN" why 53
 capture why_readme "$ZEJTRON_BIN" why README.md
 if ! grep -q "The evidence supports:" "$tmpdir/why_readme.out"; then
-	echo "error: why README output did not mention the verdict" >&2
-	cat "$tmpdir/why_readme.out" >&2
-	cat "$tmpdir/why_readme.err" >&2
-	exit 1
+        echo "error: why README output did not mention the verdict" >&2
+        cat "$tmpdir/why_readme.out" >&2
+        cat "$tmpdir/why_readme.err" >&2
+        exit 1
 fi
 run "$ZEJTRON_BIN" why /etc/resolv.conf
 capture why_spaces "$ZEJTRON_BIN" why "$tmpdir/why file with spaces"
 if ! grep -q "why file with spaces" "$tmpdir/why_spaces.out"; then
-	echo "error: why path with spaces output did not mention the path" >&2
-	cat "$tmpdir/why_spaces.out" >&2
-	cat "$tmpdir/why_spaces.err" >&2
-	exit 1
+        echo "error: why path with spaces output did not mention the path" >&2
+        cat "$tmpdir/why_spaces.out" >&2
+        cat "$tmpdir/why_spaces.err" >&2
+        exit 1
 fi
 capture recent_zero "$ZEJTRON_BIN" recent . --limit 0
 if [[ ! -s "$tmpdir/recent_zero.out" ]]; then
-	echo "error: recent --limit 0 produced empty output" >&2
-	cat "$tmpdir/recent_zero.err" >&2
-	exit 1
+        echo "error: recent --limit 0 produced empty output" >&2
+        cat "$tmpdir/recent_zero.err" >&2
+        exit 1
 fi
 
 expect_fail_contains recent_invalid "invalid duration" "$ZEJTRON_BIN" recent . --since nope
@@ -281,14 +284,18 @@ expect_fail_contains touch_missing "path not found" "$ZEJTRON_BIN" touch "$tmpdi
 expect_fail_contains why_zero "invalid port" "$ZEJTRON_BIN" why 0
 expect_fail_contains why_too_high "invalid port" "$ZEJTRON_BIN" why 65536
 expect_fail_contains why_missing "path not found" "$ZEJTRON_BIN" why "$tmpdir/missing path"
-expect_fail_contains proc_invalid_interval "must be between" "$ZEJTRON_BIN" proc --me --live --interval 1
+# night-improve-4: the refresh-loop flag died with the lifecycle
+# stream; --since requires --live on the snapshot path, and an
+# invalid duration is refused by name before anything waits.
+expect_fail_contains proc_since_requires_live "--since requires --live" "$ZEJTRON_BIN" proc --since 30s
+expect_fail_contains proc_invalid_since "invalid duration" "$ZEJTRON_BIN" proc --live --since 0x
 
 if [[ "$MODE" == "check-all" ]]; then
-	if [[ "${SKIP_CODESPELL:-0}" == "1" ]]; then
-		echo "+ codespell skipped because SKIP_CODESPELL=1"
-	else
-		run codespell --config .codespellrc .
-	fi
+        if [[ "${SKIP_CODESPELL:-0}" == "1" ]]; then
+                echo "+ codespell skipped because SKIP_CODESPELL=1"
+        else
+                run codespell --config .codespellrc .
+        fi
 fi
 
 echo "All checks passed. Safe to commit."
