@@ -191,7 +191,6 @@ pub fn build_port_report(
             mode: Mode::SnapshotNoLane,
             changes: ChangesSection::default(),
             unaccounted: Vec::new(),
-            #[cfg(feature = "ebpf")]
             raw: Vec::new(),
         }));
     }
@@ -549,7 +548,6 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
 /// The --raw section: the kernel's own records as drained, before
 /// the surface filter and before attribution.
 fn raw_section(parts: &lane::LaneParts) -> String {
-    #[cfg(feature = "ebpf")]
     {
         if parts.raw.is_empty() {
             return "\nRaw kernel events (file_events ring, as drained):\n  (none - the \
@@ -572,13 +570,6 @@ fn raw_section(parts: &lane::LaneParts) -> String {
             ));
         }
         format!("\n{}", lines.join("\n"))
-    }
-    #[cfg(not(feature = "ebpf"))]
-    {
-        let _ = parts;
-        "\nRaw kernel events (file_events ring, as drained):\n  (none - this binary was \
-         built without the ebpf feature; no kernel records exist in this run)"
-            .to_owned()
     }
 }
 

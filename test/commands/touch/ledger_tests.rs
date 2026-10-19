@@ -116,7 +116,6 @@ fn the_supports_line_names_the_facts_and_the_window() {
         mode: crate::evidence::Mode::Live,
         changes,
         unaccounted: Vec::new(),
-        #[cfg(feature = "ebpf")]
         raw: Vec::new(),
     };
     let line = supports_line(&parts_with, "10s");
@@ -157,7 +156,6 @@ fn lane_parts_empty() -> lane::LaneParts {
         mode: crate::evidence::Mode::Live,
         changes: crate::evidence::ChangesSection::default(),
         unaccounted: Vec::new(),
-        #[cfg(feature = "ebpf")]
         raw: Vec::new(),
     }
 }

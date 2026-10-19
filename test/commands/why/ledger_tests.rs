@@ -193,14 +193,12 @@ fn the_trace_ladder_names_the_unavailable_lane() {
 
 #[test]
 fn raw_section_is_honest_about_its_absence() {
-    // Default build: the named feature-less line. Feature build: the
-    // none line for an empty capture. Both are pinned by the same
-    // call through the cfg in raw_section.
+    // The none line for an empty capture - the honest shape the
+    // renderer owes when the window held nothing.
     let parts = lane::LaneParts {
         mode: Mode::SnapshotNoLane,
         changes: ChangesSection::default(),
         unaccounted: Vec::new(),
-        #[cfg(feature = "ebpf")]
         raw: Vec::new(),
     };
     let section = raw_section(&parts);
@@ -208,7 +206,6 @@ fn raw_section_is_honest_about_its_absence() {
     assert!(section.contains("(none"));
 }
 
-#[cfg(feature = "ebpf")]
 #[test]
 fn raw_section_renders_the_records_as_drained() {
     use crate::ebpf::events::{FILE_OP_OPEN, FileEvent};

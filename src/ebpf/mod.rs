@@ -17,16 +17,14 @@
 //!   no libc; the precise instrument for a kernel-facing lane);
 //! - the AlignedElf embedding wrapper (feature builds only).
 //!
-//! The verb surface both lanes expose - [`attach`] and [`detach`] -
-//! carries the same signature whether the binary was built with the
-//! `ebpf` feature or not: the dormant lane returns the honest refusal
-//! instead of pretending.
+//! The verb surface - [`attach`] and [`detach`] - is unconditional
+//! (night-weekly-maintenance-1): the eBPF support is a permanent part
+//! of the binary, never a feature toggle, so every build carries the
+//! loader and the readback.
 //!
-//! The loader and the counter readback (the `loader` and
-//! `readback` modules) compile only under the `ebpf` feature; the
-//! kernel facts and pin paths compile always because the doctor's
-//! \[eBPF\] section is always present and always honest about what
-//! this binary can do.
+//! The kernel facts and pin paths compile unconditionally because the
+//! doctor's \[eBPF\] section is always present and always honest
+//! about what this binary can do.
 
 use std::path::Path;
 
@@ -260,9 +258,9 @@ pub fn parse_kernel_version(release: &str) -> Option<(u32, u32)> {
 }
 
 /// The doctor's \[eBPF\] section lane verdict, computed from the kernel
-/// facts and the pin state. The dormant verdict is a property of the
-/// BINARY (the feature is compile-time), so a featureless build never
-/// claims any live lane no matter what the host allows.
+/// facts and the pin state. Every binary carries the loader (the
+/// support is unconditional), so the verdict is a property of the
+/// HOST alone.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LaneVerdict {
     /// The binary carries the loader, the host allows attach, nothing
@@ -271,15 +269,12 @@ pub enum LaneVerdict {
     /// The binary carries the loader and every pin of a complete
     /// attach exists: the tap is counting. The event count and the
     /// attach moment are read separately (the count needs the map
-    /// readback, which only feature builds have).
+    /// readback).
     LiveAttached,
     /// The lane cannot run here, and the string names exactly why
     /// (kernel below the floor, lockdown active, capabilities
     /// missing).
     Snapshot(String),
-    /// This binary was built without the ebpf feature: the honest
-    /// refusal, never a fake lane.
-    Dormant,
 }
 
 /// Classify the lane from the probed facts. The order is the doctor
@@ -290,9 +285,6 @@ pub enum LaneVerdict {
 /// capabilities, only the bpffs walk), the capabilities last (they
 /// gate ATTACH, not the read side).
 pub fn lane_verdict(facts: &KernelFacts) -> LaneVerdict {
-    if !cfg!(feature = "ebpf") {
-        return LaneVerdict::Dormant;
-    }
     if !facts.kernel_meets_floor() {
         return LaneVerdict::Snapshot(format!(
             "kernel {} is below the {} floor",
@@ -406,64 +398,28 @@ fn cap_bit_present(bit: u32) -> bool {
     false
 }
 
-// ── The AlignedElf embedding (feature builds only) ───────────────────
+// ── The AlignedElf embedding ───────────────────
 
-#[cfg(feature = "ebpf")]
 pub mod embedded;
 
 /// The socket-event record contract (night-improve-2) - shared with
-/// the BPF crate via `#[path]`, compiled in the feature lane only on
-/// the host side (the default build has no reader and no renderer
-/// for it; the ebpf crate compiles the same file unconditionally).
-#[cfg(feature = "ebpf")]
+/// the BPF crate via `#[path]`: the ebpf crate compiles it no_std
+/// into the object, the host compiles the same file for the readers.
 pub mod events;
 
-#[cfg(feature = "ebpf")]
 pub mod btf;
-#[cfg(feature = "ebpf")]
 pub mod filetap;
 /// The loader (attach/detach), the counter readback, the two ring
 /// readers, the BTF offsets parser, the filter-map writer, and the
-/// file-window capture - feature builds only.
-#[cfg(feature = "ebpf")]
+/// file-window capture.
 pub mod loader;
-#[cfg(feature = "ebpf")]
 pub mod readback;
-#[cfg(feature = "ebpf")]
 pub mod ringbuf;
-#[cfg(feature = "ebpf")]
 pub mod tracked;
 
-/// The verb surface both lanes expose: the same signatures, so the
-/// doctor's dispatch cannot tell them apart.
-#[cfg(feature = "ebpf")]
+/// The verb surface: the loader's attach/detach, the doctor's and
+/// the verbs' single truth.
 pub use loader::{attach, detach};
-
-/// The dormant lane: the same signatures, the honest refusal.
-#[cfg(not(feature = "ebpf"))]
-pub use dormant::{attach, detach};
-
-/// The dormant lane (a binary built without the `ebpf` feature): the
-/// verbs exist, the answer is the refusal - never a fake success,
-/// never a silent no-op.
-#[cfg(not(feature = "ebpf"))]
-pub mod dormant {
-    /// The refusal text both dormant verbs return.
-    pub const DORMANT_REFUSAL: &str = "this binary was built without the ebpf feature - rebuild with \
-         --features ebpf to attach the tap";
-
-    /// Dormant attach: refuse (nothing this binary could plant).
-    pub fn attach() -> Result<String, String> {
-        Err(DORMANT_REFUSAL.to_owned())
-    }
-
-    /// Dormant detach: refuse (the pins belong to a feature-built
-    /// binary; this one cannot know their state honestly, and a fake
-    /// "nothing to detach" success would be worse than the refusal).
-    pub fn detach() -> Result<String, String> {
-        Err(DORMANT_REFUSAL.to_owned())
-    }
-}
 
 #[cfg(test)]
 #[path = "../../test/ebpf/lane_tests.rs"]

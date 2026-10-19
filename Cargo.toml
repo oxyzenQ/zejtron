@@ -38,12 +38,12 @@ rust-version = "1.98.1"
 # - build/** rides beside build.rs (night-improve-1): the eBPF
 #   staging module build.rs declares via #[path] compiles
 #   unconditionally, so a registry extract without it would fail to
-#   build even with the ebpf feature off. The module's own feature
-#   gate keeps the staging a no-op without --features ebpf.
+#   build; since night-weekly-maintenance-1 the staging is
+#   unconditional - every build carries the eBPF object.
 # - ebpf-prebuilt/** rides beside build/** (night-improve-5): the
 #   maintainer-built kernel object plus its provenance manifest -
 #   the registry lane's object source. A registry extract with the
-#   ebpf feature on stages this object (manifest-verified, see
+#   build stages this object (manifest-verified, see
 #   build/prebuilt.rs) instead of source-building ebpf/, so the
 #   install needs no nightly and no bpf-linker on the target
 #   machine. scripts/dev/regenerate-ebpf-prebuilt.sh is the lane's
@@ -108,9 +108,10 @@ autoexamples = false
 clap = { version = "4.5.40", features = ["derive"] }
 regex-lite = "0.1"
 # night-improve-1, the eBPF lane: aya 0.14 is the userspace loader,
-# and since night-improve-5 it rides the DEFAULT feature set - the
-# registry install lands the full-featured binary through the
-# prebuilt lane (see the [features] note below). It is the upstream
+# and since night-weekly-maintenance-1 it rides UNCONDITIONALLY (no
+# feature toggle) - the registry install lands the full-featured
+# binary through the prebuilt lane (see the note below the
+# dependencies). It is the upstream
 # pairing of the ebpf/ crate's aya-ebpf
 # 0.2.1 (the validated pair the zelynic and zylaxion lineages build
 # on): loads the embedded object, attaches the tracepoint, pins and
@@ -120,23 +121,19 @@ regex-lite = "0.1"
 # typed API covers the rest - an unused dependency would violate the
 # dependency policy; a later pass that needs a raw syscall adds it
 # feature-gated, one line.
-aya = { version = "0.14", optional = true }
+aya = { version = "0.14" }
 
-[features]
-# night-improve-5 (the zylaxion night-improve-23 shape): `ebpf` is the
-# DEFAULT - a plain `cargo install zejtron` must land the full-featured
-# binary, not a dormant one. On a git checkout the loader embeds the
-# source-built object (the nested nightly build build.rs drives); on a
-# registry tarball it embeds the maintainer-built object staged from
-# ebpf-prebuilt/ (manifest-verified, provenance in
+# The eBPF support is UNCONDITIONAL (night-weekly-maintenance-1, the
+# owner's "always enable, permanent" law): night-improve-5 made `ebpf`
+# the default feature, this pass removes the toggle entirely - aya is
+# a plain dependency, there is no [features] table, and no build flag
+# can produce a dormant binary. On a git checkout the loader embeds
+# the source-built object (the nested nightly build build.rs drives);
+# on a registry tarball it embeds the maintainer-built object staged
+# from ebpf-prebuilt/ (manifest-verified, provenance in
 # ebpf-prebuilt/manifest.toml) - either way the install needs NO
-# nightly toolchain and no bpf-linker on the target machine.
-# --no-default-features is the explicit dormant opt-out: the
-# snapshot-only binary, the honest unavailability line on every
-# eBPF-requiring verb, and the default dependency graph without aya.
-# The doctor reports the lane honestly in every build.
-default = ["ebpf"]
-ebpf = ["dep:aya"]
+# nightly toolchain and no bpf-linker on the target machine. The
+# doctor reports the lane honestly in every build.
 
 [dev-dependencies]
 tempfile = "3.20.0"

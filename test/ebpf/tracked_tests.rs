@@ -30,7 +30,6 @@ fn a_clean_host_refuses_by_naming_the_pin_and_the_attach_step() {
     );
 }
 
-#[cfg(feature = "ebpf")]
 #[test]
 fn both_verbs_key_the_same_pack_as_the_kprobe() {
     // The key packing is events.rs's one implementation; the writer

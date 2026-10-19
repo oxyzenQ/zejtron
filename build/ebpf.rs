@@ -8,8 +8,6 @@
 //
 // ── The staging lanes ─────────────────────────────────────────────────
 //
-//   dormant           - the `ebpf` feature is off: nothing stages, the
-//                       loader module is not compiled either.
 //   source-built      - a git checkout: the ebpf/ crate is
 //                       cross-compiled by a nested cargo invocation
 //                       under the dated nightly pin, and the artifact
@@ -58,9 +56,8 @@ const EBPF_STAGED_OBJECT: &str = crate::prebuilt::STAGED_OBJECT_NAME;
 const BPF_LINKER_VERSION: &str = "0.11.1";
 
 /// Dispatch the eBPF object staging lane for the loader's embedding.
-/// A no-op without the `ebpf` feature - no BPF build attempted, no
-/// preflight panic, no prebuilt staging. With the feature on, the
-/// selection rule is the ebpf/ tree's presence: a git checkout
+/// The eBPF support is unconditional (night-weekly-maintenance-1), so
+/// the selection rule is the ebpf/ tree's presence: a git checkout
 /// source-builds the object, a registry tarball stages the
 /// manifest-verified prebuilt one (build/prebuilt.rs).
 pub(super) fn build_ebpf_object() {
@@ -87,12 +84,6 @@ pub(super) fn build_ebpf_object() {
         "cargo:rerun-if-changed={}",
         manifest_dir.join("ebpf-prebuilt").display()
     );
-
-    // Only the ebpf feature needs the object.
-    if std::env::var_os("CARGO_FEATURE_EBPF").is_none() {
-        println!("cargo:rustc-env=ZEJTRON_EBPF_LANE=dormant (not compiled)");
-        return;
-    }
 
     // The registry-prebuilt lane (night-improve-5): a crates.io
     // extract carries no ebpf/ tree, so the maintainer-built object

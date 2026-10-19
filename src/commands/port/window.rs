@@ -38,11 +38,8 @@ use super::render::format_report;
 
 // The live-rendering half's imports - compiled only when the reader
 // and the renderer exist.
-#[cfg(feature = "ebpf")]
 use super::model::{ProcessInfo, Protocol};
-#[cfg(feature = "ebpf")]
 use super::render::append_note;
-#[cfg(feature = "ebpf")]
 use std::time::Instant;
 
 /// The window floor: a zero or sub-second window is not a window.
@@ -139,7 +136,6 @@ pub fn format_port_output(
 }
 
 /// The `--events-only` shape: the live event section, or the refusal.
-#[cfg(feature = "ebpf")]
 fn events_only_output(options: &PortOptions) -> String {
     match capture_window(options) {
         Some(events) => format_event_section(&events, options.window, options.no_pid),
@@ -147,17 +143,8 @@ fn events_only_output(options: &PortOptions) -> String {
     }
 }
 
-/// The featureless `--events-only` shape: always the refusal - this
-/// binary has no reader, and pretending otherwise would be a fake
-/// empty window.
-#[cfg(not(feature = "ebpf"))]
-fn events_only_output(options: &PortOptions) -> String {
-    unavailability_line(options.window)
-}
-
 /// The default shape: both truths when the chain is live, the
 /// phase-1 snapshot tree when it is not.
-#[cfg(feature = "ebpf")]
 fn default_output(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
@@ -170,21 +157,8 @@ fn default_output(
     }
 }
 
-/// The featureless default shape: the phase-1 tree, nothing else -
-/// the fallback contract itself.
-#[cfg(not(feature = "ebpf"))]
-fn default_output(
-    sockets: &[SocketEntry],
-    owners: &OwnerMap,
-    stats: &ScanStats,
-    options: &PortOptions,
-) -> String {
-    format_report(sockets, owners, stats, options)
-}
-
 // ── The capture and the live rendering (feature builds only) ───────
 
-#[cfg(feature = "ebpf")]
 use crate::ebpf::events::SockEvent;
 
 /// Capture the window: the pin state first (a partial chain is not a
@@ -193,7 +167,6 @@ use crate::ebpf::events::SockEvent;
 /// the caller renders the fallback, and the refusal line (when the
 /// user asked explicitly) names the doctor as the place the exact
 /// reason lives.
-#[cfg(feature = "ebpf")]
 pub fn capture_window(options: &PortOptions) -> Option<Vec<SockEvent>> {
     if !crate::ebpf::all_pins_present() {
         return None;
@@ -208,7 +181,6 @@ pub fn capture_window(options: &PortOptions) -> Option<Vec<SockEvent>> {
 /// while it waits. Short enough that a busy host cannot overflow the
 /// ring's 8192 records between two drains, long enough that the
 /// wakeup cost is noise next to the wait itself.
-#[cfg(feature = "ebpf")]
 const POLL_SLICE: Duration = Duration::from_millis(100);
 
 /// Collect over the window's duration - the wait IS the collection
@@ -227,7 +199,6 @@ const POLL_SLICE: Duration = Duration::from_millis(100);
 /// rolling cap bounds the Vec no matter how busy the host was. No
 /// daemon, no reader beyond the command's own lifetime - the pump
 /// exists for exactly this wait and dies with it.
-#[cfg(feature = "ebpf")]
 fn collect_over_window(
     ring: &mut aya::maps::RingBuf<aya::maps::MapData>,
     out: &mut Vec<SockEvent>,
@@ -261,7 +232,6 @@ fn collect_over_window(
 /// itself covers the full window, the label below is backed by real
 /// observation, end to end. No daemon, no persistent reader - the
 /// honest shape of a command-lifetime pump.
-#[cfg(feature = "ebpf")]
 fn window_events(events: &[SockEvent], options: &PortOptions) -> Vec<SockEvent> {
     use crate::ebpf::events::{IPPROTO_TCP, IPPROTO_UDP};
     let now_ns = monotonic_now_ns();
@@ -308,7 +278,6 @@ fn window_events(events: &[SockEvent], options: &PortOptions) -> Vec<SockEvent> 
 /// kernel's own CLOCK_BOOTTIME clock at 10 ms resolution). `None`
 /// when the file is unreadable - the honest degradation, never a
 /// guess.
-#[cfg(feature = "ebpf")]
 fn monotonic_now_ns() -> Option<u64> {
     let uptime = std::fs::read_to_string("/proc/uptime").ok()?;
     let first = uptime.split_whitespace().next()?;
@@ -321,7 +290,6 @@ fn monotonic_now_ns() -> Option<u64> {
 /// wall time is its monotonic stamp plus this offset. A pre-epoch
 /// wall clock or an unreadable uptime degrades to `None` - the row
 /// then renders `unknown UTC` rather than a fabricated time.
-#[cfg(feature = "ebpf")]
 fn wall_offset_ns() -> Option<i128> {
     let wall = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -333,7 +301,6 @@ fn wall_offset_ns() -> Option<i128> {
 
 /// Render an event's wall-clock time of day as `HH:MM:SS UTC` (the
 /// same UTC-only discipline every zejtron surface renders in).
-#[cfg(feature = "ebpf")]
 fn event_time_of_day(event: &SockEvent) -> String {
     let Some(offset) = wall_offset_ns() else {
         return "unknown UTC".to_owned();
@@ -352,7 +319,6 @@ fn event_time_of_day(event: &SockEvent) -> String {
 /// `/proc/<pid>/status` Name: field the snapshot's owner lines read -
 /// one name source, two surfaces. `None` when the process is gone or
 /// hidden: that event counts toward the unaccounted block.
-#[cfg(feature = "ebpf")]
 fn event_pid_name(pid: u32) -> Option<String> {
     let status = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
     let line = status.lines().find(|l| l.starts_with("Name:"))?;
@@ -364,7 +330,6 @@ fn event_pid_name(pid: u32) -> Option<String> {
 /// transition (the kernel-side filter is the same predicate - the
 /// ring should never carry one - but the renderer refuses to invent
 /// a label).
-#[cfg(feature = "ebpf")]
 pub fn transition_label(protocol: u8, oldstate: u8, newstate: u8) -> Option<&'static str> {
     use crate::ebpf::events::{IPPROTO_TCP, IPPROTO_UDP, TCP_CLOSE, TCP_LISTEN};
     match protocol {
@@ -382,7 +347,6 @@ pub fn transition_label(protocol: u8, oldstate: u8, newstate: u8) -> Option<&'st
 /// (two events on the same port, one v4 and one v6, stay
 /// distinguishable). `None` for anything the filter would have
 /// dropped.
-#[cfg(feature = "ebpf")]
 pub fn protocol_family_label(protocol: u8, family: u16) -> Option<&'static str> {
     use crate::ebpf::events::{AF_INET, AF_INET6, IPPROTO_TCP, IPPROTO_UDP};
     match (protocol, family) {
@@ -399,7 +363,6 @@ pub fn protocol_family_label(protocol: u8, family: u16) -> Option<&'static str> 
 /// the event section, and the unreadable note when the scan hit
 /// walls - the note is snapshot honesty, and it survives the format
 /// change.
-#[cfg(feature = "ebpf")]
 fn format_window_report(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
@@ -423,7 +386,6 @@ fn format_window_report(
 /// repeated rows with the same ×N suffix the tree uses; `--no-pid`
 /// drops the PID token; an ownerless row names `owner unknown`
 /// exactly as the tree's owner lines do.
-#[cfg(feature = "ebpf")]
 fn snapshot_rows(sockets: &[SocketEntry], owners: &OwnerMap, options: &PortOptions) -> Vec<String> {
     let by_phase_sort = |left: &SocketEntry, right: &SocketEntry| {
         left.port
@@ -477,7 +439,6 @@ fn snapshot_rows(sockets: &[SocketEntry], owners: &OwnerMap, options: &PortOptio
 /// `format_socket` (IPv6 addresses bracketed), the state token rides
 /// when /proc carried one, and the owner tail is `PID a, b  (name,
 /// name)` - or `owner unknown`, the tree's own honesty.
-#[cfg(feature = "ebpf")]
 fn snapshot_row(
     protocol: Protocol,
     socket: &SocketEntry,
@@ -529,7 +490,6 @@ fn snapshot_row(
 /// visible /proc entry at render time counts toward the unaccounted
 /// block - a namespace boundary or an exit between the change and
 /// the query.
-#[cfg(feature = "ebpf")]
 pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool) -> String {
     let mut lines = Vec::new();
     lines.push(format!("Changes in the last {}:", window_label(window)));

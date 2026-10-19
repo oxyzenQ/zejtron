@@ -29,7 +29,6 @@ pub enum Mode {
     /// The eBPF lane ran: `Mode: live (window Ns)`. Constructed only
     /// by the live lane (feature builds); the default build keeps the
     /// variant for the grammar - the allow is the honest count.
-    #[cfg_attr(not(feature = "ebpf"), allow(dead_code))]
     Live,
     /// The log lane served (audit.log or journalctl):
     /// `Mode: snapshot (window Ns, journal fallback)`.

@@ -102,16 +102,12 @@ fn lane_verdict_refuses_below_floor_before_pin_state() {
     // pinned there.
     let below = facts(Some("5.10.1"), LockdownMode::None, true, true);
     let verdict = lane_verdict(&below);
-    if cfg!(feature = "ebpf") {
-        match verdict {
-            LaneVerdict::Snapshot(reason) => assert!(
-                reason.contains("below the 5.15 floor"),
-                "the reason must name the floor: {reason}"
-            ),
-            other => panic!("below-floor host must refuse, got {other:?}"),
-        }
-    } else {
-        assert_eq!(verdict, LaneVerdict::Dormant);
+    match verdict {
+        LaneVerdict::Snapshot(reason) => assert!(
+            reason.contains("below the 5.15 floor"),
+            "the reason must name the floor: {reason}"
+        ),
+        other => panic!("below-floor host must refuse, got {other:?}"),
     }
 }
 
@@ -120,16 +116,12 @@ fn lane_verdict_refuses_lockdown_before_pin_state() {
     // Lockdown also precedes the pin-state check.
     let locked = facts(Some("6.1.11"), LockdownMode::Integrity, true, true);
     let verdict = lane_verdict(&locked);
-    if cfg!(feature = "ebpf") {
-        match verdict {
-            LaneVerdict::Snapshot(reason) => assert!(
-                reason.contains("lockdown integrity blocks eBPF"),
-                "the reason must name the lockdown mode: {reason}"
-            ),
-            other => panic!("locked-down host must refuse, got {other:?}"),
-        }
-    } else {
-        assert_eq!(verdict, LaneVerdict::Dormant);
+    match verdict {
+        LaneVerdict::Snapshot(reason) => assert!(
+            reason.contains("lockdown integrity blocks eBPF"),
+            "the reason must name the lockdown mode: {reason}"
+        ),
+        other => panic!("locked-down host must refuse, got {other:?}"),
     }
 }
 
@@ -140,17 +132,10 @@ fn lane_verdict_live_or_attached_when_capable() {
     // asserts the union the state selects between.
     let capable = facts(Some("6.1.11"), LockdownMode::None, true, true);
     let verdict = lane_verdict(&capable);
-    if cfg!(feature = "ebpf") {
-        assert!(
-            matches!(verdict, LaneVerdict::Live | LaneVerdict::LiveAttached),
-            "a capable host must report a live lane, got {verdict:?}"
-        );
-    } else {
-        // The featureless binary never claims a live lane, no matter
-        // what the host allows - the dormant refusal is a property of
-        // the binary, not the host.
-        assert_eq!(verdict, LaneVerdict::Dormant);
-    }
+    assert!(
+        matches!(verdict, LaneVerdict::Live | LaneVerdict::LiveAttached),
+        "a capable host must report a live lane, got {verdict:?}"
+    );
 }
 
 #[test]

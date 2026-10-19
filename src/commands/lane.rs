@@ -98,7 +98,6 @@ pub struct LaneParts {
     /// every event the ring held for this file, before the surface
     /// filter and before attribution. Carried for `why --raw`; absent
     /// in default builds (no live lane exists to produce any).
-    #[cfg(feature = "ebpf")]
     pub raw: Vec<crate::ebpf::events::FileEvent>,
 }
 
@@ -114,24 +113,20 @@ pub struct LaneQuery<'a> {
     /// The queried file's inode (full 64 bits). Read only by the live
     /// half; the default build writes it and never reads it (the
     /// allow is the honest count of that split).
-    #[cfg_attr(not(feature = "ebpf"), allow(dead_code))]
     pub inode: u64,
     /// The queried file's canonical device token. Same split as
     /// `inode`.
-    #[cfg_attr(not(feature = "ebpf"), allow(dead_code))]
     pub device: u64,
 }
 
 /// Walk the ladder for one window. `Err` only from the live half (a
 /// chain that died mid-command is worth an error, never a silent
 /// lane switch); the log half degrades honestly instead of failing.
-#[cfg_attr(not(feature = "ebpf"), allow(unused_variables))]
 pub fn collect(
     query: &LaneQuery<'_>,
     window: Duration,
     filter: OpFilter,
 ) -> Result<LaneParts, String> {
-    #[cfg(feature = "ebpf")]
     {
         if crate::ebpf::all_pins_present() {
             return collect_live(query, window, filter);
@@ -142,7 +137,6 @@ pub fn collect(
 
 // ── The live half (feature builds only) ─────────────────────────────
 
-#[cfg(feature = "ebpf")]
 fn collect_live(
     query: &LaneQuery<'_>,
     window: Duration,
@@ -216,7 +210,6 @@ fn collect_live(
 
 /// The pid's Name and Uid (real) from /proc, resolved to a username.
 /// `None` when the process is gone or hidden - the honest absence.
-#[cfg(feature = "ebpf")]
 fn pid_context(pid: u32, users: &HashMap<u32, String>) -> Option<(String, String)> {
     use crate::commands::holds::parse_status_value;
     use crate::commands::touch::uid_to_user;
@@ -289,7 +282,6 @@ fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
                     mode: Mode::SnapshotJournal,
                     changes,
                     unaccounted,
-                    #[cfg(feature = "ebpf")]
                     raw: Vec::new(),
                 };
             }
@@ -311,7 +303,6 @@ fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
                     unavailable: false,
                 },
                 unaccounted,
-                #[cfg(feature = "ebpf")]
                 raw: Vec::new(),
             }
         }
@@ -328,7 +319,6 @@ fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
                         unavailable: false,
                     },
                     unaccounted,
-                    #[cfg(feature = "ebpf")]
                     raw: Vec::new(),
                 }
             } else {
@@ -344,7 +334,6 @@ fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
                         unavailable: true,
                     },
                     unaccounted,
-                    #[cfg(feature = "ebpf")]
                     raw: Vec::new(),
                 }
             }

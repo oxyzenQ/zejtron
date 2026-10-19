@@ -27,9 +27,7 @@ use std::time::Duration;
 // grammar half below - the window, the clamp, the refusal line -
 // compiles in every build, because the refusal is the default
 // build's whole answer.
-#[cfg(feature = "ebpf")]
 use crate::ebpf::events::{PROC_OP_EXEC, PROC_OP_EXIT, PROC_OP_FORK, ProcEvent};
-#[cfg(feature = "ebpf")]
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// Decode a record's comm into a display name: bytes up to the first
@@ -39,7 +37,6 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 /// also compiles no_std into the bpfel object, where a String cannot
 /// exist - the same split device_token_from_kernel and
 /// device_token_from_stat already carry.
-#[cfg(feature = "ebpf")]
 pub(crate) fn comm_label(comm: &[u8; 16]) -> String {
     let end = comm.iter().position(|b| *b == 0).unwrap_or(comm.len());
     let name = String::from_utf8_lossy(&comm[..end]);
@@ -63,7 +60,6 @@ pub const WINDOW_CEILING: Duration = Duration::from_secs(600);
 /// The drain slice: how often the collection wakes to empty the
 /// ring while it waits (the same slice the port window uses - one
 /// shape, both pumps).
-#[cfg(feature = "ebpf")]
 const POLL_SLICE: Duration = Duration::from_millis(100);
 
 /// The unavailability line: the explicit request this run cannot
@@ -104,7 +100,6 @@ pub fn clamp_window(window: Duration) -> Duration {
 /// binary has no reader for the ring - the refusal IS the answer,
 /// never a fake empty window.
 pub fn report(window: Duration) -> String {
-    #[cfg(feature = "ebpf")]
     if let Some(events) = capture(window) {
         return render(&events, window);
     }
@@ -116,7 +111,6 @@ pub fn report(window: Duration) -> String {
 /// the wait IS the collection, the ring held open and drained slice
 /// by slice, the rolling cap bounding the Vec. `None` is every
 /// not-live shape; the caller renders the refusal.
-#[cfg(feature = "ebpf")]
 fn capture(window: Duration) -> Option<Vec<ProcEvent>> {
     if !crate::ebpf::all_pins_present() {
         return None;
@@ -138,7 +132,6 @@ fn capture(window: Duration) -> Option<Vec<ProcEvent>> {
 
 /// The op label for one lifecycle row: the three truths the
 /// tracepoints record.
-#[cfg(feature = "ebpf")]
 pub fn op_label(op: u8) -> Option<&'static str> {
     match op {
         PROC_OP_EXEC => Some("exec'd"),
@@ -152,14 +145,12 @@ pub fn op_label(op: u8) -> Option<&'static str> {
 /// window: the common memory-hungry interpreters, compilers, and
 /// browsers. A prefix match on the record's comm. The list is fixed
 /// and named here - the verdict reads the list, it does not guess.
-#[cfg(feature = "ebpf")]
 const MEMORY_HOG_PATTERNS: [&str; 12] = [
     "python", "java", "node", "ruby", "php", "chrome", "chromium", "firefox", "gcc", "cc1",
     "rustc", "clang",
 ];
 
 /// True when the comm matches one of the named patterns.
-#[cfg(feature = "ebpf")]
 pub fn is_memory_hog_comm(comm: &str) -> bool {
     MEMORY_HOG_PATTERNS
         .iter()
@@ -172,7 +163,6 @@ pub fn is_memory_hog_comm(comm: &str) -> bool {
 /// helpers are port-surface privates and port's output is locked,
 /// the cross-reference is the contract). Every row carries the UTC
 /// marker - the locked shape for this surface shows it per row.
-#[cfg(feature = "ebpf")]
 fn event_time_of_day(event: &ProcEvent) -> String {
     let Some(offset) = wall_offset_ns() else {
         return "unknown".to_owned();
@@ -191,7 +181,6 @@ fn event_time_of_day(event: &ProcEvent) -> String {
 /// kernel's own CLOCK_BOOTTIME clock at 10 ms resolution). `None`
 /// when the file is unreadable - the honest degradation, never a
 /// guess.
-#[cfg(feature = "ebpf")]
 fn monotonic_now_ns() -> Option<u64> {
     let uptime = std::fs::read_to_string("/proc/uptime").ok()?;
     let first = uptime.split_whitespace().next()?;
@@ -199,7 +188,6 @@ fn monotonic_now_ns() -> Option<u64> {
     Some((seconds * 1e9) as u64)
 }
 
-#[cfg(feature = "ebpf")]
 fn wall_offset_ns() -> Option<i128> {
     let wall = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -211,7 +199,6 @@ fn wall_offset_ns() -> Option<i128> {
 
 /// Render the full report. The locked shape: header, mode, the
 /// process events, Unaccounted, Verdict.
-#[cfg(feature = "ebpf")]
 pub fn render(events: &[ProcEvent], window: Duration) -> String {
     let mut lines = Vec::new();
     lines.push("Evidence report: process lifecycle".to_owned());
@@ -294,6 +281,6 @@ pub fn render(events: &[ProcEvent], window: Duration) -> String {
 // The render pins ride the feature lane (the render itself only
 // exists there); the grammar pins (window, clamp, refusal) ride
 // every lane through proc_tests.rs.
-#[cfg(all(test, feature = "ebpf"))]
+#[cfg(test)]
 #[path = "../../../test/commands/proc/live_tests.rs"]
 mod tests;
