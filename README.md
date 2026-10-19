@@ -223,13 +223,18 @@ cargo build --release --features ebpf
 ```
 
 The feature cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
-clang, no libbpf) into two taps — the `sched_process_exec` counter
-and the `inet_sock_set_state` socket-event stream — and embeds the
-object into the host binary. The nightly
+clang, no libbpf) into six taps — the `sched_process_exec` counter
+(with its exec lifecycle event), the `sched_process_fork` and
+`sched_process_exit` lifecycle taps, the `inet_sock_set_state`
+socket-event stream, and the `vfs_open`/`vfs_write` file taps — and
+embeds the object into the host binary. The nightly
 toolchain and bpf-linker are build-time prerequisites only — the
 installed binary needs neither, and at runtime it needs no eBPF
 support beyond a capable host: kernel 5.15+, lockdown inactive, and
-`CAP_BPF` + `CAP_PERFMON` in the effective set for attach.
+`CAP_BPF` + `CAP_PERFMON` in the effective set for attach. Attach
+also verifies every struct and tracepoint-context offset against
+the host's own vmlinux BTF and refuses - by naming the missing
+struct - on a kernel whose BTF omits one.
 
 `zejtron doctor` reports the lane honestly in its [eBPF] section in
 every build, and the verbs live on the doctor:
@@ -257,6 +262,16 @@ instant, and a ring read consumes, so a second run re-collects over
 its own wait rather than re-showing the first run's window).
 Without eBPF, `port` is the snapshot-only tool it was.
 
+With the chain attached, `proc --live` renders the process
+lifecycle stream as an Evidence Ledger report: the exec, fork, and
+exit events the kernel recorded while the command watched, with
+PID, comm, ppid, and the runtime a paired birth and death show.
+`--since` is the window width (default 30s, clamped to [1s, 10m]);
+the wait is the collection, the same grammar as every other
+window. Without eBPF, `proc --live` prints the honest unavailability
+line - no event is ever fabricated - and plain `proc` (the snapshot
+tree) is unchanged.
+
 ### Usage
 
 Every command, once — flags live in `--help` (Pro mode owns the
@@ -277,7 +292,11 @@ zejtron port 3000
 # Process trees — by user or UID, the current user, depth, name filter
 zejtron proc --me --depth 1
 zejtron proc rezky --find python
-zejtron proc rezky --live --interval 6
+
+# The process lifecycle stream — the kernel's own exec/fork/exit
+# records for the whole host (eBPF feature + attached tap); --since
+# is the window width (s/m/h, default 30s, clamped to [1s, 10m])
+zejtron proc --live --since 30s
 
 # Who holds a file, device, or port? (sudo shows more on hardened hosts)
 # --since opens the event window (s/m/h, default 10s)
@@ -365,6 +384,14 @@ same stamp.
   counted in the report's Unaccounted block - never silently
   dropped. `slow`, `disk`, and `network` are named deferrals this
   version: the flag prints the honest line and exits 0.
+- `proc --live` rides the same requirements as `port`'s window (the
+  ebpf feature, root or `CAP_BPF`+`CAP_PERFMON`, BTF, kernel >=
+  5.15) plus the tracepoint context structs in the host's vmlinux
+  BTF - attach refuses, naming the missing struct, on a kernel
+  whose BTF omits one. The stream records task-level truth: thread
+  births and deaths also fire sched_process_fork/_exit, so thread
+  churn shows as task events; that residual is named in every
+  report's Unaccounted block.
 
 ## Safety Features
 

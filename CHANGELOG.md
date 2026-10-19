@@ -271,6 +271,73 @@ v11.0.0
   a native reader of /var/lib/pacman — one fewer external binary,
   one more source-of-truth read. External binaries: 5 → 4.
 
+- night-improve-4 (Phase 4) lands the memory mystery's answer and
+  its completing stream. `doctor --symptom <ram|slow|disk|network>`
+  puts one flag on the doctor - no new verb, the surface count stays
+  nine - and implements `ram` only: the report reads /proc directly
+  (no eBPF, no capabilities, available to every `cargo install
+  zejtron` user) and renders the Evidence Ledger grammar for RAM -
+  per-process PSS (top 10, the proportional-set-size truth RSS
+  overstates), tmpfs files with their holder pids (the view htop
+  cannot produce), deleted-but-open files sized through the fd
+  magic link, memfd files, page cache net of shmem, buffers, shmem,
+  the top five slab caches (with the honest named absence when
+  /proc/slabinfo is root-only), and the residual named unaccounted.
+  The residual arithmetic sums the kernel-level buckets exactly
+  once (tmpfs and memfd pages already ride them) so the 15 percent
+  heuristic means something; every read another user's process
+  refuses is counted by class (permission versus exited-mid-scan)
+  and named in the Unaccounted block, never silently dropped;
+  --raw appends the verbatim /proc reads for drill-down.
+  slow/disk/network print the honest deferral line and exit 0 - not
+  a stub, not a promise. `proc --live` completes the story: the
+  sched_process_fork and sched_process_exit tracepoints join the
+  tap (proctap.rs), the exec tap gains the event emission, and the
+  lifecycle stream renders exec/fork/exit records with PID, comm,
+  ppid (the fork tracepoint's own pair; the BTF-verified
+  task_struct.real_parent walk for exec and exit), and the runtime
+  a paired birth and death show - so a 4 GiB allocation that
+  appeared and vanished within seconds can be named by PID, comm,
+  and timestamp even though the process is already gone. The
+  offsets map grows from eight to thirteen slots (the fork/exit
+  tracepoint contexts and the task_struct pair, parsed from the
+  host's own BTF at attach, hard refusal naming the missing struct
+  - the Phase 3 pattern applied to tracepoint contexts), the pin
+  set grows from thirteen to eighteen (one link/program pair per
+  new tracepoint, the proc_events ring map), the lifecycle window
+  rides the shared window grammar with its own clamp ([1s, 10m],
+  default 30s), and the old refresh-loop --live dies honestly:
+  --interval is gone, the snapshot-shaping flags are refused by
+  name on --live, and the unused ctrlc dependency leaves the graph
+  with the loop that needed it.
+
+  The memory mystery has its answer: `zejtron doctor --symptom ram`
+  reads /proc directly (no eBPF required) and names every consumer
+  the kernel exposes — per-process PSS, tmpfs files with their
+  holders, deleted-but-open files, memfd files, page cache, and
+  slab — with the residual named as unaccounted. `proc --live`
+  completes the story: from sched_process_exec, _fork, and _exit,
+  the lifecycle stream names processes that have already exited,
+  so a 4 GiB allocation that appeared and vanished within seconds
+  can be named by PID, comm, and timestamp. Two fixes land
+  alongside: the ebpf/Cargo.toml version mirrors the root crate
+  (the mirror law restored), and `port --since` is honest about
+  its window. The verdict engine names facts, never actions —
+  zejtron remains read-only. When the user has the answer, they
+  act manually; zejtron records, the user decides.
+
+- The two publish blockers night-improve-3 carried: ebpf/Cargo.toml
+  mirrored the stale 11.0.0 while the root crate moved to
+  80.0.0-alpha.1 (the mirror law broken since the alpha bump; the
+  lockfile now mirrors it too, and the -V doc example renders the
+  version shape as vX.Y.Z so it cannot go stale again), and
+  `port --since` reported an instant ring read as a window -
+  the event window now collects over its duration (the same
+  grammar holds/touch/why speak: the wait IS the collection, the
+  ring held open and drained in 100 ms slices), so a section
+  labeled "last Ns" is backed by real observation, and
+  --snapshot-only stays the instant path.
+
 ### Fixed
 
 - The README's Limitations list named two dead subcommands (`service`

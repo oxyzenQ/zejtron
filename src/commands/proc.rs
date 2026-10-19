@@ -5,21 +5,13 @@ use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::Path;
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
-use std::thread;
-use std::time::{Duration, Instant};
 
 mod forest;
+pub(crate) mod live;
 
 use forest::{build_forest, limit_depth, matching_process_ids, prune_for_matches};
-pub const DEFAULT_INTERVAL_SECONDS: u64 = 6;
-pub const MIN_INTERVAL_SECONDS: u64 = 3;
-pub const MAX_INTERVAL_SECONDS: u64 = 60;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Process {
@@ -69,7 +61,7 @@ pub struct ProcFlags {
     pub me: bool,
     pub live: bool,
     pub watch: bool,
-    pub interval: Option<u64>,
+    pub since: Option<String>,
     pub depth: Option<usize>,
     pub find: Option<String>,
     pub no_pid: bool,
@@ -99,36 +91,68 @@ pub fn run(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), Box<dyn Er
 
 fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> {
     let live = is_live_mode(flags.live, flags.watch);
-    let interval_seconds = validate_interval(live, flags.interval)?;
     let find = validate_find(flags.find)?;
+
+    if live {
+        // The lifecycle stream is host-wide by design - the kernel
+        // records every task - so the snapshot-shaping flags do not
+        // apply to it, named one by one. Never silently ignored.
+        if flags.me {
+            return Err(
+                "--me renders the snapshot tree; --live renders the host-wide lifecycle \
+                 stream, so it does not apply"
+                    .to_owned(),
+            );
+        }
+        if user_or_uid.is_some() {
+            return Err(
+                "USER_OR_UID renders the snapshot tree; --live renders the host-wide \
+                 lifecycle stream, so it does not apply"
+                    .to_owned(),
+            );
+        }
+        if flags.depth.is_some() {
+            return Err(
+                "--depth shapes the snapshot tree; --live renders the lifecycle ledger, \
+                 so it does not apply"
+                    .to_owned(),
+            );
+        }
+        if let Some(pattern) = &find {
+            return Err(format!(
+                "--find shapes the snapshot tree; --live renders the lifecycle ledger, \
+                 so it does not apply (got {pattern})"
+            ));
+        }
+        if flags.no_pid {
+            return Err(
+                "--no-pid shapes the snapshot tree; --live renders the lifecycle ledger, \
+                 so it does not apply"
+                    .to_owned(),
+            );
+        }
+        if flags.no_color {
+            return Err(
+                "--no-color shapes the snapshot tree's paint; --live renders the plain \
+                 ledger, so it does not apply"
+                    .to_owned(),
+            );
+        }
+        return run_live_window(flags.since.as_deref());
+    }
+
+    // The snapshot path (phase 1's surface, unchanged).
+    if let Some(raw) = flags.since {
+        return Err(format!("--since requires --live (got {raw})"));
+    }
+
     let target = resolve_target(flags.me, user_or_uid)?;
     let view = ViewOptions {
         max_depth: flags.depth,
         find,
     };
-
-    if live {
-        run_live(target, interval_seconds, !flags.no_pid, view)
-    } else {
-        print!("{}", render_snapshot(&target, !flags.no_pid, &view, None)?);
-        Ok(())
-    }
-}
-
-pub fn validate_interval(live: bool, interval: Option<u64>) -> Result<u64, String> {
-    match (live, interval) {
-        (false, Some(_)) => Err("--interval requires --live".to_owned()),
-        (false, None) => Ok(DEFAULT_INTERVAL_SECONDS),
-        (true, Some(seconds))
-            if !(MIN_INTERVAL_SECONDS..=MAX_INTERVAL_SECONDS).contains(&seconds) =>
-        {
-            Err(format!(
-                "--interval must be between {MIN_INTERVAL_SECONDS} and {MAX_INTERVAL_SECONDS} seconds"
-            ))
-        }
-        (true, Some(seconds)) => Ok(seconds),
-        (true, None) => Ok(DEFAULT_INTERVAL_SECONDS),
-    }
+    print!("{}", render_snapshot(&target, !flags.no_pid, &view)?);
+    Ok(())
 }
 
 pub fn is_live_mode(live: bool, watch: bool) -> bool {
@@ -233,38 +257,21 @@ fn parse_passwd_entries(contents: &str) -> io::Result<Vec<PasswdEntry>> {
     Ok(entries)
 }
 
-fn run_live(
-    target: TargetUser,
-    interval_seconds: u64,
-    show_pid: bool,
-    view: ViewOptions,
-) -> Result<(), String> {
-    let running = Arc::new(AtomicBool::new(true));
-    let handler_running = Arc::clone(&running);
-    ctrlc::set_handler(move || {
-        handler_running.store(false, Ordering::SeqCst);
-    })
-    .map_err(|error| format!("failed to install Ctrl+C handler: {error}"))?;
-
-    let interval = Duration::from_secs(interval_seconds);
-    while running.load(Ordering::SeqCst) {
-        print!("\x1b[2J\x1b[H");
-        print!(
-            "{}",
-            render_snapshot(&target, show_pid, &view, Some(interval_seconds))?
-        );
-        io::stdout()
-            .flush()
-            .map_err(|error| format!("failed to flush stdout: {error}"))?;
-
-        let started = Instant::now();
-        while running.load(Ordering::SeqCst) && started.elapsed() < interval {
-            let remaining = interval.saturating_sub(started.elapsed());
-            thread::sleep(remaining.min(Duration::from_millis(200)));
-        }
-    }
-
-    println!();
+/// The lifecycle stream (night-improve-4, Part C): the host's own
+/// process events, drained over the window and rendered as an
+/// Evidence Ledger report. Host-wide by design - the kernel records
+/// every task's lifecycle, and a user filter would be a later
+/// enhancement, not a silent no-op. The snapshot-shaping flags are
+/// refused by name (see run_inner); the window rides the shared
+/// window grammar with this surface's own clamp [1s, 10m].
+fn run_live_window(since: Option<&str>) -> Result<(), String> {
+    let window = match since {
+        Some(raw) => live::clamp_window(
+            crate::commands::port::window::parse_window(raw).map_err(|e| format!("{e}"))?,
+        ),
+        None => live::WINDOW_DEFAULT,
+    };
+    print!("{}", live::report(window));
     Ok(())
 }
 
@@ -272,16 +279,9 @@ fn render_snapshot(
     target: &TargetUser,
     show_pid: bool,
     view: &ViewOptions,
-    live_interval_seconds: Option<u64>,
 ) -> Result<String, String> {
     let report = scan_processes_for_uid(target.uid)?;
-    Ok(render_report(
-        target,
-        report,
-        show_pid,
-        view,
-        live_interval_seconds,
-    ))
+    Ok(render_report(target, report, show_pid, view))
 }
 
 fn render_report(
@@ -289,20 +289,13 @@ fn render_report(
     report: ScanReport,
     show_pid: bool,
     view: &ViewOptions,
-    live_interval_seconds: Option<u64>,
 ) -> String {
     let mut forest = build_forest(report.processes);
 
     if let Some(pattern) = &view.find {
         let matches = matching_process_ids(&forest, pattern);
         if matches.is_empty() {
-            let mut output = format!("No processes matched '{pattern}'.\n");
-            if let Some(interval_seconds) = live_interval_seconds {
-                output.push('\n');
-                output.push_str(&render_live_footer(interval_seconds));
-                output.push('\n');
-            }
-            return output;
+            return format!("No processes matched '{pattern}'.\n");
         }
         forest = prune_for_matches(&forest, &matches);
     }
@@ -319,11 +312,6 @@ fn render_report(
 
     output.push_str(&render_summary(&forest));
     output.push('\n');
-
-    if let Some(interval_seconds) = live_interval_seconds {
-        output.push_str(&render_live_footer(interval_seconds));
-        output.push('\n');
-    }
 
     output
 }
@@ -485,10 +473,6 @@ pub fn render_summary(forest: &ProcessForest) -> String {
 
 fn render_unreadable_note() -> &'static str {
     "note: some processes were not readable; try sudo for a complete tree"
-}
-
-fn render_live_footer(interval_seconds: u64) -> String {
-    format!("live mode · refresh {interval_seconds}s · press Ctrl+C to quit")
 }
 
 fn render_process(

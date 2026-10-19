@@ -5,13 +5,19 @@
 //! zylaxion orchestration lineage; night-improve-2 grows the chain
 //! to two tracepoints and a ring buffer; night-improve-3 grows it
 //! to four programs and five maps, and teaches attach to verify the
-//! struct offsets against the host's own BTF before planting).
+//! struct offsets against the host's own BTF before planting;
+//! night-improve-4 grows it to six programs and six maps - the two
+//! sched_process lifecycle tracepoints and the proc_events ring -
+//! and widens the BTF-verified offset set to the tracepoint
+//! contexts and the task_struct pair).
 //!
 //! This is the privileged one-shot. `doctor --attach` loads the
-//! embedded tap object, loads ALL FOUR programs (phase 1's
-//! sched/sched_process_exec counter, phase 2's
+//! embedded tap object, loads ALL SIX programs (phase 1's
+//! sched/sched_process_exec counter + exec event, phase 2's
 //! sock/inet_sock_set_state socket-event tap, phase 3's
-//! vfs_open/vfs_write file taps), attaches each, and pins
+//! vfs_open/vfs_write file taps, night-improve-4's
+//! sched/sched_process_fork and sched/sched_process_exit lifecycle
+//! taps), attaches each, and pins
 //! EVERYTHING to bpffs - programs, links, maps - then writes the
 //! BTF-parsed struct offsets into the `offsets` map, and the
 //! process may exit, because the pinned links keep the taps alive
@@ -42,15 +48,17 @@ use aya::programs::links::FdLink;
 use super::btf;
 use super::embedded;
 use super::{
-    LaneVerdict, PIN_DIR, PIN_LINK, PIN_LINK_OPEN, PIN_LINK_SOCK, PIN_LINK_WRITE,
-    PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS,
-    PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_OPEN, PIN_PROG_SOCK, PIN_PROG_WRITE,
-    any_pin_present, lane_verdict, probe_kernel,
+    LaneVerdict, PIN_DIR, PIN_LINK, PIN_LINK_EXIT, PIN_LINK_FORK, PIN_LINK_OPEN, PIN_LINK_SOCK,
+    PIN_LINK_WRITE, PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS, PIN_MAP_PROC_EVENTS, PIN_MAP_SOCK_EVENTS,
+    PIN_MAP_STATS, PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_EXIT, PIN_PROG_FORK, PIN_PROG_OPEN,
+    PIN_PROG_SOCK, PIN_PROG_WRITE, any_pin_present, lane_verdict, probe_kernel,
 };
 
 use super::events::{
     OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH, OFF_SLOT_INODE_I_INO,
-    OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_VFSMOUNT_MNT_SB,
+    OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_TASK_REAL_PARENT,
+    OFF_SLOT_TASK_TGID, OFF_SLOT_TP_EXIT_PID, OFF_SLOT_TP_FORK_CHILD_PID,
+    OFF_SLOT_TP_FORK_PARENT_PID, OFF_SLOT_VFSMOUNT_MNT_SB,
 };
 
 /// The embedded pure-Rust tap object (night-improve-1): the aya-ebpf
@@ -103,11 +111,28 @@ const WRITE_PROGRAM: &str = "write_tap";
 /// The kernel symbol the write tap attaches to.
 const WRITE_SYMBOL: &str = "vfs_write";
 
+/// The fork lifecycle program's name (night-improve-4, proctap.rs).
+const FORK_PROGRAM: &str = "sched_process_fork";
+
+/// The fork tracepoint's category and event.
+const FORK_TRACEPOINT_CATEGORY: &str = "sched";
+const FORK_TRACEPOINT_EVENT: &str = "sched_process_fork";
+
+/// The exit lifecycle program's name.
+const EXIT_PROGRAM: &str = "sched_process_exit";
+
+/// The exit tracepoint's category and event.
+const EXIT_TRACEPOINT_CATEGORY: &str = "sched";
+const EXIT_TRACEPOINT_EVENT: &str = "sched_process_exit";
+
 /// The tracked_inodes filter map name in the tap object.
 const MAP_TRACKED_INODES: &str = "tracked_inodes";
 
 /// The file_events ring map name in the tap object.
 const MAP_FILE_EVENTS: &str = "file_events";
+
+/// The proc_events ring map name in the tap object (night-improve-4).
+const MAP_PROC_EVENTS: &str = "proc_events";
 
 /// The offsets config map name in the tap object.
 const MAP_OFFSETS: &str = "offsets";
@@ -235,18 +260,20 @@ pub fn attach() -> Result<String, String> {
                 .unwrap_or_else(|e| format!("counter unreadable ({e})"));
             Ok(format!(
                 "tap attached: tracepoints sched/sched_process_exec + \
-                 sock/inet_sock_set_state, kprobes vfs_open + vfs_write, \
+                 sock/inet_sock_set_state + sched/sched_process_fork + \
+                 sched/sched_process_exit, kprobes vfs_open + vfs_write, \
                  offsets verified from this host's BTF, counter live; events \
                  since attach: {count}\npins: {PIN_DIR} (tap, tap_link, stats, \
                  sock_tap, sock_tap_link, sock_events, open_tap, open_tap_link, \
-                 write_tap, write_tap_link, tracked_inodes, file_events, offsets)"
+                 write_tap, write_tap_link, tracked_inodes, file_events, offsets, \
+                 fork_tap, fork_tap_link, exit_tap, exit_tap_link, proc_events)"
             ))
         }
         Err(e) => Err(fail(e)),
     }
 }
 
-/// The plant step: load all four programs, attach each to its
+/// The plant step: load all six programs, attach each to its
 /// point, pin programs + links + maps. Any error names itself; the
 /// caller's fail() protocol cleans up everything the attempt
 /// planted - never a half-attached tap.
@@ -275,6 +302,22 @@ fn plant(bpf: &mut Ebpf) -> Result<(), String> {
         PIN_PROG_WRITE,
         PIN_LINK_WRITE,
     )?;
+    plant_tracepoint(
+        bpf,
+        FORK_PROGRAM,
+        FORK_TRACEPOINT_CATEGORY,
+        FORK_TRACEPOINT_EVENT,
+        PIN_PROG_FORK,
+        PIN_LINK_FORK,
+    )?;
+    plant_tracepoint(
+        bpf,
+        EXIT_PROGRAM,
+        EXIT_TRACEPOINT_CATEGORY,
+        EXIT_TRACEPOINT_EVENT,
+        PIN_PROG_EXIT,
+        PIN_LINK_EXIT,
+    )?;
     bpf.take_map(MAP_STATS)
         .ok_or_else(|| format!("the tap object carries no '{MAP_STATS}' map"))?
         .pin(PIN_MAP_STATS)
@@ -295,18 +338,25 @@ fn plant(bpf: &mut Ebpf) -> Result<(), String> {
         .ok_or_else(|| format!("the tap object carries no '{MAP_OFFSETS}' map"))?
         .pin(PIN_MAP_OFFSETS)
         .map_err(|e| format!("the map pin {PIN_MAP_OFFSETS} failed: {e}"))?;
+    bpf.take_map(MAP_PROC_EVENTS)
+        .ok_or_else(|| format!("the tap object carries no '{MAP_PROC_EVENTS}' map"))?
+        .pin(PIN_MAP_PROC_EVENTS)
+        .map_err(|e| format!("the map pin {PIN_MAP_PROC_EVENTS} failed: {e}"))?;
     Ok(())
 }
 
 /// Write the BTF-parsed offsets through the pin, slot by slot in the
-/// events.rs order. Every write error names the slot.
+/// events.rs order. Thirteen slots since night-improve-4: the eight
+/// file-walk slots, then the fork/exit tracepoint context offsets
+/// and the task_struct pair the exec/exit ppid walk dereferences.
+/// Every write error names the slot.
 fn write_offsets(offsets: &btf::ProbeOffsets) -> Result<(), String> {
     let map_data = MapData::from_pin(PIN_MAP_OFFSETS)
         .map_err(|e| format!("pinned offsets map {PIN_MAP_OFFSETS}: {e}"))?;
     let mut owned = Map::Array(map_data);
     let mut map: Array<_, u64> = Array::try_from(&mut owned)
         .map_err(|e| format!("the pinned offsets map is not an array: {e}"))?;
-    let writes: [(u32, u64); 8] = [
+    let writes: [(u32, u64); 13] = [
         (OFF_SLOT_DENTRY_D_INODE, offsets[0]),
         (OFF_SLOT_INODE_I_INO, offsets[1]),
         (OFF_SLOT_FILE_F_PATH, offsets[2]),
@@ -315,6 +365,11 @@ fn write_offsets(offsets: &btf::ProbeOffsets) -> Result<(), String> {
         (OFF_SLOT_SUPER_BLOCK_S_DEV, offsets[5]),
         (OFF_SLOT_PATH_MNT, offsets[6]),
         (OFF_SLOT_PATH_DENTRY, offsets[7]),
+        (OFF_SLOT_TP_FORK_PARENT_PID, offsets[8]),
+        (OFF_SLOT_TP_FORK_CHILD_PID, offsets[9]),
+        (OFF_SLOT_TP_EXIT_PID, offsets[10]),
+        (OFF_SLOT_TASK_REAL_PARENT, offsets[11]),
+        (OFF_SLOT_TASK_TGID, offsets[12]),
     ];
     for (slot, value) in writes {
         map.set(slot, value, 0)

@@ -128,10 +128,77 @@ fn sample_blob() -> Vec<u8> {
         &[("s_list", 0), ("s_dev", 16 * 8)],
     );
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    // The process-stream structs (night-improve-4): the two sched
+    // tracepoint contexts and task_struct. The trace contexts mirror
+    // the textbook layout (trace_entry 8 bytes, then the scalars);
+    // task_struct's members sit at synthetic-but-plausible offsets.
+    w.strukt(
+        &mut s,
+        "trace_event_raw_sched_process_fork",
+        16,
+        &[("ent", 0), ("parent_pid", 8 * 8), ("child_pid", 12 * 8)],
+    );
+    w.strukt(
+        &mut s,
+        "trace_event_raw_sched_process_exit",
+        32,
+        &[
+            ("ent", 0),
+            ("comm", 8 * 8),
+            ("pid", 24 * 8),
+            ("prio", 28 * 8),
+        ],
+    );
+    w.strukt(
+        &mut s,
+        "trace_event_raw_sched_process_exec",
+        12,
+        &[("ent", 0), ("__data_loc_filename", 8 * 8)],
+    );
+    w.strukt(
+        &mut s,
+        "task_struct",
+        4096,
+        &[
+            ("pid", 736 * 8),
+            ("tgid", 1800 * 8),
+            ("real_parent", 1808 * 8),
+        ],
+    );
     build_btf(w, s)
 }
 
-// ── The pins ────────────────────────────────────────────────────────
+/// The process-stream structs every partial blob needs appended (the
+/// parser looks all ten up; a partial blob without them fails on the
+/// trace contexts before it reaches the member under test).
+fn push_proc_structs(w: &mut TypeWriter, s: &mut StrTab) {
+    w.strukt(
+        s,
+        "trace_event_raw_sched_process_fork",
+        16,
+        &[("parent_pid", 8 * 8), ("child_pid", 12 * 8)],
+    );
+    w.strukt(
+        s,
+        "trace_event_raw_sched_process_exit",
+        32,
+        &[("pid", 24 * 8)],
+    );
+    w.strukt(
+        s,
+        "trace_event_raw_sched_process_exec",
+        12,
+        &[("__data_loc_filename", 8 * 8)],
+    );
+    w.strukt(
+        s,
+        "task_struct",
+        4096,
+        &[("tgid", 1800 * 8), ("real_parent", 1808 * 8)],
+    );
+}
+
+// ── The pins ────────────────────────────────────────────────────
 
 #[test]
 fn the_reference_probe_offsets_parse_end_to_end() {
@@ -140,14 +207,19 @@ fn the_reference_probe_offsets_parse_end_to_end() {
     assert_eq!(
         offsets,
         [
-            48, // dentry.d_inode
-            64, // inode.i_ino
-            16, // file.f_path
-            32, // file.f_inode
-            8,  // vfsmount.mnt_sb
-            16, // super_block.s_dev
-            0,  // path.mnt
-            8,  // path.dentry
+            48,   // dentry.d_inode
+            64,   // inode.i_ino
+            16,   // file.f_path
+            32,   // file.f_inode
+            8,    // vfsmount.mnt_sb
+            16,   // super_block.s_dev
+            0,    // path.mnt
+            8,    // path.dentry
+            8,    // tp_fork.parent_pid
+            12,   // tp_fork.child_pid
+            24,   // tp_exit.pid
+            1808, // task_struct.real_parent
+            1800, // task_struct.tgid
         ]
     );
 }
@@ -177,6 +249,30 @@ fn a_missing_struct_is_refused_by_name() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    w.strukt(
+        &mut s,
+        "trace_event_raw_sched_process_fork",
+        16,
+        &[("parent_pid", 8 * 8), ("child_pid", 12 * 8)],
+    );
+    w.strukt(
+        &mut s,
+        "trace_event_raw_sched_process_exit",
+        32,
+        &[("pid", 24 * 8)],
+    );
+    w.strukt(
+        &mut s,
+        "trace_event_raw_sched_process_exec",
+        12,
+        &[("__data_loc_filename", 8 * 8)],
+    );
+    w.strukt(
+        &mut s,
+        "task_struct",
+        4096,
+        &[("tgid", 1800 * 8), ("real_parent", 1808 * 8)],
+    );
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert_eq!(err, "struct inode not found in BTF");
@@ -200,6 +296,7 @@ fn a_missing_member_is_refused_by_name() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    push_proc_structs(&mut w, &mut s);
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert_eq!(err, "struct inode has no member i_ino in BTF");
@@ -223,6 +320,7 @@ fn a_bitfield_member_is_refused_not_straddled() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    push_proc_structs(&mut w, &mut s);
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert!(err.contains("bitfield"), "got: {err}");
@@ -256,12 +354,42 @@ fn the_live_host_parses_when_btf_exists() {
     if !std::path::Path::new("/sys/kernel/btf/vmlinux").exists() {
         return;
     }
-    let offsets = parse_probe_offsets().expect("a present vmlinux BTF must parse");
-    for off in offsets {
-        assert!(off < 4096, "implausible offset {off}");
+    // Two honest outcomes on a host that ships vmlinux BTF:
+    //
+    // - the parse succeeds: pin the stable offsets (below);
+    // - the parse refuses because the kernel's BTF omits one of the
+    //   nine structs (some trimmed cloud kernels ship BTF without
+    //   the trace_event_raw_sched_process_* contexts): the refusal
+    //   must name the missing struct - that is the attach-time
+    //   honesty the whole offsets contract rides, and the same
+    //   verdict `doctor --attach` delivers on that host.
+    match parse_probe_offsets() {
+        Ok(offsets) => {
+            for off in offsets {
+                // 64 KiB: the file-walk offsets sit under 4 KiB, but
+                // task_struct grew past 4 KiB on 6.x - the bound
+                // names the class (a byte offset into a kernel
+                // struct), not a magic architecture number.
+                assert!(off < 65536, "implausible offset {off}");
+            }
+            // struct file f_path@16 / f_inode@32 have been stable
+            // across 5.10-6.x; pin the two most load-bearing members.
+            assert_eq!(offsets[2], 16, "file.f_path");
+            assert_eq!(offsets[3], 32, "file.f_inode");
+            // The sched tracepoint contexts are textbook-stable: the
+            // 8-byte trace_entry, then parent_pid@8 / child_pid@12
+            // for fork and comm[16] before pid@24 for exit. The
+            // BTF-verified offsets must agree with the layout the
+            // programs read.
+            assert_eq!(offsets[8], 8, "tp_fork.parent_pid");
+            assert_eq!(offsets[9], 12, "tp_fork.child_pid");
+            assert_eq!(offsets[10], 24, "tp_exit.pid");
+        }
+        Err(err) => {
+            assert!(
+                err.contains("not found in BTF"),
+                "a BTF-present host refuses by naming the missing struct: {err}"
+            );
+        }
     }
-    // struct file f_path@16 / f_inode@32 have been stable across
-    // 5.10-6.x; pin the two most load-bearing members on any host.
-    assert_eq!(offsets[2], 16, "file.f_path");
-    assert_eq!(offsets[3], 32, "file.f_inode");
 }
