@@ -67,9 +67,15 @@ const GROUPS: &[(&str, &[Row])] = &[
         "proc:",
         &[
             ("--me", "Show processes owned by the current user"),
-            ("--live", "Continuously refresh the process tree"),
+            (
+                "--live",
+                "Render the host's process lifecycle stream (the kernel's own event records)",
+            ),
             ("--watch", "Alias for --live"),
-            ("--interval SECONDS", "Live refresh interval in seconds"),
+            (
+                "--since DURATION",
+                "Lifecycle window width with --live (s/m/h, default 30s, clamped to [1s, 10m])",
+            ),
             ("--depth N", "Limit rendered tree depth"),
             (
                 "--find PATTERN",

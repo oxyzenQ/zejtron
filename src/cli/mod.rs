@@ -140,16 +140,20 @@ pub enum Commands {
             help = "Show processes owned by the current user"
         )]
         me: bool,
-        #[arg(long, help = "Continuously refresh the process tree")]
+        #[arg(
+            long,
+            conflicts_with = "user_or_uid",
+            help = "Render the host's process lifecycle stream (the kernel's own event records)"
+        )]
         live: bool,
         #[arg(long, help = "Alias for --live")]
         watch: bool,
         #[arg(
+            value_name = "DURATION",
             long,
-            value_name = "SECONDS",
-            help = "Live refresh interval in seconds"
+            help = "Lifecycle window width with --live (s/m/h, default 30s, clamped to [1s, 10m])"
         )]
-        interval: Option<u64>,
+        since: Option<String>,
         #[arg(
             long,
             allow_hyphen_values = true,

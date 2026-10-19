@@ -33,7 +33,7 @@ edition = "2024"
 publish = false
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/zejtron"
-description = "Pure-Rust eBPF taps for zejtron (sched_process_exec counter + inet_sock_set_state socket-event stream), cross-compiled with aya-ebpf and embedded by the userspace loader."
+description = "Pure-Rust eBPF taps for zejtron (sched_process_exec counter + exec/fork/exit lifecycle events, inet_sock_set_state socket-event stream, vfs_open/vfs_write file taps), cross-compiled with aya-ebpf and embedded by the userspace loader."
 
 [dependencies]
 aya-ebpf = "0.2.1"

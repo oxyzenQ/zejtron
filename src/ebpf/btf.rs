@@ -20,7 +20,7 @@
 //! doctor's \[eBPF] section reports; a 5.15+ distro kernel ships it.
 //!
 //! The parser is deliberately minimal: a BTF header check, a type
-//! walk, six struct lookups by name, eight member lookups by name.
+//! walk, nine struct lookups by name, ten member lookups by name.
 //! Pure std, no unsafe - it reads a file and slices bytes. The walk
 //! mirrors the reference dump this pass was designed against
 //! (scripts-side probe, kernel 5.10.134: struct file f_path@16
@@ -37,11 +37,15 @@ const BTF_MAGIC: u16 = 0xEB9F;
 /// The fixed size of the btf_header every version carries.
 const BTF_HEADER_BYTES: usize = 24;
 
-/// The offsets the kprobes read, slot-aligned to the events.rs
+/// The offsets the probes read, slot-aligned to the events.rs
 /// OFF_SLOT_* indices: [dentry.d_inode, inode.i_ino, file.f_path,
 /// file.f_inode, vfsmount.mnt_sb, super_block.s_dev, path.mnt,
-/// path.dentry], every value a byte offset.
-pub type ProbeOffsets = [u64; 8];
+/// path.dentry, tp_fork.parent_pid, tp_fork.child_pid,
+/// tp_exit.pid, task_struct.real_parent, task_struct.tgid], every
+/// value a byte offset. Eight file-walk slots through night-improve-3;
+/// night-improve-4 appends the five process-stream slots (the two
+/// tracepoint contexts and the task_struct pair the ppid walk rides).
+pub type ProbeOffsets = [u64; 13];
 
 /// Parse the host's own /sys/kernel/btf/vmlinux. Every error names
 /// its stage; nothing is guessed, ever.
@@ -51,9 +55,16 @@ pub fn parse_probe_offsets() -> Result<ProbeOffsets, String> {
     parse_btf_offsets(&data)
 }
 
-/// The pure parser: given the raw BTF file bytes, return the eight
+/// The pure parser: given the raw BTF file bytes, return the thirteen
 /// offsets. Separated from [`parse_probe_offsets`] so the tests can
-/// drive it with synthetic blobs end to end.
+/// drive it with synthetic blobs end to end. The nine struct lookups
+/// cover both probe families: the file walks (six structs) and the
+/// process stream (the two sched tracepoint contexts plus
+/// task_struct, whose real_parent and tgid the exec/exit ppid walk
+/// dereferences). The exec tracepoint's context needs no offset -
+/// its record reads only helpers - but the exec context STRUCT is
+/// still verified present: a kernel whose exec tracepoint changed
+/// shape under this program is a kernel the attach refuses.
 pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
     let ctx = BtfFile::new(data)?;
     let inode = ctx
@@ -74,6 +85,22 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
     let path = ctx
         .find_struct("path")
         .ok_or_else(|| "struct path not found in BTF".to_owned())?;
+    let tp_fork = ctx
+        .find_struct("trace_event_raw_sched_process_fork")
+        .ok_or_else(|| "struct trace_event_raw_sched_process_fork not found in BTF".to_owned())?;
+    let tp_exit = ctx
+        .find_struct("trace_event_raw_sched_process_exit")
+        .ok_or_else(|| "struct trace_event_raw_sched_process_exit not found in BTF".to_owned())?;
+    let tp_exec = ctx
+        .find_struct("trace_event_raw_sched_process_exec")
+        .ok_or_else(|| "struct trace_event_raw_sched_process_exec not found in BTF".to_owned())?;
+    let task_struct = ctx
+        .find_struct("task_struct")
+        .ok_or_else(|| "struct task_struct not found in BTF".to_owned())?;
+
+    // Presence proof for the exec context: no offset to store (the
+    // exec record reads only helpers), but the struct must exist.
+    let _ = tp_exec;
 
     Ok([
         member_offset(&ctx, dentry, "dentry", "d_inode")?,
@@ -84,6 +111,21 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
         member_offset(&ctx, super_block, "super_block", "s_dev")?,
         member_offset(&ctx, path, "path", "mnt")?,
         member_offset(&ctx, path, "path", "dentry")?,
+        member_offset(
+            &ctx,
+            tp_fork,
+            "trace_event_raw_sched_process_fork",
+            "parent_pid",
+        )?,
+        member_offset(
+            &ctx,
+            tp_fork,
+            "trace_event_raw_sched_process_fork",
+            "child_pid",
+        )?,
+        member_offset(&ctx, tp_exit, "trace_event_raw_sched_process_exit", "pid")?,
+        member_offset(&ctx, task_struct, "task_struct", "real_parent")?,
+        member_offset(&ctx, task_struct, "task_struct", "tgid")?,
     ])
 }
 

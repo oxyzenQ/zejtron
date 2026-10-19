@@ -40,7 +40,7 @@ fn pro_mode_covers_every_flag_owning_verb() {
     for spelling in [
         "--limit N",
         "--listen",
-        "--interval SECONDS",
+        "--since DURATION",
         "--depth N",
         "--find PATTERN",
     ] {
@@ -194,19 +194,20 @@ fn parses_why_target() {
 }
 
 #[test]
-fn parses_proc_watch_alias_and_interval() {
-    let cli =
-        Cli::try_parse_from(["zejtron", "proc", "--me", "--watch", "--interval", "3"]).unwrap();
+fn parses_proc_watch_alias_and_since() {
+    let cli = Cli::try_parse_from(["zejtron", "proc", "--watch", "--since", "45s"]).unwrap();
 
     match cli.command {
-        Some(Commands::Proc {
-            watch, interval, ..
-        }) => {
+        Some(Commands::Proc { watch, since, .. }) => {
             assert!(watch);
-            assert_eq!(interval, Some(3));
+            assert_eq!(since.as_deref(), Some("45s"));
         }
         other => panic!("unexpected command: {other:?}"),
     }
+
+    // The refresh-loop flag died with the lifecycle stream: --interval
+    // is not part of the grammar anymore, by name.
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--watch", "--interval", "3"]).is_err());
 }
 
 #[test]

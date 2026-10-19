@@ -85,23 +85,50 @@ pub const PIN_MAP_FILE_EVENTS: &str = "/sys/fs/bpf/zejtron/file_events";
 /// it).
 pub const PIN_MAP_OFFSETS: &str = "/sys/fs/bpf/zejtron/offsets";
 
+/// Program pin - the fork tap (night-improve-4's sched_process_fork
+/// program, the birth half of the lifecycle stream).
+pub const PIN_PROG_FORK: &str = "/sys/fs/bpf/zejtron/fork_tap";
+
+/// Link pin - the fork tap's attachment.
+pub const PIN_LINK_FORK: &str = "/sys/fs/bpf/zejtron/fork_tap_link";
+
+/// Program pin - the exit tap (night-improve-4's sched_process_exit
+/// program, the death half of the lifecycle stream).
+pub const PIN_PROG_EXIT: &str = "/sys/fs/bpf/zejtron/exit_tap";
+
+/// Link pin - the exit tap's attachment.
+pub const PIN_LINK_EXIT: &str = "/sys/fs/bpf/zejtron/exit_tap_link";
+
+/// Map pin - the proc_events ring buffer (the lifecycle stream the
+/// `proc --live` surface drains through this pin; night-improve-4).
+pub const PIN_MAP_PROC_EVENTS: &str = "/sys/fs/bpf/zejtron/proc_events";
+
 /// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
-/// last).
-pub const ALL_PINS: [&str; 13] = [
+/// last). Thirteen through night-improve-3; night-improve-4 grows it
+/// to eighteen: one pin pair per new tracepoint (fork, exit) and the
+/// proc_events ring map. The exec tap reuses its existing pins (the
+/// phase-1 program gained the event emission, not a new section),
+/// so the growth is five, not seven.
+pub const ALL_PINS: [&str; 18] = [
     PIN_LINK,
     PIN_LINK_SOCK,
     PIN_LINK_OPEN,
     PIN_LINK_WRITE,
+    PIN_LINK_FORK,
+    PIN_LINK_EXIT,
     PIN_PROG,
     PIN_PROG_SOCK,
     PIN_PROG_OPEN,
     PIN_PROG_WRITE,
+    PIN_PROG_FORK,
+    PIN_PROG_EXIT,
     PIN_MAP_STATS,
     PIN_MAP_SOCK_EVENTS,
     PIN_MAP_TRACKED_INODES,
     PIN_MAP_FILE_EVENTS,
     PIN_MAP_OFFSETS,
+    PIN_MAP_PROC_EVENTS,
 ];
 
 /// True when every pin of a complete attach exists. A partial pin set

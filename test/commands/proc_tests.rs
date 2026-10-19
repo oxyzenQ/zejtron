@@ -9,6 +9,7 @@
 
 use super::*;
 use std::collections::BTreeSet;
+use std::time::Duration;
 use tempfile::TempDir;
 
 fn target() -> TargetUser {
@@ -51,41 +52,101 @@ fn view(max_depth: Option<usize>, find: Option<&str>) -> ViewOptions {
     }
 }
 
+use super::live::{WINDOW_CEILING, WINDOW_DEFAULT, WINDOW_FLOOR, clamp_window, window_label};
+
 #[test]
-fn accepts_default_interval_for_live_mode() {
-    assert_eq!(validate_interval(true, None), Ok(DEFAULT_INTERVAL_SECONDS));
+fn the_lifecycle_window_defaults_to_30s() {
+    assert_eq!(WINDOW_DEFAULT, Duration::from_secs(30));
 }
 
 #[test]
-fn accepts_interval_bounds_for_live_mode() {
-    assert_eq!(validate_interval(true, Some(MIN_INTERVAL_SECONDS)), Ok(3));
-    assert_eq!(validate_interval(true, Some(MAX_INTERVAL_SECONDS)), Ok(60));
-}
-
-#[test]
-fn rejects_interval_outside_bounds() {
+fn the_lifecycle_window_clamps_into_1s_10m() {
+    // The pinned clamps: 0s -> 1s, 1h -> 600s - and the in-range
+    // values pass through untouched.
+    assert_eq!(clamp_window(Duration::from_secs(0)), WINDOW_FLOOR);
     assert_eq!(
-        validate_interval(true, Some(2)),
-        Err("--interval must be between 3 and 60 seconds".to_owned())
+        clamp_window(Duration::from_secs(3600)),
+        Duration::from_secs(600)
     );
     assert_eq!(
-        validate_interval(true, Some(61)),
-        Err("--interval must be between 3 and 60 seconds".to_owned())
+        clamp_window(Duration::from_secs(90)),
+        Duration::from_secs(90)
     );
+    assert_eq!(WINDOW_CEILING, Duration::from_secs(600));
 }
 
 #[test]
-fn rejects_interval_without_live_mode() {
-    assert_eq!(
-        validate_interval(false, Some(6)),
-        Err("--interval requires --live".to_owned())
-    );
+fn the_lifecycle_window_label_is_compact() {
+    assert_eq!(window_label(Duration::from_secs(30)), "30s");
+    assert_eq!(window_label(Duration::from_secs(600)), "10m");
+    assert_eq!(window_label(Duration::from_secs(45)), "45s");
 }
 
 #[test]
-fn watch_behaves_like_live_for_interval_validation() {
+fn watch_behaves_like_live() {
     assert!(is_live_mode(false, true));
-    assert_eq!(validate_interval(is_live_mode(false, true), Some(3)), Ok(3));
+    assert!(is_live_mode(true, false));
+    assert!(!is_live_mode(false, false));
+}
+
+#[test]
+fn since_requires_live_mode() {
+    // The snapshot path refuses --since by name - the flag belongs
+    // to the lifecycle window, never a silently ignored request.
+    let err = run_inner(
+        None,
+        ProcFlags {
+            since: Some("30s".to_owned()),
+            ..Default::default()
+        },
+    )
+    .expect_err("--since without --live must be refused");
+    assert!(err.contains("--since requires --live"), "{err}");
+}
+
+#[test]
+fn the_lifecycle_stream_refuses_snapshot_shaping_flags_by_name() {
+    // Host-wide by design: the snapshot flags do not apply to --live,
+    // each named, none silently ignored.
+    for flags in [
+        ProcFlags {
+            live: true,
+            me: true,
+            ..Default::default()
+        },
+        ProcFlags {
+            live: true,
+            depth: Some(2),
+            ..Default::default()
+        },
+        ProcFlags {
+            live: true,
+            find: Some("py".to_owned()),
+            ..Default::default()
+        },
+        ProcFlags {
+            live: true,
+            no_pid: true,
+            ..Default::default()
+        },
+        ProcFlags {
+            live: true,
+            no_color: true,
+            ..Default::default()
+        },
+    ] {
+        let err = run_inner(None, flags).expect_err("snapshot flags must not ride --live");
+        assert!(err.contains("does not apply"), "{err}");
+    }
+    let err = run_inner(
+        Some("rezky"),
+        ProcFlags {
+            live: true,
+            ..Default::default()
+        },
+    )
+    .expect_err("USER_OR_UID must not ride --live");
+    assert!(err.contains("does not apply"), "{err}");
 }
 
 #[test]
@@ -312,14 +373,14 @@ fn renders_stable_summary() {
 
 #[test]
 fn depth_zero_renders_header_and_summary_only() {
-    let output = render_report(&target(), report(), true, &view(Some(0), None), None);
+    let output = render_report(&target(), report(), true, &view(Some(0), None));
 
     assert_eq!(output, "rezky uid=1000\n\n0 roots · 0 processes\n");
 }
 
 #[test]
 fn depth_combines_with_no_pid() {
-    let output = render_report(&target(), report(), false, &view(Some(2), None), None);
+    let output = render_report(&target(), report(), false, &view(Some(2), None));
 
     // state=? always shown
     assert_eq!(
@@ -331,13 +392,7 @@ fn depth_combines_with_no_pid() {
 
 #[test]
 fn find_no_match_returns_clean_message() {
-    let output = render_report(
-        &target(),
-        report(),
-        true,
-        &view(None, Some("missing")),
-        None,
-    );
+    let output = render_report(&target(), report(), true, &view(None, Some("missing")));
 
     assert_eq!(output, "No processes matched 'missing'.\n");
 }
