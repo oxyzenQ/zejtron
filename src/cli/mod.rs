@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+pub(crate) mod examples;
 pub(crate) mod pro_mode;
 pub mod styles;
 pub(crate) mod ux;
@@ -12,10 +13,19 @@ fn branded_command() -> clap::Command {
     if crate::output::capability() == crate::output::ColorCapability::Color16 {
         cmd = cmd.styles(styles::clap_styles_16());
     }
+    // The example rows paint at render time (night-improve-35): the
+    // verb's about carries its example line, green verb token on the
+    // grey grammar line, the exact plain bytes on a pipe.
+    examples::paint_verbs(&mut cmd);
     // The Pro mode section paints at render time (night-improve-38):
     // grey grammar on a color stdout, the exact plain bytes on a
-    // pipe - never a frozen string on either lane.
-    cmd.after_help(pro_mode::painted())
+    // pipe - never a frozen string on either lane. The Quick
+    // examples section (night-improve-35) closes the render.
+    cmd.after_help(format!(
+        "{}{}",
+        pro_mode::painted(),
+        examples::quick_section()
+    ))
 }
 
 /// Parse argv through the branded builder. The UX bridge downstream
@@ -71,12 +81,12 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    #[command(about = "Trace where a command comes from")]
+    #[command(about = "Where does a command come from?")]
     Path {
         #[arg(value_name = "COMMAND", help = "Command name to find in PATH")]
         command: String,
     },
-    #[command(about = "Show recently modified files")]
+    #[command(about = "What changed here lately?")]
     Recent {
         #[arg(value_name = "PATH", default_value = ".")]
         path: PathBuf,
@@ -94,7 +104,7 @@ pub enum Commands {
         )]
         since: Option<String>,
     },
-    #[command(about = "Show listening ports and process owners")]
+    #[command(about = "Which ports are open, and who owns them?")]
     Port {
         #[arg(value_name = "PORT", help = "Port number to inspect")]
         port: Option<String>,
@@ -127,7 +137,7 @@ pub enum Commands {
         #[arg(long, help = "Show only the snapshot (the phase-1 behavior)")]
         snapshot_only: bool,
     },
-    #[command(about = "Inspect process trees by user or UID")]
+    #[command(about = "What is running, and under whom?")]
     Proc {
         #[arg(
             value_name = "USER_OR_UID",
@@ -158,7 +168,7 @@ pub enum Commands {
         #[arg(long, help = "Disable ANSI color output")]
         no_color: bool,
     },
-    #[command(about = "Show processes holding a file, device, or port")]
+    #[command(about = "Who holds this file, port, or device?")]
     Holds {
         #[arg(
             value_name = "TARGET",
@@ -172,7 +182,7 @@ pub enum Commands {
         )]
         since: Option<String>,
     },
-    #[command(about = "Inspect last modification evidence for a path (read-only)")]
+    #[command(about = "When did this path last change?")]
     Touch {
         #[arg(value_name = "PATH", help = "Path to inspect without modifying it")]
         path: PathBuf,
@@ -183,7 +193,7 @@ pub enum Commands {
         )]
         since: Option<String>,
     },
-    #[command(about = "Explain visible evidence for a path or port (read-only)")]
+    #[command(about = "Evidence report for a path or port.")]
     Why {
         #[arg(
             value_name = "TARGET",
@@ -204,7 +214,7 @@ pub enum Commands {
         #[arg(long, help = "Append the raw kernel events as drained (drill-down)")]
         raw: bool,
     },
-    #[command(about = "Check zejtron system capability/readiness")]
+    #[command(about = "Host readiness and symptom analysis.")]
     Doctor {
         #[arg(
             long,
@@ -232,7 +242,7 @@ pub enum Commands {
         )]
         raw: bool,
     },
-    #[command(about = "Inspect network interfaces and routing context (read-only)")]
+    #[command(about = "Which interfaces exist, and how does traffic route?")]
     Net,
 }
 

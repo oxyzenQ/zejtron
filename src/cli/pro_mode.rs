@@ -121,8 +121,11 @@ const ROW_INDENT: usize = 4;
 /// ladder says color AND the render destination can speak it - a
 /// terminal stdout, or the force flag's piped promise (the same two
 /// conditions clap's own help gate answers to, so the Pro mode
-/// section and clap's Options block always agree).
-fn stdout_paintable() -> bool {
+/// section and clap's Options block always agree). The one shared
+/// gate of the hand-painted help surface: the examples layer
+/// ([`crate::cli::examples`]) answers to the same predicate, so
+/// every self-painted region of one render agrees byte-for-byte.
+pub(crate) fn stdout_paintable() -> bool {
     if capability() == ColorCapability::Mono {
         return false;
     }
