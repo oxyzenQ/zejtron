@@ -13,22 +13,29 @@
 # What it enforces at the moment a commit is created:
 #   1. Prebuilt parity (delegated to
 #      scripts/dev/regenerate-ebpf-prebuilt.sh --check, night-improve-5,
-#      the zylaxion commit-gate shape): the ebpf/ tree hash must still
+#      the zylaxion commit-gate shape; AUTO-HEALED since
+#      night-weekly-maintenance-1): the ebpf/ tree hash must still
 #      match ebpf-prebuilt/manifest.toml's pin, the staged object must
 #      still be the pinned bytes, the toolchain pin must still match
 #      ebpf/rust-toolchain.toml, and the version mirror (root Cargo.toml
 #      == ebpf/Cargo.toml == the manifest's [contract] version) must
-#      hold. This is the commit-time arm of the prebuilt freshness
-#      contract: the shipped object can never silently fall behind the
-#      sources it claims to carry.
+#      hold. A stale verdict now HEALS instead of failing: the one
+#      writer rebuilds the object, rewrites the manifest, and the
+#      refreshed lane is staged into THIS commit - "edit ebpf/,
+#      commit" carries a fresh lane with no separate manual step (the
+#      build-time arm, build/ebpf.rs's auto_heal_prebuilt_lane, does
+#      the same for every cargo build). The fail-closed arm remains
+#      for the heal's own failure mode - missing prerequisites -
+#      because a gate that would ship a stale lane silently is the
+#      dishonest gate.
 #   2. ebpf/ staged without ebpf-prebuilt/ (night-improve-5): the
 #      "refreshed but forgot git add" case - a commit that carries
 #      ebpf/ changes without the lane refresh would ship sources the
-#      prebuilt object does not describe. Sections 1-2 fail closed
-#      because prebuilt parity is a LOCAL fact: the information is on
-#      disk right now, and a gate that had it and stayed silent would
-#      be the dishonest gate. The refresh command is named in the
-#      failure output - one line, one writer.
+#      prebuilt object does not describe. Auto-healed the same way:
+#      when the on-disk lane already verifies (a regenerator ran
+#      earlier, the staging was forgotten) the lane is staged into
+#      the commit; when it does not, section 1's heal has already run
+#      and the fail-closed arm names the fix.
 #   3. CI actions-pin health (delegated to check-actions-pins.sh,
 #      night-improve-8): the freshness of every `uses:` pin against
 #      upstream - the actions-pin health contract's one automatic
@@ -38,8 +45,11 @@
 # the network and the API's quota right now - a gate that blocks a
 # commit on facts it cannot reach would be a dishonest gate. Sections
 # 1-2 are the opposite class (local, deterministic, quota-free) and so
-# they fail the commit. The escape hatch is git's own: --no-verify
-# skips any local hook (a git contract, not a hole).
+# they fail the commit when the lane cannot be made fresh. The escape
+# hatches are git's own --no-verify and the shared
+# ZEJTRON_SKIP_PREBUILT_REGEN=1 (build/ebpf.rs honors the same
+# variable), which turns the auto-heal back into the fail-closed
+# shape.
 #
 # Usage:
 #   bash scripts/gates/check-commit-gate.sh    # the hook's invocation
@@ -50,38 +60,69 @@ cd "$REPO_ROOT"
 
 GATE_FAILED=0
 
-# ── 1. prebuilt parity (delegated - one implementation, one truth) ────
-# The regenerate script's --check verdict is the same fact the build
-# lane's manifest verification and the owner's manual run consult; the
-# gate only refuses the commit when it answers "stale".
-if ! bash scripts/dev/regenerate-ebpf-prebuilt.sh --check; then
-	echo "      refresh the lane with: ./scripts/dev/regenerate-ebpf-prebuilt.sh"
-	echo "      then stage it (git add ebpf-prebuilt) and commit again."
-	GATE_FAILED=1
-fi
-
-# ── 2. ebpf/ staged without ebpf-prebuilt/ ─────────────────────────────
-if [ -n "$(git diff --cached --name-only -- ebpf/)" ]; then
-	if ! git diff --cached --name-only -- ebpf-prebuilt/ | grep -q .; then
-		echo "FAIL: ebpf/ changes are staged but ebpf-prebuilt/ is not."
-		echo "      The commit would ship sources the prebuilt lane does"
-		echo "      not describe. Refresh and stage the lane:"
-		echo "        ./scripts/dev/regenerate-ebpf-prebuilt.sh, then"
-		echo "          git add ebpf-prebuilt"
+# ── 1. prebuilt parity (auto-heal - one implementation, one truth) ───
+# The stale verdict heals through the one writer, the refreshed lane
+# rides the commit, and the re-check must pass. The build-time arm
+# (build/ebpf.rs's auto_heal_prebuilt_lane) does the same for every
+# cargo build. ZEJTRON_SKIP_PREBUILT_REGEN=1 is the shared escape
+# hatch: under it the stale verdict fails closed again, the pre-heal
+# shape.
+if [ "${ZEJTRON_SKIP_PREBUILT_REGEN:-}" = "1" ]; then
+	if ! bash scripts/dev/regenerate-ebpf-prebuilt.sh --check; then
+		echo "      ZEJTRON_SKIP_PREBUILT_REGEN=1 skips the auto-heal; refresh by hand:"
+		echo "        ./scripts/dev/regenerate-ebpf-prebuilt.sh, then git add ebpf-prebuilt"
+		GATE_FAILED=1
+	fi
+elif ! bash scripts/dev/regenerate-ebpf-prebuilt.sh --check; then
+	echo "      prebuilt lane stale - regenerating through the one writer..."
+	if bash scripts/dev/regenerate-ebpf-prebuilt.sh; then
+		git add ebpf-prebuilt
+		bash scripts/dev/regenerate-ebpf-prebuilt.sh --check || {
+			echo "      the rewrite landed but the re-check still says stale."
+			GATE_FAILED=1
+		}
+		if [ "${GATE_FAILED}" -eq 0 ]; then
+			echo "      lane regenerated and staged into this commit."
+		fi
+	else
+		echo "      the regeneration failed (missing prerequisites?) - install the pair:"
+		echo "        ./scripts/dev/bootstrap-ebpf.sh, then commit again"
 		GATE_FAILED=1
 	fi
 fi
 
-# ── 3. actions-pin health (advisory, the night-improve-8 seat) ────────
+# ── 2. ebpf/ staged without ebpf-prebuilt/ ──────────────────────────
+# The "refreshed but forgot git add" case. A fresh on-disk lane (the
+# --check verdict above) is staged into the commit; a stale one was
+# already healed or failed in section 1, so this arm only ever names
+# the fix when the lane itself could not be made fresh.
+if [ -n "$(git diff --cached --name-only -- ebpf/)" ]; then
+	if ! git diff --cached --name-only -- ebpf-prebuilt/ | grep -q .; then
+		if bash scripts/dev/regenerate-ebpf-prebuilt.sh --check; then
+			git add ebpf-prebuilt
+			echo "      ebpf-prebuilt was fresh but unstaged - staged it into this commit."
+		else
+			echo "FAIL: ebpf/ changes are staged but ebpf-prebuilt/ is neither staged nor fresh."
+			echo "      The commit would ship sources the prebuilt lane does"
+			echo "      not describe. Refresh and stage the lane:"
+			echo "        ./scripts/dev/regenerate-ebpf-prebuilt.sh, then"
+			echo "          git add ebpf-prebuilt"
+			GATE_FAILED=1
+		fi
+	fi
+fi
+
+# ── 3. actions-pin health (advisory, the night-improve-8 seat) ──────
 if ! bash scripts/gates/check-actions-pins.sh; then
 	GATE_FAILED=1
 fi
 
 if [ "${GATE_FAILED}" -ne 0 ]; then
 	echo "FAIL: commit gate - see the named sections above"
-	echo "      (sections 1-2 fail closed on the prebuilt lane; section 3"
-	echo "      is the advisory actions-pin seat, which can only produce a"
-	echo "      failure under a KNOWN-stale verdict with --strict)"
+	echo "      (sections 1-2 fail closed when the prebuilt lane cannot be"
+	echo "      made fresh; section 3 is the advisory actions-pin seat, which"
+	echo "      can only produce a failure under a KNOWN-stale verdict with"
+	echo "      --strict)"
 	exit 1
 fi
 

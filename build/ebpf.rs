@@ -109,6 +109,10 @@ pub(super) fn build_ebpf_object() {
     // Preflight BEFORE the nested build: name the missing prerequisite
     // and its one-command fix, and catch a missing bpf-linker even when
     // ebpf/target is fully cached (a warm build skips the link step).
+    // The auto-heal runs first: a stale prebuilt lane is refreshed
+    // through the one writer before this build's own compile.
+    auto_heal_prebuilt_lane(&manifest_dir);
+
     let toolchain = ebpf_toolchain_pin(&ebpf_dir).unwrap_or_else(|| {
         panic!(
             "could not read the channel pin from {} - the file is part of the tree; \
@@ -137,6 +141,73 @@ pub(super) fn build_ebpf_object() {
     std::fs::write(&dst, &data)
         .unwrap_or_else(|e| panic!("failed to stage {} into OUT_DIR: {e}", dst.display()));
     println!("cargo:rustc-env=ZEJTRON_EBPF_LANE=source-built");
+}
+
+/// The prebuilt-lane auto-heal (night-weekly-maintenance-1): any edit
+/// under ebpf/ stales the manifest's tree pin, and the next cargo
+/// build on a git checkout refreshes the lane through the ONE WRITER
+/// (scripts/dev/regenerate-ebpf-prebuilt.sh) before this build's own
+/// nested compile proceeds. This is the build-time arm of the
+/// freshness contract - a production build alias
+/// (`cargo pro-linux-amd64-v3-gnu` and its siblings) or a plain
+/// `cargo build` always leaves the shipped lane as fresh as the
+/// sources it describes; the commit gate is the commit-time arm and
+/// stages the refreshed lane into the commit.
+///
+/// Advisory by construction: on a git checkout this build embeds the
+/// SOURCE-BUILT object and needs nothing from ebpf-prebuilt/, so a
+/// failed heal (missing prerequisites, no writable lane) downgrades
+/// to a named warning and the build carries on - the commit gate is
+/// the hard stop that refuses to ship the stale lane.
+///
+/// In-sync lanes pay one script spawn (a verdict over a few small
+/// hashes); the heal only ever runs on the build right after an
+/// ebpf/ edit - the rewritten manifest re-targets every later build
+/// through the existing rerun-if-changed on ebpf-prebuilt/.
+///
+/// ZEJTRON_SKIP_PREBUILT_REGEN is the escape hatch, shared with the
+/// commit gate: set to any value it turns the heal into a no-op (the
+/// gate then refuses a stale lane fail-closed, so the contract holds
+/// either way).
+fn auto_heal_prebuilt_lane(manifest_dir: &Path) {
+    // Registry extracts and packaged copies carry neither the writer
+    // nor .git - the heal is a git-checkout facility by definition.
+    let script = manifest_dir.join("scripts/dev/regenerate-ebpf-prebuilt.sh");
+    if !script.is_file() || !manifest_dir.join(".git").exists() {
+        return;
+    }
+    if std::env::var_os("ZEJTRON_SKIP_PREBUILT_REGEN").is_some() {
+        return;
+    }
+    let verdict = Command::new("bash").arg(&script).arg("--check").output();
+    let Ok(out) = verdict else {
+        return;
+    };
+    if out.status.success() {
+        return;
+    }
+    println!(
+        "cargo:warning=zejtron: the ebpf-prebuilt lane is stale (an edit under ebpf/); \
+         regenerating through the one writer..."
+    );
+    // stdio inherited: the nested compiler output streams through the
+    // build log - the heal is visible, never silent.
+    match Command::new("bash").arg(&script).status() {
+        Ok(status) if status.success() => {
+            println!(
+                "cargo:warning=zejtron: ebpf-prebuilt lane regenerated (manifest + object \
+                 refreshed; carry it in the next commit: git add ebpf-prebuilt)"
+            );
+        }
+        _ => {
+            println!(
+                "cargo:warning=zejtron: the ebpf-prebuilt lane regeneration did not succeed - \
+                 the build continues (the source-built object does not depend on the lane), \
+                 but the commit gate will require the refresh. One command: \
+                 ./scripts/dev/bootstrap-ebpf.sh"
+            );
+        }
+    }
 }
 
 /// Read the dated nightly pin from ebpf/rust-toolchain.toml (the
