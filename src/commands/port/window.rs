@@ -349,7 +349,7 @@ fn event_time_of_day(event: &SockEvent) -> String {
 }
 
 /// The process name for a pid at render time, from the same
-/// /proc/<pid>/status Name: field the snapshot's owner lines read -
+/// `/proc/<pid>/status` Name: field the snapshot's owner lines read -
 /// one name source, two surfaces. `None` when the process is gone or
 /// hidden: that event counts toward the unaccounted block.
 #[cfg(feature = "ebpf")]

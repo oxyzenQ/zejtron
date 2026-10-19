@@ -24,6 +24,10 @@
 
 </div>
 
+> v80.0.0-alpha.1 is the first public release. It is a pre-release:
+> expect QC cycles, feature removals, and bug fixes before 80.0.0
+> stable. The surface is not frozen yet.
+
 <p align="center">
   <a href="https://ko-fi.com/rezky">
     <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
@@ -97,11 +101,14 @@ explicit marker, and the tool never writes.
 
 ### Dependency policy (supply chain)
 
-Three runtime dependencies, all audited: `clap` (the CLI), `ctrlc`
-(one signal path), `regex-lite` (a small pattern engine). No chrono —
-it was dropped Hinnant-style and is **banned** in `deny.toml`; the
-lockfile is committed so `cargo install zejtron --locked` reproduces
-the exact graph the release lane vetted. See
+Three runtime dependencies, all audited: `clap` (the CLI), `regex-lite`
+(a small pattern engine), and `aya` 0.14 (the eBPF loader, carried by
+the default `ebpf` feature — a registry install embeds the
+maintainer-built kernel object and needs no BPF toolchain; the
+dormant `--no-default-features` build drops aya from its graph
+entirely). No chrono — it was dropped Hinnant-style and is **banned**
+in `deny.toml`; the lockfile is committed so `cargo install zejtron
+--locked` reproduces the exact graph the release lane vetted. See
 [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md).
 
 ### Origin projects (consolidated)
@@ -184,9 +191,27 @@ signature per archive — see
 
 ### Install from crates.io
 
+The first public release is the alpha, and cargo's pre-release rule
+applies: plain `cargo install zejtron` skips pre-releases by design.
+To install the alpha, name it:
+
 ```sh
-cargo install zejtron
+cargo install zejtron --version 80.0.0-alpha.1 --locked
 ```
+
+This alpha install carries the full eBPF binary: the tarball ships
+the maintainer-built kernel object (`ebpf-prebuilt/`, provenance in
+`ebpf-prebuilt/manifest.toml`), so no nightly toolchain and no
+bpf-linker are needed on the target machine. Building from a git
+checkout instead source-builds the object under the dated nightly pin
+(`./scripts/dev/bootstrap-ebpf.sh` installs the pair). When 80.0.0
+stable lands, `cargo install zejtron --locked` will pick it up
+automatically.
+
+The explicit opt-out stays: `cargo install zejtron --version
+80.0.0-alpha.1 --locked --no-default-features` builds the dormant,
+snapshot-only binary — no kernel program loads, and every eBPF-requiring
+verb answers with the honest refusal by name.
 
 ### Install from source
 
@@ -209,17 +234,20 @@ cd zejtron
 cargo install --path .
 ```
 
-### eBPF (optional)
+### eBPF
 
-The `ebpf` cargo feature is opt-in: the default build (and every
-`cargo install zejtron` from the registry) ships the snapshot-only
-binary — no kernel program loads, nothing pins, the dependency graph
-is unchanged. Building with the feature embeds a pure-Rust tap:
+The `ebpf` cargo feature is the default: every default build — and
+the `cargo install zejtron --version 80.0.0-alpha.1 --locked` alpha
+install from the registry — embeds a pure-Rust tap. No kernel program
+loads until you attach (see below), nothing pins before that, and the
+featureless build stays available through `--no-default-features`.
 
 ```sh
-./scripts/dev/bootstrap-ebpf.sh        # once per machine: the dated
+./scripts/dev/bootstrap-ebpf.sh        # once per machine, for the
+                                        # source-built lane: the dated
                                         # nightly pin + bpf-linker 0.11.1
-cargo build --release --features ebpf
+cargo build --release                  # a git checkout source-builds
+                                        # the tap under the dated pin
 ```
 
 The feature cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
@@ -338,6 +366,9 @@ same stamp.
 
 ## Limitations (honest)
 
+- 80.0.0-alpha.1 is a pre-release. The surface may change before
+  80.0.0 stable. Real usage will drive QC passes; no breaking change
+  will be silent.
 - Without sudo, port owners and some holder details show as
   `unknown` on hardened systems — the kernel hides other users'
   process context; zejtron reports what is genuinely visible.
@@ -357,11 +388,13 @@ same stamp.
   the host's. This is a kernel namespace boundary, not a zejtron
   limit; the tool reports what the namespace shows, and the doctor
   names the visibility it is working with.
-- The eBPF lane is opt-in: `cargo install zejtron` (registry) and the
-  default build ship the snapshot-only binary — no eBPF program loads,
-  pins, or counters. Building with `--features ebpf` needs the dated
-  nightly pin and bpf-linker at build time only; a later phase revisits
-  the default.
+- The eBPF lane ships in the default build since the alpha's feature
+  flip: `cargo install zejtron --version 80.0.0-alpha.1 --locked`
+  embeds the maintainer-built kernel object from the tarball (no
+  nightly, no bpf-linker on the target machine), and a git checkout
+  source-builds it under the dated pin at build time only. The
+  dormant opt-out (`--no-default-features`) ships the snapshot-only
+  binary — no eBPF program loads, pins, or counters.
 - `port`'s event window requires the ebpf feature, root (or
   `CAP_BPF`+`CAP_PERFMON`), BTF, and a kernel >= 5.15. Without any of
   those, `port` prints snapshot-only and names the missing piece.

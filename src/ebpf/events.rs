@@ -5,7 +5,7 @@
 //! program and the userspace reader (night-improve-2, the zylaxion
 //! args.rs single-sourcing discipline: the userspace crate owns this
 //! file so its layout tests run in the gate lanes, and
-//! ebpf/src/main.rs compiles the very same bytes via #[path] - one
+//! ebpf/src/main.rs compiles the very same bytes via `#[path]` - one
 //! struct, one truth, no drift between the kernel side that writes
 //! the record and the host side that reads it).
 //!
@@ -182,8 +182,8 @@ pub const FILE_EVENT_BYTES: usize = core::mem::size_of::<FileEvent>();
 /// (major << 20) | minor, so this is the identity cast to u64.
 ///
 /// BPF-side-only by design (the host's stat decode is
-/// [`device_token_from_stat`]); the scoped allow names the split,
-/// the mirror of from_stat's allow.
+/// [`crate::commands::lane::device_token_from_stat`]); the scoped
+/// allow names the split, the mirror of from_stat's allow.
 #[allow(dead_code)]
 pub fn device_token_from_kernel(s_dev: u32) -> u64 {
     u64::from(s_dev)
@@ -272,37 +272,37 @@ pub const PROC_EVENT_BYTES: usize = core::mem::size_of::<ProcEvent>();
 // contract between the host writer and the BPF readers. Fixed at
 // eight so the map never renumbers.
 
-/// offsets[0]: struct dentry, member d_inode.
+/// `offsets[0]`: struct dentry, member d_inode.
 pub const OFF_SLOT_DENTRY_D_INODE: u32 = 0;
-/// offsets[1]: struct inode, member i_ino.
+/// `offsets[1]`: struct inode, member i_ino.
 pub const OFF_SLOT_INODE_I_INO: u32 = 1;
-/// offsets[2]: struct file, member f_path.
+/// `offsets[2]`: struct file, member f_path.
 pub const OFF_SLOT_FILE_F_PATH: u32 = 2;
-/// offsets[3]: struct file, member f_inode.
+/// `offsets[3]`: struct file, member f_inode.
 pub const OFF_SLOT_FILE_F_INODE: u32 = 3;
-/// offsets[4]: struct vfsmount, member mnt_sb.
+/// `offsets[4]`: struct vfsmount, member mnt_sb.
 pub const OFF_SLOT_VFSMOUNT_MNT_SB: u32 = 4;
-/// offsets[5]: struct super_block, member s_dev.
+/// `offsets[5]`: struct super_block, member s_dev.
 pub const OFF_SLOT_SUPER_BLOCK_S_DEV: u32 = 5;
-/// offsets[6]: struct path, member mnt.
+/// `offsets[6]`: struct path, member mnt.
 pub const OFF_SLOT_PATH_MNT: u32 = 6;
-/// offsets[7]: struct path, member dentry.
+/// `offsets[7]`: struct path, member dentry.
 pub const OFF_SLOT_PATH_DENTRY: u32 = 7;
-/// offsets[8]: struct trace_event_raw_sched_process_fork, member
+/// `offsets[8]`: struct trace_event_raw_sched_process_fork, member
 /// parent_pid (the fork tracepoint's context layout, parsed from the
 /// host's own BTF at attach - the Phase 3 pattern applied to
 /// tracepoint contexts).
 pub const OFF_SLOT_TP_FORK_PARENT_PID: u32 = 8;
-/// offsets[9]: struct trace_event_raw_sched_process_fork, member
+/// `offsets[9]`: struct trace_event_raw_sched_process_fork, member
 /// child_pid.
 pub const OFF_SLOT_TP_FORK_CHILD_PID: u32 = 9;
-/// offsets[10]: struct trace_event_raw_sched_process_exit, member
+/// `offsets[10]`: struct trace_event_raw_sched_process_exit, member
 /// pid (the dying task's pid in the exit tracepoint's context).
 pub const OFF_SLOT_TP_EXIT_PID: u32 = 10;
-/// offsets[11]: struct task_struct, member real_parent (the pointer
+/// `offsets[11]`: struct task_struct, member real_parent (the pointer
 /// the exec/exit ppid walk dereferences).
 pub const OFF_SLOT_TASK_REAL_PARENT: u32 = 11;
-/// offsets[12]: struct task_struct, member tgid (read through the
+/// `offsets[12]`: struct task_struct, member tgid (read through the
 /// real_parent pointer for the parent's process id).
 pub const OFF_SLOT_TASK_TGID: u32 = 12;
 

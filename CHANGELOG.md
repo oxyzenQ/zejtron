@@ -20,6 +20,37 @@ v11.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- 80.0.0-alpha.1 is the first public release of zejtron, and this
+  pass makes it publishable: the prebuilt lane lands so a crates.io
+  install gets the full eBPF-enabled binary without a toolchain on
+  the target machine, the ebpf feature becomes default with
+  --no-default-features as the explicit dormant opt-out, and
+  cargo publish --dry-run passes end-to-end. The version stays
+  alpha.1 because the surface is not frozen: real usage will drive
+  QC passes, and a future commit will bump to 80.0.0 stable and
+  freeze. This pass does not publish. The owner does, from a
+  personal laptop, after reviewing the checklist.
+- The prebuilt lane (night-improve-5) is what the registry install
+  proves: `ebpf-prebuilt/` rides the tarball with the
+  maintainer-built kernel object and its provenance manifest
+  (toolchain pin, linker pin, ebpf/ tree hash, object sha256, the six
+  attach targets, and the version mirror), so a registry install
+  stages a manifest-verified object and embeds it - no nightly, no
+  bpf-linker, no nested build on the target machine. The lane is
+  written by one script
+  (scripts/dev/regenerate-ebpf-prebuilt.sh), enforced at commit time
+  by the fail-closed parity sections of the commit gate, verified
+  again inside the build (build/prebuilt.rs refuses to embed bytes
+  the manifest does not describe), and stamped into the binary
+  (ZEJTRON_EBPF_LANE: source-built on a checkout, registry-prebuilt
+  from a tarball). The version stays 80.0.0-alpha.1 - not 80.0.0
+  stable - because the freeze belongs to a later pass: the alpha is
+  the iteration room where real usage drives the QC passes, and
+  cargo's pre-release rule keeps it opt-in until the stable bump
+  makes the default install lane the frozen one.
+
 ### Added
 
 - The eBPF infrastructure lands as an opt-in cargo feature (`cargo
