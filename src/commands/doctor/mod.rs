@@ -35,7 +35,13 @@ struct Summary {
     fail: usize,
 }
 
-pub fn run(git_hash: &str, attach: bool, detach: bool) -> Result<(), Box<dyn Error>> {
+pub fn run(
+    git_hash: &str,
+    attach: bool,
+    detach: bool,
+    symptom: Option<&str>,
+    raw: bool,
+) -> Result<(), Box<dyn Error>> {
     // The eBPF verbs (night-improve-1): attach/detach print their own
     // result and skip the snapshot report. The verbs exist in every
     // build - a featureless binary answers with the honest refusal
@@ -58,6 +64,20 @@ pub fn run(git_hash: &str, attach: bool, detach: bool) -> Result<(), Box<dyn Err
             }
             Err(refusal) => Err(refusal.into()),
         };
+    }
+
+    // The symptom lane (night-improve-4, Part B): the answer surface.
+    // A symptom report replaces the readiness report; --raw without a
+    // symptom is a usage error, never a silently ignored flag.
+    if let Some(name) = symptom {
+        return symptom::run(name, raw).map_err(Into::into);
+    }
+    if raw {
+        return Err(
+            "--raw requires --symptom (it appends the raw /proc reads the \
+                     memory report rode on)"
+                .into(),
+        );
     }
 
     let checks = collect_checks(git_hash);
@@ -94,6 +114,8 @@ fn collect_checks(git_hash: &str) -> Vec<CheckResult> {
 
 mod checks;
 mod ebpf;
+mod memory;
+mod symptom;
 
 use checks::{
     check_audit_log, check_container, check_holders, check_journalctl, check_kernel_distro,

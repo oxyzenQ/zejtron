@@ -95,18 +95,32 @@ fn parses_doctor() {
 fn parses_doctor_attach_and_detach() {
     let cli = Cli::try_parse_from(["zejtron", "doctor", "--attach"]).unwrap();
     match cli.command {
-        Some(Commands::Doctor { attach, detach }) => {
+        Some(Commands::Doctor {
+            attach,
+            detach,
+            symptom,
+            raw,
+        }) => {
             assert!(attach);
             assert!(!detach);
+            assert!(symptom.is_none());
+            assert!(!raw);
         }
         other => panic!("unexpected command: {other:?}"),
     }
 
     let cli = Cli::try_parse_from(["zejtron", "doctor", "--detach"]).unwrap();
     match cli.command {
-        Some(Commands::Doctor { attach, detach }) => {
+        Some(Commands::Doctor {
+            attach,
+            detach,
+            symptom,
+            raw,
+        }) => {
             assert!(!attach);
             assert!(detach);
+            assert!(symptom.is_none());
+            assert!(!raw);
         }
         other => panic!("unexpected command: {other:?}"),
     }
@@ -117,6 +131,42 @@ fn doctor_attach_and_detach_conflict() {
     // Both verbs at once is a usage error: clap's conflicts_with, the
     // honest answer (never a silent last-one-wins).
     assert!(Cli::try_parse_from(["zejtron", "doctor", "--attach", "--detach"]).is_err());
+}
+
+#[test]
+fn parses_doctor_symptom_and_raw() {
+    // The symptom lane (night-improve-4): --symptom parses, --raw
+    // parses, and the two verbs conflict with the symptom.
+    let cli = Cli::try_parse_from(["zejtron", "doctor", "--symptom", "ram"]).unwrap();
+    match cli.command {
+        Some(Commands::Doctor {
+            attach,
+            detach,
+            symptom,
+            raw,
+        }) => {
+            assert!(!attach);
+            assert!(!detach);
+            assert_eq!(symptom.as_deref(), Some("ram"));
+            assert!(!raw);
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+
+    let cli = Cli::try_parse_from(["zejtron", "doctor", "--symptom", "ram", "--raw"]).unwrap();
+    match cli.command {
+        Some(Commands::Doctor { symptom, raw, .. }) => {
+            assert_eq!(symptom.as_deref(), Some("ram"));
+            assert!(raw);
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+}
+
+#[test]
+fn doctor_symptom_conflicts_with_the_verbs() {
+    assert!(Cli::try_parse_from(["zejtron", "doctor", "--symptom", "ram", "--attach"]).is_err());
+    assert!(Cli::try_parse_from(["zejtron", "doctor", "--symptom", "ram", "--detach"]).is_err());
 }
 
 #[test]

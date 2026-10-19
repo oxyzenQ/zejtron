@@ -216,7 +216,11 @@ pub enum Commands {
     },
     #[command(about = "Check zejtron system capability/readiness")]
     Doctor {
-        #[arg(long, help = "Attach the eBPF tap (the privileged one-shot)")]
+        #[arg(
+            long,
+            conflicts_with = "symptom",
+            help = "Attach the eBPF tap (the privileged one-shot)"
+        )]
         attach: bool,
         #[arg(
             long,
@@ -224,6 +228,19 @@ pub enum Commands {
             help = "Detach the eBPF tap (unpin everything, idempotent)"
         )]
         detach: bool,
+        #[arg(
+            long,
+            value_name = "SYMPTOM",
+            conflicts_with_all = ["attach", "detach"],
+            help = "Analyze a symptom instead of the readiness check (ram | slow | disk | network)"
+        )]
+        symptom: Option<String>,
+        #[arg(
+            long,
+            conflicts_with_all = ["attach", "detach"],
+            help = "With --symptom: append the raw /proc reads (drill-down)"
+        )]
+        raw: bool,
     },
     #[command(about = "Inspect network interfaces and routing context (read-only)")]
     Net,
