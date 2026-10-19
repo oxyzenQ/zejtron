@@ -412,7 +412,7 @@ fn cap_bit_present(bit: u32) -> bool {
 pub mod embedded;
 
 /// The socket-event record contract (night-improve-2) - shared with
-/// the BPF crate via #[path], compiled in the feature lane only on
+/// the BPF crate via `#[path]`, compiled in the feature lane only on
 /// the host side (the default build has no reader and no renderer
 /// for it; the ebpf crate compiles the same file unconditionally).
 #[cfg(feature = "ebpf")]

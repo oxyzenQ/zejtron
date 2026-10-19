@@ -380,7 +380,7 @@ fn write_offsets(offsets: &btf::ProbeOffsets) -> Result<(), String> {
 
 /// Plant ONE kprobe program (night-improve-3): load, attach at the
 /// symbol's entry (offset 0), pin the link first, then the program.
-/// The aya 0.14 chain is the tracepoint's: take_link, TryInto<FdLink>
+/// The aya 0.14 chain is the tracepoint's: take_link, `TryInto<FdLink>`
 /// (a kprobe attach is fd-backed), FdLink::pin - a PinnedLink with
 /// no detach-on-drop. An unknown symbol fails HERE, loudly, by name:
 /// that is the attach-time honesty a kprobe buys over a hardcoded
