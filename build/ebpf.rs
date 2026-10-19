@@ -8,19 +8,28 @@
 //
 // ── The staging lanes ─────────────────────────────────────────────────
 //
-//   dormant          - the `ebpf` feature is off: nothing stages, the
-//                      loader module is not compiled either.
-//   source-built     - a git checkout: the ebpf/ crate is
-//                      cross-compiled by a nested cargo invocation
-//                      under the dated nightly pin, and the artifact
-//                      is staged after structural validation.
-//   refused          - the `ebpf` feature was requested but no ebpf/
-//                      tree rides this extract (a registry tarball:
-//                      cargo's package walk cannot carry nested
-//                      packages): the honest panic names the remedy.
-//                      The crates.io lane is snapshot-only by design
-//                      in this pass; the prebuilt lane belongs to a
-//                      later phase.
+//   dormant           - the `ebpf` feature is off: nothing stages, the
+//                       loader module is not compiled either.
+//   source-built      - a git checkout: the ebpf/ crate is
+//                       cross-compiled by a nested cargo invocation
+//                       under the dated nightly pin, and the artifact
+//                       is staged after structural validation.
+//   registry-prebuilt - a registry tarball (cargo's package walk
+//                       cannot carry the detached ebpf/ workspace):
+//                       the maintainer-built ebpf-prebuilt/zejtron-ebpf.o
+//                       is staged after manifest verification
+//                       (build/prebuilt.rs; provenance in
+//                       ebpf-prebuilt/manifest.toml, written by
+//                       scripts/dev/regenerate-ebpf-prebuilt.sh, the
+//                       one writer of the lane). This is the lane a
+//                       plain `cargo install zejtron` rides: the full
+//                       eBPF binary with no toolchain on the target
+//                       machine - the preflight and the nested build
+//                       never run there.
+//
+// The lane that ran is stamped at compile time (the
+// ZEJTRON_EBPF_LANE rustc-env, the zylaxion stamp shape), so a
+// binary carries its own provenance answer.
 //
 // The lane keeps the zylaxion hardening that earned its place: the
 // prerequisite preflight (fail before compile time with the
@@ -36,7 +45,10 @@ use std::process::Command;
 
 /// The staged object's OUT_DIR name - the exact path the host crate
 /// embeds via include_bytes!(concat!(env!("OUT_DIR"), "/zejtron-ebpf.o")).
-const EBPF_STAGED_OBJECT: &str = "zejtron-ebpf.o";
+/// One source of truth: build/prebuilt.rs owns the constant (the
+/// registry lane stages under the same name the source-built lane
+/// does), and both lanes read it from there.
+const EBPF_STAGED_OBJECT: &str = crate::prebuilt::STAGED_OBJECT_NAME;
 
 /// The pinned bpf-linker release the nested build links with - the
 /// second half of the validated pair (the dated nightly pin is the
@@ -45,16 +57,22 @@ const EBPF_STAGED_OBJECT: &str = "zejtron-ebpf.o";
 /// install is diagnosable in one read.
 const BPF_LINKER_VERSION: &str = "0.11.1";
 
-/// Stage the eBPF object for the loader's embedding. A no-op without
-/// the `ebpf` feature - no BPF build attempted, no preflight panic.
+/// Dispatch the eBPF object staging lane for the loader's embedding.
+/// A no-op without the `ebpf` feature - no BPF build attempted, no
+/// preflight panic, no prebuilt staging. With the feature on, the
+/// selection rule is the ebpf/ tree's presence: a git checkout
+/// source-builds the object, a registry tarball stages the
+/// manifest-verified prebuilt one (build/prebuilt.rs).
 pub(super) fn build_ebpf_object() {
     let manifest_dir =
         PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let ebpf_dir = manifest_dir.join("ebpf");
 
-    // Rerun triggers: the ebpf crate's sources and its build wiring.
-    // ebpf/target is deliberately NOT watched - the nested cargo owns
-    // its own freshness, and watching build output would loop.
+    // Rerun triggers: the ebpf crate's sources and its build wiring,
+    // plus the prebuilt lane's directory (a refreshed ebpf-prebuilt/
+    // must retarget every dependent build). ebpf/target is
+    // deliberately NOT watched - the nested cargo owns its own
+    // freshness, and watching build output would loop.
     for rel in [
         "src",
         "Cargo.toml",
@@ -65,22 +83,27 @@ pub(super) fn build_ebpf_object() {
     ] {
         println!("cargo:rerun-if-changed={}", ebpf_dir.join(rel).display());
     }
+    println!(
+        "cargo:rerun-if-changed={}",
+        manifest_dir.join("ebpf-prebuilt").display()
+    );
 
     // Only the ebpf feature needs the object.
     if std::env::var_os("CARGO_FEATURE_EBPF").is_none() {
+        println!("cargo:rustc-env=ZEJTRON_EBPF_LANE=dormant (not compiled)");
         return;
     }
 
-    // The registry-lane refusal: a crates.io extract carries no ebpf/
-    // tree (the curated include list keeps the tarball snapshot-only),
-    // so the feature cannot be honored from there. Name it honestly.
+    // The registry-prebuilt lane (night-improve-5): a crates.io
+    // extract carries no ebpf/ tree, so the maintainer-built object
+    // rides the tarball (ebpf-prebuilt/, the Cargo.toml include list)
+    // and stages after manifest verification - no nightly, no
+    // bpf-linker, no nested build on the target machine.
     if !ebpf_dir.join("Cargo.toml").is_file() {
-        panic!(
-            "the ebpf feature was requested but the ebpf/ workspace is absent - this looks \
-             like a registry tarball, which ships the snapshot-only binary by design. Build \
-             from a git checkout instead: git clone https://github.com/oxyzenQ/zejtron, then \
-             cargo build --release --features ebpf"
-        );
+        let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
+        crate::prebuilt::stage_prebuilt_object(&manifest_dir, &out_dir);
+        println!("cargo:rustc-env=ZEJTRON_EBPF_LANE=registry-prebuilt");
+        return;
     }
 
     // Preflight BEFORE the nested build: name the missing prerequisite
@@ -113,6 +136,7 @@ pub(super) fn build_ebpf_object() {
     let dst = out_dir.join(EBPF_STAGED_OBJECT);
     std::fs::write(&dst, &data)
         .unwrap_or_else(|e| panic!("failed to stage {} into OUT_DIR: {e}", dst.display()));
+    println!("cargo:rustc-env=ZEJTRON_EBPF_LANE=source-built");
 }
 
 /// Read the dated nightly pin from ebpf/rust-toolchain.toml (the
@@ -252,7 +276,7 @@ fn read_validated_ebpf_object(path: &Path) -> Result<Vec<u8>, String> {
 /// the kprobe arm keeps the validator honest for later passes), the
 /// maps section (legacy map definitions), and the license section
 /// (the verifier refuses GPL-addressable programs without it).
-fn validate_ebpf_object(data: &[u8]) -> Result<(), String> {
+pub(crate) fn validate_ebpf_object(data: &[u8]) -> Result<(), String> {
     if data.len() < 64 {
         return Err(format!(
             "too short to hold an ELF64 header: {} bytes",

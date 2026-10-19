@@ -13,6 +13,21 @@ use std::process::Command;
 #[path = "build/ebpf.rs"]
 mod ebpf;
 
+// The registry-prebuilt lane (night-improve-5): the maintainer-built
+// object's manifest verification and staging. Unconditional like the
+// ebpf module - the feature gate lives inside build/ebpf.rs's
+// dispatch, and the registry tarball carries build/** beside build.rs
+// (the Cargo.toml include list) so the module always compiles.
+#[path = "build/prebuilt.rs"]
+mod prebuilt;
+
+// The std-only SHA-256 the prebuilt lane verifies the manifest's
+// object pin with - build.rs stays dependency-free (the Cargo.toml
+// comment block's law), so the algorithm lives beside its only
+// caller, tested by the standing standalone runner.
+#[path = "build/sha256.rs"]
+mod sha256;
+
 fn main() {
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs/heads");
@@ -50,10 +65,15 @@ fn main() {
     let build_time = format_build_time_utc();
     println!("cargo:rustc-env=ZEJTRON_BUILD_TIME={build_time}");
 
-    // night-improve-1: stage the eBPF object into OUT_DIR for the
-    // loader's include_bytes! embedding. Without the `ebpf` feature
-    // the lane is a no-op (no preflight, no nested build, nothing
-    // staged) - the default build never touches the BPF toolchain.
+    // night-improve-1, retargeted by night-improve-5: stage the eBPF
+    // object into OUT_DIR for the loader's include_bytes! embedding.
+    // The lane selection lives in build/ebpf.rs: without the `ebpf`
+    // feature the lane is dormant (nothing staged); on a git checkout
+    // the source-built lane runs (preflight + nested nightly build);
+    // on a registry tarball (no ebpf/ tree) the registry-prebuilt
+    // lane stages the manifest-verified ebpf-prebuilt/ object - the
+    // install needs no BPF toolchain on the target machine. The lane
+    // that ran is stamped ZEJTRON_EBPF_LANE at compile time.
     self::ebpf::build_ebpf_object();
 }
 

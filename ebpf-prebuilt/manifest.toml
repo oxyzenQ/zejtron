@@ -1,0 +1,37 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# zejtron prebuilt eBPF object manifest (night-improve-5, the zylaxion
+# night-improve-23 shape). Regenerated ONLY by
+# scripts/dev/regenerate-ebpf-prebuilt.sh - the one writer of the
+# lane; scripts/gates/check-commit-gate.sh enforces the pins at commit
+# time through the same script's read-only --check verdict, and
+# build/ebpf.rs's registry lane verifies the object sha against the
+# staged bytes before embedding them. ebpf_tree_sha256 pins the exact
+# ebpf/ source tree the object was built from: the sha256 over the
+# LC_ALL=C byte-sorted (NUL-separated) sha256sum listing of the
+# git-tracked ebpf/ files - one "digest  path" line per file, list
+# hashed as a whole (the zylaxion night-improve-31 recipe). The
+# [contract] version is the version mirror law: it must equal the
+# root Cargo.toml and ebpf/Cargo.toml versions, and the --check
+# verdict fails the commit when the three disagree. These are the
+# bytes a registry-install build embeds.
+
+schema = 1
+generated = "2026-10-19T05:33:32Z"
+toolchain = "nightly-2026-09-18"
+bpf_linker = "0.11.1"
+ebpf_tree_sha256 = "4af33fd76ce329dd69f3ca0901604ae4b89ea9cbae0890717d459251a4964119"
+built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
+
+[[object]]
+name = "zejtron-ebpf"
+sha256 = "1b714569f96e8f2cb01f14df7a2351231cd3269a84b8893c5cac22f957d302ed"
+size = 11112
+
+[contract]
+# The six attach targets the loader plants (src/ebpf/loader.rs),
+# documented for the registry consumer; a tap-set change rewrites
+# this list in the same commit that changes the ebpf/ tree.
+attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "vfs_write", "sched_process_fork", "sched_process_exit"]
+version = "80.0.0-alpha.1"
