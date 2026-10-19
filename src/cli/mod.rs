@@ -142,20 +142,6 @@ pub enum Commands {
         me: bool,
         #[arg(
             long,
-            conflicts_with = "user_or_uid",
-            help = "Render the host's process lifecycle stream (the kernel's own event records)"
-        )]
-        live: bool,
-        #[arg(long, help = "Alias for --live")]
-        watch: bool,
-        #[arg(
-            value_name = "DURATION",
-            long,
-            help = "Lifecycle window width with --live (s/m/h, default 30s, clamped to [1s, 10m])"
-        )]
-        since: Option<String>,
-        #[arg(
-            long,
             allow_hyphen_values = true,
             value_name = "N",
             help = "Limit rendered tree depth"

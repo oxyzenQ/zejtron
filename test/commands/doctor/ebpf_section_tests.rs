@@ -90,20 +90,15 @@ fn pins_row_lists_every_pin_in_planting_order() {
             "sock_tap_link",
             "open_tap_link",
             "write_tap_link",
-            "fork_tap_link",
-            "exit_tap_link",
             "tap",
             "sock_tap",
             "open_tap",
             "write_tap",
-            "fork_tap",
-            "exit_tap",
             "stats",
             "sock_events",
             "tracked_inodes",
             "file_events",
-            "offsets",
-            "proc_events"
+            "offsets"
         ]
     );
 }

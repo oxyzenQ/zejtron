@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
 //! The ring readers (night-improve-2 opens the first, night-improve-3
-//! the second, night-improve-4 the third; feature builds only): the
-//! event-window pumps. std + aya, nothing else — no thread, no poll
-//! loop, no daemon. The pump runs for exactly one command: open the
-//! pinned ring, read the records the kernel holds, hand back a
-//! bounded Vec (or feed one across a whole wait, slice by slice).
-//! The kernel-side filters already bound what crosses each ring (the
-//! port-surface transitions in sock_events; the tracked inodes in
-//! file_events; the task lifecycle in proc_events); the rolling cap
-//! here bounds the Vec even if a ring holds more history than the
-//! window wants.
+//! the second; feature builds only): the event-window pumps. std +
+//! aya, nothing else — no thread, no poll loop, no daemon. The pump
+//! runs for exactly one command: open the pinned ring, read the
+//! records the kernel holds, hand back a bounded Vec (or feed one
+//! across a whole wait, slice by slice). The kernel-side filters
+//! already bound what crosses each ring (the port-surface transitions
+//! in sock_events; the tracked inodes in file_events); the rolling
+//! cap here bounds the Vec even if a ring holds more history than
+//! the window wants. (night-improve-34: the third reader, the
+//! lifecycle pump, went with the lifecycle stream surface.)
 //!
 //! One semantic the caller must know (and the CHANGELOG names): a
 //! ring buffer read CONSUMES. Advancing the reader advances the
@@ -30,17 +30,14 @@
 use aya::maps::{Map, MapData, RingBuf};
 
 use super::PIN_MAP_FILE_EVENTS;
-use super::PIN_MAP_PROC_EVENTS;
 use super::PIN_MAP_SOCK_EVENTS;
-use super::events::{
-    FILE_EVENT_BYTES, FileEvent, PROC_EVENT_BYTES, ProcEvent, SOCK_EVENT_BYTES, SockEvent,
-};
+use super::events::{FILE_EVENT_BYTES, FileEvent, SOCK_EVENT_BYTES, SockEvent};
 
 /// The rolling cap: the pump never hands back more than this many
 /// events, newest kept, oldest dropped. 4096 records is half the
 /// sock ring's 8192-record capacity — a window-shaped bound, not a
-/// log-shaped one. The file and proc rings hold 6553 40-byte
-/// records at the same 256 KiB; the same cap bounds all three.
+/// log-shaped one. The file ring holds 6553 40-byte records at the
+/// same 256 KiB; the same cap bounds both.
 pub const ROLLING_CAP: usize = 4096;
 
 /// Open one pinned ring buffer by its pin path. The shared half of
@@ -96,31 +93,6 @@ pub fn drain_sock_events_from(ring: &mut RingBuf<MapData>, out: &mut Vec<SockEve
         // struct from a byte slice the kernel wrote is the one
         // unsafe step aya's API leaves to the caller.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const SockEvent) };
-        push_rolling(out, event, ROLLING_CAP);
-    }
-}
-
-/// The proc_events ring, opened: the lifecycle stream's
-/// window-shaped capture (night-improve-4) holds one ring for the
-/// whole wait and drains it slice by slice, the same shape the port
-/// window uses for sock_events.
-pub fn open_proc_ring() -> Result<RingBuf<MapData>, String> {
-    open_ring(PIN_MAP_PROC_EVENTS, "proc_events")
-}
-
-/// Drain the records currently available on an OPEN proc_events ring
-/// into a rolling Vec. The same contract as
-/// [`drain_sock_events_from`], record for record: the consumer
-/// position advances with every call, the rolling cap bounds the
-/// Vec, a short record is skipped never failed.
-pub fn drain_proc_events_from(ring: &mut RingBuf<MapData>, out: &mut Vec<ProcEvent>) {
-    while let Some(record) = ring.next() {
-        if record.len() != PROC_EVENT_BYTES {
-            continue;
-        }
-        // The pod-cast, the proc record's turn: the same
-        // contract-and-bounds proof as the sock reader's.
-        let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const ProcEvent) };
         push_rolling(out, event, ROLLING_CAP);
     }
 }

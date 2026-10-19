@@ -19,20 +19,20 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-10-19T16:36:00Z"
+generated = "2026-10-19T18:55:57Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "e0edb4cab7418d5ab4a8a664d1b380fa6cdf9e39eb6febc1c3afb2d8d5623c43"
-built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
+ebpf_tree_blake3 = "4343ee6b18a5c0e2696b06cb89d37da982d376f8ee5298da712823257408dc27"
+built_by = "Z User <z@container>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "a7173ffe72fbb0e0f99dff0a72fc7e55466ba70bc4704ae5f6bfc0fe3d1cad8e"
-size = 11112
+blake3 = "b0c3ba96e15e87a504a92b7b778d8c9ee7c1694b3304a07a0ea82ae2cbd38fbc"
+size = 6312
 
 [contract]
-# The six attach targets the loader plants (src/ebpf/loader.rs),
+# The four attach targets the loader plants (src/ebpf/loader.rs),
 # documented for the registry consumer; a tap-set change rewrites
 # this list in the same commit that changes the ebpf/ tree.
-attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "vfs_write", "sched_process_fork", "sched_process_exit"]
+attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "vfs_write"]
 version = "80.0.0-alpha.1"

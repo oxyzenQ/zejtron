@@ -98,8 +98,10 @@ fn device_token_from_stat_matches_a_real_stat_call() {
 
 #[test]
 fn offsets_slots_are_indices_zero_through_seven() {
-    // The eight file-walk slots never renumbered; night-improve-4's
-    // five process-stream slots append (pinned in proc_events_tests).
+    // The eight file-walk slots never renumbered. The five
+    // process-stream slots night-improve-4 appended are gone with
+    // `proc --live` (night-improve-34); the file slots keep their
+    // indices and the map stays sized at eight.
     assert_eq!(OFF_SLOT_DENTRY_D_INODE, 0);
     assert_eq!(OFF_SLOT_INODE_I_INO, 1);
     assert_eq!(OFF_SLOT_FILE_F_PATH, 2);
@@ -108,5 +110,5 @@ fn offsets_slots_are_indices_zero_through_seven() {
     assert_eq!(OFF_SLOT_SUPER_BLOCK_S_DEV, 5);
     assert_eq!(OFF_SLOT_PATH_MNT, 6);
     assert_eq!(OFF_SLOT_PATH_DENTRY, 7);
-    assert_eq!(OFF_SLOTS, 13);
+    assert_eq!(OFF_SLOTS, 8);
 }

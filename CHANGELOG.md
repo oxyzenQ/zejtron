@@ -369,6 +369,35 @@ v11.0.0
   labeled "last Ns" is backed by real observation, and
   --snapshot-only stays the instant path.
 
+- `proc --live` and the sched_process_fork/_exit stream it drove
+  are removed. zejtron is a read-only detective, not a monitor.
+  The Evidence Ledger's --since windows on holds/touch/why/port
+  survive because they collect evidence and report once — that is
+  investigation, not surveillance. The trade-off is named honestly:
+  processes that allocated memory and exited before the snapshot
+  can no longer be attributed; the Unaccounted block in
+  `doctor --symptom ram` says so.
+
+  The removal is whole (night-improve-34): the `--live` flag and
+  its `--watch` alias
+  and the lifecycle `--since` window (clap's unknown-argument error
+  is the answer - no deprecation alias), the two lifecycle
+  tracepoint programs and the proc_events ring buffer (the object
+  shrinks to four programs, five maps), the ProcEvent record and
+  the drain_proc_events reader, the exec tap's event emission (the
+  tap is the counter again - the chain proof the doctor reads),
+  the five lifecycle pins (the set is thirteen: 4 links, 4
+  programs, 5 maps), and the five process-stream BTF offset slots
+  (the offsets map is the eight file-walk slots again, never
+  renumbered). `sched_process_exec` stays: it increments stats[0],
+  the counter is diagnostic, and the doctor's [eBPF] section still
+  reads it. The prebuilt lane is regenerated in the same commit
+  (the manifest's attach_targets list is the four remaining
+  targets); the demo video of the removed surface
+  (assets/demo-proc-live.webm) is gone with it, and the
+  dependency audit's dead `ctrlc` row - its justification named
+  the removed refresh loop - is dropped.
+
 ### Fixed
 
 - The README's Limitations list named two dead subcommands (`service`

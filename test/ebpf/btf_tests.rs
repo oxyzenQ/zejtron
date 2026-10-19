@@ -128,74 +128,7 @@ fn sample_blob() -> Vec<u8> {
         &[("s_list", 0), ("s_dev", 16 * 8)],
     );
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
-    // The process-stream structs (night-improve-4): the two sched
-    // tracepoint contexts and task_struct. The trace contexts mirror
-    // the textbook layout (trace_entry 8 bytes, then the scalars);
-    // task_struct's members sit at synthetic-but-plausible offsets.
-    w.strukt(
-        &mut s,
-        "trace_event_raw_sched_process_fork",
-        16,
-        &[("ent", 0), ("parent_pid", 8 * 8), ("child_pid", 12 * 8)],
-    );
-    w.strukt(
-        &mut s,
-        "trace_event_raw_sched_process_exit",
-        32,
-        &[
-            ("ent", 0),
-            ("comm", 8 * 8),
-            ("pid", 24 * 8),
-            ("prio", 28 * 8),
-        ],
-    );
-    w.strukt(
-        &mut s,
-        "trace_event_raw_sched_process_exec",
-        12,
-        &[("ent", 0), ("__data_loc_filename", 8 * 8)],
-    );
-    w.strukt(
-        &mut s,
-        "task_struct",
-        4096,
-        &[
-            ("pid", 736 * 8),
-            ("tgid", 1800 * 8),
-            ("real_parent", 1808 * 8),
-        ],
-    );
     build_btf(w, s)
-}
-
-/// The process-stream structs every partial blob needs appended (the
-/// parser looks all ten up; a partial blob without them fails on the
-/// trace contexts before it reaches the member under test).
-fn push_proc_structs(w: &mut TypeWriter, s: &mut StrTab) {
-    w.strukt(
-        s,
-        "trace_event_raw_sched_process_fork",
-        16,
-        &[("parent_pid", 8 * 8), ("child_pid", 12 * 8)],
-    );
-    w.strukt(
-        s,
-        "trace_event_raw_sched_process_exit",
-        32,
-        &[("pid", 24 * 8)],
-    );
-    w.strukt(
-        s,
-        "trace_event_raw_sched_process_exec",
-        12,
-        &[("__data_loc_filename", 8 * 8)],
-    );
-    w.strukt(
-        s,
-        "task_struct",
-        4096,
-        &[("tgid", 1800 * 8), ("real_parent", 1808 * 8)],
-    );
 }
 
 // ── The pins ────────────────────────────────────────────────────
@@ -207,19 +140,14 @@ fn the_reference_probe_offsets_parse_end_to_end() {
     assert_eq!(
         offsets,
         [
-            48,   // dentry.d_inode
-            64,   // inode.i_ino
-            16,   // file.f_path
-            32,   // file.f_inode
-            8,    // vfsmount.mnt_sb
-            16,   // super_block.s_dev
-            0,    // path.mnt
-            8,    // path.dentry
-            8,    // tp_fork.parent_pid
-            12,   // tp_fork.child_pid
-            24,   // tp_exit.pid
-            1808, // task_struct.real_parent
-            1800, // task_struct.tgid
+            48, // dentry.d_inode
+            64, // inode.i_ino
+            16, // file.f_path
+            32, // file.f_inode
+            8,  // vfsmount.mnt_sb
+            16, // super_block.s_dev
+            0,  // path.mnt
+            8,  // path.dentry
         ]
     );
 }
@@ -249,30 +177,6 @@ fn a_missing_struct_is_refused_by_name() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
-    w.strukt(
-        &mut s,
-        "trace_event_raw_sched_process_fork",
-        16,
-        &[("parent_pid", 8 * 8), ("child_pid", 12 * 8)],
-    );
-    w.strukt(
-        &mut s,
-        "trace_event_raw_sched_process_exit",
-        32,
-        &[("pid", 24 * 8)],
-    );
-    w.strukt(
-        &mut s,
-        "trace_event_raw_sched_process_exec",
-        12,
-        &[("__data_loc_filename", 8 * 8)],
-    );
-    w.strukt(
-        &mut s,
-        "task_struct",
-        4096,
-        &[("tgid", 1800 * 8), ("real_parent", 1808 * 8)],
-    );
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert_eq!(err, "struct inode not found in BTF");
@@ -296,7 +200,6 @@ fn a_missing_member_is_refused_by_name() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
-    push_proc_structs(&mut w, &mut s);
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert_eq!(err, "struct inode has no member i_ino in BTF");
@@ -320,7 +223,6 @@ fn a_bitfield_member_is_refused_not_straddled() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
-    push_proc_structs(&mut w, &mut s);
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert!(err.contains("bitfield"), "got: {err}");
@@ -359,45 +261,39 @@ fn the_live_host_parses_when_btf_exists() {
     // - the parse succeeds: assert only what holds BY CONSTRUCTION
     //   on any 64-bit host. No layout number is pinned here - not an
     //   absolute one and not a relational one - because kernel
-    //   internals move: the ubuntu-24.04 runner kernel carries a
-    //   12-byte trace_entry (parent_pid@12, child_pid@20), so even
-    //   the tracepoint contexts' relative geometry is kernel-owned,
-    //   not ours. What the Ok arm guarantees is the attach contract
-    //   itself: the host's BTF carries all nine structs and the ten
-    //   members, and the probe reads THE HOST's numbers. The layout
-    //   math is pinned in the synthetic-blob test, whose layout is
-    //   chosen by the test itself;
+    //   internals move. What the Ok arm guarantees is the attach
+    //   contract itself: the host's BTF carries the six structs and
+    //   the eight members, and the probe reads THE HOST's numbers.
+    //   The layout math is pinned in the synthetic-blob test, whose
+    //   layout is chosen by the test itself;
     // - the parse refuses because the kernel's BTF omits one of the
-    //   nine structs (some trimmed cloud kernels ship BTF without
-    //   the trace_event_raw_sched_process_* contexts): the refusal
-    //   must name the missing struct - that is the attach-time
-    //   honesty the whole offsets contract rides, and the same
-    //   verdict `doctor --attach` delivers on that host.
+    //   six structs (some trimmed cloud kernels ship BTF without
+    //   even core fs structs): the refusal must name the missing
+    //   struct - that is the attach-time honesty the whole offsets
+    //   contract rides, and the same verdict `doctor --attach`
+    //   delivers on that host.
     match parse_probe_offsets() {
         Ok(offsets) => {
             for off in offsets {
                 // Class bound, not a magic number: every value is a
-                // byte offset into a kernel struct. task_struct grew
-                // past 4 KiB on 6.x; nothing on any shipping kernel
-                // approaches 64 KiB.
+                // byte offset into a kernel struct. Nothing in the
+                // six structs approaches 64 KiB.
                 assert!(off < 65536, "implausible offset {off}");
             }
             // Pointer members are naturally aligned: d_inode, i_ino,
-            // f_inode, mnt_sb, path.mnt, path.dentry and
-            // task_struct.real_parent are 8-byte-typed on a 64-bit
-            // kernel, so their byte offsets are multiples of 8 by
-            // construction - on every kernel this probe can meet.
-            for slot in [0, 1, 3, 4, 6, 7, 11] {
+            // f_inode, mnt_sb, path.mnt, path.dentry are
+            // 8-byte-typed on a 64-bit kernel, so their byte offsets
+            // are multiples of 8 by construction - on every kernel
+            // this probe can meet.
+            for slot in [0, 1, 3, 4, 6, 7] {
                 assert_eq!(offsets[slot] % 8, 0, "slot {slot} is not pointer-aligned");
             }
             // struct path is {mnt, dentry} - two back-to-back
             // pointers, so dentry sits at mnt + 8 by construction.
-            // This is UAPI-shaped and stable; the trace contexts are
-            // not (see the comment above) and are deliberately not
-            // asserted here.
+            // This is UAPI-shaped and stable.
             assert_eq!(offsets[7], offsets[6] + 8, "path.dentry is path.mnt + 8");
             // The parse is deterministic: a second walk over the
-            // same vmlinux lands on exactly the same thirteen.
+            // same vmlinux lands on exactly the same eight.
             let again = parse_probe_offsets().expect("the second parse succeeds");
             assert_eq!(offsets, again, "the parse must be deterministic");
         }

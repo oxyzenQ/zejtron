@@ -75,10 +75,10 @@ BUILT_OBJECT="ebpf/target/bpfel-unknown-none/release/${OBJECT_NAME}"
 # first half, read live from ebpf/rust-toolchain.toml). Kept in
 # lockstep with build/ebpf.rs's BPF_LINKER_VERSION constant.
 BPF_LINKER_VERSION="0.11.1"
-# The six attach targets the loader plants (src/ebpf/loader.rs). The
+# The four attach targets the loader plants (src/ebpf/loader.rs). The
 # manifest documents the contract; the commit that changes the tap set
 # edits this list in the same commit.
-ATTACH_TARGETS="\"sched_process_exec\", \"inet_sock_set_state\", \"vfs_open\", \"vfs_write\", \"sched_process_fork\", \"sched_process_exit\""
+ATTACH_TARGETS="\"sched_process_exec\", \"inet_sock_set_state\", \"vfs_open\", \"vfs_write\""
 
 # The version mirror law: root Cargo.toml, ebpf/Cargo.toml, and the
 # manifest's [contract] version must all say the same thing. The
@@ -277,7 +277,7 @@ blake3 = "${OBJ_SHA}"
 size = ${OBJ_SIZE}
 
 [contract]
-# The six attach targets the loader plants (src/ebpf/loader.rs),
+# The four attach targets the loader plants (src/ebpf/loader.rs),
 # documented for the registry consumer; a tap-set change rewrites
 # this list in the same commit that changes the ebpf/ tree.
 attach_targets = [${ATTACH_TARGETS}]

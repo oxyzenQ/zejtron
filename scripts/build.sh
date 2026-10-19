@@ -290,11 +290,12 @@ expect_fail_contains touch_missing "path not found" "$ZEJTRON_BIN" touch "$tmpdi
 expect_fail_contains why_zero "invalid port" "$ZEJTRON_BIN" why 0
 expect_fail_contains why_too_high "invalid port" "$ZEJTRON_BIN" why 65536
 expect_fail_contains why_missing "path not found" "$ZEJTRON_BIN" why "$tmpdir/missing path"
-# night-improve-4: the refresh-loop flag died with the lifecycle
-# stream; --since requires --live on the snapshot path, and an
-# invalid duration is refused by name before anything waits.
-expect_fail_contains proc_since_requires_live "--since requires --live" "$ZEJTRON_BIN" proc --since 30s
-expect_fail_contains proc_invalid_since "invalid duration" "$ZEJTRON_BIN" proc --live --since 0x
+# night-improve-34: the lifecycle surface is gone entirely - --live,
+# --watch, and the lifecycle --since window are unknown flags now,
+# refused by clap's unknown-argument error, no deprecation alias.
+expect_fail_contains proc_live_is_unknown "unexpected argument '--live'" "$ZEJTRON_BIN" proc --live
+expect_fail_contains proc_watch_is_unknown "unexpected argument '--watch'" "$ZEJTRON_BIN" proc --watch
+expect_fail_contains proc_since_is_unknown "unexpected argument '--since'" "$ZEJTRON_BIN" proc --since 30s
 
 if [[ "$MODE" == "check-all" ]]; then
 	if [[ "${SKIP_CODESPELL:-0}" == "1" ]]; then

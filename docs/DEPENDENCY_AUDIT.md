@@ -36,7 +36,6 @@ night-improve-13 - the Hinnant civil clock replaced it; see
 | Dependency | Version | Justification (live call sites) |
 |---|---|---|
 | `clap` | 4.5 | The entire CLI surface: derive parser (`src/cli/mod.rs`), help rendering, the brand styles (`src/cli/styles.rs`), error + suggestion lanes. Default features ride (derive + std + color + help + usage + error-context + suggestions are what the surface consumes). |
-| `ctrlc` | 3.4 | SIGINT/SIGTERM handling for the interactive lanes (the `proc --live` refresh loop and any surface that must restore terminal state on Ctrl-C). Zero direct safe wrappers duplicate this cross-platform signal contract. |
 | `regex-lite` | 0.1 | The pattern filters where a full regex engine would be dead weight: substring/pattern matching in the read-only surfaces that accept user-supplied patterns. The "lite" build is deliberate - no unicode tables beyond what the surfaces need. |
 | `tempfile` (dev) | 3.20 | Test-tree isolation: `touch`, `doctor`, and the path-surface unit tests create throwaway directories/files. Dev-only; never compiled into any binary. |
 
@@ -45,6 +44,7 @@ night-improve-13 - the Hinnant civil clock replaced it; see
 | Dependency | Removed | Reason |
 |---|---|---|
 | `chrono` | night-improve-13 (2026-10-17) | The `clock` feature dragged `iana-time-zone` + `num-traits` into the lockfile for two timestamp-formatting call sites (`src/commands/touch/`, `src/commands/path.rs`). Wall-clock rendering is Howard Hinnant's `civil_from_days` algorithm directly (`src/info/clock.rs`, `build.rs`) - std only, UTC with an explicit marker, no timezone database in the binary. Re-adding chrono fails `cargo deny check all` in CI. |
+| `ctrlc` | night-improve-4 (the refresh-loop removal) | The only consumer was the old `proc --live` refresh loop's Ctrl-C handler; night-improve-4 replaced the loop with the collect-over-a-window shape and the crate left the graph with the loop that needed it (its CHANGELOG entry says so). The stale justification row above claimed the contract for "any surface that must restore terminal state on Ctrl-C" - no such surface exists in the tree. The dead row itself is removed by night-improve-34's audit pass. |
 
 ## Rules going forward
 
