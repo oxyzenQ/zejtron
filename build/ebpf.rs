@@ -170,6 +170,31 @@ fn auto_heal_prebuilt_lane(manifest_dir: &Path) {
     if std::env::var_os("ZEJTRON_SKIP_PREBUILT_REGEN").is_some() {
         return;
     }
+    // The digest tool probe: the regenerator refuses to answer without
+    // its pinned b3sum (its own gate exits before any verdict), and a
+    // missing tool is NOT a stale lane - the distinction matters
+    // because the heal's warning says "stale". On a host without the
+    // tool (a miri runner, a fresh contributor checkout) the heal is a
+    // silent no-op: the build does not need the lane, and the commit
+    // gate is the hard stop that names the fix. The two install dirs
+    // are probed explicitly because the build-script env does not
+    // always carry them on PATH (the pre-commit-hook lesson).
+    let mut b3sum_candidates: Vec<PathBuf> = vec![PathBuf::from("b3sum")];
+    if let Ok(home) = std::env::var("HOME") {
+        let home = PathBuf::from(home);
+        b3sum_candidates.push(home.join(".cargo/bin/b3sum"));
+        b3sum_candidates.push(home.join(".local/bin/b3sum"));
+    }
+    let digest_tool = b3sum_candidates.iter().any(|candidate| {
+        Command::new(candidate)
+            .arg("--version")
+            .output()
+            .map(|out| out.status.success())
+            .unwrap_or(false)
+    });
+    if !digest_tool {
+        return;
+    }
     let verdict = Command::new("bash").arg(&script).arg("--check").output();
     let Ok(out) = verdict else {
         return;
