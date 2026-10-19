@@ -108,6 +108,19 @@ updated with every security pass.
   (OSC 52 clipboard rewrites, output forging).
 - Every external invocation rides an argv array; /proc-derived values
   are data, never command fragments.
+- CodeQL alert triage (2026-10-19, night-improve-33): the
+  `rust/cleartext-logging` finding on `proc`'s snapshot print is
+  by-design disclosure, not a defect. The rule's Rust source model
+  is a NAME heuristic - identifiers whose spellings match
+  `passwd`/`uid`/token-like patterns are treated as credential
+  material. The data that reaches the terminal is the account name,
+  uid, pid, and the cmdlines of kernel-exposed processes: exactly
+  what ps(1) prints, into the invoking user's interactive terminal,
+  not a persisted log (CWE-532 is a logging-sink rule), and never
+  anything the kernel hides from the invoking uid. Renaming the
+  honest domain vocabulary (`passwd_entries`, `*_uid`) to dodge the
+  heuristic was rejected as self-deceiving; the alert is dismissed
+  as a false positive by the owner.
 
 ## Easy to use, by construction
 
