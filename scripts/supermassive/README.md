@@ -32,8 +32,10 @@ holds, touch, why, net, doctor, `doctor --symptom ram`, `-h/--help`,
    modulo a documented volatile-field table (timestamps, PIDs,
    durations, gauges). Live kernel surfaces (port, proc, net,
    doctor) use structural determinism: the stable skeleton of
-   top-level labeled lines, because their data rows move under the
-   suite by definition. Both flavors are labeled in the check names.
+   top-level labeled lines plus the report frame's furniture (the
+   heavy-bar banner, bracket-led section headers, indented colon-key
+   rows), because their data rows move under the suite by
+   definition. Both flavors are labeled in the check names.
 6. **Color tri-test.** Three passes of the same invocation: piped
    (zero escapes on both streams), NO_COLOR (byte-equal to the piped
    pass, same exit status; normalized for gauge surfaces, stable
