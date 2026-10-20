@@ -24,9 +24,15 @@
 
 </div>
 
-> v80.0.0-alpha.1 is the first public release. It is a pre-release:
-> expect QC cycles, feature removals, and bug fixes before 80.0.0
-> stable. The surface is not frozen yet.
+> Current release: **v80.0.0-alpha.1** (pre-release; the surface
+> is not frozen yet). Expect QC cycles, feature removals, and bug
+> fixes before 80.0.0 stable.
+
+```sh
+# The release tag. Every install block below reuses it, so the
+# version lives in one place and a bump is a two-line change.
+TAG=v80.0.0-alpha.1
+```
 
 <p align="center">
   <a href="https://ko-fi.com/rezky">
@@ -165,7 +171,7 @@ microarch levels for both libc flavors (v3 covers Haswell 2013+,
 v4 covers AVX-512-era 2017+; musl builds are fully static).
 
 ```sh
-TAG=v80.0.0-alpha.1
+# TAG is set once at the top of this README (the release tag).
 SHAPE=linux-amd64-v3-gnu   # or v4-gnu / v3-musl / v4-musl
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
@@ -186,7 +192,9 @@ applies: plain `cargo install zejtron` skips pre-releases by design.
 To install the alpha, name it:
 
 ```sh
-cargo install zejtron --version 80.0.0-alpha.1 --locked
+# TAG is set once at the top of this README; cargo wants the
+# version without the v prefix.
+cargo install zejtron --version "${TAG#v}" --locked
 ```
 
 This alpha install carries the full eBPF binary: the tarball ships
@@ -198,10 +206,10 @@ checkout instead source-builds the object under the dated nightly pin
 stable lands, `cargo install zejtron --locked` will pick it up
 automatically.
 
-The explicit opt-out stays: `cargo install zejtron --version
-80.0.0-alpha.1 --locked --no-default-features` builds the dormant,
-snapshot-only binary — no kernel program loads, and every eBPF-requiring
-verb answers with the honest refusal by name.
+The explicit opt-out stays: the same alpha install with
+`--no-default-features` appended builds the dormant,
+snapshot-only binary — no kernel program loads, and every
+eBPF-requiring verb answers with the honest refusal by name.
 
 ### Install from source
 
@@ -227,8 +235,7 @@ cargo install --path .
 ### eBPF
 
 The `ebpf` cargo feature is the default: every default build — and
-the `cargo install zejtron --version 80.0.0-alpha.1 --locked` alpha
-install from the registry — embeds a pure-Rust tap. No kernel program
+the alpha install from the registry — embeds a pure-Rust tap. No kernel program
 loads until you attach (see below), nothing pins before that, and the
 featureless build stays available through `--no-default-features`.
 
@@ -347,9 +354,9 @@ same stamp.
 
 ## Limitations (honest)
 
-- 80.0.0-alpha.1 is a pre-release. The surface may change before
-  80.0.0 stable. Real usage will drive QC passes; no breaking change
-  will be silent.
+- The current release is a pre-release. The surface may change
+  before 80.0.0 stable. Real usage will drive QC passes; no
+  breaking change will be silent.
 - Without sudo, port owners and some holder details show as
   `unknown` on hardened systems — the kernel hides other users'
   process context; zejtron reports what is genuinely visible.
@@ -370,8 +377,8 @@ same stamp.
   limit; the tool reports what the namespace shows, and the doctor
   names the visibility it is working with.
 - The eBPF lane ships in the default build since the alpha's feature
-  flip: `cargo install zejtron --version 80.0.0-alpha.1 --locked`
-  embeds the maintainer-built kernel object from the tarball (no
+  flip: the alpha install embeds the maintainer-built kernel object
+  from the tarball (no
   nightly, no bpf-linker on the target machine), and a git checkout
   source-builds it under the dated pin at build time only. The
   dormant opt-out (`--no-default-features`) ships the snapshot-only
