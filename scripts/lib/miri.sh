@@ -16,6 +16,22 @@
 # the string/math/logic core the surfaces are written in; they are
 # exactly where an unsafe-adjacent refactor would first lie.
 #
+# The admission law (the sibling zylaxion's night-dinner-6 containment,
+# ported after that estate's miri incident): the families are the
+# pointer/alloc/UB surface, not the docs lane. A test that full-text
+# scans README/CHANGELOG or burns an unbounded numeric/render loop is
+# useless work under an interpreter (the incident: a 33-minute run
+# spent 93% of its wall clock in five such tests, the doc scans alone
+# ~23 minutes interpreted). Such a test must never enter the audited
+# families without
+#   #[cfg_attr(miri, ignore = "<the reason>")]
+# (the night-guard-1 pattern) - it keeps running natively in every
+# other lane, where ci.yml and the E2E battery own the docs assertions
+# and the math loops. zejtron's five families carry no such test today
+# (verified 2026-10-21 against the 15-run measured record: the
+# interpreted step lands in 2.1-3.8 minutes); this law is what keeps
+# it true.
+#
 # Scope (substring filters against the full test path):
 #   - clock::       the civil clock (Hinnant math, signed epochs)
 #   - output::      the color capability ladder + tier escapes
