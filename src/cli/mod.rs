@@ -45,7 +45,7 @@ pub(crate) fn help_command() -> clap::Command {
 #[derive(Debug, Parser)]
 #[command(
     name = "zejtron",
-    about = "Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics. Boring and serious.",
+    about = "Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious.",
     disable_version_flag = true,
     // The mature help surface (night-improve-15, sibling shape): one
     // help authority - the -h/--help flags - and no auto-generated
