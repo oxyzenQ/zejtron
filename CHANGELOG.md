@@ -20,6 +20,54 @@ v11.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The supermassive suite lands: every surface — path, recent, port,
+  proc, holds, touch, why, net, doctor, doctor --symptom ram,
+  -h/--help, -V/--version — is exercised end to end on both a
+  low-spec and a best-spec runner, with success, error,
+  determinism, and color-tritest checks per surface. Every SKIP
+  names its reason; no surface has fewer than five checks. The
+  suite's exit code is trustworthy: 0 means every surface was
+  tested (or honestly skipped), 1 means any failure. It is not a
+  gimmick — it is the proof zejtron works. The suite is bash +
+  coreutils only, lives at scripts/supermassive/ (supermassive.sh,
+  the lib.sh engine with its own self-test, one file per surface,
+  the low.sh / best.sh legs), and is wired into CI by
+  .github/workflows/supermassive-e2e.yml: two jobs - the low-spec
+  leg on the MSRV floor (1.98.1, 60s wall budget) and the
+  best-spec leg on the stable frontier (stable, 300s wall budget) -
+  both running the IDENTICAL check depth, both failing the
+  pipeline on any FAIL. Depth audit from the landing run (265
+  checks, 0 fail, 0 skip, wall 2s against the 60s low budget):
+
+  | Surface              | Checks | Succ | Err | Det | Color |
+  |----------------------|--------|------|-----|-----|-------|
+  | path                 |   17   |  y   |  y  |  y  |   y   |
+  | recent               |   20   |  y   |  y  |  y  |   y   |
+  | port                 |   38   |  y   |  y  |  y  |   y   |
+  | proc                 |   25   |  y   |  y  |  y  |   y   |
+  | holds                |   27   |  y   |  y  |  y  |   y   |
+  | touch                |   22   |  y   |  y  |  y  |   y   |
+  | why                  |   27   |  y   |  y  |  y  |   y   |
+  | net                  |   14   |  y   |  y  |  y  |   y   |
+  | doctor               |   23   |  y   |  y  |  y  |   y   |
+  | doctor --symptom ram |   13   |  y   |  y  |  y  |   y   |
+  | -h / --help          |   22   |  y   |  y  |  y  |   y   |
+  | -V / --version       |   17   |  y   |  y  |  y  |   y   |
+
+  The documented flag estate is covered end to end (the runner's
+  gap report prints UNTESTED FLAGS: none). The suite has NO dormant
+  leg on purpose: the eBPF support is unconditional by owner law
+  (night-weekly-maintenance-1, "always enable, permanent" - no
+  build flag can produce a dormant binary), so the lane surfaces
+  carry lane-honesty checks instead: the Mode-line declaration and
+  the no-fake-[observed]-rows rule in snapshot mode, the [eBPF]
+  Feature/Lane declarations, and the honest event-window header.
+  Every contract the suite pins was verified against the real
+  binary first, including the honest exception that `path
+  <missing>` is a report (exit 0), not a failure.
+
 ### Changed
 
 - 80.0.0-alpha.1 is the first public release of zejtron, and this
