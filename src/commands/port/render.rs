@@ -22,32 +22,43 @@ pub fn format_report(
 
     if let Some(port) = options.port {
         if sockets.is_empty() {
-            lines.push(format!("No sockets found for port {port}."));
+            // The empty-result line rides grey; the port is the value.
+            lines.push(format!(
+                "{} {port}.",
+                crate::output::grey_out("No sockets found for port")
+            ));
             return lines.join("\n");
         }
-        lines.push(format!(":{port}"));
+        // The subject header rides green.
+        lines.push(crate::output::ok_out(&format!(":{port}")));
         append_socket_lines(&mut lines, sockets, owners, options, "");
     } else {
-        lines.push("ports".to_owned());
+        lines.push(crate::output::ok_out("ports"));
         if sockets.is_empty() {
-            lines.push("No sockets found.".to_owned());
+            lines.push(crate::output::grey_out("No sockets found."));
             return lines.join("\n");
         }
         append_socket_lines(&mut lines, sockets, owners, options, "");
         let owner_count = unique_owner_count(sockets, owners);
         lines.push(String::new());
+        // The footer line: counts are the values (unwrapped), the
+        // unit words ride grey (footer text).
         lines.push(format!(
             "{} {} · {} {}",
             sockets.len(),
-            plural(sockets.len(), "port", "ports"),
+            crate::output::grey_out(plural(sockets.len(), "port", "ports")),
             owner_count,
-            plural(owner_count, "owner", "owners")
+            crate::output::grey_out(plural(owner_count, "owner", "owners"))
         ));
         // State breakdown for TCP sockets — investigators want to see at a
-        // glance "5 LISTEN · 12 ESTABLISHED · 3 TIME_WAIT".
+        // glance "5 LISTEN · 12 ESTABLISHED · 3 TIME_WAIT". The key rides
+        // grey; the breakdown is the value and stays unwrapped.
         let state_breakdown = state_breakdown(sockets);
         if !state_breakdown.is_empty() {
-            lines.push(format!("states: {state_breakdown}"));
+            lines.push(format!(
+                "{} {state_breakdown}",
+                crate::output::grey_out("states:")
+            ));
         }
     }
 
@@ -65,14 +76,18 @@ fn format_grouped_report(
 
     if let Some(port) = options.port {
         if sockets.is_empty() {
-            lines.push(format!("No sockets found for port {port}."));
+            // The empty-result line rides grey; the port is the value.
+            lines.push(format!(
+                "{} {port}.",
+                crate::output::grey_out("No sockets found for port")
+            ));
             return lines.join("\n");
         }
-        lines.push(format!(":{port}"));
+        lines.push(crate::output::ok_out(&format!(":{port}")));
     } else {
-        lines.push("ports".to_owned());
+        lines.push(crate::output::ok_out("ports"));
         if sockets.is_empty() {
-            lines.push("No sockets found.".to_owned());
+            lines.push(crate::output::grey_out("No sockets found."));
             return lines.join("\n");
         }
     }
@@ -83,14 +98,16 @@ fn format_grouped_report(
     let socket_count: usize = groups.iter().map(|group| group.count).sum();
     let owner_count = unique_group_owner_count(&groups);
     lines.push(String::new());
+    // The footer line: counts are the values (unwrapped), the unit
+    // words ride grey (footer text).
     lines.push(format!(
         "{} {} · {} {} · {} {}",
         groups.len(),
-        plural(groups.len(), "group", "groups"),
+        crate::output::grey_out(plural(groups.len(), "group", "groups")),
         socket_count,
-        plural(socket_count, "socket", "sockets"),
+        crate::output::grey_out(plural(socket_count, "socket", "sockets")),
         owner_count,
-        plural(owner_count, "owner", "owners")
+        crate::output::grey_out(plural(owner_count, "owner", "owners"))
     ));
 
     append_note(&mut lines, stats);
@@ -162,7 +179,13 @@ fn append_socket_lines(
             "├──"
         };
         let child_indent = if last_socket { "    " } else { "│   " };
-        lines.push(format!("{indent}{branch} {}", format_socket(socket)));
+        // The tree glyph rides grey (grammar); the socket row is the
+        // value and stays unwrapped.
+        lines.push(format!(
+            "{indent}{} {}",
+            crate::output::grey_out(branch),
+            format_socket(socket)
+        ));
         append_owner_lines(
             lines,
             owners.get(&socket.inode),
@@ -182,7 +205,11 @@ fn append_group_lines(
         let last_group = index + 1 == groups.len();
         let branch = if last_group { "└──" } else { "├──" };
         let child_indent = if last_group { "    " } else { "│   " };
-        lines.push(format!("{indent}{branch} {}", format_group(group)));
+        lines.push(format!(
+            "{indent}{} {}",
+            crate::output::grey_out(branch),
+            format_group(group)
+        ));
         append_owner_lines(
             lines,
             Some(&group.owners),
@@ -207,7 +234,12 @@ fn append_owner_lines(
     indent: &str,
 ) {
     let Some(processes) = processes.filter(|processes| !processes.is_empty()) else {
-        lines.push(format!("{indent}└── {}", format_unknown_owner()));
+        // The absence token rides grey (the "no events" class).
+        lines.push(format!(
+            "{indent}{} {}",
+            crate::output::grey_out("└──"),
+            crate::output::grey_out(format_unknown_owner())
+        ));
         return;
     };
 
@@ -215,14 +247,22 @@ fn append_owner_lines(
         let last = index + 1 == processes.len();
         let branch = if last { "└──" } else { "├──" };
         lines.push(format!(
-            "{indent}{branch} {}",
+            "{indent}{} {}",
+            crate::output::grey_out(branch),
             format_owner(process, options.no_pid)
         ));
         if options.port.is_some()
             && let Some(cwd) = &process.cwd
         {
             let cwd_indent = if last { "    " } else { "│   " };
-            lines.push(format!("{indent}{cwd_indent}cwd {}", cwd.display()));
+            // The cwd key rides grey (an inline annotation); the path
+            // is the value and stays unwrapped.
+            lines.push(format!(
+                "{indent}{}{} {}",
+                crate::output::grey_out(cwd_indent),
+                crate::output::grey_out("└── cwd"),
+                cwd.display()
+            ));
         }
     }
 }
@@ -252,14 +292,26 @@ fn format_socket(socket: &SocketEntry) -> String {
 }
 
 pub fn format_owner(process: &ProcessInfo, no_pid: bool) -> String {
+    // Roles (night-improve-37): the comm name is the value (white,
+    // unwrapped); the pid=, user=, fd= keys ride grey (inline
+    // annotations) with their values unwrapped. In Mono every wrap is
+    // the identity, byte-identical to the pinned shape.
     let mut parts = Vec::new();
     parts.push(process.name.clone());
     if !no_pid {
-        parts.push(format!("pid={}", process.pid));
+        parts.push(format!(
+            "{}{}",
+            crate::output::grey_out("pid="),
+            process.pid
+        ));
     }
-    parts.push(format!("user={}", process.user));
+    parts.push(format!(
+        "{}{}",
+        crate::output::grey_out("user="),
+        process.user
+    ));
     if let Some(fd) = process.fd {
-        parts.push(format!("fd={fd}"));
+        parts.push(format!("{}{fd}", crate::output::grey_out("fd=")));
     }
     parts.join(" ")
 }
@@ -295,10 +347,11 @@ pub fn should_show_unreadable_note(stats: &ScanStats) -> bool {
 pub(crate) fn append_note(lines: &mut Vec<String>, stats: &ScanStats) {
     if should_show_unreadable_note(stats) {
         lines.push(String::new());
-        lines.push(
-            "note: some processes were not readable; try sudo for complete owner details"
-                .to_owned(),
-        );
+        // The advice line rides grey (a hint, the locked scheme's
+        // secondary content).
+        lines.push(crate::output::grey_out(
+            "note: some processes were not readable; try sudo for complete owner details",
+        ));
     }
 }
 

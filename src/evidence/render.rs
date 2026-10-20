@@ -27,12 +27,21 @@
 //! Locked rules, all enforced here and pinned by test:
 //! - UTC everywhere; the first timestamped row carries the `(UTC)`
 //!   suffix that declares the column, every row after it stays bare.
-//! - No ANSI escape bytes ever - the format is plain text on every
-//!   terminal and every pipe, so `NO_COLOR` needs no honoring (the
-//!   ledger never colors in the first place).
-//! - Deterministic: the renderer never reorders (the callers sort),
-//!   never iterates a hash map, never consults the environment. Same
-//!   rows in, same bytes out.
+//! - The shape is byte-deterministic per capability rung (night-
+//!   improve-37 repainted the surface without changing the shape):
+//!   the renderer's only environment read is the stdout capability
+//!   probe (cached once per process), and in Mono - every pipe, every
+//!   `NO_COLOR` run - the render is the exact plain bytes the shape
+//!   shipped with, zero escape bytes. On a terminal the tiers ride
+//!   the locked scheme: green section headers and verdict labels,
+//!   grey mode lines, timestamps and hints, the provenance tags by
+//!   evidence strength, and the values (actions, actors, counts,
+//!   subjects) unwrapped - white, the terminal default. `NO_COLOR`
+//!   needs no honoring beyond the ladder: the wrappers are the
+//!   identity there.
+//! - Deterministic ordering: the renderer never reorders (the
+//!   callers sort), never iterates a hash map. Same rows in, same
+//!   bytes out - per rung.
 //! - The Changes subsection renders under the state rows: its rows
 //!   when there are any, `(no events in the window)` when the window
 //!   came back empty, and the named unavailability line (the same
@@ -56,27 +65,30 @@ fn unavailability_line(window_label: &str) -> String {
     )
 }
 
-/// Render the full report. Pure function of its input; no
-/// environment reads, no clock reads (the rows carry their own
-/// times), no allocation beyond the output string.
+/// Render the full report. Pure function of its input plus the
+/// cached stdout capability (the one environment read); no clock
+/// reads (the rows carry their own times). Mono renders the exact
+/// plain bytes the shape shipped with.
 pub fn render_report(report: &EvidenceReport) -> String {
     let mut lines: Vec<String> = Vec::new();
 
     // The header: subject, then the mode line with the window (and
-    // the lane qualifier inside the same parentheses).
-    lines.push(format!("Evidence report: {}", report.subject));
+    // the lane qualifier inside the same parentheses). Roles: the
+    // report label rides green (the section header), the subject is
+    // the value and stays unwrapped, the mode line rides grey (the
+    // locked scheme's secondary content).
     lines.push(format!(
-        "Mode: {} (window {}{})",
-        report.mode.base(),
-        report.window_label,
-        report.mode.lane_qualifier()
+        "{} {}",
+        crate::output::ok_out("Evidence report:"),
+        report.subject
     ));
+    lines.push(grey_mode_line(report));
     lines.push(String::new());
 
     // The Evidence block: the state rows first, then the Changes
     // subsection. The (UTC) suffix marks the first timestamped row
     // of the whole report - one declaration, bare rows after it.
-    lines.push("Evidence:".to_owned());
+    lines.push(crate::output::ok_out("Evidence:"));
     let mut utc_marked = false;
     for row in &report.measured {
         let line = row.render_line(should_mark_utc(row, &mut utc_marked));
@@ -93,11 +105,20 @@ pub fn render_report(report: &EvidenceReport) -> String {
         || report.changes.unavailable
         || !report.changes.rows.is_empty();
     if lane_ran {
-        lines.push(format!("  Changes in the last {}:", report.window_label));
+        lines.push(crate::output::ok_out(&format!(
+            "  Changes in the last {}:",
+            report.window_label
+        )));
         if report.changes.unavailable {
-            lines.push(format!("  {}", unavailability_line(&report.window_label)));
+            lines.push(format!(
+                "  {}",
+                crate::output::grey_out(&unavailability_line(&report.window_label))
+            ));
         } else if report.changes.rows.is_empty() {
-            lines.push("  (no events in the window)".to_owned());
+            lines.push(format!(
+                "  {}",
+                crate::output::grey_out("(no events in the window)")
+            ));
         } else {
             for row in &report.changes.rows {
                 lines.push(format!(
@@ -110,9 +131,9 @@ pub fn render_report(report: &EvidenceReport) -> String {
     lines.push(String::new());
 
     // Unaccounted: always present, `(none observed)` when empty.
-    lines.push("Unaccounted:".to_owned());
+    lines.push(crate::output::ok_out("Unaccounted:"));
     if report.unaccounted.is_empty() {
-        lines.push("  (none observed)".to_owned());
+        lines.push(format!("  {}", crate::output::grey_out("(none observed)")));
     } else {
         for entry in &report.unaccounted {
             lines.push(format!("  {}", entry.render_line()));
@@ -120,18 +141,35 @@ pub fn render_report(report: &EvidenceReport) -> String {
     }
     lines.push(String::new());
 
-    // Verdict: always present, exactly two lines.
-    lines.push("Verdict:".to_owned());
+    // Verdict: always present, exactly two lines. The labels ride
+    // green (the verdict is the report's primary content); the
+    // verdict texts stay unwrapped - they are composed of the values
+    // (names, PIDs, counts) the user came for.
+    lines.push(crate::output::ok_out("Verdict:"));
     lines.push(format!(
-        "  The evidence supports: {}",
+        "  {} {}",
+        crate::output::ok_out("The evidence supports:"),
         report.verdict.supports
     ));
     lines.push(format!(
-        "  The evidence cannot support: {}",
+        "  {} {}",
+        crate::output::ok_out("The evidence cannot support:"),
         report.verdict.cannot_support
     ));
 
     lines.join("\n")
+}
+
+/// The mode line: `Mode: <base> (window <label><qualifier>)`. The
+/// whole line rides the grey tier - the locked scheme's secondary
+/// content (mode lines). In Mono the wrap is the identity.
+fn grey_mode_line(report: &EvidenceReport) -> String {
+    crate::output::grey_out(&format!(
+        "Mode: {} (window {}{})",
+        report.mode.base(),
+        report.window_label,
+        report.mode.lane_qualifier()
+    ))
 }
 
 /// The (UTC) marking rule: the first row that carries a real

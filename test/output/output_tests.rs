@@ -135,8 +135,6 @@ fn mono_wrappers_return_plain_message() {
     let text = "invalid port: abc";
     assert_eq!(error(text), text);
     assert_eq!(error_bold(text), text);
-    assert_eq!(warn(text), text);
-    assert_eq!(ok(text), text);
     assert_eq!(reset(), "");
 }
 
@@ -303,8 +301,69 @@ fn grammar_tier_rides_the_documented_grey_rungs() {
 }
 
 #[test]
-fn grammar_grey_stays_plain_when_mono() {
-    // The wrapper short-circuit: piped tests run Mono, so the
-    // grammar wrap must return the plain message bytes.
-    assert_eq!(grammar_grey("--limit"), "--limit");
+fn stdout_lane_wrappers_stay_plain_when_mono() {
+    // The zero-escape invariant's byte contract on the data lane
+    // (night-improve-37): piped tests run Mono, so every stdout-lane
+    // wrapper must be the identity - the exact plain bytes the data
+    // surfaces shipped with.
+    let text = "field-label";
+    assert_eq!(ok_out(text), text);
+    assert_eq!(grey_out(text), text);
+    assert_eq!(warn_out(text), text);
+    assert_eq!(error_out(text), text);
+    assert_eq!(brand_out(text), text);
+}
+
+#[test]
+fn stdout_lane_paints_zero_escape_bytes_in_mono() {
+    // A composed render in Mono carries no ESC byte at all - no
+    // wrapper leaks an escape into a pipe, whatever roles mix on one
+    // line (the composed shape every data surface rides).
+    let painted = format!(
+        "{} {} {} {} {}",
+        ok_out("Evidence report:"),
+        grey_out("Mode: snapshot (window 10s)"),
+        ok_out("[measured]"),
+        grey_out("[inferred]"),
+        brand_out("zejtron:")
+    );
+    assert!(!painted.contains('\x1b'));
+}
+
+#[test]
+fn the_mono_override_forces_both_lanes_plain() {
+    // The --no-color promise (night-improve-37): an explicit in-band
+    // ask for plain bytes beats whatever the ladders detected - every
+    // wrapper on both lanes becomes the identity and the paint gate
+    // reports unpaintable. There is no re-arm; the flip changes
+    // nothing else the suite asserts (every test run is Mono
+    // already, so the identity assertions below hold regardless of
+    // test-thread ordering).
+    disable_color();
+    assert_eq!(ok_out("v"), "v");
+    assert_eq!(grey_out("v"), "v");
+    assert_eq!(warn_out("v"), "v");
+    assert_eq!(error_out("v"), "v");
+    assert_eq!(brand_out("v"), "v");
+    assert_eq!(error("v"), "v");
+    assert_eq!(error_bold("v"), "v");
+    assert_eq!(reset(), "");
+    assert!(!stdout_paintable());
+}
+
+#[test]
+fn green_and_grey_stay_distinguishable_at_the_16color_floor() {
+    // The two roles the data surfaces ride must not collapse into one
+    // slot at the Color16 rung: green takes bright green (92), grey
+    // takes bright black (90) - different slots, one palette, the
+    // degradation stays legible back to VT100.
+    assert_ne!(
+        Tier::Ok.open(ColorCapability::Color16, false),
+        Tier::Grammar.open(ColorCapability::Color16, false)
+    );
+    assert_eq!(Tier::Ok.open(ColorCapability::Color16, false), "\x1b[92m");
+    assert_eq!(
+        Tier::Grammar.open(ColorCapability::Color16, false),
+        "\x1b[90m"
+    );
 }

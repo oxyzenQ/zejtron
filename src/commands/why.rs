@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub(crate) mod ledger;
+pub(crate) mod raw;
 
 use std::error::Error;
 use std::fmt;

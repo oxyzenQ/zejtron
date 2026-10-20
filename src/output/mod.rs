@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! The runtime color tier - capability detection and the branded
-//! escape sequences every runtime surface renders (the error gate in
-//! main, the doctor verdict rows, the update check's status word).
-//! The clap lane (help, usage, clap errors, typo suggestions) is a
-//! separate surface with its own module: [`crate::cli::styles`] paints
-//! what clap renders; this module paints what zejtron renders
-//! itself. One palette across both: the sibling contract.
+//! escape sequences every runtime surface renders: the labeled error
+//! gate in main through the STDERR lane's red wrappers, and every
+//! data surface (the doctor verdict rows, the update check's status
+//! word, the version report, the evidence ledgers) through the STDOUT
+//! lane's role wrappers below. The clap lane (help, usage, clap
+//! errors, typo suggestions) is a separate surface with its own
+//! module: [`crate::cli::styles`] paints what clap renders; this
+//! module paints what zejtron renders itself. One palette across
+//! both: the sibling contract.
 //!
 //! Owner color contract (the sibling project's output law): error
 //! red #FF5A5A (255,90,90), warning yellow #FFEB3C (255,235,60),
@@ -45,9 +48,25 @@
 //! Every wrapper short-circuits Mono to the plain message - no
 //! escape concatenation, no styled bytes that would never render,
 //! piped output stays byte-clean for grep.
+//!
+//! Two lanes, one ladder (night-improve-37): zejtron renders through
+//! two output streams, and each lane anchors the ladder on its own
+//! stream. The STDERR lane (the labeled error blocks in main's gate)
+//! keeps the original anchor: a `zejtron ... | grep` pipe on stdout
+//! must not cost the error lane its color. The STDOUT lane (every
+//! data surface: path, recent, port, proc, holds, touch, why, net,
+//! doctor, -V, --check-update) anchors on stdout's TTY-ness through
+//! [`stdout_capability`], so a piped stdout renders plain bytes even
+//! when stderr keeps its lane - the zero-escape invariant holds on
+//! both streams, in both piped combinations. `CLICOLOR_FORCE=1`
+//! re-arms either lane for the wrapper scripts and CI logs that
+//! capture a stream away from a terminal. The white tier needs no
+//! wrapper at all: values render in the terminal default, so the
+//! data the user came for is the one thing this module never paints.
 
 use std::io::IsTerminal;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Error red RGB: #FF5A5A (255,90,90) - the owner's error tier.
 /// 256-color fallback: index 203 (16 + 36*5 + 6*1 + 1, the closest
@@ -206,14 +225,16 @@ impl Tier {
 
 /// Pure capability classification: the ladder as data, testable
 /// without env mutation. Production reads the real environment once
-/// through [`capability`].
+/// through [`capability`] (the stderr lane) and [`stdout_capability`]
+/// (the stdout lane) - the stream's own TTY-ness is the only input
+/// that differs between the two lanes.
 fn classify(
     no_color: bool,
     clicolor_zero: bool,
     clicolor_force: bool,
     colorterm: Option<&str>,
     term: Option<&str>,
-    stderr_tty: bool,
+    stream_tty: bool,
 ) -> ColorCapability {
     if no_color {
         return ColorCapability::Mono;
@@ -221,7 +242,7 @@ fn classify(
     if clicolor_zero {
         return ColorCapability::Mono;
     }
-    if !clicolor_force && !stderr_tty {
+    if !clicolor_force && !stream_tty {
         return ColorCapability::Mono;
     }
     let term = term.unwrap_or("");
@@ -287,6 +308,48 @@ pub(crate) fn capability() -> ColorCapability {
     })
 }
 
+/// The detected capability for the STDOUT lane, cached for the
+/// process lifetime. The data surfaces speak through stdout, so their
+/// paint decisions anchor on stdout's own TTY-ness - the same env
+/// ladder, the stream's own verdict (night-improve-37's two-lane
+/// law). A piped stdout renders plain bytes even when stderr keeps
+/// its lane, so piped output carries zero escape bytes regardless of
+/// what stderr is doing.
+pub(crate) fn stdout_capability() -> ColorCapability {
+    static CAPABILITY: OnceLock<ColorCapability> = OnceLock::new();
+    *CAPABILITY.get_or_init(|| {
+        let env_flag = |key: &str| std::env::var_os(key).is_some_and(|v| !v.is_empty());
+        let env_value = |key: &str| std::env::var(key).ok();
+        classify(
+            env_flag("NO_COLOR"),
+            env_flag("CLICOLOR") && std::env::var("CLICOLOR").is_ok_and(|v| v == "0"),
+            color_forced(),
+            env_value("COLORTERM").as_deref(),
+            env_value("TERM").as_deref(),
+            std::io::stdout().is_terminal(),
+        )
+    })
+}
+
+/// The process-wide mono override (night-improve-37): an explicit
+/// in-band ask for plain bytes - the proc surface's `--no-color`
+/// flag - forces BOTH lanes Mono no matter what the ladders detected
+/// or cached. The flag is a promise to the pipe, and a promise beats
+/// a probe: paint points consult this switch before any tier opens.
+static MONO_OVERRIDE: AtomicBool = AtomicBool::new(false);
+
+/// Force plain bytes for the rest of the process: every tier wrapper
+/// on both lanes becomes the identity, and no paint gate reports
+/// paintable. Idempotent; there is no re-arm (an explicit ask for
+/// plain output stays plain).
+pub(crate) fn disable_color() {
+    MONO_OVERRIDE.store(true, Ordering::Relaxed);
+}
+
+fn mono_overridden() -> bool {
+    MONO_OVERRIDE.load(Ordering::Relaxed)
+}
+
 /// The CLICOLOR_FORCE contract: any non-empty value except "0".
 /// One predicate, two consumers - the capability probe and the help
 /// surface's stdout gate (the force flag promises color bytes even
@@ -300,24 +363,51 @@ pub(crate) fn color_forced() -> bool {
 /// The reset sequence: closes any open color/style. Empty in Mono so
 /// piped output never carries stray escape bytes.
 pub(crate) fn reset() -> &'static str {
-    match capability() {
+    reset_for(capability())
+}
+
+/// The reset sequence for a known capability: the same bytes the lane
+/// wrappers pair with their opens, so one capability governs the
+/// whole painted segment. Empty in Mono and under the mono override.
+fn reset_for(cap: ColorCapability) -> &'static str {
+    match cap {
         ColorCapability::Mono => "",
+        _ if mono_overridden() => "",
         _ => "\x1b[0m",
     }
 }
 
-/// Wrap `msg` in the tier's color (regular weight). Plain text when
-/// color is off.
+/// Wrap `msg` in the tier's color (regular weight) on the STDERR
+/// lane. Plain text when color is off.
 fn wrap(msg: &str, tier: Tier) -> String {
-    let cap = capability();
+    wrap_on(msg, tier, capability())
+}
+
+/// Wrap `msg` in the tier's color for a known capability - the one
+/// paint point every lane's wrapper rides. Plain text in Mono and
+/// under the mono override; the open and the reset always ride the
+/// same capability, so a painted segment never mixes rungs.
+fn wrap_on(msg: &str, tier: Tier, cap: ColorCapability) -> String {
     match cap {
         ColorCapability::Mono => msg.to_owned(),
-        _ => format!("{}{msg}{}", tier.open(cap, false), reset()),
+        _ if mono_overridden() => msg.to_owned(),
+        _ => format!("{}{msg}{}", tier.open(cap, false), reset_for(cap)),
     }
 }
 
+/// True when the STDOUT lane may carry escape bytes: the capability
+/// ladder says color for stdout AND the mono override is off. The one
+/// shared paint gate of the stdout lane: the help surface's
+/// self-painted regions (the Pro mode section, the example rows) and
+/// every data surface answer to the same predicate, so one render
+/// never mixes painted and plain halves.
+pub(crate) fn stdout_paintable() -> bool {
+    !mono_overridden() && stdout_capability() != ColorCapability::Mono
+}
+
 /// Wrap `msg` in error red (regular weight). Plain text when color
-/// is off.
+/// is off. The stderr lane's one regular-weight wrapper: the labeled
+/// error block is the only regular-red seat on that lane.
 pub(crate) fn error(msg: &str) -> String {
     wrap(msg, Tier::Error)
 }
@@ -332,30 +422,66 @@ pub(crate) fn error_bold(msg: &str) -> String {
     }
 }
 
-/// Wrap `msg` in warning yellow. Plain text when color is off.
-pub(crate) fn warn(msg: &str) -> String {
-    wrap(msg, Tier::Warn)
+// The stderr lane's affirmative/warning/brand wrappers rode out with
+// night-improve-37's lane corrections: their last users (the doctor
+// verdict rows, the update status word, the version header) speak
+// through stdout and moved to the stdout-lane wrappers below, and a
+// wrapper nobody calls is dead weight under -D warnings. The stderr
+// lane keeps the red pair it uses ([`error`], [`error_bold`]); the
+// green, grey, yellow, and purple seats all live on the stdout lane
+// now, each anchored on the stream its surface speaks through.
+
+// ── The stdout lane's tier wrappers (night-improve-37) ─────────────
+//
+// The data surfaces (path, recent, port, proc, holds, touch, why,
+// net, doctor, -V, --check-update) speak through stdout, so their
+// paint decisions anchor on [`stdout_capability`] - the same env
+// ladder, the stream's own TTY-ness. In Mono (a piped stdout without
+// the force flag, NO_COLOR, CLICOLOR=0) every wrapper here is the
+// identity, byte-identical to the plain render the tests pin.
+//
+// The role law every surface applies: GREEN (the Ok tier) carries the
+// primary content - section headers, field labels, verb names,
+// verdict labels, the strongest provenance tags; GREY (the Grammar
+// tier) carries the secondary content - mode lines, hints,
+// timestamps, the weaker provenance tags, example lines, footer
+// text, the "no events" line; WHITE is the terminal default and is
+// NEVER wrapped - values (measurements, byte counts, PIDs, comm
+// names, percentages) are the data the user came for. Errors keep
+// their red seat (error_out) and warnings their yellow (warn_out)
+// wherever a data surface carries one; the -V header keeps its one
+// brand-purple seat (brand_out).
+
+/// Wrap `msg` in status green for the stdout lane - section headers,
+/// field labels, verdict labels, the strongest provenance tags.
+pub(crate) fn ok_out(msg: &str) -> String {
+    wrap_on(msg, Tier::Ok, stdout_capability())
 }
 
-/// Wrap `msg` in status green. The affirmative-verdict tier. Plain
-/// text when color is off.
-pub(crate) fn ok(msg: &str) -> String {
-    wrap(msg, Tier::Ok)
+/// Wrap `msg` in the calm-grey grammar tier for the stdout lane -
+/// mode lines, hints, timestamps, tree glyphs, the weaker provenance
+/// tags, footer text.
+pub(crate) fn grey_out(msg: &str) -> String {
+    wrap_on(msg, Tier::Grammar, stdout_capability())
 }
 
-/// Wrap `msg` in brand purple (regular weight) - the `-V`
-/// version-report header tier, the sibling's masterclass layout.
-/// Plain text when color is off.
-pub(crate) fn brand(msg: &str) -> String {
-    wrap(msg, Tier::Brand)
+/// Wrap `msg` in warning yellow for the stdout lane. Plain text when
+/// color is off.
+pub(crate) fn warn_out(msg: &str) -> String {
+    wrap_on(msg, Tier::Warn, stdout_capability())
 }
 
-/// Wrap `msg` in the calm-grey grammar tier (regular weight). Plain
-/// text when color is off. The help-surface seat: flag spellings are
-/// typeable grammar, and grammar is grey wherever it appears (the
-/// sibling's flag-row law).
-pub(crate) fn grammar_grey(msg: &str) -> String {
-    wrap(msg, Tier::Grammar)
+/// Wrap `msg` in error red for the stdout lane - the data surfaces'
+/// error-shaped findings (the FAIL status label). The stderr error
+/// lane keeps its own wrappers ([`error`], [`error_bold`]).
+pub(crate) fn error_out(msg: &str) -> String {
+    wrap_on(msg, Tier::Error, stdout_capability())
+}
+
+/// Wrap `msg` in brand purple for the stdout lane - the `-V`
+/// version-report header, the tier's one runtime seat.
+pub(crate) fn brand_out(msg: &str) -> String {
+    wrap_on(msg, Tier::Brand, stdout_capability())
 }
 
 /// Print a labeled error block to stderr: `error: <msg>` with the

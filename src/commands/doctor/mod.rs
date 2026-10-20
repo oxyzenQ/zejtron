@@ -123,11 +123,16 @@ use checks::{
 };
 
 fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> String {
+    // Roles (night-improve-37): the report header rides green, the
+    // mode line rides grey (the locked scheme's secondary content),
+    // the column-header row rides grey (table grammar), the check
+    // names and messages are the values and stay unwrapped. In Mono
+    // every wrap is the identity, byte-identical to the pinned shape.
     let build = build_label(git_hash);
     let mut lines = vec![
-        "Doctor report:".to_owned(),
-        mode_label(crate::system::effective_uid()),
-        "STATUS  CHECK                 MESSAGE".to_owned(),
+        crate::output::ok_out("Doctor report:"),
+        crate::output::grey_out(&mode_label(crate::system::effective_uid())),
+        crate::output::grey_out("STATUS  CHECK                 MESSAGE"),
     ];
 
     for check in checks {
@@ -136,7 +141,7 @@ fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> St
 
     lines.push(String::new());
     lines.push(format_summary(summary));
-    lines.push(format!("Build: {build}"));
+    lines.push(crate::output::grey_out(&format!("Build: {build}")));
     lines.join("\n")
 }
 
@@ -146,11 +151,13 @@ fn format_check_row(check: &CheckResult) -> String {
     // alignment for every row below it. The pad applies to the plain
     // label text; the tier color wraps the padded cell. In Mono mode
     // the wrappers are the identity, byte-identical to the old row.
+    // The wrappers are the stdout lane's (the data surfaces speak
+    // through stdout), so a piped doctor renders plain bytes.
     let padded_label = format!("{:<6}", check.status.label());
     let label = match check.status {
-        CheckStatus::Ok => crate::output::ok(&padded_label),
-        CheckStatus::Warn => crate::output::warn(&padded_label),
-        CheckStatus::Fail => crate::output::error(&padded_label),
+        CheckStatus::Ok => crate::output::ok_out(&padded_label),
+        CheckStatus::Warn => crate::output::warn_out(&padded_label),
+        CheckStatus::Fail => crate::output::error_out(&padded_label),
     };
     format!("{}  {:<20} {}", label, check.check, check.message)
 }
@@ -174,9 +181,18 @@ fn summarize(checks: &[CheckResult]) -> Summary {
 }
 
 fn format_summary(summary: Summary) -> String {
+    // The Summary label rides green (the report's primary content);
+    // the ok=/warn=/fail= keys ride grey (inline annotations) with
+    // their counts unwrapped - the values.
     format!(
-        "Summary: ok={} warn={} fail={}",
-        summary.ok, summary.warn, summary.fail
+        "{} {}{} {}{} {}{}",
+        crate::output::ok_out("Summary:"),
+        crate::output::grey_out("ok="),
+        summary.ok,
+        crate::output::grey_out("warn="),
+        summary.warn,
+        crate::output::grey_out("fail="),
+        summary.fail
     )
 }
 

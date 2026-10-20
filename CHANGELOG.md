@@ -50,6 +50,7 @@ v11.0.0
   the iteration room where real usage drives the QC passes, and
   cargo's pre-release rule keeps it opt-in until the stable bump
   makes the default install lane the frozen one.
+- Every surface zejtron prints now carries a consistent color scheme: green for primary content (section headers, field labels, verb names, the strongest provenance tags), grey for secondary content (mode lines, hints, timestamps, the weaker provenance tags, examples), white for the values. The scheme degrades honestly through truecolor, 256, 16, and plain text; piped output carries zero escape bytes and NO_COLOR is honored everywhere. All twelve render paths were audited — the audit is in the commit body, not implied.
 
 ### Added
 

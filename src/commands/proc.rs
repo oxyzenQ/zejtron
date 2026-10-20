@@ -86,6 +86,14 @@ pub fn run(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), Box<dyn Er
 }
 
 fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> {
+    // The advertised --no-color flag, honored (night-improve-37): the
+    // flag was parsed and documented but never wired - this call is
+    // the wiring. The mono override forces both output lanes plain
+    // for the rest of the process, byte-identical to a piped run.
+    if flags.no_color {
+        crate::output::disable_color();
+    }
+
     let find = validate_find(flags.find)?;
 
     let target = resolve_target(flags.me, user_or_uid)?;
@@ -226,7 +234,13 @@ fn render_report(
     if let Some(pattern) = &view.find {
         let matches = matching_process_ids(&forest, pattern);
         if matches.is_empty() {
-            return format!("No processes matched '{pattern}'.\n");
+            // The empty-result line rides grey; the pattern is the
+            // value and stays unwrapped.
+            return format!(
+                "{}{pattern}{}\n",
+                crate::output::grey_out("No processes matched '"),
+                crate::output::grey_out("'.")
+            );
         }
         forest = prune_for_matches(&forest, &matches);
     }
@@ -237,7 +251,7 @@ fn render_report(
     output.push('\n');
 
     if report.unreadable_statuses > 0 {
-        output.push_str(render_unreadable_note());
+        output.push_str(&crate::output::grey_out(render_unreadable_note()));
         output.push('\n');
     }
 
@@ -378,7 +392,9 @@ fn read_state_char(proc_dir: &std::path::Path) -> Option<String> {
 }
 
 pub fn render_forest(target: &TargetUser, forest: &ProcessForest, show_pid: bool) -> String {
-    let mut output = format!("{}\n", target.label());
+    // The subject header rides green (the report's primary content);
+    // the tree rows keep the roles render_process applies.
+    let mut output = format!("{}\n", crate::output::ok_out(&target.label()));
 
     for (index, pid) in forest.roots.iter().enumerate() {
         render_process(
@@ -395,14 +411,22 @@ pub fn render_forest(target: &TargetUser, forest: &ProcessForest, show_pid: bool
 }
 
 pub fn render_summary(forest: &ProcessForest) -> String {
+    // The footer line: the counts are the values (unwrapped, white),
+    // the connecting words ride grey (footer text, the locked
+    // scheme's secondary content).
     format!(
-        "{} roots · {} processes",
+        "{} {} {} {}",
         forest.roots.len(),
-        forest.processes.len()
+        crate::output::grey_out("roots ·"),
+        forest.processes.len(),
+        crate::output::grey_out("processes")
     )
 }
 
 fn render_unreadable_note() -> &'static str {
+    // The advice line rides grey (a hint, the locked scheme's
+    // secondary content); the wrap is applied at the call site's
+    // push through grey_out so the static stays plain.
     "note: some processes were not readable; try sudo for a complete tree"
 }
 
@@ -418,14 +442,30 @@ fn render_process(
         return;
     };
 
+    // Roles (night-improve-37): the tree glyph rides grey (grammar),
+    // the comm name is the value and stays unwrapped, the pid= and
+    // state= keys ride grey (inline annotations) with their values
+    // unwrapped. In Mono every wrap is the identity.
     let branch = if is_last { "└── " } else { "├── " };
-    output.push_str(&format!("{prefix}{branch}{}", process.name));
+    output.push_str(&format!(
+        "{}{}",
+        crate::output::grey_out(&format!("{prefix}{branch}")),
+        process.name
+    ));
 
     if show_pid {
-        output.push_str(&format!(" pid={}", process.pid));
+        output.push_str(&format!(
+            "{}{}",
+            crate::output::grey_out(" pid="),
+            process.pid
+        ));
     }
     // Always show state — it's a single char and very high signal (Z = zombie!)
-    output.push_str(&format!(" state={}", process.state));
+    output.push_str(&format!(
+        "{}{}",
+        crate::output::grey_out(" state="),
+        process.state
+    ));
 
     output.push('\n');
 

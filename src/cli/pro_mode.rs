@@ -19,7 +19,7 @@
 //! Rendering (night-improve-38, the sibling's flag-row law): the
 //! spellings are typeable grammar, and grammar is grey wherever it
 //! appears - each row paints its flag token through the output
-//! ladder's grammar tier ([`crate::output::grammar_grey`]), while
+//! ladder's grammar tier ([`crate::output::grey_out`]), while
 //! value tokens (N, DURATION, SECONDS, PID, TEXT) stay in the
 //! terminal default color: values are content, not grammar. The
 //! capability law the runtime lane obeys holds here too: Mono (or a
@@ -27,8 +27,7 @@
 //! plain bytes - piped output keeps its plain bytes and NO_COLOR
 //! stays default; a color terminal gets the grey grammar.
 
-use crate::output::{ColorCapability, capability, grammar_grey};
-use std::io::IsTerminal;
+use crate::output::grey_out;
 
 /// One flag row: the spelling cell (flag token plus its value token,
 /// verbatim from the CLI structs) and the description (verbatim from
@@ -121,15 +120,12 @@ const ROW_INDENT: usize = 4;
 /// ladder says color AND the render destination can speak it - a
 /// terminal stdout, or the force flag's piped promise (the same two
 /// conditions clap's own help gate answers to, so the Pro mode
-/// section and clap's Options block always agree). The one shared
-/// gate of the hand-painted help surface: the examples layer
-/// ([`crate::cli::examples`]) answers to the same predicate, so
-/// every self-painted region of one render agrees byte-for-byte.
+/// section and clap's Options block always agree). The gate now lives
+/// in the output module (night-improve-37) beside the stdout lane it
+/// governs - every data surface answers to the same predicate - and
+/// this delegate keeps the help modules' one import path stable.
 pub(crate) fn stdout_paintable() -> bool {
-    if capability() == ColorCapability::Mono {
-        return false;
-    }
-    std::io::stdout().is_terminal() || crate::output::color_forced()
+    crate::output::stdout_paintable()
 }
 
 /// Build the Pro mode section: grey grammar on a color stdout, the
@@ -159,7 +155,7 @@ pub(crate) fn painted() -> String {
             let value_token = &spelling[flag_token.len()..];
             out.push_str(&" ".repeat(ROW_INDENT));
             if paint {
-                out.push_str(&grammar_grey(flag_token));
+                out.push_str(&grey_out(flag_token));
             } else {
                 out.push_str(flag_token);
             }

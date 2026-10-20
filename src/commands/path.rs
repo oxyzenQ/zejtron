@@ -24,7 +24,14 @@ pub fn run(command: &str) -> Result<(), Box<dyn std::error::Error>> {
     let matches = find_in_path(command, path_env.as_deref())?;
 
     if matches.is_empty() {
-        println!("command not found in PATH: {command}");
+        // The empty-result line: the verdict text rides grey (the
+        // locked scheme's secondary content - the same class as the
+        // "no events" line), the queried command is the value and
+        // stays unwrapped.
+        println!(
+            "{} {command}",
+            crate::output::grey_out("command not found in PATH:")
+        );
         return Ok(());
     }
 
@@ -48,25 +55,57 @@ pub(crate) fn format_path_report_with(
     owner: &dyn Fn(&Path) -> Option<String>,
 ) -> String {
     let Some((active, duplicates)) = matches.split_first() else {
-        return format!("command not found in PATH: {command}");
+        // The test seam's empty shape - the same roles as run()'s:
+        // grey verdict text, white command value.
+        return format!(
+            "{} {command}",
+            crate::output::grey_out("command not found in PATH:")
+        );
     };
 
-    let mut lines = vec![command.to_owned()];
+    // Roles (night-improve-37): the queried command rides green (the
+    // report's subject header), the tree glyphs ride grey (grammar),
+    // the field labels ride green, the values (paths, verdicts,
+    // packages) stay unwrapped - white, the terminal default. In Mono
+    // every wrap is the identity, byte-identical to the pinned shape.
+    let mut lines = vec![crate::output::ok_out(command)];
 
-    lines.push(format!("├── active: {}", display_match_path(active)));
-    lines.push(format!("├── executable: {}", yes_no(active.executable)));
+    lines.push(format!(
+        "{} {} {}",
+        crate::output::grey_out("├──"),
+        crate::output::ok_out("active:"),
+        display_match_path(active)
+    ));
+    lines.push(format!(
+        "{} {} {}",
+        crate::output::grey_out("├──"),
+        crate::output::ok_out("executable:"),
+        yes_no(active.executable)
+    ));
     let pkg = owner(&active.path);
     lines.push(format!(
-        "├── package: {}",
+        "{} {} {}",
+        crate::output::grey_out("├──"),
+        crate::output::ok_out("package:"),
         pkg.as_deref().unwrap_or("unknown")
     ));
 
     if duplicates.is_empty() {
-        lines.push("└── duplicates: none".to_owned());
+        // The absence token rides grey (the "no events" class).
+        lines.push(format!(
+            "{} {} {}",
+            crate::output::grey_out("└──"),
+            crate::output::ok_out("duplicates:"),
+            crate::output::grey_out("none")
+        ));
         return lines.join("\n");
     }
 
-    lines.push("└── duplicates:".to_owned());
+    lines.push(format!(
+        "{} {}",
+        crate::output::grey_out("└──"),
+        crate::output::ok_out("duplicates:")
+    ));
     for (index, path_match) in duplicates.iter().enumerate() {
         let prefix = if index + 1 == duplicates.len() {
             "    └──"
@@ -79,13 +118,21 @@ pub(crate) fn format_path_report_with(
             "    │  "
         };
 
-        lines.push(format!("{prefix} {}", display_match_path(path_match)));
         lines.push(format!(
-            "{detail_prefix}├── executable: {}",
+            "{} {}",
+            crate::output::grey_out(prefix),
+            display_match_path(path_match)
+        ));
+        lines.push(format!(
+            "{} {} {}",
+            crate::output::grey_out(&format!("{detail_prefix}├──")),
+            crate::output::ok_out("executable:"),
             yes_no(path_match.executable)
         ));
         lines.push(format!(
-            "{detail_prefix}└── package: {}",
+            "{} {} {}",
+            crate::output::grey_out(&format!("{detail_prefix}└──")),
+            crate::output::ok_out("package:"),
             owner(&path_match.path).as_deref().unwrap_or("unknown")
         ));
     }
