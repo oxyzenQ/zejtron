@@ -98,11 +98,9 @@ explicit marker, and the tool never writes.
 ### Dependency policy (supply chain)
 
 Three runtime dependencies, all audited: `clap` (the CLI), `regex-lite`
-(a small pattern engine), and `aya` 0.14 (the eBPF loader, carried by
-the default `ebpf` feature — a registry install embeds the
-maintainer-built kernel object and needs no BPF toolchain; the
-dormant `--no-default-features` build drops aya from its graph
-entirely). No chrono — it was dropped Hinnant-style and is **banned**
+(a small pattern engine), and `aya` 0.14 (the eBPF loader, carried
+unconditionally — a registry install embeds the maintainer-built
+kernel object and needs no BPF toolchain). No chrono — it was dropped Hinnant-style and is **banned**
 in `deny.toml`; the lockfile is committed so `cargo install zejtron
 --locked` reproduces the exact graph the release lane vetted. See
 [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md).
@@ -206,10 +204,10 @@ checkout instead source-builds the object under the dated nightly pin
 stable lands, `cargo install zejtron --locked` will pick it up
 automatically.
 
-The explicit opt-out stays: the same alpha install with
-`--no-default-features` appended builds the dormant,
-snapshot-only binary — no kernel program loads, and every
-eBPF-requiring verb answers with the honest refusal by name.
+There is no feature opt-out: the eBPF support is unconditional by
+owner law (`night-weekly-maintenance-1` — no `[features]` table
+exists, and no build flag produces a reduced binary). The doctor
+reports the lane honestly in every build.
 
 ### Install from source
 
@@ -376,13 +374,12 @@ same stamp.
   the host's. This is a kernel namespace boundary, not a zejtron
   limit; the tool reports what the namespace shows, and the doctor
   names the visibility it is working with.
-- The eBPF lane ships in the default build since the alpha's feature
-  flip: the alpha install embeds the maintainer-built kernel object
-  from the tarball (no
-  nightly, no bpf-linker on the target machine), and a git checkout
-  source-builds it under the dated pin at build time only. The
-  dormant opt-out (`--no-default-features`) ships the snapshot-only
-  binary — no eBPF program loads, pins, or counters.
+- The eBPF lane ships unconditionally (owner law — there is no
+  feature toggle): the alpha install embeds the maintainer-built
+  kernel object from the tarball (no nightly, no bpf-linker on the
+  target machine), and a git checkout source-builds it under the
+  dated pin at build time only. There is no snapshot-only build; the
+  doctor names the lane in every binary.
 - `port`'s event window requires the ebpf feature, root (or
   `CAP_BPF`+`CAP_PERFMON`), BTF, and a kernel >= 5.15. Without any of
   those, `port` prints snapshot-only and names the missing piece.

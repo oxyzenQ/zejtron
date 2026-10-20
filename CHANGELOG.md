@@ -77,7 +77,7 @@ v11.0.0
 
 ### Changed
 
-- 80.0.0-alpha.1 is the first public release of zejtron, and this
+- This alpha is the first public release of zejtron, and this
   pass makes it publishable: the prebuilt lane lands so a crates.io
   install gets the full eBPF-enabled binary without a toolchain on
   the target machine, the ebpf feature becomes default with
@@ -100,7 +100,7 @@ v11.0.0
   again inside the build (build/prebuilt.rs refuses to embed bytes
   the manifest does not describe), and stamped into the binary
   (ZEJTRON_EBPF_LANE: source-built on a checkout, registry-prebuilt
-  from a tarball). The version stays 80.0.0-alpha.1 - not 80.0.0
+  from a tarball). The version stays this alpha - not 80.0.0
   stable - because the freeze belongs to a later pass: the alpha is
   the iteration room where real usage drives the QC passes, and
   cargo's pre-release rule keeps it opt-in until the stable bump
@@ -427,7 +427,7 @@ v11.0.0
 
 - The two publish blockers night-improve-3 carried: ebpf/Cargo.toml
   mirrored the stale 11.0.0 while the root crate moved to
-  80.0.0-alpha.1 (the mirror law broken since the alpha bump; the
+  the alpha version (the mirror law broken since the alpha bump; the
   lockfile now mirrors it too, and the -V doc example renders the
   version shape as vX.Y.Z so it cannot go stale again), and
   `port --since` reported an instant ring read as a window -
