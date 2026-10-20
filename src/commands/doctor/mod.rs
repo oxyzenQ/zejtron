@@ -126,11 +126,12 @@ fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> St
     // The report frame (night-weekly-maintenance-2, the sibling
     // doctor's masterclass law): the banner opens the report, the KV
     // rows align their keys to one column, and the keys stay PLAIN -
-    // the family paints values, never keys. The mode value rides
-    // grey (the locked scheme's secondary content); the check rows,
-    // the summary, and the build fact ride [`format_check_row`],
-    // [`format_summary`], and the plain frame below. In Mono every
-    // wrap is the identity, byte-identical to the pinned shape.
+    // the family paints values, never keys. The Mode row's verdict
+    // token rides the bold tier its meaning carries ([`mode_row`]);
+    // the check rows, the summary, and the build fact ride
+    // [`format_check_row`], [`format_summary`], and the plain frame
+    // below. In Mono every wrap is the identity, byte-identical to
+    // the pinned shape.
     let build = build_label(git_hash);
     let mut lines = vec![
         crate::output::banner("zejtron System Doctor"),
@@ -138,7 +139,7 @@ fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> St
         format!(
             "  {:<17}{}",
             "Mode:",
-            crate::output::grey_out(&mode_value(crate::system::effective_uid()))
+            mode_row(crate::system::effective_uid())
         ),
     ];
 
@@ -211,11 +212,21 @@ fn format_summary(summary: Summary) -> String {
     )
 }
 
-fn mode_value(uid: Option<u32>) -> String {
-    if uid == Some(0) {
-        "privileged".to_owned()
-    } else {
-        "unprivileged (partial results expected)".to_owned()
+fn mode_row(uid: Option<u32>) -> String {
+    // The Mode row is a verdict seat (night-weekly-maintenance-2, the
+    // sibling doctor's Root-row law): the verdict token rides the bold
+    // tier its meaning carries - privileged is the affirmative seat
+    // (bold green, the sibling's YES), unprivileged the attention seat
+    // (bold yellow, the sibling's Root: NO) - and the explanation
+    // tail stays unwrapped (the sibling's hint-line law: verdicts
+    // shout, prose stays quiet). In Mono the wrappers are the
+    // identity, byte-identical to the plain row the tests pin.
+    match uid {
+        Some(0) => crate::output::ok_bold_out("privileged"),
+        _ => format!(
+            "{} (partial results expected)",
+            crate::output::warn_bold_out("unprivileged")
+        ),
     }
 }
 

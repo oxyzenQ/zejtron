@@ -41,12 +41,15 @@ fn status_row_formatting() {
 
 #[test]
 fn mode_labels_are_stable() {
-    assert_eq!(mode_value(Some(0)), "privileged");
+    // The Mode row is a verdict seat (night-weekly-maintenance-2):
+    // in Mono the bold wrappers are the identity, so the row's plain
+    // bytes stay exactly the shape this pin has always carried.
+    assert_eq!(mode_row(Some(0)), "privileged");
     assert_eq!(
-        mode_value(Some(1000)),
+        mode_row(Some(1000)),
         "unprivileged (partial results expected)"
     );
-    assert_eq!(mode_value(None), "unprivileged (partial results expected)");
+    assert_eq!(mode_row(None), "unprivileged (partial results expected)");
 }
 
 #[test]

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The runtime color tier - capability detection and the branded
-//! escape sequences every runtime surface renders: the labeled error
+//! The runtime color tier - the branded escape sequences every
+//! runtime surface renders: the labeled error
 //! gate in main through the STDERR lane's red wrappers, and every
 //! data surface (the doctor verdict rows, the update check's status
 //! word, the version report, the evidence ledgers) through the STDOUT
@@ -10,7 +10,10 @@
 //! errors, typo suggestions) is a separate surface with its own
 //! module: [`crate::cli::styles`] paints what clap renders; this
 //! module paints what zejtron renders itself. One palette across
-//! both: the sibling contract.
+//! both: the sibling contract. The capability ladder underneath -
+//! the environment probe, the two lane caches, the mono override -
+//! lives in [`capability`] (the sibling's own split law, one concern
+//! per file).
 //!
 //! Owner color contract (the sibling project's output law): error
 //! red #FF5A5A (255,90,90), warning yellow #FFEB3C (255,235,60),
@@ -24,54 +27,19 @@
 //! the bold tiers, KV keys stay plain - keys are the frame, never
 //! the paint.
 //!
-//! Capability ladder, the sibling's table sized honestly:
-//!
-//! | Capability | Detection | Encoding |
-//! |---|---|---|
-//! | TrueColor | `COLORTERM=truecolor/24bit`, `TERM` contains `-direct`/`-truecolor`, or `TERM` names a truecolor-native terminal (alacritty, kitty, ghostty, wezterm, foot, contour) | 24-bit RGB escape |
-//! | Color256 | `TERM` contains `256color` | nearest xterm-256 cube index |
-//! | Color16 | `CLICOLOR_FORCE=1` with `TERM=dumb`/unset/unrecognized - the forced lane's floor, never a probe verdict | classic ANSI bright slots (the palette renders back to VT100) |
-//! | Mono | `NO_COLOR`, `CLICOLOR=0`, `TERM=dumb`/unset, or stderr not a TTY (unless `CLICOLOR_FORCE=1`) | plain text |
-//!
-//! There is still no probe-driven 16-color rung: an unrecognized
-//! `TERM` would make a 16-color guess a lie on the very terminals
-//! the rung claims to serve, and Mono (plain text) is the only
-//! honest output there. The one Color16 seat is the forced lane's
-//! floor (night-improve-37, the sibling's improve-73 law):
-//! `CLICOLOR_FORCE=1` is a promise, and before this rung a
-//! probe-dead `TERM` (dumb, empty, unrecognized) vetoed the promise
-//! and landed the forced lane on Mono - the documented force
-//! contract broken exactly where the sibling's had already been
-//! fixed. The classic bright slots render on every terminal back to
-//! VT100, so the forced lane never garbles and never lands Mono.
-//! The ladder anchors on STDERR's TTY-ness (the sibling's rule):
-//! this lane's surfaces speak through stderr, and a
-//! `zejtron ... | grep` pipe on stdout must not cost the error lane
-//! its color. `CLICOLOR_FORCE=1` re-arms color for the wrapper
-//! scripts and CI logs that capture stderr away from a terminal.
-//!
 //! Every wrapper short-circuits Mono to the plain message - no
 //! escape concatenation, no styled bytes that would never render,
 //! piped output stays byte-clean for grep.
-//!
-//! Two lanes, one ladder (night-improve-37): zejtron renders through
-//! two output streams, and each lane anchors the ladder on its own
-//! stream. The STDERR lane (the labeled error blocks in main's gate)
-//! keeps the original anchor: a `zejtron ... | grep` pipe on stdout
-//! must not cost the error lane its color. The STDOUT lane (every
-//! data surface: path, recent, port, proc, holds, touch, why, net,
-//! doctor, -V, --check-update) anchors on stdout's TTY-ness through
-//! [`stdout_capability`], so a piped stdout renders plain bytes even
-//! when stderr keeps its lane - the zero-escape invariant holds on
-//! both streams, in both piped combinations. `CLICOLOR_FORCE=1`
-//! re-arms either lane for the wrapper scripts and CI logs that
-//! capture a stream away from a terminal. The white tier needs no
-//! wrapper at all: values render in the terminal default, so the
-//! data the user came for is the one thing this module never paints.
 
-use std::io::IsTerminal;
-use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
+mod capability;
+
+pub(crate) use capability::{
+    ColorCapability, capability, disable_color, mono_overridden, stdout_capability,
+};
+// The pure ladder-as-data classifier is the output tests' probe; the
+// production caches consume it inside the capability module.
+#[cfg(test)]
+pub(crate) use capability::classify;
 
 /// Error red RGB: #FF5A5A (255,90,90) - the owner's error tier.
 /// 256-color fallback: index 203 (16 + 36*5 + 6*1 + 1, the closest
@@ -88,13 +56,14 @@ const ERROR_RGB: (u8, u8, u8) = (255, 90, 90);
 const ERROR_256: u8 = 203;
 
 /// Warning yellow RGB: #FFEB3C (255,235,60) - the owner's warning
-/// tier. 256-color fallback: index 227 (16 + 36*5 + 6*5 + 1; 235
-/// sits exactly between cube levels 4 and 5 and the ladder takes the
-/// brighter 5, keeping the tier's high-luminance intent).
+/// tier. 256-color fallback: index 220, the sibling's exact Warn
+/// rung (the visibility precedent: the saturated corner wins over
+/// the exact match when the hue family holds - night-weekly-
+/// maintenance-2 aligns every rung to the sibling's ladder).
 #[cfg(test)]
 const WARN_RGB: (u8, u8, u8) = (255, 235, 60);
 #[cfg(test)]
-const WARN_256: u8 = 227;
+const WARN_256: u8 = 220;
 
 /// Status green RGB: #50FA7B (80,250,123) - affirmative verdicts.
 /// 256-color fallback: index 84 (16 + 36*1 + 6*5 + 2), the same
@@ -124,19 +93,6 @@ const BRAND_256: u8 = 135;
 const GRAMMAR_RGB: (u8, u8, u8) = (139, 139, 139);
 #[cfg(test)]
 const GRAMMAR_256: u8 = 245;
-
-/// The color capability this process renders with, detected once.
-/// `Color16` is the forced lane's floor only (see the module doc): a
-/// probe verdict never lands there, so a plain `TERM` stays Mono and
-/// only `CLICOLOR_FORCE=1` over a probe-dead `TERM` reaches the
-/// classic palette.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ColorCapability {
-    TrueColor,
-    Color256,
-    Color16,
-    Mono,
-}
 
 /// The owner's color tiers on the runtime lane. Each tier carries its
 /// RGB constant (the source of truth), its nearest 256-cube index,
@@ -193,26 +149,31 @@ impl Tier {
             (ColorCapability::TrueColor, Tier::Brand, true) => "\x1b[1;38;2;168;85;247m",
             (ColorCapability::Color256, Tier::Error, false) => "\x1b[38;5;203m",
             (ColorCapability::Color256, Tier::Error, true) => "\x1b[1;38;5;203m",
-            (ColorCapability::Color256, Tier::Warn, false) => "\x1b[38;5;227m",
-            (ColorCapability::Color256, Tier::Warn, true) => "\x1b[1;38;5;227m",
+            (ColorCapability::Color256, Tier::Warn, false) => "\x1b[38;5;220m",
+            (ColorCapability::Color256, Tier::Warn, true) => "\x1b[1;38;5;220m",
             (ColorCapability::Color256, Tier::Ok, false) => "\x1b[38;5;84m",
             (ColorCapability::Color256, Tier::Ok, true) => "\x1b[1;38;5;84m",
             (ColorCapability::Color256, Tier::Brand, false) => "\x1b[38;5;135m",
             (ColorCapability::Color256, Tier::Brand, true) => "\x1b[1;38;5;135m",
-            // The forced lane's floor (night-improve-37): the
-            // classic bright slots, the aixterm additions every
-            // VT100-era terminal speaks. No RGB here - a
-            // probe-dead terminal's palette is unknown, and the
-            // classic slots are the only encoding that never
-            // garbles on one.
-            (ColorCapability::Color16, Tier::Error, false) => "\x1b[91m",
-            (ColorCapability::Color16, Tier::Error, true) => "\x1b[1;91m",
-            (ColorCapability::Color16, Tier::Warn, false) => "\x1b[93m",
-            (ColorCapability::Color16, Tier::Warn, true) => "\x1b[1;93m",
-            (ColorCapability::Color16, Tier::Ok, false) => "\x1b[92m",
-            (ColorCapability::Color16, Tier::Ok, true) => "\x1b[1;92m",
-            (ColorCapability::Color16, Tier::Brand, false) => "\x1b[95m",
-            (ColorCapability::Color16, Tier::Brand, true) => "\x1b[1;95m",
+            // The forced lane's floor (night-improve-37), now the
+            // sibling's exact SGR slots (night-weekly-maintenance-2,
+            // the one-ladder law): brand rides magenta (35), ok
+            // green (32), warn yellow (33), error red (31) - the
+            // netrunner slots, regular weight, the same encoding the
+            // sibling's 16-color rung renders for the same tiers.
+            // Grey keeps its bright slot (90, the palette's only
+            // honest grey) - the one bright seat the sibling also
+            // carries. No RGB here - a probe-dead terminal's palette
+            // is unknown, and the classic slots are the only encoding
+            // that never garbles on one.
+            (ColorCapability::Color16, Tier::Error, false) => "\x1b[31m",
+            (ColorCapability::Color16, Tier::Error, true) => "\x1b[1;31m",
+            (ColorCapability::Color16, Tier::Warn, false) => "\x1b[33m",
+            (ColorCapability::Color16, Tier::Warn, true) => "\x1b[1;33m",
+            (ColorCapability::Color16, Tier::Ok, false) => "\x1b[32m",
+            (ColorCapability::Color16, Tier::Ok, true) => "\x1b[1;32m",
+            (ColorCapability::Color16, Tier::Brand, false) => "\x1b[35m",
+            (ColorCapability::Color16, Tier::Brand, true) => "\x1b[1;35m",
             // The grammar tier (night-improve-38, the sibling's
             // flag-row law): dimmer than the data it annotates,
             // bright black (90) at the Color16 floor - the
@@ -226,143 +187,6 @@ impl Tier {
             (ColorCapability::Mono, _, _) => "",
         }
     }
-}
-
-/// Pure capability classification: the ladder as data, testable
-/// without env mutation. Production reads the real environment once
-/// through [`capability`] (the stderr lane) and [`stdout_capability`]
-/// (the stdout lane) - the stream's own TTY-ness is the only input
-/// that differs between the two lanes.
-fn classify(
-    no_color: bool,
-    clicolor_zero: bool,
-    clicolor_force: bool,
-    colorterm: Option<&str>,
-    term: Option<&str>,
-    stream_tty: bool,
-) -> ColorCapability {
-    if no_color {
-        return ColorCapability::Mono;
-    }
-    if clicolor_zero {
-        return ColorCapability::Mono;
-    }
-    if !clicolor_force && !stream_tty {
-        return ColorCapability::Mono;
-    }
-    let term = term.unwrap_or("");
-    if term == "dumb" || term.is_empty() {
-        // The forced lane's floor (night-improve-37, the
-        // sibling's improve-73 law): CLICOLOR_FORCE=1 promised
-        // color, so a probe-dead TERM must not veto the promise.
-        // The classic palette renders on every terminal back to
-        // VT100 - the forced lane lands Color16, never Mono.
-        if clicolor_force {
-            return ColorCapability::Color16;
-        }
-        return ColorCapability::Mono;
-    }
-    let colorterm_truecolor =
-        matches!(colorterm, Some(c) if c.eq_ignore_ascii_case("truecolor") || c == "24bit");
-    let term_native_truecolor = [
-        "alacritty",
-        "kitty",
-        "ghostty",
-        "wezterm",
-        "foot",
-        "contour",
-    ]
-    .iter()
-    .any(|name| term.contains(name));
-    if colorterm_truecolor
-        || term.contains("-direct")
-        || term.contains("-truecolor")
-        || term_native_truecolor
-    {
-        return ColorCapability::TrueColor;
-    }
-    if term.contains("256color") {
-        return ColorCapability::Color256;
-    }
-    // Unrecognized non-dumb TERM: the non-forced ladder keeps the
-    // documented Mono stance (a 16-color guess would be a lie on
-    // the very terminals it claims to serve); the forced lane
-    // takes the classic-palette floor instead.
-    if clicolor_force {
-        return ColorCapability::Color16;
-    }
-    ColorCapability::Mono
-}
-
-/// The detected capability, cached for the process lifetime. The
-/// environment cannot change mid-run in any honest terminal session,
-/// so one detection is one truth.
-pub(crate) fn capability() -> ColorCapability {
-    static CAPABILITY: OnceLock<ColorCapability> = OnceLock::new();
-    *CAPABILITY.get_or_init(|| {
-        let env_flag = |key: &str| std::env::var_os(key).is_some_and(|v| !v.is_empty());
-        let env_value = |key: &str| std::env::var(key).ok();
-        classify(
-            env_flag("NO_COLOR"),
-            env_flag("CLICOLOR") && std::env::var("CLICOLOR").is_ok_and(|v| v == "0"),
-            color_forced(),
-            env_value("COLORTERM").as_deref(),
-            env_value("TERM").as_deref(),
-            std::io::stderr().is_terminal(),
-        )
-    })
-}
-
-/// The detected capability for the STDOUT lane, cached for the
-/// process lifetime. The data surfaces speak through stdout, so their
-/// paint decisions anchor on stdout's own TTY-ness - the same env
-/// ladder, the stream's own verdict (night-improve-37's two-lane
-/// law). A piped stdout renders plain bytes even when stderr keeps
-/// its lane, so piped output carries zero escape bytes regardless of
-/// what stderr is doing.
-pub(crate) fn stdout_capability() -> ColorCapability {
-    static CAPABILITY: OnceLock<ColorCapability> = OnceLock::new();
-    *CAPABILITY.get_or_init(|| {
-        let env_flag = |key: &str| std::env::var_os(key).is_some_and(|v| !v.is_empty());
-        let env_value = |key: &str| std::env::var(key).ok();
-        classify(
-            env_flag("NO_COLOR"),
-            env_flag("CLICOLOR") && std::env::var("CLICOLOR").is_ok_and(|v| v == "0"),
-            color_forced(),
-            env_value("COLORTERM").as_deref(),
-            env_value("TERM").as_deref(),
-            std::io::stdout().is_terminal(),
-        )
-    })
-}
-
-/// The process-wide mono override (night-improve-37): an explicit
-/// in-band ask for plain bytes - the proc surface's `--no-color`
-/// flag - forces BOTH lanes Mono no matter what the ladders detected
-/// or cached. The flag is a promise to the pipe, and a promise beats
-/// a probe: paint points consult this switch before any tier opens.
-static MONO_OVERRIDE: AtomicBool = AtomicBool::new(false);
-
-/// Force plain bytes for the rest of the process: every tier wrapper
-/// on both lanes becomes the identity, and no paint gate reports
-/// paintable. Idempotent; there is no re-arm (an explicit ask for
-/// plain output stays plain).
-pub(crate) fn disable_color() {
-    MONO_OVERRIDE.store(true, Ordering::Relaxed);
-}
-
-fn mono_overridden() -> bool {
-    MONO_OVERRIDE.load(Ordering::Relaxed)
-}
-
-/// The CLICOLOR_FORCE contract: any non-empty value except "0".
-/// One predicate, two consumers - the capability probe and the help
-/// surface's stdout gate (the force flag promises color bytes even
-/// when the stream is captured away from a terminal).
-pub(crate) fn color_forced() -> bool {
-    std::env::var("CLICOLOR_FORCE")
-        .ok()
-        .is_some_and(|v| !v.is_empty() && v != "0")
 }
 
 /// The reset sequence: closes any open color/style. Empty in Mono so

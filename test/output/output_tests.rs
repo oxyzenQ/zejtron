@@ -160,7 +160,7 @@ fn tier_opens_carry_owner_rgb_and_cube_indexes() {
     );
     assert_eq!(
         Tier::Warn.open(ColorCapability::Color256, false),
-        "\x1b[38;5;227m"
+        "\x1b[38;5;220m"
     );
     assert_eq!(
         Tier::Ok.open(ColorCapability::TrueColor, false),
@@ -191,7 +191,7 @@ fn tier_constants_match_the_owner_tiers() {
     assert_eq!(WARN_RGB, (255, 235, 60));
     assert_eq!(OK_RGB, (80, 250, 123));
     assert_eq!(ERROR_256, 203);
-    assert_eq!(WARN_256, 227);
+    assert_eq!(WARN_256, 220);
     assert_eq!(OK_256, 84);
     assert_eq!(BRAND_256, 135);
 }
@@ -246,31 +246,36 @@ fn forced_lane_takes_the_classic_palette_floor() {
 }
 
 #[test]
-fn color16_opens_carry_the_classic_bright_slots() {
-    // The forced lane's floor paints the aixterm bright slots - the
-    // only encoding that never garbles on a probe-dead terminal.
+fn color16_opens_carry_the_sibling_slots() {
+    // night-weekly-maintenance-2: the forced lane's floor paints the
+    // sibling's exact netrunner SGR slots - brand magenta (35), ok
+    // green (32), warn yellow (33), error red (31) - the same
+    // encoding the sibling's 16-color rung renders for the same
+    // tiers, so one tier is one color on every rung in both
+    // projects. Grey keeps bright black (90), the one bright seat
+    // the sibling also carries.
     assert_eq!(
         Tier::Error.open(ColorCapability::Color16, false),
-        "\x1b[91m"
+        "\x1b[31m"
     );
     assert_eq!(
         Tier::Error.open(ColorCapability::Color16, true),
-        "\x1b[1;91m"
+        "\x1b[1;31m"
     );
-    assert_eq!(Tier::Warn.open(ColorCapability::Color16, false), "\x1b[93m");
+    assert_eq!(Tier::Warn.open(ColorCapability::Color16, false), "\x1b[33m");
     assert_eq!(
         Tier::Warn.open(ColorCapability::Color16, true),
-        "\x1b[1;93m"
+        "\x1b[1;33m"
     );
-    assert_eq!(Tier::Ok.open(ColorCapability::Color16, false), "\x1b[92m");
-    assert_eq!(Tier::Ok.open(ColorCapability::Color16, true), "\x1b[1;92m");
+    assert_eq!(Tier::Ok.open(ColorCapability::Color16, false), "\x1b[32m");
+    assert_eq!(Tier::Ok.open(ColorCapability::Color16, true), "\x1b[1;32m");
     assert_eq!(
         Tier::Brand.open(ColorCapability::Color16, false),
-        "\x1b[95m"
+        "\x1b[35m"
     );
     assert_eq!(
         Tier::Brand.open(ColorCapability::Color16, true),
-        "\x1b[1;95m"
+        "\x1b[1;35m"
     );
 }
 
@@ -362,14 +367,15 @@ fn the_mono_override_forces_both_lanes_plain() {
 #[test]
 fn green_and_grey_stay_distinguishable_at_the_16color_floor() {
     // The two roles the data surfaces ride must not collapse into one
-    // slot at the Color16 rung: green takes bright green (92), grey
-    // takes bright black (90) - different slots, one palette, the
-    // degradation stays legible back to VT100.
+    // slot at the Color16 rung: green takes green (32, the sibling's
+    // netrunner slot), grey takes bright black (90) - different
+    // slots, one palette, the degradation stays legible back to
+    // VT100.
     assert_ne!(
         Tier::Ok.open(ColorCapability::Color16, false),
         Tier::Grammar.open(ColorCapability::Color16, false)
     );
-    assert_eq!(Tier::Ok.open(ColorCapability::Color16, false), "\x1b[92m");
+    assert_eq!(Tier::Ok.open(ColorCapability::Color16, false), "\x1b[32m");
     assert_eq!(
         Tier::Grammar.open(ColorCapability::Color16, false),
         "\x1b[90m"

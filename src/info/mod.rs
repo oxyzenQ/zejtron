@@ -78,56 +78,39 @@ fn build_hash() -> &'static str {
 /// header). Separated from [`print_version_report`] so tests can
 /// assert the full line set without capturing stdout.
 ///
-/// Roles (night-improve-37): the field labels ride green, the values
-/// stay unwrapped (white, the terminal default), and the two
-/// metadata tokens ride grey - Build-time is a timestamp, Source is
-/// navigational metadata. The License line wraps WHOLE: the literal
-/// is one contiguous rodata string the release lanes grep out of
-/// `strings` output, so it never splits into label + value (the
-/// label's green carries the line; the contiguity contract outranks
-/// the label/value split). In Mono every wrap is the identity, so
-/// piped output stays byte-identical to the plain shape - grep-clean
-/// for scripts (`zejtron -V | grep Build-time`).
+/// The sibling's -V law (night-weekly-maintenance-2, the masterclass
+/// color pass): the header carries the purple - the name, the version,
+/// and the description ride brand regular #A855F7 in ONE wrap, exactly
+/// the sibling's construction - and the body renders PLAIN. The build
+/// facts are the data a script greps, and the sibling's version body
+/// wraps nothing: no label paint, no value paint, zero escape bytes on
+/// a color terminal too. The License line stays ONE contiguous literal
+/// (the release lanes' `strings` contract), now rendered unwrapped -
+/// the contiguity contract and the plain-body law agree.
 fn version_body() -> String {
     [
-        format!(
-            "{} {} ({})",
-            crate::output::ok_out("Build:"),
-            build_label(),
-            build_hash()
-        ),
-        format!(
-            "{} {}",
-            crate::output::ok_out("Build-time:"),
-            crate::output::grey_out(build_time())
-        ),
-        format!(
-            "{} {}",
-            crate::output::ok_out("Copyright:"),
-            "(c) 2026 rezky_nightky (oxyzenQ)"
-        ),
-        crate::output::ok_out(LICENSE_LINE),
-        format!(
-            "{} {}",
-            crate::output::ok_out("Source:"),
-            crate::output::grey_out("https://github.com/oxyzenQ/zejtron")
-        ),
+        format!("Build: {} ({})", build_label(), build_hash()),
+        format!("Build-time: {}", build_time()),
+        "Copyright: (c) 2026 rezky_nightky (oxyzenQ)".to_owned(),
+        LICENSE_LINE.to_owned(),
+        "Source: https://github.com/oxyzenQ/zejtron".to_owned(),
     ]
     .join("\n")
 }
 
 /// Print the full version report for `-V` / `--version`.
 ///
-/// The sibling's masterclass layout: brand header (the name token,
-/// the version value, then the one-line description), followed by the
-/// build facts. The name rides brand purple #A855F7 (regular weight,
-/// the same RGB the clap lane paints) - the tier's one runtime seat -
-/// the version value stays white, and the description line rides
-/// grey (metadata, the locked scheme's secondary content). Paint
-/// decisions anchor on the STDOUT lane (the surface speaks through
-/// stdout), so piped output renders plain bytes and ANSI codes never
-/// leak into scripts or log files; `CLICOLOR_FORCE=1` re-arms the
-/// lane for captured runs.
+/// The sibling's masterclass layout (night-weekly-maintenance-2, the
+/// color pass): the purple header, then plain build facts. The header
+/// is the name, the version, and the one-line description in brand
+/// purple #A855F7 (regular weight) wrapped ONCE - the sibling's exact
+/// construction - degrading through the ladder's rungs; the body
+/// renders plain everywhere, so the facts stay grep-clean for scripts
+/// (`zejtron -V | grep Build-time`) on a terminal and in a pipe
+/// alike. Paint decisions anchor on the STDOUT lane (the surface
+/// speaks through stdout), so piped output renders plain bytes and
+/// ANSI codes never leak into scripts or log files;
+/// `CLICOLOR_FORCE=1` re-arms the lane for captured runs.
 ///
 /// ```text
 /// zejtron: vX.Y.Z
@@ -141,11 +124,13 @@ fn version_body() -> String {
 pub mod clock;
 pub fn print_version_report() {
     println!(
-        "{} v{}",
-        crate::output::brand_out(&format!("{NAME}:")),
-        env!("CARGO_PKG_VERSION")
+        "{}",
+        crate::output::brand_out(&format!(
+            "{NAME}: v{}\n{}",
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_DESCRIPTION")
+        ))
     );
-    println!("{}", crate::output::grey_out(env!("CARGO_PKG_DESCRIPTION")));
     println!("{}", version_body());
 }
 
