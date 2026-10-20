@@ -1,5 +1,6 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# shellcheck shell=bash
 # OS: Linux only — zejtron is a Linux introspection tool.
 #
 # surface_net.sh — the `net` surface.

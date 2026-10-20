@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# The runner's variables are a contract with the sourced engine and
+# the leg scripts: they are assigned here and read elsewhere, a shape
+# the per-file unused-variable rule cannot see.
+# shellcheck disable=SC2034 disable=SC1091
 # OS: Linux only — zejtron is a Linux introspection tool.
 #
 # supermassive.sh — the end-to-end suite runner.
@@ -38,12 +42,11 @@
 set -Eeuo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 usage() {
-        sed -n '2,40p' "$SUITE_DIR/supermassive.sh" | sed 's/^# \{0,1\}//'
-        exit "${1:-0}"
+	sed -n '2,40p' "$SUITE_DIR/supermassive.sh" | sed 's/^# \{0,1\}//'
+	exit "${1:-0}"
 }
 
 # ---------------------------------------------------------------------------
@@ -56,64 +59,67 @@ SURFACE_FILTER=""
 QUIET=0
 
 while [[ $# -gt 0 ]]; do
-        case "$1" in
-        --leg)
-                LEG="${2:-}"
-                shift 2
-                ;;
-        --bin)
-                BIN="${2:-}"
-                shift 2
-                ;;
-        --surfaces)
-                SURFACE_FILTER="${2:-}"
-                shift 2
-                ;;
-        --keep-scratch)
-                SM_KEEP_SCRATCH=1
-                shift
-                ;;
-        --quiet | -q)
-                QUIET=1
-                shift
-                ;;
-        --self-test)
-                source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/selftest.sh"
-                exit $?
-                ;;
-        --help | -h)
-                usage 0
-                ;;
-        *)
-                echo "error: unknown option: $1 (see --help)" >&2
-                exit 2
-                ;;
-        esac
+	case "$1" in
+	--leg)
+		LEG="${2:-}"
+		shift 2
+		;;
+	--bin)
+		BIN="${2:-}"
+		shift 2
+		;;
+	--surfaces)
+		SURFACE_FILTER="${2:-}"
+		shift 2
+		;;
+	--keep-scratch)
+		SM_KEEP_SCRATCH=1
+		shift
+		;;
+	--quiet | -q)
+		QUIET=1
+		shift
+		;;
+	--self-test)
+		# Resolved dynamically from BASH_SOURCE; the 1d source-resolution
+		# gate verifies the target exists, fail-closed.
+		# shellcheck disable=SC1091
+		source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/selftest.sh"
+		exit $?
+		;;
+	--help | -h)
+		usage 0
+		;;
+	*)
+		echo "error: unknown option: $1 (see --help)" >&2
+		exit 2
+		;;
+	esac
 done
 
 case "$LEG" in
 low)
-        # The low-spec contract: 2 vCPU / 4 GiB class host, 60s wall.
-        # Per-test timeout 20s: every zejtron invocation is a fast procfs
-        # read; the one slow documented flag (--check-update) carries a
-        # 15s in-binary curl ceiling, so 20s is the honest per-test floor.
-        SM_WALL_BUDGET=60
-        SM_TEST_TIMEOUT=20
-        ;;
+	# The low-spec contract: 2 vCPU / 4 GiB class host, 60s wall.
+	# Per-test timeout 20s: every zejtron invocation is a fast procfs
+	# read; the one slow documented flag (--check-update) carries a
+	# 15s in-binary curl ceiling, so 20s is the honest per-test floor.
+	SM_WALL_BUDGET=60
+	SM_TEST_TIMEOUT=20
+	;;
 best)
-        # The best-spec contract: same depth, 300s wall. Best is faster,
-        # never deeper.
-        SM_WALL_BUDGET=300
-        SM_TEST_TIMEOUT=30
-        ;;
+	# The best-spec contract: same depth, 300s wall. Best is faster,
+	# never deeper.
+	SM_WALL_BUDGET=300
+	SM_TEST_TIMEOUT=30
+	;;
 "")
-        echo "error: --leg low|best is required (see --help)" >&2
-        exit 2
-        ;;
+	echo "error: --leg low|best is required (see --help)" >&2
+	exit 2
+	;;
 *)
-        echo "error: unknown leg '$LEG' (want: low|best)" >&2
-        exit 2
-        ;;
+	echo "error: unknown leg '$LEG' (want: low|best)" >&2
+	exit 2
+	;;
 esac
 
 # ---------------------------------------------------------------------------
@@ -123,12 +129,12 @@ esac
 # ---------------------------------------------------------------------------
 
 if [[ -z "$BIN" ]]; then
-        BIN="${ZEJTRON_BIN_PATH:-$SUITE_DIR/../../target/release/zejtron}"
+	BIN="${ZEJTRON_BIN_PATH:-$SUITE_DIR/../../target/release/zejtron}"
 fi
 if [[ ! -x "$BIN" ]]; then
-        echo "error: binary not found or not executable: $BIN" >&2
-        echo "hint: cargo build --release --locked (or pass --bin / ZEJTRON_BIN_PATH)" >&2
-        exit 2
+	echo "error: binary not found or not executable: $BIN" >&2
+	echo "hint: cargo build --release --locked (or pass --bin / ZEJTRON_BIN_PATH)" >&2
+	exit 2
 fi
 # There is NO dormant build to hand over: the eBPF support is
 # unconditional by owner law (Cargo.toml, night-weekly-maintenance-1,
@@ -157,15 +163,15 @@ ALL_SURFACES=(path recent port proc holds touch why net doctor doctor-ram help v
 # surface; the runner reports any flag no surface exercised as
 # UNTESTED by name (the honest gap report).
 FLAG_MANIFEST=(
-        "--help" "-h" "--version" "-V" "--check-update"
-        "recent --limit" "recent --since"
-        "port --tcp" "port --udp" "port --listen" "port --all" "port --numeric"
-        "port --group" "port --no-pid" "port --since" "port --events-only" "port --snapshot-only"
-        "proc --me" "proc --depth" "proc --find" "proc --no-pid" "proc --no-color"
-        "holds --since"
-        "touch --since"
-        "why --since" "why --trace" "why --raw"
-        "doctor --attach" "doctor --detach" "doctor --symptom" "doctor --raw"
+	"--help" "-h" "--version" "-V" "--check-update"
+	"recent --limit" "recent --since"
+	"port --tcp" "port --udp" "port --listen" "port --all" "port --numeric"
+	"port --group" "port --no-pid" "port --since" "port --events-only" "port --snapshot-only"
+	"proc --me" "proc --depth" "proc --find" "proc --no-pid" "proc --no-color"
+	"holds --since"
+	"touch --since"
+	"why --since" "why --trace" "why --raw"
+	"doctor --attach" "doctor --detach" "doctor --symptom" "doctor --raw"
 )
 
 # ---------------------------------------------------------------------------
@@ -182,20 +188,20 @@ WALL_START=$SECONDS
 # The full surface list, or the debug filter, mapped to file paths.
 run_surfaces=()
 if [[ -n "$SURFACE_FILTER" ]]; then
-        IFS=',' read -r -a requested <<<"$SURFACE_FILTER"
-        for want in "${requested[@]}"; do
-                found=""
-                for s in "${ALL_SURFACES[@]}"; do
-                        [[ "$s" == "$want" ]] && found="$s"
-                done
-                if [[ -z "$found" ]]; then
-                        echo "error: unknown surface '$want' (want one of: ${ALL_SURFACES[*]})" >&2
-                        exit 2
-                fi
-                run_surfaces+=("$found")
-        done
+	IFS=',' read -r -a requested <<<"$SURFACE_FILTER"
+	for want in "${requested[@]}"; do
+		found=""
+		for s in "${ALL_SURFACES[@]}"; do
+			[[ "$s" == "$want" ]] && found="$s"
+		done
+		if [[ -z "$found" ]]; then
+			echo "error: unknown surface '$want' (want one of: ${ALL_SURFACES[*]})" >&2
+			exit 2
+		fi
+		run_surfaces+=("$found")
+	done
 else
-        run_surfaces=("${ALL_SURFACES[@]}")
+	run_surfaces=("${ALL_SURFACES[@]}")
 fi
 
 printf 'supermassive: leg=%s bin=%s\n' "$LEG" "$BIN"
@@ -220,9 +226,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/help.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/version.sh"
 
 for surface in "${run_surfaces[@]}"; do
-        sm_surface_begin "$surface"
-        "surface_${surface//-/_}"
-        sm_surface_end
+	sm_surface_begin "$surface"
+	"surface_${surface//-/_}"
+	sm_surface_end
 done
 
 WALL_ELAPSED=$((SECONDS - WALL_START))
@@ -233,23 +239,23 @@ WALL_ELAPSED=$((SECONDS - WALL_START))
 
 untested=()
 for flag in "${FLAG_MANIFEST[@]}"; do
-        # The "--" separator is load-bearing: manifest entries ARE flag
-        # spellings (-h, -V, --help...), and without the separator grep
-        # parses them as its own options - "-h" turns the registry file
-        # into the pattern and grep blocks reading stdin. The same
-        # dash-needle class scripts/build.sh warns about, bitten and
-        # fixed here in earnest.
-        if ! grep -qxF -- "$flag" "$SM_FLAGS_USED_FILE" 2>/dev/null; then
-                untested+=("$flag")
-        fi
+	# The "--" separator is load-bearing: manifest entries ARE flag
+	# spellings (-h, -V, --help...), and without the separator grep
+	# parses them as its own options - "-h" turns the registry file
+	# into the pattern and grep blocks reading stdin. The same
+	# dash-needle class scripts/build.sh warns about, bitten and
+	# fixed here in earnest.
+	if ! grep -qxF -- "$flag" "$SM_FLAGS_USED_FILE" 2>/dev/null; then
+		untested+=("$flag")
+	fi
 done
 if [[ ${#untested[@]} -gt 0 ]]; then
-        printf '\nUNTESTED FLAGS (%d - named, never silently skipped):\n' "${#untested[@]}"
-        for flag in "${untested[@]}"; do
-                printf '  - %s\n' "$flag"
-        done
+	printf '\nUNTESTED FLAGS (%d - named, never silently skipped):\n' "${#untested[@]}"
+	for flag in "${untested[@]}"; do
+		printf '  - %s\n' "$flag"
+	done
 else
-        printf '\nUNTESTED FLAGS: none - the documented flag estate is covered\n'
+	printf '\nUNTESTED FLAGS: none - the documented flag estate is covered\n'
 fi
 
 # ---------------------------------------------------------------------------
@@ -263,23 +269,23 @@ printf 'pass: %d  fail: %d  skip: %d\n' "$SM_PASS" "$SM_FAIL" "$SM_SKIP"
 printf 'wall: %ds / budget: %ds (leg: %s)\n' "$WALL_ELAPSED" "$SM_WALL_BUDGET" "$LEG"
 
 if [[ -n "$SM_SKIP_REASONS" ]]; then
-        printf 'skips (each names its reason):\n%s' "$SM_SKIP_REASONS"
+	printf 'skips (each names its reason):\n%s' "$SM_SKIP_REASONS"
 fi
 
 exit_code=0
 if [[ "$SM_FAIL" -gt 0 ]]; then
-        printf 'FAILURES:\n%s' "$SM_FAILURES"
-        exit_code=1
+	printf 'FAILURES:\n%s' "$SM_FAILURES"
+	exit_code=1
 fi
 if [[ "$WALL_ELAPSED" -gt "$SM_WALL_BUDGET" ]]; then
-        printf 'WALL BUDGET BREACHED: %ds > %ds - the %s leg failed its own contract\n' \
-                "$WALL_ELAPSED" "$SM_WALL_BUDGET" "$LEG"
-        exit_code=1
+	printf 'WALL BUDGET BREACHED: %ds > %ds - the %s leg failed its own contract\n' \
+		"$WALL_ELAPSED" "$SM_WALL_BUDGET" "$LEG"
+	exit_code=1
 fi
 
 if [[ "$exit_code" -eq 0 ]]; then
-        printf 'supermassive verdict: PASS (every surface tested or honestly skipped)\n'
+	printf 'supermassive verdict: PASS (every surface tested or honestly skipped)\n'
 else
-        printf 'supermassive verdict: FAIL\n'
+	printf 'supermassive verdict: FAIL\n'
 fi
 exit "$exit_code"

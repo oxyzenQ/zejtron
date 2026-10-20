@@ -1,5 +1,6 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# shellcheck shell=bash
 # OS: Linux only — zejtron is a Linux introspection tool.
 #
 # selftest.sh — the engine's own verification, no zejtron binary
@@ -15,14 +16,20 @@
 
 set -Eeuo pipefail
 
-# shellcheck source=lib.sh
+# The target is resolved dynamically from BASH_SOURCE; the gate's
+# 1d source-resolution check verifies it exists, fail-closed.
+# shellcheck disable=SC1091
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 sm_init
+# Runner-level contract variable: the sourced engine reads it as the
+# default per-invocation timeout.
+# shellcheck disable=SC2034
 SM_TEST_TIMEOUT=10
 SM_SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/supermassive-selftest.XXXXXX")"
 mkdir -p "$SM_SCRATCH/home"
-SM_RUN_TMP="$SM_SCRATCH"
+# Runner-level contract variable, same class as SM_TEST_TIMEOUT.
+# shellcheck disable=SC2034
 SM_BIN_PATH_ENV="$PATH"
 SM_FLAGS_USED_FILE="$SM_SCRATCH/flags-used.txt"
 : >"$SM_FLAGS_USED_FILE"
@@ -45,7 +52,7 @@ probe_failures=$((probe_failures + 1))
 sm_skip "selftest: reason-less skip" ""
 # The reason-less skip must have been converted into a failure.
 [[ "$SM_FAIL" -eq "$probe_failures" ]] || sm_fail "selftest: skip law" \
-        "a SKIP without a reason did not become a failure"
+	"a SKIP without a reason did not become a failure"
 
 # 2. Assertions against known-good and known-bad invocations.
 rc=0
@@ -68,7 +75,7 @@ sm_assert_not_contains "$SM_SCRATCH/t.out" "absent-needle" "selftest: not_contai
 probe_failures=$((probe_failures + 1))
 sm_assert_not_contains "$SM_SCRATCH/t.out" "hello" "selftest: injected not_contains probe"
 [[ "$SM_FAIL" -eq "$probe_failures" ]] || sm_fail "selftest: not_contains law" \
-        "not_contains on a needle that IS present did not record a failure"
+	"not_contains on a needle that IS present did not record a failure"
 
 # 3. The normalizer neutralizes every volatile field it names.
 printf 'started 2026-10-20 05:56:42 UTC, pid=1234, took 150ms\n' >"$SM_SCRATCH/n1"
@@ -76,9 +83,9 @@ printf 'started 2026-10-20 05:57:02 UTC, pid=5678, took 180ms\n' >"$SM_SCRATCH/n
 sm_normalize "$SM_SCRATCH/n1" "$SM_SCRATCH/n1.norm"
 sm_normalize "$SM_SCRATCH/n2" "$SM_SCRATCH/n2.norm"
 if cmp -s "$SM_SCRATCH/n1.norm" "$SM_SCRATCH/n2.norm"; then
-        sm_pass "selftest: normalizer absorbs timestamps and pids"
+	sm_pass "selftest: normalizer absorbs timestamps and pids"
 else
-        sm_fail "selftest: normalizer absorbs timestamps and pids" "normalized fixtures differ"
+	sm_fail "selftest: normalizer absorbs timestamps and pids" "normalized fixtures differ"
 fi
 
 # 4. The escape detector: a file with CSI is caught, clean text is not.
@@ -86,9 +93,9 @@ printf 'plain line\n' >"$SM_SCRATCH/clean"
 printf 'colored \033[38;2;255;90;90mred\033[0m line\n' >"$SM_SCRATCH/dirty"
 sm_assert_no_escapes "$SM_SCRATCH/clean" "selftest: clean file passes the escape gate"
 if LC_ALL=C grep -q "$(printf '\033\[')" "$SM_SCRATCH/dirty"; then
-        sm_pass "selftest: escape detector finds CSI in a dirty file"
+	sm_pass "selftest: escape detector finds CSI in a dirty file"
 else
-        sm_fail "selftest: escape detector" "CSI not found in a file that contains one"
+	sm_fail "selftest: escape detector" "CSI not found in a file that contains one"
 fi
 
 # 5. The color tri-test against a stand-in binary that obeys the
@@ -111,9 +118,9 @@ gained_fail=$((SM_FAIL - before_fail))
 # byte-equality, forced exit-status pin, truecolor escape presence,
 # and forced-differs-from-plain.
 if [[ "$gained_pass" -eq 7 && "$gained_fail" -eq 0 ]]; then
-        sm_pass "selftest: tri-test scores 7/7 on an obedient tool"
+	sm_pass "selftest: tri-test scores 7/7 on an obedient tool"
 else
-        sm_fail "selftest: tri-test scoring" "want 7 pass / 0 fail, got $gained_pass / $gained_fail"
+	sm_fail "selftest: tri-test scoring" "want 7 pass / 0 fail, got $gained_pass / $gained_fail"
 fi
 
 # 6. The flag registry. The grep "--" separator matters here in
@@ -128,8 +135,8 @@ rm -rf "$SM_SCRATCH"
 # The verdict: the failure counter must hold EXACTLY the deliberate
 # probes - any other failure means the engine misfired somewhere.
 if [[ "$SM_FAIL" -eq "$probe_failures" && "$SM_PASS" -ge 12 ]]; then
-        printf 'self-test verdict: PASS (%d checks, %d known injected probes)\n' "$SM_PASS" "$probe_failures"
-        exit 0
+	printf 'self-test verdict: PASS (%d checks, %d known injected probes)\n' "$SM_PASS" "$probe_failures"
+	exit 0
 fi
 printf 'self-test verdict: FAIL (pass=%d fail=%d probes=%d)\n' "$SM_PASS" "$SM_FAIL" "$probe_failures"
 exit 1
