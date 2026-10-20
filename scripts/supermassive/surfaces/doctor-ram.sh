@@ -1,5 +1,6 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# shellcheck shell=bash
 # OS: Linux only — zejtron is a Linux introspection tool.
 #
 # surface_doctor_ram.sh — the `doctor --symptom ram` surface.
@@ -12,36 +13,36 @@
 # color tri-test. Exercised flags: --symptom ram, --raw.
 
 surface_doctor_ram() {
-        local rc
+	local rc
 
-        # Success path: the symptom report with a verdict.
-        sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- \
-                "$SM_DEFAULT_BIN" doctor --symptom ram
-        sm_assert_rc 0 "$rc" "doctor --symptom ram exits 0"
-        sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "doctor --symptom ram renders content"
+	# Success path: the symptom report with a verdict.
+	sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" doctor --symptom ram
+	sm_assert_rc 0 "$rc" "doctor --symptom ram exits 0"
+	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "doctor --symptom ram renders content"
 
-        # --raw appends the raw /proc reads (the documented drill-down).
-        sm_run "$SM_SCRATCH/raw.out" "$SM_SCRATCH/raw.err" rc 5 -- \
-                "$SM_DEFAULT_BIN" doctor --symptom ram --raw
-        sm_assert_rc 0 "$rc" "doctor --symptom ram --raw exits 0"
-        if [[ "$(wc -l <"$SM_SCRATCH/raw.out")" -ge "$(wc -l <"$SM_SCRATCH/ok.out")" ]]; then
-                sm_pass "doctor --symptom ram --raw renders at least the base report"
-        else
-                sm_fail "doctor --symptom ram --raw renders at least the base report" \
-                        "raw render is shorter than the base"
-        fi
+	# --raw appends the raw /proc reads (the documented drill-down).
+	sm_run "$SM_SCRATCH/raw.out" "$SM_SCRATCH/raw.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" doctor --symptom ram --raw
+	sm_assert_rc 0 "$rc" "doctor --symptom ram --raw exits 0"
+	if [[ "$(wc -l <"$SM_SCRATCH/raw.out")" -ge "$(wc -l <"$SM_SCRATCH/ok.out")" ]]; then
+		sm_pass "doctor --symptom ram --raw renders at least the base report"
+	else
+		sm_fail "doctor --symptom ram --raw renders at least the base report" \
+			"raw render is shorter than the base"
+	fi
 
-        # Determinism: the gauges move; the skeleton (headers and the
-        # verdict lines) is the honest claim.
-        sm_deterministic_structural "doctor --symptom ram determinism (structural)" 5 -- \
-                "$SM_DEFAULT_BIN" doctor --symptom ram
+	# Determinism: the gauges move; the skeleton (headers and the
+	# verdict lines) is the honest claim.
+	sm_deterministic_structural "doctor --symptom ram determinism (structural)" 5 -- \
+		"$SM_DEFAULT_BIN" doctor --symptom ram
 
-        # The color tri-test. The ram report is a GAUGE surface (memory
-        # values move between any two invocations), so the NO_COLOR
-        # equality is asserted on the normalized bytes - every other
-        # surface keeps the strict raw-byte claim.
-        SM_TRITEST_NORMALIZE=1 sm_color_tritest "doctor --symptom ram" 5 -- \
-                "$SM_DEFAULT_BIN" doctor --symptom ram
+	# The color tri-test. The ram report is a GAUGE surface (memory
+	# values move between any two invocations), so the NO_COLOR
+	# equality is asserted on the normalized bytes - every other
+	# surface keeps the strict raw-byte claim.
+	SM_TRITEST_NORMALIZE=1 sm_color_tritest "doctor --symptom ram" 5 -- \
+		"$SM_DEFAULT_BIN" doctor --symptom ram
 
-        sm_flag_used "doctor --symptom"
+	sm_flag_used "doctor --symptom"
 }
