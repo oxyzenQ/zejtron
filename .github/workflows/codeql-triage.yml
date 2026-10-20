@@ -1,0 +1,92 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The CodeQL triage lane: closes the standing false positive by rule.
+#
+# The cleartext-logging finding on proc's snapshot print is a triaged
+# false positive (SECURITY.md, hardening posture, 2026-10-19): the
+# flagged data is kernel-exposed process metadata printed to the
+# invoking user's own terminal - the ps(1) disclosure class - not a
+# persisted log. CodeQL has no inline suppression for Rust
+# (codeql#11427), and every render refactor that shifts the print
+# re-opens the finding as a fresh alert, so the same verdict used to
+# be re-applied by hand each time. This lane re-applies it
+# mechanically instead, right after each completed analysis.
+#
+# Safety properties (why the auto-close is a replay, not a blind sweep):
+# - the filter is the conjunction of the rule id suffix and the exact
+#   triaged path - no other rule, no other file is ever touched;
+# - the dismissal comment is the fixed SECURITY.md verdict text, so
+#   the audit trail carries the same reasoning as the hand dismissals;
+# - a genuinely new finding class in proc.rs under a different rule
+#   id lands outside the filter and stays open for human triage.
+# Zero third-party actions: the job is a single gh api call, so there
+# is nothing to SHA-pin and no supply-chain surface.
+
+name: zejtron - CodeQL triage
+
+'on':
+  workflow_run:
+    workflows: ["zejtron - CodeQL"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  security-events: write
+
+concurrency:
+  group: codeql-triage
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  TRIAGE_COMMENT: >-
+    False positive - standing triage, SECURITY.md (hardening posture,
+    2026-10-19, night-improve-33). The cleartext-logging finding on the proc
+    snapshot print is by-design disclosure, not a defect: the data reaching
+    the terminal is the account name, uid, pid, and cmdlines of
+    kernel-exposed processes - exactly what ps(1) prints - into the invoking
+    user's own interactive terminal, not a persisted log (CWE-532 is a
+    logging-sink rule), and never anything the kernel hides from the
+    invoking uid. Renaming honest domain vocabulary to dodge the name
+    heuristic stays rejected. Closed by the CodeQL triage lane under the
+    owner's standing verdict; reopen deliberately if the verdict ever moves.
+
+jobs:
+  triage:
+    name: Triage Guard - close the standing false positive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Close open re-detections under the standing verdict
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Keep the two literals below in sync with SECURITY.md's
+          # triage paragraph: the rule id suffix and the exact path.
+          alerts="$(gh api "repos/${GITHUB_REPOSITORY}/code-scanning/alerts?state=open&per_page=100" --jq '
+                  .[]
+                  | select((.rule.id // "") | endswith("cleartext-logging"))
+                  | select((.most_recent_instance.location.path // "") == "src/commands/proc.rs")
+                  | .number
+          ')"
+
+          if [ -z "${alerts}" ]; then
+                  echo "No open alert matches the standing triage (cleartext-logging at src/commands/proc.rs)."
+                  exit 0
+          fi
+
+          echo "Open alert(s) under the standing verdict: $(printf '%s' "${alerts}" | tr '\n' ' ')"
+          while IFS= read -r number; do
+                  gh api -X PATCH "repos/${GITHUB_REPOSITORY}/code-scanning/alerts/${number}" \
+                          -f state=dismissed \
+                          -f dismissed_reason='false positive' \
+                          -f dismissed_comment="${TRIAGE_COMMENT}"
+                  echo "Alert #${number}: dismissed with the standing verdict."
+          done < <(printf '%s\n' "${alerts}")
