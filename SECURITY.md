@@ -124,8 +124,10 @@ updated with every security pass.
   fresh alert whenever a render refactor changes the query's flow
   fingerprint (first re-detection 2026-10-20 as alert #6, after the
   night-improve-37 render wiring); the verdict does not move, each
-  re-detection is closed by the owner's dismissal the same way, and
-  the rename stays rejected.
+  re-detection is closed with the same fixed verdict by the CodeQL
+  triage lane (codeql-triage.yml: a rule-id plus exact-path filter
+  dismisses every open match right after each analysis, and no other
+  rule or path is ever touched), and the rename stays rejected.
 
 ## Easy to use, by construction
 

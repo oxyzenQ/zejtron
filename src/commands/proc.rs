@@ -115,8 +115,10 @@ fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> 
     // fresh alert whenever a render refactor changes the query's
     // flow fingerprint (re-detected 2026-10-20 as alert #6, on this
     // same print after night-improve-37's render wiring); the verdict
-    // does not move - the dismissal stands, and renaming honest
-    // domain vocabulary to dodge a name heuristic stays rejected.
+    // does not move - each re-detection is closed with the same
+    // verdict by the CodeQL triage lane (codeql-triage.yml), and
+    // renaming honest domain vocabulary to dodge a name heuristic
+    // stays rejected.
     print!("{}", render_snapshot(&target, !flags.no_pid, &view)?);
     Ok(())
 }
