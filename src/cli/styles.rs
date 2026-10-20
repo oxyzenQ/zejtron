@@ -12,10 +12,17 @@
 //! project's brand layer speaks, so every purple element in -h/--help
 //! and errors uses the exact same value.
 //!
-//! Grammar is grey: option flags and subcommand names are typeable
-//! grammar, and grammar rides the calm-grey tier #8B8B8B wherever it
-//! appears (the flag-spelling law). Value placeholders stay in the
-//! terminal default color — values are content, not grammar.
+//! The literal seats ride BOLD (night-weekly-maintenance-2, the
+//! sibling's clap contract): the verb names and flag spellings clap
+//! renders in Usage, Commands, and Options carry bold weight in the
+//! terminal default color — the frame's identity outranks its data,
+//! one rung above the grey grammar rows. The calm-grey tier #8B8B8B
+//! stays the seat of the self-painted grammar rows — the Pro mode
+//! estate, the example lines' lead-in and argument spelling, and the
+//! valid-suggestion candidates (the flag-spelling law lives where
+//! zejtron paints its own rows, not in clap's styles). Value
+//! placeholders stay in the terminal default color — values are
+//! content, not grammar.
 //!
 //! Style harmony: clap's default styles leave error labels plain red
 //! and suggestion lines green — hues that disagree with an intentional
@@ -30,7 +37,8 @@
 use clap::builder::Styles;
 use clap::builder::styling::{AnsiColor, Color, Effects, RgbColor, Style};
 
-/// The brand clap styles: purple headings, grey grammar, aligned errors.
+/// The brand clap styles: purple headings, bold literals, aligned
+/// errors — the sibling's clap contract, one rung set.
 #[must_use]
 pub(crate) fn clap_styles() -> Styles {
     Styles::styled()
@@ -44,7 +52,7 @@ pub(crate) fn clap_styles() -> Styles {
                 .effects(Effects::BOLD)
                 .fg_color(Some(Color::Rgb(RgbColor(168, 85, 247)))),
         )
-        .literal(Style::new().fg_color(Some(Color::Rgb(RgbColor(139, 139, 139)))))
+        .literal(Style::new().effects(Effects::BOLD))
         .placeholder(Style::new())
         .error(
             Style::new()
@@ -58,9 +66,11 @@ pub(crate) fn clap_styles() -> Styles {
 /// The 16-color clap palette (night-improve-38, the sibling's bridge
 /// law): the same brand shape one rung down the ladder, since clap
 /// cannot speak RGB at a 16-color terminal and the brand purple
-/// would garble. Brand purple falls to bold magenta, error red to
-/// bold red, the grammar grey to bright black (90, the palette's
-/// only honest grey), the invalid yellow to yellow. The branded
+/// would garble. Brand purple falls to magenta, error red to
+/// red, the literals keep their bold seat (the sibling's 16-color
+/// clap rung carries the same bold literals), the grammar grey to
+/// bright black (90, the palette's only honest grey), the invalid
+/// yellow to yellow. The branded
 /// entries ([`crate::cli::parse_branded`], [`crate::cli::help_command`],
 /// the ux bridge) swap these in when the capability ladder reports
 /// Color16, so a forced 16-color terminal never receives RGB bytes

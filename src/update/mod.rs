@@ -182,7 +182,7 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
     println!("Current: {}", normalize_version(current_version));
     println!("Latest:  {}", normalize_version(&latest_tag));
     println!("Status:  {status}");
-    println!("Source:  {}", crate::output::grey_out(RELEASES_URL));
+    println!("Source:  {RELEASES_URL}");
 
     Ok(())
 }
