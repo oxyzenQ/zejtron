@@ -120,7 +120,12 @@ updated with every security pass.
   anything the kernel hides from the invoking uid. Renaming the
   honest domain vocabulary (`passwd_entries`, `*_uid`) to dodge the
   heuristic was rejected as self-deceiving; the alert is dismissed
-  as a false positive by the owner.
+  as a false positive by the owner. The finding re-surfaces as a
+  fresh alert whenever a render refactor changes the query's flow
+  fingerprint (first re-detection 2026-10-20 as alert #6, after the
+  night-improve-37 render wiring); the verdict does not move, each
+  re-detection is closed by the owner's dismissal the same way, and
+  the rename stays rejected.
 
 ## Easy to use, by construction
 

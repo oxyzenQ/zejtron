@@ -111,7 +111,12 @@ fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> 
     // cmdlines, not credential material, and nothing the kernel
     // hides from this uid is ever shown. Triaged 2026-10-19
     // (night-improve-33); the verdict and the reasoning live in
-    // SECURITY.md's hardening posture.
+    // SECURITY.md's hardening posture. The finding re-surfaces as a
+    // fresh alert whenever a render refactor changes the query's
+    // flow fingerprint (re-detected 2026-10-20 as alert #6, on this
+    // same print after night-improve-37's render wiring); the verdict
+    // does not move - the dismissal stands, and renaming honest
+    // domain vocabulary to dodge a name heuristic stays rejected.
     print!("{}", render_snapshot(&target, !flags.no_pid, &view)?);
     Ok(())
 }
