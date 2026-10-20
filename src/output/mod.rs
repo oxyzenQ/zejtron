@@ -15,9 +15,14 @@
 //! Owner color contract (the sibling project's output law): error
 //! red #FF5A5A (255,90,90), warning yellow #FFEB3C (255,235,60),
 //! status green #50FA7B (80,250,123). Brand purple #A855F7 rides the
-//! clap heading tier via [`crate::cli::styles`] and has exactly one
-//! runtime seat: the `-V` version-report header (the sibling's
-//! masterclass layout) - nothing else on this lane paints purple.
+//! clap heading tier via [`crate::cli::styles`]; on the runtime lane
+//! it carries the report frame (night-weekly-maintenance-2, the
+//! sibling's masterclass law): every report surface opens with the
+//! `━━━ ... ━━━` banner in bold purple, and the `-V` version-report
+//! header keeps its seat. The bold wrappers are the verdict seats
+//! (the sibling doctor's law): status tokens and verdict words ride
+//! the bold tiers, KV keys stay plain - keys are the frame, never
+//! the paint.
 //!
 //! Capability ladder, the sibling's table sized honestly:
 //!
@@ -448,9 +453,22 @@ pub(crate) fn error_bold(msg: &str) -> String {
 // text, the "no events" line; WHITE is the terminal default and is
 // NEVER wrapped - values (measurements, byte counts, PIDs, comm
 // names, percentages) are the data the user came for. Errors keep
-// their red seat (error_out) and warnings their yellow (warn_out)
-// wherever a data surface carries one; the -V header keeps its one
-// brand-purple seat (brand_out).
+// their red seat on the data lane through the BOLD verdict wrapper
+// ([`error_bold_out`], the doctor's FAIL seat) and on the stderr
+// lane through the labeled pair; warnings their yellow (warn_out,
+// warn_bold_out) wherever a data surface carries one; the -V header
+// keeps its one brand-purple seat (brand_out).
+//
+// The report frame (night-weekly-maintenance-2, the sibling
+// doctor's masterclass law, now shared verbatim): a report surface
+// opens with [`banner`] - the `━━━ ... ━━━` title line in bold
+// purple - and lays its facts out as KV rows whose KEYS stay plain
+// (aligned to one column) while the VALUES carry the tiers. Verdict
+// tokens (OK/WARN/FAIL, YES-style words, status words) ride the
+// BOLD tiers ([`ok_bold_out`], [`warn_bold_out`],
+// [`error_bold_out`]) exactly as the sibling doctor paints
+// YES/NO/SUPPORTED; regular-weight tiers keep the seats they
+// already hold on the tree and evidence surfaces.
 
 /// Wrap `msg` in status green for the stdout lane - section headers,
 /// field labels, verdict labels, the strongest provenance tags.
@@ -471,17 +489,83 @@ pub(crate) fn warn_out(msg: &str) -> String {
     wrap_on(msg, Tier::Warn, stdout_capability())
 }
 
-/// Wrap `msg` in error red for the stdout lane - the data surfaces'
-/// error-shaped findings (the FAIL status label). The stderr error
-/// lane keeps its own wrappers ([`error`], [`error_bold`]).
-pub(crate) fn error_out(msg: &str) -> String {
-    wrap_on(msg, Tier::Error, stdout_capability())
-}
+// The regular-weight error wrapper rode out with night-weekly-
+// maintenance-2: its last caller (the doctor's FAIL row) moved to
+// the bold verdict seat ([`error_bold_out`], the sibling doctor's
+// verdict law), and a wrapper nobody calls is dead weight under
+// -D warnings - the same rule that retired the stderr lane's
+// uncalled affirmative wrappers in night-improve-37. A future
+// error-shaped finding on a data surface takes the bold seat.
 
 /// Wrap `msg` in brand purple for the stdout lane - the `-V`
 /// version-report header, the tier's one runtime seat.
 pub(crate) fn brand_out(msg: &str) -> String {
     wrap_on(msg, Tier::Brand, stdout_capability())
+}
+
+// ── The bold verdict seats (night-weekly-maintenance-2) ────────────
+//
+// The sibling doctor paints its verdicts BOLD (YES in bold green,
+// NO in bold red, the Warnings: label in bold yellow) - a verdict
+// must out-shout the facts around it. These wrappers are zejtron's
+// same seats on the stdout lane: the doctor's status tokens, the
+// update check's status word, the [eBPF] section's verdict tokens.
+// In Mono every wrapper is the identity, byte-identical to the
+// pinned plain shapes.
+
+/// Wrap `msg` in BOLD status green for the stdout lane - the
+/// affirmative verdict token seat (the doctor's OK, the update
+/// check's "up to date", the [eBPF] section's live/present/enabled).
+pub(crate) fn ok_bold_out(msg: &str) -> String {
+    let cap = stdout_capability();
+    match cap {
+        ColorCapability::Mono => msg.to_owned(),
+        _ if mono_overridden() => msg.to_owned(),
+        _ => format!("{}{msg}{}", Tier::Ok.open(cap, true), reset_for(cap)),
+    }
+}
+
+/// Wrap `msg` in BOLD warning yellow for the stdout lane - the
+/// attention verdict token seat (the doctor's WARN, a degraded
+/// [eBPF] verdict, the Warnings-style label).
+pub(crate) fn warn_bold_out(msg: &str) -> String {
+    let cap = stdout_capability();
+    match cap {
+        ColorCapability::Mono => msg.to_owned(),
+        _ if mono_overridden() => msg.to_owned(),
+        _ => format!("{}{msg}{}", Tier::Warn.open(cap, true), reset_for(cap)),
+    }
+}
+
+/// Wrap `msg` in BOLD error red for the stdout lane - the negative
+/// verdict token seat (the doctor's FAIL).
+pub(crate) fn error_bold_out(msg: &str) -> String {
+    let cap = stdout_capability();
+    match cap {
+        ColorCapability::Mono => msg.to_owned(),
+        _ if mono_overridden() => msg.to_owned(),
+        _ => format!("{}{msg}{}", Tier::Error.open(cap, true), reset_for(cap)),
+    }
+}
+
+/// Wrap `msg` in BOLD brand purple for the stdout lane - the report
+/// banner seat. The banner is the family's report frame: one title
+/// line, one purple, every report surface.
+pub(crate) fn brand_bold_out(msg: &str) -> String {
+    let cap = stdout_capability();
+    match cap {
+        ColorCapability::Mono => msg.to_owned(),
+        _ if mono_overridden() => msg.to_owned(),
+        _ => format!("{}{msg}{}", Tier::Brand.open(cap, true), reset_for(cap)),
+    }
+}
+
+/// The report banner: the family's one title-line shape, the
+/// sibling's `━━━ <title> ━━━` in bold purple. Every report surface
+/// opens with this exact frame - doctor, the update check, every
+/// future report - so the family reads as one family.
+pub(crate) fn banner(title: &str) -> String {
+    brand_bold_out(&format!("━━━ {title} ━━━"))
 }
 
 /// Print a labeled error block to stderr: `error: <msg>` with the

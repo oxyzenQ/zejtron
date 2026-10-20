@@ -77,11 +77,18 @@ The CLI speaks one palette on two surfaces, both anchored to the same values:
 
 | Tier | Value | Surface |
 |---|---|---|
-| Brand purple | `#A855F7` (168,85,247) | clap headings (`Usage`, `Commands`, `Options`) in `-h`/`--help` and errors; the `-V` version-report header (256-cube index 135, the sibling default theme's exact index for this RGB) |
-| Calm grey | `#8B8B8B` (139,139,139) | typeable grammar (flags, subcommands), valid-suggestion labels |
-| Error red | `#FF5A5A` (255,90,90) | the `error:` label (bold) and body of every runtime error; clap error labels; doctor `FAIL` rows |
-| Warning yellow | `#FFEB3C` (255,235,60) | invalid-input highlights on the clap lane; doctor `WARN` rows; the update check's "update available" verdict |
-| Status green | `#50FA7B` (80,250,123) | affirmative verdicts: doctor `OK` rows; the update check's "up to date" verdict |
+| Brand purple | `#A855F7` (168,85,247) | clap headings (`Usage`, `Commands`, `Options`) in `-h`/`--help` and errors; the report banners (`━━━ ... ━━━`, bold) on the doctor and the update check; the `-V` version-report header (256-cube index 135, the sibling default theme's exact index for this RGB) |
+| Calm grey | `#8B8B8B` (139,139,139) | typeable grammar (flags, subcommands), valid-suggestion labels, mode values and metadata timestamps |
+| Error red | `#FF5A5A` (255,90,90) | the `error:` label (bold) and body of every runtime error; clap error labels; the doctor's `FAIL` status token (bold) |
+| Warning yellow | `#FFEB3C` (255,235,60) | invalid-input highlights on the clap lane; the doctor's `WARN` status token (bold) and degraded `[eBPF]` verdicts (bold); the update check's "update available" verdict (bold) |
+| Status green | `#50FA7B` (80,250,123) | affirmative verdicts (bold): the doctor's `OK` status token, the `[eBPF]` section's `enabled`/`present`/`live`/`none` verdicts, the update check's "up to date" verdict |
+
+The report frame (night-weekly-maintenance-2, the sibling project's
+masterclass law): every report surface opens with the `━━━ <title> ━━━`
+banner in bold purple, and lays its facts out as KV rows whose keys
+stay plain (aligned to one column) while the values carry the tiers.
+Verdict tokens ride the bold tiers; keys are the frame, never the
+paint.
 
 Implementation: the clap lane renders through `src/cli/styles.rs`, the
 runtime lane through `src/output/mod.rs`; one palette, two modules.

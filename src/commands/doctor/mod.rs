@@ -123,16 +123,23 @@ use checks::{
 };
 
 fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> String {
-    // Roles (night-improve-37): the report header rides green, the
-    // mode line rides grey (the locked scheme's secondary content),
-    // the column-header row rides grey (table grammar), the check
-    // names and messages are the values and stay unwrapped. In Mono
-    // every wrap is the identity, byte-identical to the pinned shape.
+    // The report frame (night-weekly-maintenance-2, the sibling
+    // doctor's masterclass law): the banner opens the report, the KV
+    // rows align their keys to one column, and the keys stay PLAIN -
+    // the family paints values, never keys. The mode value rides
+    // grey (the locked scheme's secondary content); the check rows,
+    // the summary, and the build fact ride [`format_check_row`],
+    // [`format_summary`], and the plain frame below. In Mono every
+    // wrap is the identity, byte-identical to the pinned shape.
     let build = build_label(git_hash);
     let mut lines = vec![
-        crate::output::ok_out("Doctor report:"),
-        crate::output::grey_out(&mode_label(crate::system::effective_uid())),
-        crate::output::grey_out("STATUS  CHECK                 MESSAGE"),
+        crate::output::banner("zejtron System Doctor"),
+        String::new(),
+        format!(
+            "  {:<17}{}",
+            "Mode:",
+            crate::output::grey_out(&mode_value(crate::system::effective_uid()))
+        ),
     ];
 
     for check in checks {
@@ -141,25 +148,33 @@ fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> St
 
     lines.push(String::new());
     lines.push(format_summary(summary));
-    lines.push(crate::output::grey_out(&format!("Build: {build}")));
+    lines.push(format!("  {:<17}{build}", "Build:"));
     lines.join("\n")
 }
 
 fn format_check_row(check: &CheckResult) -> String {
-    // Pad first, color second: the status label rides a fixed-width
-    // column, and escape bytes inside the padded slot would break the
-    // alignment for every row below it. The pad applies to the plain
-    // label text; the tier color wraps the padded cell. In Mono mode
-    // the wrappers are the identity, byte-identical to the old row.
-    // The wrappers are the stdout lane's (the data surfaces speak
+    // The KV row (night-weekly-maintenance-2): the key is the check
+    // name, plain and aligned; the status token rides a fixed-width
+    // slot wrapped in its BOLD tier (the sibling doctor's verdict
+    // seats - OK bold green, WARN bold yellow, FAIL bold red); the
+    // message is the value and stays unwrapped. Pad first, color
+    // second: escape bytes inside a padded slot would break the
+    // alignment for every row below it. In Mono mode the wrappers
+    // are the identity, byte-identical to the plain row. The
+    // wrappers are the stdout lane's (the data surfaces speak
     // through stdout), so a piped doctor renders plain bytes.
     let padded_label = format!("{:<6}", check.status.label());
     let label = match check.status {
-        CheckStatus::Ok => crate::output::ok_out(&padded_label),
-        CheckStatus::Warn => crate::output::warn_out(&padded_label),
-        CheckStatus::Fail => crate::output::error_out(&padded_label),
+        CheckStatus::Ok => crate::output::ok_bold_out(&padded_label),
+        CheckStatus::Warn => crate::output::warn_bold_out(&padded_label),
+        CheckStatus::Fail => crate::output::error_bold_out(&padded_label),
     };
-    format!("{}  {:<20} {}", label, check.check, check.message)
+    format!(
+        "  {:<17}{}{}",
+        format!("{}:", check.check),
+        label,
+        check.message
+    )
 }
 
 fn summarize(checks: &[CheckResult]) -> Summary {
@@ -181,12 +196,12 @@ fn summarize(checks: &[CheckResult]) -> Summary {
 }
 
 fn format_summary(summary: Summary) -> String {
-    // The Summary label rides green (the report's primary content);
-    // the ok=/warn=/fail= keys ride grey (inline annotations) with
-    // their counts unwrapped - the values.
+    // The KV row for the counts: the ok=/warn=/fail= keys ride grey
+    // (inline annotations) with their counts unwrapped - the values;
+    // the row's own key rides the plain KV frame.
     format!(
-        "{} {}{} {}{} {}{}",
-        crate::output::ok_out("Summary:"),
+        "  {:<17}{}{} {}{} {}{}",
+        "Summary:",
         crate::output::grey_out("ok="),
         summary.ok,
         crate::output::grey_out("warn="),
@@ -196,11 +211,11 @@ fn format_summary(summary: Summary) -> String {
     )
 }
 
-fn mode_label(uid: Option<u32>) -> String {
+fn mode_value(uid: Option<u32>) -> String {
     if uid == Some(0) {
-        "Mode: privileged".to_owned()
+        "privileged".to_owned()
     } else {
-        "Mode: unprivileged (partial results expected)".to_owned()
+        "unprivileged (partial results expected)".to_owned()
     }
 }
 
