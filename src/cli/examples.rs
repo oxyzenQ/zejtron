@@ -30,7 +30,7 @@
 //! color drops.
 
 use crate::cli::pro_mode::stdout_paintable;
-use crate::output::{grey_out, ok_out};
+use crate::output::{brand_bold_out, grey_out, ok_out};
 
 /// One verb's example: the verb token and the argument spelling that
 /// follows it - a verbatim invocation, no placeholders.
@@ -122,7 +122,14 @@ pub(crate) fn paint_verbs(cmd: &mut clap::Command) {
 /// after the section, so the byte shape stays stable.
 pub(crate) fn quick_section() -> String {
     let paint = stdout_paintable();
-    let mut out = String::from("\nQuick examples:\n");
+    // The section heading rides the sibling's heading law (night-
+    // weekly-maintenance-2): help-surface section headings paint
+    // brand purple bold, the same seat the Pro mode section's heading
+    // takes. In Mono the wrapper is the identity, so the assembled
+    // bytes stay identical to the pinned plain shape.
+    let mut out = String::from("\n");
+    out.push_str(&brand_bold_out("Quick examples:"));
+    out.push('\n');
     for (i, (note, (verb, args))) in QUICK_EXAMPLES.iter().enumerate() {
         if i > 0 {
             out.push('\n');
