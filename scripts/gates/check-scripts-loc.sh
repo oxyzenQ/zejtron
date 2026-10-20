@@ -25,9 +25,9 @@
 # The marker is tracked migration debt, exactly like the Rust
 # contract: the exemption lives WITH the file it exempts, removing
 # it means deleting the comment, and the justification is visible
-# at the top of the exempt file. The three flagship harnesses
-harnesses carried their markers BEFORE
-# this checker existed — this gate is what turned those
+# at the top of the exempt file. The three large harnesses carried
+# their markers BEFORE this checker existed — this gate is what
+# turned those
 # declarations from prose into a live, every-push audit.
 #
 # Usage: scripts/gates/check-scripts-loc.sh [MAX_LINES]
@@ -55,33 +55,33 @@ echo ""
 # they land. The */target/* exclusion is defensive only (a cargo
 # invocation from a script never runs with cwd inside scripts/).
 FILES=$(find scripts -type f \( -name '*.sh' -o -name '*.py' \) \
-	-not -path '*/target/*' 2>/dev/null | sort)
+        -not -path '*/target/*' 2>/dev/null | sort)
 
 if [ -z "$FILES" ]; then
-	echo "No .sh/.py files found under scripts/"
-	exit 0
+        echo "No .sh/.py files found under scripts/"
+        exit 0
 fi
 
 # Compute and display line counts sorted descending
 while IFS= read -r f; do
-	LINES=$(wc -l <"$f")
-	printf "  %5d  %s\n" "$LINES" "$f"
-	if [ "$LINES" -gt "$MAX_LINES" ]; then
-		# Dynamically check if the file self-declares an exemption
-		# via the marker comment (no hardcoded list lookup).
-		if grep -qF "$EXEMPT_MARKER" "$f"; then
-			EXEMPT_VIOLATIONS=$((EXEMPT_VIOLATIONS + 1))
-			echo "    ^^^ over ${MAX_LINES} (exempt via # LOC_EXEMPT: marker — tracked debt)"
-		else
-			FAILED=$((FAILED + 1))
-			echo "    ^^^ VIOLATES ${MAX_LINES} limit"
-			echo "           The policy: split into modules (a package, one stage"
-			echo "           family per module). If the split is not landing the"
-			echo "           same hour, the marker below is the honest IOU:"
-			echo "               # LOC_EXEMPT: <one-line justification>"
-		fi
-	fi
-	FOUND=$((FOUND + 1))
+        LINES=$(wc -l <"$f")
+        printf "  %5d  %s\n" "$LINES" "$f"
+        if [ "$LINES" -gt "$MAX_LINES" ]; then
+                # Dynamically check if the file self-declares an exemption
+                # via the marker comment (no hardcoded list lookup).
+                if grep -qF "$EXEMPT_MARKER" "$f"; then
+                        EXEMPT_VIOLATIONS=$((EXEMPT_VIOLATIONS + 1))
+                        echo "    ^^^ over ${MAX_LINES} (exempt via # LOC_EXEMPT: marker — tracked debt)"
+                else
+                        FAILED=$((FAILED + 1))
+                        echo "    ^^^ VIOLATES ${MAX_LINES} limit"
+                        echo "           The policy: split into modules (a package, one stage"
+                        echo "           family per module). If the split is not landing the"
+                        echo "           same hour, the marker below is the honest IOU:"
+                        echo "               # LOC_EXEMPT: <one-line justification>"
+                fi
+        fi
+        FOUND=$((FOUND + 1))
 done <<<"$FILES"
 
 echo ""
@@ -90,20 +90,20 @@ echo "Files over ${MAX_LINES} (exempt via # LOC_EXEMPT: marker): ${EXEMPT_VIOLAT
 echo "Files over ${MAX_LINES} (NOT exempt — BUILD FAIL): ${FAILED}"
 
 if [ "$FAILED" -gt 0 ]; then
-	echo ""
-	echo "FAIL: ${FAILED} script file(s) exceed ${MAX_LINES} lines without a"
-	echo "# LOC_EXEMPT: marker. Either refactor them below ${MAX_LINES}, or"
-	echo "add the marker with a justification:"
-	echo "    # LOC_EXEMPT: <reason this file cannot be split>"
-	exit 1
+        echo ""
+        echo "FAIL: ${FAILED} script file(s) exceed ${MAX_LINES} lines without a"
+        echo "# LOC_EXEMPT: marker. Either refactor them below ${MAX_LINES}, or"
+        echo "add the marker with a justification:"
+        echo "    # LOC_EXEMPT: <reason this file cannot be split>"
+        exit 1
 fi
 
 if [ "$EXEMPT_VIOLATIONS" -gt 0 ]; then
-	echo ""
-	echo "OK (with migration debt): ${EXEMPT_VIOLATIONS} file(s) exceed ${MAX_LINES}"
-	echo "but self-declare exemption via # LOC_EXEMPT: marker."
-	echo "Refactor incrementally — see docs/RULES.md 'File size caps'."
-	exit 0
+        echo ""
+        echo "OK (with migration debt): ${EXEMPT_VIOLATIONS} file(s) exceed ${MAX_LINES}"
+        echo "but self-declare exemption via # LOC_EXEMPT: marker."
+        echo "Refactor incrementally — see docs/RULES.md 'File size caps'."
+        exit 0
 fi
 
 echo "OK: all script files at or below ${MAX_LINES} lines (no exemptions needed)"

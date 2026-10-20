@@ -121,7 +121,7 @@ dead-ending.
 | Zenlixem | doctor (network) | `zejtron net` |
 | Zenlixem | envpath | `zejtron path` |
 
-### Tools it replaces (the pitch)
+### Tools it replaces
 
 | The old path | The zejtron surface |
 | --- | --- |
@@ -212,7 +212,7 @@ reports the lane honestly in every build.
 ### Install from source
 
 Lazy? Skip the manual order entirely — one command runs the WHOLE
-bring-up (bootstrap + the pro-native-gnu flagship build + the rootless
+bring-up (bootstrap + the pro-native-gnu build + the rootless
 CLI battery + the four release-shape legs) and ends with a next-steps
 menu:
 
@@ -606,9 +606,9 @@ verification process live in
 | Individual Business | $2,199/year    | Solo business use, freelancers, small operations         |
 | Company             | $9,199/year    | Companies, SaaS, enterprise, or any redistribution rights |
 
-The paid rungs follow the value upward: zejtron is a masterpiece, and
-its value increases year by year — the price tracks the value and
-keeps rising as the work compounds. Buyers who paid before a move are
+The paid rungs follow the value upward: the tool's value increases
+year by year — the price tracks the value and keeps rising as the
+work compounds. Buyers who paid before a move are
 grandfathered at the price they bought, for the term they bought.
 
 **Unauthorized use is theft.** Taking this code — stealing it, forking

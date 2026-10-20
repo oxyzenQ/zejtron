@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 //
-//! The Evidence Ledger report type (night-improve-3, the flagship
-//! pass): three surfaces - holds, touch, why - one grammar. Every
+//! The Evidence Ledger report type (night-improve-3): three
+//! surfaces - holds, touch, why - one grammar. Every
 //! report names its subject, its mode and window, its rows (each
 //! carrying exactly one provenance tag), what it cannot see, and a
 //! two-line verdict. The format is feature-independent and pure std:

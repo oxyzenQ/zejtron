@@ -357,8 +357,8 @@ fn read_validated_ebpf_object(path: &Path) -> Result<Vec<u8>, String> {
 /// ELFCLASS64, little-endian, version 1), ET_REL + EM_BPF (the only
 /// shape bpf-linker emits), a section header table that exists, uses
 /// 64-byte entries, and lies fully inside the file (bpf-linker places
-/// it LAST, which makes this the truncation killer), and the three
-/// sections aya's loader demands from this object: one program
+/// it LAST, so this bounds check is what catches truncation), and
+/// the three sections aya's loader demands from this object: one program
 /// section (tracepoint OR kprobe - the Phase 1 tap is a tracepoint;
 /// the kprobe arm keeps the validator honest for later passes), the
 /// maps section (legacy map definitions), and the license section
