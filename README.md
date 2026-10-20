@@ -24,16 +24,6 @@
 
 </div>
 
-> Current release: **v80.0.0-alpha.1** (pre-release; the surface
-> is not frozen yet). Expect QC cycles, feature removals, and bug
-> fixes before 80.0.0 stable.
-
-```sh
-# The release tag. Every install block below reuses it, so the
-# version lives in one place and a bump is a two-line change.
-TAG=v80.0.0-alpha.1
-```
-
 <p align="center">
   <a href="https://ko-fi.com/rezky">
     <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
@@ -169,7 +159,9 @@ microarch levels for both libc flavors (v3 covers Haswell 2013+,
 v4 covers AVX-512-era 2017+; musl builds are fully static).
 
 ```sh
-# TAG is set once at the top of this README (the release tag).
+# The release tag. Every install block below reuses it, so the
+# version lives in one place and a bump is a two-line change.
+TAG=v80.0.0-alpha.1
 SHAPE=linux-amd64-v3-gnu   # or v4-gnu / v3-musl / v4-musl
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
@@ -649,5 +641,5 @@ Built and maintained by **rezky_nightky (oxyzenQ)** —
 © 2026 rezky_nightky (oxyzenQ). All rights reserved.
 
 <p align="center">
-  <em>built with curiosity &amp; masterpiece</em>
+  <em>built with curiosity</em>
 </p>
