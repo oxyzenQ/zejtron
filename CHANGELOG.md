@@ -204,7 +204,7 @@ v11.0.0
   the snapshot's truth, so an event row prints `*:<port>` with the
   family riding the protocol token (TCP4/TCP6/UDP4/UDP6).
 
-- night-improve-3, the flagship pass. The Evidence Ledger lands:
+- night-improve-3. The Evidence Ledger lands:
   holds, touch, and why now answer three questions instead of one —
   what happened, how do you know, and what can't you see. Every row
   carries a provenance tag ([observed] from eBPF events, [measured]

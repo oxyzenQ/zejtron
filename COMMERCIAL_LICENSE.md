@@ -81,25 +81,25 @@ Notes:
   rungs — Individual $99/year and Business $5,199/year merge into
   **Individual Business $2,199/year**, and Company moves from
   $110,199 to **$9,199/year**; Personal stays free (GPL-3.0). The
-  rationale is the owner's, unchanged and compounding: zejtron is a
-  masterpiece, its value increases year by year, and the paid rungs
-  ride the value ladder the owner sets — it will keep rising as the
+  rationale is the owner's, unchanged: the tool's value increases
+  year by year, and the paid rungs ride the value ladder the owner
+  sets — it will keep rising as the
   work compounds. Grandfathering unchanged: buyers who paid before
   the move keep the price they paid, for the term they bought.
 - **2026-10-10 price move** (NIGHT-dinner-31, effective from the
   first release tag after that date): Business $2,199 →
   $5,199/year, Company $20,199 → $110,199/year; Individual holds
-  at $99/year. The rationale is the owner's, unchanged and
-  compounding: zejtron is a masterpiece, its value increases
-  year by year, and the business end of the ladder keeps climbing
+  at $99/year. The rationale is the owner's, unchanged:
+  the tool's value increases year by year, and the business end of
+  the ladder keeps climbing
   with it. Grandfathering unchanged: buyers who paid before the
   move keep the price they paid, for the term they bought.
 - **2026-09-30 price move** (NIGHT-dinner-25, effective from the
   first release tag after that date): Business $1,990 →
   $2,199/year, Company $14,990 → $20,199/year; Individual holds
   at $99/year. The rationale is the owner's, not the
-  comparables': zejtron is a masterpiece, and its value
-  increases year by year — the price follows the value, and the
+  comparables': the tool's value increases year by year — the price
+  follows the value, and the
   business end of the ladder will keep rising as the work
   compounds. Grandfathering unchanged: buyers who paid before
   the move keep the price they paid, for the term they bought.
