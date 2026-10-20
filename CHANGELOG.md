@@ -68,6 +68,13 @@ v11.0.0
   binary first, including the honest exception that `path
   <missing>` is a report (exit 0), not a failure.
 
+- The README now names the current version twice: once as the
+  canonical current-release line near the top, once as the TAG
+  variable in the install command. Everywhere else the prose refers
+  to "the current release" or "this alpha." The next version bump is
+  a single-line change to the canonical line and the TAG line — not
+  a grep across ten places. The boring part of boring-and-serious.
+
 ### Changed
 
 - 80.0.0-alpha.1 is the first public release of zejtron, and this
