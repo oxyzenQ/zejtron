@@ -175,9 +175,10 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
     // the status verdict rides the BOLD tiers (an affirmative verdict
     // is bold green, an "update available" attention verdict is bold
     // yellow - the sibling doctor's verdict seats), and the Source
-    // line's URL rides grey (navigational metadata, the scheme's
-    // footer role). In Mono every wrap is the identity, byte-identical
-    // to the plain shape.
+    // line's URL stays unwrapped like every other value on the rows -
+    // the sibling update surface renders the same four rows with the
+    // same plain URL, one byte shape across the family. In Mono every
+    // wrap is the identity, byte-identical to the plain shape.
     println!("{}", crate::output::banner("zejtron Update Check"));
     println!("Current: {}", normalize_version(current_version));
     println!("Latest:  {}", normalize_version(&latest_tag));
