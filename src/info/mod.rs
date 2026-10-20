@@ -114,7 +114,7 @@ fn version_body() -> String {
 ///
 /// ```text
 /// zejtron: vX.Y.Z
-/// Unified Linux introspection toolkit for paths, ports, processes, files, services, and diagnostics. Boring and serious.
+/// Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious.
 /// Build: linux-amd64-gnu (3ae9dda)
 /// Build-time: 10/17/2026 09:15 (UTC)
 /// Copyright: (c) 2026 rezky_nightky (oxyzenQ)

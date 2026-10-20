@@ -8,13 +8,7 @@
 <h1 align="center">zejtron</h1>
 
 <p align="center">
-  <strong>The Linux introspection command center. One binary, read-only, boring and serious.</strong>
-</p>
-
-<p align="center">
-  Trace commands, ports, process trees, file holders, service evidence, and host
-  readiness from one disciplined terminal interface — no daemon, no writes, no
-  guesswork, every timestamp in UTC.
+  <strong>Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious.</strong>
 </p>
 
 <div align="center">
