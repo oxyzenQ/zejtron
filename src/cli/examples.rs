@@ -17,18 +17,20 @@
 //!
 //! Colors (the two-color intent, applied through the tree's tier
 //! code - never raw ANSI): the verb token is the primary and rides
-//! the status-green tier ([`crate::output::ok`]), the example line
+//! the status-green tier ([`crate::output::ok_out`]), the example line
 //! around it is secondary and rides the calm-grey grammar tier
-//! ([`crate::output::grammar_grey`]). The capability law holds as
-//! everywhere on this surface: the paint gate is
-//! [`crate::cli::pro_mode::stdout_paintable`] (the one shared gate
-//! with the Pro mode section, the same two conditions clap's own
-//! help gate answers to), so a piped stdout and a NO_COLOR
-//! environment receive the exact plain bytes - the text survives,
-//! the color drops.
+//! ([`crate::output::grey_out`]) - the STDOUT-lane wrappers, because
+//! the help bytes speak through stdout and both the gate and the
+//! wrappers must answer to the same lane (night-improve-37's two-lane
+//! law). The capability law holds as everywhere on this surface: the
+//! paint gate is [`crate::cli::pro_mode::stdout_paintable`] (the one
+//! shared gate with the Pro mode section, the same two conditions
+//! clap's own help gate answers to), so a piped stdout and a NO_COLOR
+//! environment receive the exact plain bytes - the text survives, the
+//! color drops.
 
 use crate::cli::pro_mode::stdout_paintable;
-use crate::output::{grammar_grey, ok};
+use crate::output::{grey_out, ok_out};
 
 /// One verb's example: the verb token and the argument spelling that
 /// follows it - a verbatim invocation, no placeholders.
@@ -76,10 +78,10 @@ fn plain_invocation(verb: &str, args: &str) -> String {
 /// status-green tier and the argument spelling back on grey - the
 /// two-color intent rendered through the output ladder's tiers.
 fn painted_invocation(lead: &str, verb: &str, args: &str) -> String {
-    let mut line = grammar_grey(lead);
-    line.push_str(&ok(verb));
+    let mut line = grey_out(lead);
+    line.push_str(&ok_out(verb));
     if !args.is_empty() {
-        line.push_str(&grammar_grey(&format!(" {args}")));
+        line.push_str(&grey_out(&format!(" {args}")));
     }
     line
 }

@@ -29,7 +29,8 @@ pub fn run(
     let files = select_recent_files(scan_recent_files(path)?, limit, since, SystemTime::now());
 
     if files.is_empty() {
-        println!("no modified files found");
+        // The empty-result line rides grey (the "no events" class).
+        println!("{}", crate::output::grey_out("no modified files found"));
         return Ok(());
     }
 
@@ -56,14 +57,21 @@ pub fn run(
         .max()
         .unwrap_or(0);
 
-    println!("modified files:");
+    // Roles (night-improve-37): the section header rides green, the
+    // tree glyphs and the age column (timestamps) ride grey, the
+    // values (paths, sizes, owners, perms) stay unwrapped - white.
+    println!("{}", crate::output::ok_out("modified files:"));
     for (index, (path, age, meta)) in rows.iter().enumerate() {
         let prefix = if index + 1 == rows.len() {
             "└──"
         } else {
             "├──"
         };
-        println!("{prefix} {path:<width$}  {age}  {meta}");
+        println!(
+            "{p} {path:<width$}  {a}  {meta}",
+            p = crate::output::grey_out(prefix),
+            a = crate::output::grey_out(age)
+        );
     }
 
     Ok(())

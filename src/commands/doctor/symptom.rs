@@ -52,10 +52,16 @@ pub fn run(symptom: &str, raw: bool) -> Result<(), SymptomError> {
         )));
     }
     if symptom != IMPLEMENTED {
+        // The deferral line rides grey (the locked scheme's secondary
+        // content - an honest absence, not a verdict); the symptom
+        // names inside it are the values and stay unwrapped.
         println!(
-            "symptom '{symptom}' is not implemented in this version; only '{IMPLEMENTED}' is \
-             available. The remaining symptoms land in a future release (or a maintenance \
-             update after v80.0.0)."
+            "{}",
+            crate::output::grey_out(&format!(
+                "symptom '{symptom}' is not implemented in this version; only '{IMPLEMENTED}' is \
+                 available. The remaining symptoms land in a future release (or a maintenance \
+                 update after v80.0.0)."
+            ))
         );
         return Ok(());
     }

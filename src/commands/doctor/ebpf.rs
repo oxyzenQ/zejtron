@@ -142,9 +142,12 @@ fn pin_names() -> Vec<&'static str> {
 
 /// The pure row renderer - separated from [`section`] so the shape is
 /// unit-pinnable without probing the host. The alignment matches the
-/// doctor's table discipline: fixed label column, plain text, no
-/// color (the section is facts, not verdicts). Eight rows is the
-/// contract; the allow is the honest count, not an escape hatch.
+/// doctor's table discipline: fixed label column. Roles (night-
+/// improve-37): the section header and the row labels ride green
+/// (the field labels), the values stay unwrapped (white, the facts
+/// the user came for). In Mono every wrap is the identity - the
+/// plain bytes the shape shipped with. Eight rows is the contract;
+/// the allow is the honest count, not an escape hatch.
 #[allow(clippy::too_many_arguments)]
 fn format_section(
     feature: &str,
@@ -156,15 +159,26 @@ fn format_section(
     probes: &str,
     pins: &str,
 ) -> String {
-    let mut out = String::from("[eBPF]\n");
-    out.push_str(&format!("  Feature:     {feature}\n"));
-    out.push_str(&format!("  Kernel:      {kernel}\n"));
-    out.push_str(&format!("  BTF:         {btf}\n"));
-    out.push_str(&format!("  Lockdown:    {lockdown}\n"));
-    out.push_str(&format!("  Caps:        {caps}\n"));
-    out.push_str(&format!("  Lane:        {lane}\n"));
-    out.push_str(&format!("  Probes:      {probes}\n"));
-    out.push_str(&format!("  Pins:        {pins}"));
+    let mut out = String::new();
+    out.push_str(&crate::output::ok_out("[eBPF]"));
+    out.push('\n');
+    for (label, value) in [
+        ("  Feature:     ", feature),
+        ("  Kernel:      ", kernel),
+        ("  BTF:         ", btf),
+        ("  Lockdown:    ", lockdown),
+        ("  Caps:        ", caps),
+        ("  Lane:        ", lane),
+        ("  Probes:      ", probes),
+        ("  Pins:        ", pins),
+    ] {
+        out.push_str(&crate::output::ok_out(label));
+        out.push_str(value);
+        out.push('\n');
+    }
+    // The last row carries no trailing newline (the caller prints
+    // `{report}\n{section}`), so the loop's newline is trimmed.
+    out.truncate(out.len() - 1);
     out
 }
 

@@ -91,6 +91,16 @@ impl EvidenceRow {
     /// the report - it keeps the ` (UTC)` suffix the clock module
     /// emits; every row after it drops the suffix (the column was
     /// declared once).
+    ///
+    /// Roles (night-improve-37, the locked scheme): the timestamp
+    /// column rides the grey tier (secondary content), the action and
+    /// actor stay unwrapped (the values - the facts the user came
+    /// for), and the provenance tag rides the strongest-evidence
+    /// split: `[observed]` and `[measured]` are green (the strongest
+    /// evidence), `[inferred]` and `[unaccounted]` grey (the weaker
+    /// evidence). The tag is the last token on the line, exactly four
+    /// tiers, unchanged. In Mono every wrap is the identity - the
+    /// plain bytes the tests pin.
     pub fn render_line(&self, mark_utc: bool) -> String {
         let timestamp = match self.unix_secs {
             Some(secs) => {
@@ -105,11 +115,16 @@ impl EvidenceRow {
             }
             None => "unknown".to_owned(),
         };
+        let tag = format!("[{}]", self.provenance.tag());
+        let tag = match self.provenance {
+            Provenance::Observed | Provenance::Measured => crate::output::ok_out(&tag),
+            Provenance::Inferred | Provenance::Unaccounted => crate::output::grey_out(&tag),
+        };
         format!(
-            "{timestamp}  {}  {}  [{}]",
+            "{}  {}  {}  {tag}",
+            crate::output::grey_out(&timestamp),
             self.action,
-            self.actor,
-            self.provenance.tag()
+            self.actor
         )
     }
 }

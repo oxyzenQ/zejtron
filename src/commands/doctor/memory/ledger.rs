@@ -23,9 +23,21 @@ const RESIDUAL_PCT_THRESHOLD: u64 = 15;
 const TOP_N: usize = 10;
 
 pub(crate) fn render(sample: &MemorySample, raw: bool) -> String {
+    // Roles (night-improve-37): the section headers and field labels
+    // ride green, the mode line / hints / annotations ride grey, the
+    // provenance tags ride the evidence split (green for [measured],
+    // grey for [unaccounted]), and the values (sizes, PIDs, comms,
+    // percentages) stay unwrapped - white, the terminal default. In
+    // Mono every wrap is the identity, byte-identical to the pinned
+    // shape.
     let mut lines: Vec<String> = Vec::new();
-    lines.push("Evidence report: memory / ram".to_owned());
-    lines.push("Mode: snapshot (this symptom does not need eBPF)".to_owned());
+    lines.push(format!(
+        "{} memory / ram",
+        crate::output::ok_out("Evidence report:")
+    ));
+    lines.push(crate::output::grey_out(
+        "Mode: snapshot (this symptom does not need eBPF)",
+    ));
     lines.push(String::new());
     render_memory_header(sample, &mut lines);
     render_pss(sample, &mut lines);
@@ -87,7 +99,10 @@ fn label_width(labels: &[String], floor: usize, cap: usize) -> usize {
 
 fn render_memory_header(sample: &MemorySample, lines: &mut Vec<String>) {
     let Some(mem) = &sample.meminfo else {
-        lines.push("Memory total: unknown (/proc/meminfo unreadable)".to_owned());
+        // The absence line rides grey (the "no events" class).
+        lines.push(crate::output::grey_out(
+            "Memory total: unknown (/proc/meminfo unreadable)",
+        ));
         lines.push(String::new());
         return;
     };
@@ -99,17 +114,32 @@ fn render_memory_header(sample: &MemorySample, lines: &mut Vec<String>) {
     } else {
         (used as f64 / total as f64 * 100.0).round() as u64
     };
-    lines.push(format!("Memory total: {}", fmt_bytes(total)));
+    // Field labels ride green; the sizes are the values and stay
+    // unwrapped; the parenthesized percentage keeps its number
+    // unwrapped with the surrounding words grey.
     lines.push(format!(
-        "Memory used:  {}  ({pct}% of total)",
-        fmt_bytes(used)
+        "{} {}",
+        crate::output::ok_out("Memory total:"),
+        fmt_bytes(total)
     ));
-    lines.push(format!("Memory avail: {}", fmt_bytes(avail)));
+    lines.push(format!(
+        "{}  {}{}{}{}",
+        crate::output::ok_out("Memory used:"),
+        fmt_bytes(used),
+        crate::output::grey_out("  ("),
+        pct,
+        crate::output::grey_out("% of total)")
+    ));
+    lines.push(format!(
+        "{} {}",
+        crate::output::ok_out("Memory avail:"),
+        fmt_bytes(avail)
+    ));
     lines.push(String::new());
 }
 
 fn render_pss(sample: &MemorySample, lines: &mut Vec<String>) {
-    lines.push("Per-process PSS (top 10):".to_owned());
+    lines.push(crate::output::ok_out("Per-process PSS (top 10):"));
     let rows: Vec<&super::ProcessPss> = sample
         .pss
         .iter()
@@ -117,7 +147,7 @@ fn render_pss(sample: &MemorySample, lines: &mut Vec<String>) {
         .take(TOP_N)
         .collect();
     if rows.is_empty() {
-        lines.push("  (none observed)".to_owned());
+        lines.push(format!("  {}", crate::output::grey_out("(none observed)")));
         lines.push(String::new());
         return;
     }
@@ -127,20 +157,32 @@ fn render_pss(sample: &MemorySample, lines: &mut Vec<String>) {
         .collect();
     let width = label_width(&labels, 24, 44);
     for row in &rows {
+        // The padded actor cell is the value (white, unwrapped); the
+        // PSS/anon/shmem/file keys ride grey with their sizes
+        // unwrapped; the [measured] tag rides green (the strongest
+        // evidence). Pad first, color second. The separators ride
+        // inside the grey key tokens (the leading comma-space of the
+        // shmem/file keys), so the Mono bytes stay identical to the
+        // locked shape - no doubled commas, no moved spaces.
         lines.push(format!(
-            "  {}PSS {}  (anon {}, shmem {}, file {})  [measured]",
+            "  {}{}{}  ({}{}{}{}{}{})  {}",
             pad(&format!("PID {} ({})", row.pid, row.name), width),
+            crate::output::grey_out("PSS "),
             fmt_bytes(kib_to_bytes(row.pss_kib)),
+            crate::output::grey_out("anon "),
             fmt_bytes(kib_to_bytes(row.anon_kib)),
+            crate::output::grey_out(", shmem "),
             fmt_bytes(kib_to_bytes(row.shmem_kib)),
+            crate::output::grey_out(", file "),
             fmt_bytes(kib_to_bytes(row.file_kib)),
+            crate::output::ok_out("[measured]"),
         ));
     }
     lines.push(String::new());
 }
 
 fn render_tmpfs(sample: &MemorySample, lines: &mut Vec<String>) {
-    lines.push("Tmpfs (files in RAM, top 10):".to_owned());
+    lines.push(crate::output::ok_out("Tmpfs (files in RAM, top 10):"));
     let with_size: Vec<&TmpfsFile> = sample
         .tmpfs_files
         .iter()
@@ -148,12 +190,9 @@ fn render_tmpfs(sample: &MemorySample, lines: &mut Vec<String>) {
         .take(TOP_N)
         .collect();
     if with_size.is_empty() {
-        lines.push("  (none observed)".to_owned());
+        lines.push(format!("  {}", crate::output::grey_out("(none observed)")));
         if sample.tmpfs_unreadable_dirs > 0 {
-            lines.push(format!(
-                "  {} tmpfs directories were unreadable (permission) and are not represented",
-                sample.tmpfs_unreadable_dirs
-            ));
+            lines.push(grey_unreadable_dirs(sample.tmpfs_unreadable_dirs));
         }
         lines.push(String::new());
         return;
@@ -161,26 +200,35 @@ fn render_tmpfs(sample: &MemorySample, lines: &mut Vec<String>) {
     let labels: Vec<String> = with_size.iter().map(|f| f.path.clone()).collect();
     let width = label_width(&labels, 24, 60);
     for file in &with_size {
+        // The path and size are the values (white, unwrapped); the
+        // holders label rides grey (an annotation); the [measured]
+        // tag rides green.
         lines.push(format!(
-            "  {}{}  {}  [measured]",
+            "  {}{}  {}  {}",
             pad(&file.path, width),
             fmt_bytes(file.size_bytes),
-            holders_label(file),
+            crate::output::grey_out(&holders_label(file)),
+            crate::output::ok_out("[measured]"),
         ));
     }
     if sample.tmpfs_unreadable_dirs > 0 {
-        lines.push(format!(
-            "  {} tmpfs directories were unreadable (permission) and are not represented",
-            sample.tmpfs_unreadable_dirs
-        ));
+        lines.push(grey_unreadable_dirs(sample.tmpfs_unreadable_dirs));
     }
     lines.push(String::new());
 }
 
+/// The unreadable-directories note, rendered grey (a hint, the
+/// locked scheme's secondary content). One builder, two call sites.
+fn grey_unreadable_dirs(count: usize) -> String {
+    crate::output::grey_out(&format!(
+        "  {count} tmpfs directories were unreadable (permission) and are not represented"
+    ))
+}
+
 fn render_deleted(sample: &MemorySample, lines: &mut Vec<String>) {
-    lines.push("Deleted-but-open files:".to_owned());
+    lines.push(crate::output::ok_out("Deleted-but-open files:"));
     if sample.deleted.is_empty() {
-        lines.push("  (none observed)".to_owned());
+        lines.push(format!("  {}", crate::output::grey_out("(none observed)")));
         lines.push(String::new());
         return;
     }
@@ -195,26 +243,29 @@ fn render_deleted(sample: &MemorySample, lines: &mut Vec<String>) {
             Some(bytes) => fmt_bytes(bytes),
             None => "unknown".to_owned(),
         };
+        // The actor cell, size, and path are the values (white,
+        // unwrapped); the [measured] tag rides green.
         lines.push(format!(
-            "  {}{}  {}  [measured]",
+            "  {}{}  {}  {}",
             pad(&format!("PID {} ({})", file.pid, file.name), width),
             size,
             file.path,
+            crate::output::ok_out("[measured]"),
         ));
     }
     if sample.deleted.len() > TOP_N {
-        lines.push(format!(
+        lines.push(crate::output::grey_out(&format!(
             "  ({} more deleted-but-open files, not rendered)",
             sample.deleted.len() - TOP_N
-        ));
+        )));
     }
     lines.push(String::new());
 }
 
 fn render_memfds(sample: &MemorySample, lines: &mut Vec<String>) {
-    lines.push("Memfd files:".to_owned());
+    lines.push(crate::output::ok_out("Memfd files:"));
     if sample.memfds.is_empty() {
-        lines.push("  (none observed)".to_owned());
+        lines.push(format!("  {}", crate::output::grey_out("(none observed)")));
         lines.push(String::new());
         return;
     }
@@ -230,10 +281,11 @@ fn render_memfds(sample: &MemorySample, lines: &mut Vec<String>) {
             None => "unknown".to_owned(),
         };
         lines.push(format!(
-            "  {}{}  {}  [measured]",
+            "  {}{}  {}  {}",
             pad(&format!("PID {} ({})", file.pid, file.name), width),
             size,
             file.target,
+            crate::output::ok_out("[measured]"),
         ));
     }
     lines.push(String::new());
@@ -247,38 +299,46 @@ fn render_kernel_buckets(sample: &MemorySample, lines: &mut Vec<String>) {
     // The three kernel-level buckets render flush-left, exactly as
     // the locked shape shows them - they are totals, not rows under
     // a header, and the reclaimable story is the point of the line.
+    // The labels ride green (field labels), the sizes are the values
+    // (unwrapped), the [measured] tags ride green.
     lines.push(format!(
-        "Page cache (reclaimable):        {page_cache}  [measured]"
+        "{}{page_cache}  {}",
+        crate::output::ok_out("Page cache (reclaimable):        "),
+        crate::output::ok_out("[measured]")
     ));
     lines.push(format!(
-        "Buffers:                         {}  [measured]",
-        fmt_bytes(kib_to_bytes(mem.buffers_kib))
+        "{}{}  {}",
+        crate::output::ok_out("Buffers:                         "),
+        fmt_bytes(kib_to_bytes(mem.buffers_kib)),
+        crate::output::ok_out("[measured]")
     ));
     lines.push(format!(
-        "Shmem:                           {}  [measured]",
-        fmt_bytes(kib_to_bytes(mem.shmem_kib))
+        "{}{}  {}",
+        crate::output::ok_out("Shmem:                           "),
+        fmt_bytes(kib_to_bytes(mem.shmem_kib)),
+        crate::output::ok_out("[measured]")
     ));
     lines.push(String::new());
 }
 
 fn render_slab(sample: &MemorySample, lines: &mut Vec<String>) {
-    lines.push("Slab:".to_owned());
+    lines.push(crate::output::ok_out("Slab:"));
     if !sample.slab_readable {
-        lines.push(
+        lines.push(crate::output::grey_out(
             "  unavailable (/proc/slabinfo is not readable by this user; the \
-             reclaimable/unreclaimable totals above still carry the slab total)"
-                .to_owned(),
-        );
+             reclaimable/unreclaimable totals above still carry the slab total)",
+        ));
     } else if sample.slab.is_empty() {
-        lines.push("  (none observed)".to_owned());
+        lines.push(format!("  {}", crate::output::grey_out("(none observed)")));
     } else {
         let labels: Vec<String> = sample.slab.iter().map(|r| r.cache.clone()).collect();
         let width = label_width(&labels, 12, 44);
         for row in &sample.slab {
             lines.push(format!(
-                "  {}{}  [measured]",
+                "  {}{}  {}",
                 pad(&row.cache, width),
                 fmt_bytes(kib_to_bytes(row.size_kib)),
+                crate::output::ok_out("[measured]"),
             ));
         }
     }
@@ -286,19 +346,28 @@ fn render_slab(sample: &MemorySample, lines: &mut Vec<String>) {
 }
 
 fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
-    lines.push("Unaccounted:".to_owned());
+    lines.push(crate::output::ok_out("Unaccounted:"));
     match residual_kib(sample) {
         Some(residual) => {
+            // The residual size is the value (unwrapped); the boundary
+            // text and the [unaccounted] tag ride grey (the weaker
+            // evidence, the locked scheme's secondary content).
             lines.push(format!(
-                "  {} not attributable to the categories above (kernel, drivers, \
-                 page tables, reserved regions)  [unaccounted]",
-                fmt_bytes(kib_to_bytes(residual))
+                "  {} {}  {}",
+                fmt_bytes(kib_to_bytes(residual)),
+                crate::output::grey_out(
+                    "not attributable to the categories above (kernel, drivers, \
+                     page tables, reserved regions)"
+                ),
+                crate::output::grey_out("[unaccounted]"),
             ));
         }
         None => {
-            lines.push(
-                "  the residual is unknown (/proc/meminfo unreadable)  [unaccounted]".to_owned(),
-            );
+            lines.push(format!(
+                "  {}  {}",
+                crate::output::grey_out("the residual is unknown (/proc/meminfo unreadable)"),
+                crate::output::grey_out("[unaccounted]"),
+            ));
         }
     }
     // The post-exit attribution loss, named always (night-improve-34):
@@ -306,45 +375,61 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
     // allocated memory and exited before this snapshot cannot be
     // attributed any more. The report names the cost plainly -
     // zejtron is a read-only detective, not a monitor - and leaves
-    // the trade-off where the reader can weigh it.
-    lines.push(
-        "  processes that allocated memory and exited before this snapshot: \
-         attribution lost (zejtron does not watch process lifecycles - it is \
-         a read-only detective, not a monitor)  [unaccounted]"
-            .to_owned(),
-    );
+    // the trade-off where the reader can weigh it. The text rides
+    // grey (a boundary note); the [unaccounted] tag rides grey with
+    // it (the weakest evidence).
+    lines.push(format!(
+        "  {}  {}",
+        crate::output::grey_out(
+            "processes that allocated memory and exited before this snapshot: \
+             attribution lost (zejtron does not watch process lifecycles - it is \
+             a read-only detective, not a monitor)"
+        ),
+        crate::output::grey_out("[unaccounted]"),
+    ));
     // The permission boundaries, named always - a report that only
     // mentions them when they fired would read as "everything was
-    // visible" on the runs where they did not fire.
+    // visible" on the runs where they did not fire. The text rides
+    // grey (boundary notes); the counts stay unwrapped - the values.
     if sample.pss_permission_refused > 0 {
         lines.push(format!(
-            "  {} processes' smaps_rollup unreadable (permission) - their memory \
-             rides the residual above",
-            sample.pss_permission_refused
+            "  {} {}",
+            sample.pss_permission_refused,
+            crate::output::grey_out(
+                "processes' smaps_rollup unreadable (permission) - their memory \
+                 rides the residual above"
+            )
         ));
     }
     if sample.pss_vanished > 0 {
         lines.push(format!(
-            "  {} processes exited or emptied mid-scan - their memory rides the \
-             residual above",
-            sample.pss_vanished
+            "  {} {}",
+            sample.pss_vanished,
+            crate::output::grey_out(
+                "processes exited or emptied mid-scan - their memory rides the \
+                 residual above"
+            )
         ));
     }
     if sample.fd_permission_refused > 0 {
         lines.push(format!(
-            "  {} processes' fd tables unreadable (permission) - the tmpfs holder \
-             list names only the holders visible to this user",
-            sample.fd_permission_refused
+            "  {} {}",
+            sample.fd_permission_refused,
+            crate::output::grey_out(
+                "processes' fd tables unreadable (permission) - the tmpfs holder \
+                 list names only the holders visible to this user"
+            )
         ));
     }
     lines.push(String::new());
 }
 
 fn render_verdict(sample: &MemorySample, lines: &mut Vec<String>) {
-    lines.push("Verdict:".to_owned());
+    lines.push(crate::output::ok_out("Verdict:"));
 
     // Line 1: the largest single consumer, always named when the
-    // data allowed one.
+    // data allowed one. The verdict text is the report's content and
+    // stays unwrapped (white, the values it is composed of).
     match sample.pss.first() {
         Some(top) => lines.push(format!(
             "  The largest single consumer is {} ({} PSS).",
@@ -415,7 +500,9 @@ fn render_verdict(sample: &MemorySample, lines: &mut Vec<String>) {
     }
 
     if findings == 0 {
-        lines.push("  No anomalous consumer detected.".to_owned());
+        // The absence verdict rides grey (the "no events" class -
+        // the same honesty an empty window gets).
+        lines.push(crate::output::grey_out("  No anomalous consumer detected."));
     }
 }
 
@@ -423,41 +510,56 @@ fn render_verdict(sample: &MemorySample, lines: &mut Vec<String>) {
 /// Appended after the verdict; never rendered unless asked.
 fn render_raw(sample: &MemorySample, lines: &mut Vec<String>) {
     lines.push(String::new());
-    lines.push("Raw /proc reads (drill-down):".to_owned());
+    // The drill-down header rides green (the section header); the
+    // section keys ride grey (secondary content) and the verbatim
+    // kernel lines stay unwrapped - they are the bytes the report
+    // rode on, quoted, never repainted.
+    lines.push(crate::output::ok_out("Raw /proc reads (drill-down):"));
     match std::fs::read_to_string("/proc/meminfo") {
         Ok(contents) => {
-            lines.push("  /proc/meminfo:".to_owned());
+            lines.push(crate::output::grey_out("  /proc/meminfo:"));
             for line in contents.lines() {
                 lines.push(format!("    {line}"));
             }
         }
-        Err(e) => lines.push(format!("  /proc/meminfo: unreadable ({e})")),
+        Err(e) => lines.push(crate::output::grey_out(&format!(
+            "  /proc/meminfo: unreadable ({e})"
+        ))),
     }
-    lines.push("  /proc/<pid>/smaps_rollup (top 10 by Pss, verbatim):".to_owned());
+    lines.push(crate::output::grey_out(
+        "  /proc/<pid>/smaps_rollup (top 10 by Pss, verbatim):",
+    ));
     for row in sample.pss.iter().take(TOP_N) {
-        lines.push(format!("    == PID {} ({}) ==", row.pid, row.name));
+        lines.push(crate::output::grey_out(&format!(
+            "    == PID {} ({}) ==",
+            row.pid, row.name
+        )));
         match std::fs::read_to_string(format!("/proc/{}/smaps_rollup", row.pid)) {
             Ok(contents) => {
                 for line in contents.lines() {
                     lines.push(format!("      {line}"));
                 }
             }
-            Err(e) => lines.push(format!("      unreadable at render time ({e})")),
+            Err(e) => lines.push(crate::output::grey_out(&format!(
+                "      unreadable at render time ({e})"
+            ))),
         }
     }
-    lines.push("  /proc/mounts (tmpfs entries):".to_owned());
+    lines.push(crate::output::grey_out("  /proc/mounts (tmpfs entries):"));
     match std::fs::read_to_string("/proc/mounts") {
         Ok(contents) => {
             let entries = super::parse_tmpfs_mounts_entries(&contents);
             if entries.is_empty() {
-                lines.push("    (no tmpfs mounts observed)".to_owned());
+                lines.push(crate::output::grey_out("    (no tmpfs mounts observed)"));
             } else {
                 for entry in entries {
                     lines.push(format!("    {entry}"));
                 }
             }
         }
-        Err(e) => lines.push(format!("    /proc/mounts unreadable ({e})")),
+        Err(e) => lines.push(crate::output::grey_out(&format!(
+            "    /proc/mounts unreadable ({e})"
+        ))),
     }
 }
 

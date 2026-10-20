@@ -104,9 +104,18 @@ impl UnaccountedEntry {
         }
     }
 
-    /// Render the entry line (no leading indent).
+    /// Render the entry line (no leading indent). Roles
+    /// (night-improve-37): the count and the category stay unwrapped
+    /// (the values - what the report cannot see, and how much of it),
+    /// the parenthesized reason rides the grey tier (the hint - the
+    /// boundary advice). In Mono the wrap is the identity.
     pub fn render_line(&self) -> String {
-        format!("{} {} ({})", self.count, self.category, self.reason)
+        format!(
+            "{} {} ({})",
+            self.count,
+            self.category,
+            crate::output::grey_out(&self.reason)
+        )
     }
 }
 

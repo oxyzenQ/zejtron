@@ -371,7 +371,11 @@ fn format_window_report(
     events: &[SockEvent],
 ) -> String {
     let mut lines = Vec::new();
-    lines.push(format!("Ports (window {}):", window_label(options.window)));
+    // The window header rides green (the section header).
+    lines.push(crate::output::ok_out(&format!(
+        "Ports (window {}):",
+        window_label(options.window)
+    )));
     lines.push(String::new());
     lines.extend(snapshot_rows(sockets, owners, options));
     lines.push(String::new());
@@ -451,8 +455,16 @@ fn snapshot_row(
     } else {
         format!("{}:{}", socket.address, socket.port)
     };
+    // Roles (night-improve-37): the [snapshot] tag rides grey - the
+    // manual check pins it there, and it is the weaker evidence (a
+    // /proc parse at this instant); the protocol, endpoint, state,
+    // and owner tokens are the values and stay unwrapped; the group
+    // count rides grey (an annotation); the owner-absence token rides
+    // grey (the "no events" class). In Mono every wrap is the
+    // identity, byte-identical to the pinned shape.
     let mut row = format!(
-        "[snapshot]  {}  {}",
+        "{}  {}  {}",
+        crate::output::grey_out("[snapshot]"),
         match protocol {
             Protocol::Tcp => "TCP",
             Protocol::Udp => "UDP",
@@ -464,10 +476,13 @@ fn snapshot_row(
         row.push_str(state);
     }
     if let Some(count) = group_count.filter(|count| *count > 1) {
-        row.push_str(&format!(" ×{count}"));
+        row.push_str(&format!(
+            " {}",
+            crate::output::grey_out(&format!("×{count}"))
+        ));
     }
     if owners.is_empty() {
-        row.push_str("  owner unknown");
+        row.push_str(&format!("  {}", crate::output::grey_out("owner unknown")));
     } else {
         let names: Vec<&str> = owners.iter().map(|o| o.name.as_str()).collect();
         if options.no_pid {
@@ -475,7 +490,8 @@ fn snapshot_row(
         } else {
             let pids: Vec<String> = owners.iter().map(|o| o.pid.to_string()).collect();
             row.push_str(&format!(
-                "  PID {}  ({})",
+                "  {} {}  ({})",
+                crate::output::grey_out("PID"),
                 pids.join(", "),
                 names.join(", ")
             ));
@@ -492,7 +508,11 @@ fn snapshot_row(
 /// the query.
 pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool) -> String {
     let mut lines = Vec::new();
-    lines.push(format!("Changes in the last {}:", window_label(window)));
+    // The Changes header rides green (the section header).
+    lines.push(crate::output::ok_out(&format!(
+        "Changes in the last {}:",
+        window_label(window)
+    )));
 
     let mut unaccounted: usize = 0;
     let mut rows: Vec<String> = Vec::new();
@@ -513,12 +533,19 @@ pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool
         let pid_part = if no_pid {
             String::new()
         } else {
-            format!("  PID {}", event.pid)
+            format!("  {} {}", crate::output::grey_out("PID"), event.pid)
         };
+        // Roles: the [event] tag rides green (the kernel-recorded
+        // transition, the strongest evidence this surface carries),
+        // the event time rides grey (a timestamp), the protocol,
+        // port, transition label, pid, and name stay unwrapped (the
+        // values).
         rows.push(format!(
-            "[event]  {}  {}  *:{}  {}{}  ({})",
-            event_time_of_day(event),
+            "{}  {}  {}  {}:{}  {}{}  ({})",
+            crate::output::ok_out("[event]"),
+            crate::output::grey_out(&event_time_of_day(event)),
             proto,
+            "*",
             event.sport,
             label,
             pid_part,
@@ -527,20 +554,29 @@ pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool
     }
 
     if rows.is_empty() {
-        lines.push("  (no events in the window)".to_owned());
+        // The empty-window line rides grey (the locked scheme names
+        // it explicitly).
+        lines.push(crate::output::grey_out("  (no events in the window)"));
     } else {
         lines.extend(rows);
     }
 
     lines.push(String::new());
-    lines.push("Unaccounted:".to_owned());
+    lines.push(crate::output::ok_out("Unaccounted:"));
+    // The boundary notes ride grey (hints, the locked scheme's
+    // secondary content); the count is the value and stays unwrapped
+    // - the same count-white/reason-grey split the ledger's
+    // UnaccountedEntry rows apply.
     lines.push(format!(
-        "  {unaccounted} events in the window with no visible PID (namespace boundary or\n  exited before attribution)"
+        "{}{unaccounted}{}",
+        crate::output::grey_out("  "),
+        crate::output::grey_out(
+            " events in the window with no visible PID (namespace boundary or\n  exited before attribution)"
+        )
     ));
-    lines.push(
-        "  Snapshot and event window can disagree - that is the point; the\n  snapshot is the state at this instant, the window is what changed."
-            .to_owned(),
-    );
+    lines.push(crate::output::grey_out(
+        "  Snapshot and event window can disagree - that is the point; the\n  snapshot is the state at this instant, the window is what changed.",
+    ));
     lines.join("\n")
 }
 

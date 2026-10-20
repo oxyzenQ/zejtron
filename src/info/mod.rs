@@ -74,33 +74,60 @@ fn build_hash() -> &'static str {
     option_env!("ZEJTRON_GIT_HASH").unwrap_or("unknown")
 }
 
-/// The plain-text body of the version report (everything after the
-/// brand header). Separated from [`print_version_report`] so tests
-/// can assert the full line set without capturing stdout. Every line
-/// stays plain text - grep-clean for scripts (`zejtron -V | grep
-/// Build-time`), the header carries the brand color, never the body.
+/// The body of the version report (everything after the brand
+/// header). Separated from [`print_version_report`] so tests can
+/// assert the full line set without capturing stdout.
+///
+/// Roles (night-improve-37): the field labels ride green, the values
+/// stay unwrapped (white, the terminal default), and the two
+/// metadata tokens ride grey - Build-time is a timestamp, Source is
+/// navigational metadata. The License line wraps WHOLE: the literal
+/// is one contiguous rodata string the release lanes grep out of
+/// `strings` output, so it never splits into label + value (the
+/// label's green carries the line; the contiguity contract outranks
+/// the label/value split). In Mono every wrap is the identity, so
+/// piped output stays byte-identical to the plain shape - grep-clean
+/// for scripts (`zejtron -V | grep Build-time`).
 fn version_body() -> String {
-    format!(
-        "Build: {} ({})\n\
-         Build-time: {}\n\
-         Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
-         {LICENSE_LINE}\n\
-         Source: https://github.com/oxyzenQ/zejtron",
-        build_label(),
-        build_hash(),
-        build_time(),
-    )
+    [
+        format!(
+            "{} {} ({})",
+            crate::output::ok_out("Build:"),
+            build_label(),
+            build_hash()
+        ),
+        format!(
+            "{} {}",
+            crate::output::ok_out("Build-time:"),
+            crate::output::grey_out(build_time())
+        ),
+        format!(
+            "{} {}",
+            crate::output::ok_out("Copyright:"),
+            "(c) 2026 rezky_nightky (oxyzenQ)"
+        ),
+        crate::output::ok_out(LICENSE_LINE),
+        format!(
+            "{} {}",
+            crate::output::ok_out("Source:"),
+            crate::output::grey_out("https://github.com/oxyzenQ/zejtron")
+        ),
+    ]
+    .join("\n")
 }
 
 /// Print the full version report for `-V` / `--version`.
 ///
-/// The sibling's masterclass layout: brand header (name + version,
-/// then the one-line description), followed by plain build facts. The
-/// header is rendered in brand purple #A855F7 (regular weight, the
-/// same RGB the clap lane paints) on a TTY, degrading through the
-/// 256-color tier; when piped (non-TTY) everything is plain text so
-/// ANSI codes never leak into scripts or log files. The build-facts
-/// body is always plain.
+/// The sibling's masterclass layout: brand header (the name token,
+/// the version value, then the one-line description), followed by the
+/// build facts. The name rides brand purple #A855F7 (regular weight,
+/// the same RGB the clap lane paints) - the tier's one runtime seat -
+/// the version value stays white, and the description line rides
+/// grey (metadata, the locked scheme's secondary content). Paint
+/// decisions anchor on the STDOUT lane (the surface speaks through
+/// stdout), so piped output renders plain bytes and ANSI codes never
+/// leak into scripts or log files; `CLICOLOR_FORCE=1` re-arms the
+/// lane for captured runs.
 ///
 /// ```text
 /// zejtron: vX.Y.Z
@@ -113,12 +140,12 @@ fn version_body() -> String {
 /// ```
 pub mod clock;
 pub fn print_version_report() {
-    let header = format!(
-        "{NAME}: v{}\n{}",
-        env!("CARGO_PKG_VERSION"),
-        env!("CARGO_PKG_DESCRIPTION")
+    println!(
+        "{} v{}",
+        crate::output::brand_out(&format!("{NAME}:")),
+        env!("CARGO_PKG_VERSION")
     );
-    println!("{}", crate::output::brand(&header));
+    println!("{}", crate::output::grey_out(env!("CARGO_PKG_DESCRIPTION")));
     println!("{}", version_body());
 }
 

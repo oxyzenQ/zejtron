@@ -28,6 +28,7 @@ use crate::evidence::{ChangesSection, EvidenceReport, Mode, UnaccountedEntry, Ve
 
 use super::super::holds::{self, Holder, ScanStats};
 use super::super::touch::{self, TouchInfo};
+use super::raw::raw_section;
 use crate::commands::lane::{self, LaneQuery, OpFilter, device_token_from_stat};
 use crate::system::{read_cmdline, read_systemd_unit};
 
@@ -482,7 +483,14 @@ fn port_cannot_line(stats: &ScanStats) -> String {
 /// class of rows present, each naming its probe, parser, or
 /// fallback.
 fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
-    let mut lines = vec!["How zejtron knows:".to_owned()];
+    // Roles (night-improve-37): the header rides green (the section
+    // header); the rows are the explainability hints and ride grey,
+    // with their [measured]/[observed]/[inferred] tags painted by the
+    // evidence split (green for the strongest, grey for the weaker).
+    let measured_tag = crate::output::ok_out("[measured]");
+    let observed_tag = crate::output::ok_out("[observed]");
+    let inferred_tag = crate::output::grey_out("[inferred]");
+    let mut lines = vec![crate::output::ok_out("How zejtron knows:")];
     let holder_rows = report
         .measured
         .iter()
@@ -490,8 +498,9 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
         .count();
     if holder_rows > 0 {
         lines.push(format!(
-            "  {holder_rows} [measured] holder rows: /proc/<pid>/fd + /proc/<pid>/maps \
-             scan at the instant of this query"
+            "  {holder_rows} {} holder rows: /proc/<pid>/fd + /proc/<pid>/maps \
+             scan at the instant of this query",
+            measured_tag
         ));
     }
     let enrich_rows = report
@@ -501,13 +510,15 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
         .count();
     if enrich_rows > 0 {
         lines.push(format!(
-            "  {enrich_rows} [measured] enrichment rows: /proc/<pid>/cgroup (systemd unit) \
-             + /proc/<pid>/cmdline"
+            "  {enrich_rows} {} enrichment rows: /proc/<pid>/cgroup (systemd unit) \
+             + /proc/<pid>/cmdline",
+            measured_tag
         ));
     }
     if meta_rows > 0 {
         lines.push(format!(
-            "  {meta_rows} [measured] metadata rows: stat(2) on the queried path"
+            "  {meta_rows} {} metadata rows: stat(2) on the queried path",
+            measured_tag
         ));
     }
     if !report.changes.rows.is_empty() || report.changes.unavailable {
@@ -520,57 +531,30 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
         let inferred = report.changes.rows.len() - observed;
         if observed > 0 {
             lines.push(format!(
-                "  {observed} [observed] event rows: vfs_open/vfs_write kprobe -> \
+                "  {observed} {} event rows: vfs_open/vfs_write kprobe -> \
                  tracked_inodes filter -> file_events ring; CLOCK_MONOTONIC stamps \
-                 rendered via /proc/uptime + wall offset"
+                 rendered via /proc/uptime + wall offset",
+                observed_tag
             ));
         }
         if inferred > 0 {
             lines.push(format!(
-                "  {inferred} [inferred] event rows: audit.log SYSCALL+PATH records (or \
-                 journalctl export --grep), replayed - the log's latest record"
+                "  {inferred} {} event rows: audit.log SYSCALL+PATH records (or \
+                 journalctl export --grep), replayed - the log's latest record",
+                inferred_tag
             ));
         }
         if report.changes.unavailable {
-            lines.push(
+            lines.push(crate::output::grey_out(
                 "  the unavailability line: no event lane could serve this run - the \
-                 doctor's [eBPF] section names the exact reason"
-                    .to_owned(),
-            );
-        }
-    }
-    lines.push(
-        "  Unaccounted and the verdict: composed from the rows above - nothing else".to_owned(),
-    );
-    format!("\n{}", lines.join("\n"))
-}
-
-/// The --raw section: the kernel's own records as drained, before
-/// the surface filter and before attribution.
-fn raw_section(parts: &lane::LaneParts) -> String {
-    {
-        if parts.raw.is_empty() {
-            return "\nRaw kernel events (file_events ring, as drained):\n  (none - the \
-                    event lane is not live in this run, or the window held nothing)"
-                .to_owned();
-        }
-        let mut lines = vec![
-            "Raw kernel events (file_events ring, as drained; CLOCK_MONOTONIC ns):".to_owned(),
-        ];
-        for event in &parts.raw {
-            let op = match event.op {
-                crate::ebpf::events::FILE_OP_OPEN => "open",
-                crate::ebpf::events::FILE_OP_WRITE => "write",
-                crate::ebpf::events::FILE_OP_UNLINK => "unlink",
-                _ => "unknown",
-            };
-            lines.push(format!(
-                "  {} op={op} inode={} device={:#x} pid={}",
-                event.timestamp_ns, event.inode, event.device, event.pid
+                 doctor's [eBPF] section names the exact reason",
             ));
         }
-        format!("\n{}", lines.join("\n"))
     }
+    lines.push(crate::output::grey_out(
+        "  Unaccounted and the verdict: composed from the rows above - nothing else",
+    ));
+    format!("\n{}", lines.join("\n"))
 }
 
 #[cfg(test)]

@@ -155,22 +155,42 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
         );
     }
     // The status word is a verdict token, so it rides the owner's
-    // tier colors: an affirmative "up to date" verdict is green, an
-    // "update available" attention verdict is warning yellow, and
-    // the informational "current is newer" curiosity state stays
-    // plain - it asks for no action. In Mono mode (piped, NO_COLOR)
-    // all three render as their plain text.
+    // tier colors on the STDOUT lane (the surface speaks through
+    // stdout, night-improve-37's two-lane law): an affirmative "up
+    // to date" verdict is green, an "update available" attention
+    // verdict is warning yellow, and the informational "current is
+    // newer" curiosity state stays plain - it asks for no action.
+    // In Mono mode (piped, NO_COLOR) all three render as their
+    // plain text.
     let status = match compare_versions(current_version, &latest_tag) {
-        UpdateStatus::UpToDate => crate::output::ok("up to date"),
-        UpdateStatus::UpdateAvailable => crate::output::warn("update available"),
+        UpdateStatus::UpToDate => crate::output::ok_out("up to date"),
+        UpdateStatus::UpdateAvailable => crate::output::warn_out("update available"),
         UpdateStatus::CurrentIsNewer => "current is newer than latest release".to_owned(),
     };
 
-    println!("zejtron update check");
-    println!("Current: {}", normalize_version(current_version));
-    println!("Latest:  {}", normalize_version(&latest_tag));
-    println!("Status:  {status}");
-    println!("Source:  {RELEASES_URL}");
+    // Roles (night-improve-37): the report header and the field
+    // labels ride green, the version values stay unwrapped (white),
+    // and the Source line's URL rides grey (navigational metadata,
+    // the scheme's footer role). The label column's spacing is
+    // verbatim - the wraps sit inside the labels only. In Mono every
+    // wrap is the identity, byte-identical to the plain shape.
+    println!("{}", crate::output::ok_out("zejtron update check"));
+    println!(
+        "{} {}",
+        crate::output::ok_out("Current:"),
+        normalize_version(current_version)
+    );
+    println!(
+        "{}  {}",
+        crate::output::ok_out("Latest:"),
+        normalize_version(&latest_tag)
+    );
+    println!("{}  {}", crate::output::ok_out("Status:"), status);
+    println!(
+        "{}  {}",
+        crate::output::ok_out("Source:"),
+        crate::output::grey_out(RELEASES_URL)
+    );
 
     Ok(())
 }
