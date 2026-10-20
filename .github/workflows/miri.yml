@@ -22,6 +22,31 @@
 # first lie. The audited-families list lives in MIRI_AUDIT_MODULES
 # (scripts/lib/miri.sh), not here.
 #
+# The containment contract (the sibling zylaxion's night-dinner-6,
+# ported after that estate's miri incident): on the sibling, a miri
+# run hung past 30 minutes with 93% of its wall clock inside FIVE
+# tests - two full-text README/CHANGELOG doc-assertion scans (~23
+# minutes interpreted) and three sample-loop render tests (~6
+# minutes). All five are pure safe code with no pointer/borrow
+# surface, so the fix carried #[cfg_attr(miri, ignore = ...)] on
+# each (the night-guard-1 pattern, the reason spelled out) while
+# they keep running NATIVELY in every other lane. Two rules ride
+# here:
+#   - The admission law: the audited families are the pointer/
+#     alloc/UB surface, not the docs lane. zejtron's five families
+#     carry no docs-scan or unbounded-loop test today (verified
+#     2026-10-21 against the 15-run measured record: the
+#     interpreted step lands in 2.1-3.8 minutes); a test that
+#     full-text scans README/CHANGELOG or burns an unbounded
+#     numeric/render loop must never enter them without
+#     #[cfg_attr(miri, ignore = "reason")] - natively it still
+#     runs everywhere else (ci.yml and the E2E battery own the
+#     docs assertions and the math loops).
+#   - The fail-fast cap: the job timeout below is sized to that
+#     measured record (the sibling's ~5x formula), not inherited -
+#     a future burden test that inflates the run dies loudly
+#     inside the budget instead of hanging the runner.
+#
 # Weekly cadence mirrors the sibling contract: miri is slow and
 # nightly-only, so it is not on the per-PR critical path - the push
 # filter catches Rust-surface changes the same week, and the Sunday
@@ -79,7 +104,15 @@ jobs:
   miri:
     name: Dragon Guard - Miri UB verification (5 pure-Rust families)
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Sized to the measured record, not inherited (the sibling
+    # zylaxion's night-dinner-6 formula): the interpreted step's
+    # 15-run record is 2.1-3.8 min (2026-10-19/20, all green), so
+    # 20 gives ~5x headroom before a runaway interpreted run burns
+    # the runner. Not a speed claim - a fail-fast line: a future
+    # docs-scan or unbounded-loop test that inflates the run past
+    # this boundary fails loudly instead of hanging (see the
+    # header's admission law).
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
