@@ -26,8 +26,18 @@
 //! non-terminal stdout without the force flag) renders the exact
 //! plain bytes - piped output keeps its plain bytes and NO_COLOR
 //! stays default; a color terminal gets the grey grammar.
+//!
+//! The section heading rides the sibling's heading law (night-weekly-
+//! maintenance-2, the family's one-frame rule): help-surface section
+//! headings paint brand purple bold - the same seat the sibling's
+//! flag estate gives "Global flags:", "Rate formats:", and "Pro
+//! mode:" ([`crate::output::brand_bold_out`], the stdout lane's bold
+//! brand wrapper). The group labels under it ("net:", "proc:", ...)
+//! stay plain - the sibling's Pro mode groups ride plain too, only
+//! the section headings shout. In Mono the wrapper is the identity,
+//! so the plain bytes the tests pin never move.
 
-use crate::output::grey_out;
+use crate::output::{brand_bold_out, grey_out};
 
 /// One flag row: the spelling cell (flag token plus its value token,
 /// verbatim from the CLI structs) and the description (verbatim from
@@ -104,9 +114,12 @@ const GROUPS: &[(&str, &[Row])] = &[
     ),
 ];
 
-/// The intro block, verbatim (night-improve-25's wording).
+/// The intro prose, verbatim (night-improve-25's wording) minus the
+/// heading line: the heading renders separately so it can take its
+/// brand-purple seat on a color terminal while the prose stays
+/// default-colored, and the two reassemble into the exact bytes the
+/// old single const carried (the Mono shape the tests pin).
 const INTRO: &str = "\
-Pro mode:
   The complete flag estate - grouped by the verbs that own them.
   Each verb's own -h/--help shows its lane; this is the whole
   estate on one surface.
@@ -144,7 +157,12 @@ pub(crate) fn painted() -> String {
         .unwrap_or(0);
     let column = ROW_INDENT + longest + 2;
 
-    let mut out = String::from(INTRO);
+    // The heading opens the section in bold brand purple (the
+    // sibling's heading law); in Mono the wrapper is the identity,
+    // so the assembled bytes stay identical to the pinned shape.
+    let mut out = brand_bold_out("Pro mode:");
+    out.push('\n');
+    out.push_str(INTRO);
     for (group, rows) in GROUPS {
         out.push_str("  ");
         out.push_str(group);
