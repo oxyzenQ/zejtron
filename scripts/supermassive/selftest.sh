@@ -140,11 +140,11 @@ fi
 cat >"$SM_SCRATCH/fake-ranked" <<'EOF'
 #!/usr/bin/env bash
 if [[ -n "${CLICOLOR_FORCE:-}" ]]; then
-	printf '\033[38;2;80;250;123mdoctor\033[0m\n'
+        printf '\033[38;2;80;250;123mdoctor\033[0m\n'
 else
-	printf 'doctor\n'
-	printf '  PID %s (probe) PSS %s.1 MiB\n' "$$" "$((RANDOM % 9))"
-	printf 'verdict: ok\n'
+        printf 'doctor\n'
+        printf '  PID %s (probe) PSS %s.1 MiB\n' "$$" "$((RANDOM % 9))"
+        printf 'verdict: ok\n'
 fi
 EOF
 chmod 755 "$SM_SCRATCH/fake-ranked"
@@ -158,6 +158,68 @@ if [[ "$gained_pass" -eq 7 && "$gained_fail" -eq 0 ]]; then
 else
 	sm_fail "selftest: structural tri scoring" \
 		"want 7 pass / 0 fail, got $gained_pass / $gained_fail"
+fi
+
+# 5c. The family-frame skeleton: the report frame's furniture (the
+# heavy-bar banner and the indented colon-key rows, the render grammar
+# since night-weekly-maintenance-2) belongs to the structural
+# skeleton, while a moving indented data row ("  PID ...") stays out
+# of it.
+cat >"$SM_SCRATCH/fake-frame" <<'EOF'
+#!/usr/bin/env bash
+if [[ -n "${CLICOLOR_FORCE:-}" ]]; then
+        printf '\033[38;2;80;250;123m━━━ frame tool ━━━\033[0m\n'
+else
+        printf '━━━ frame tool ━━━\n'
+        printf '  Mode:            unprivileged (partial results expected)\n'
+        printf '  PID %s (probe) PSS %s.1 MiB\n' "$$" "$((RANDOM % 9))"
+        printf 'verdict: ok\n'
+fi
+EOF
+chmod 755 "$SM_SCRATCH/fake-frame"
+before_pass=$SM_PASS
+before_fail=$SM_FAIL
+SM_TRITEST_STRUCTURAL=1 sm_color_tritest "selftest: fake-frame structural tri" 5 -- "$SM_SCRATCH/fake-frame"
+gained_pass=$((SM_PASS - before_pass))
+gained_fail=$((SM_FAIL - before_fail))
+if [[ "$gained_pass" -eq 7 && "$gained_fail" -eq 0 ]]; then
+	sm_pass "selftest: structural tri keeps the frame furniture and drops the moving rows"
+else
+	sm_fail "selftest: frame skeleton" \
+		"want 7 pass / 0 fail on a family-frame tool, got $gained_pass / $gained_fail"
+fi
+
+# 5d. The structural mode can still FAIL: a colon-key row whose value
+# moves outside the volatile table changes the skeleton, and the tri
+# must record exactly that one failure (the anti-fake direction of
+# 5b's "a skeleton change still fails" claim, now actually pinned).
+cat >"$SM_SCRATCH/fake-drift" <<'EOF'
+#!/usr/bin/env bash
+runs_file="$(dirname "$0")/.runs"
+n=$(( $(cat "$runs_file" 2>/dev/null || echo 0) + 1 ))
+printf '%s' "$n" >"$runs_file"
+if [[ -n "${CLICOLOR_FORCE:-}" ]]; then
+        printf '\033[38;2;80;250;123mverdict: ok\033[0m\n'
+else
+        printf '━━━ drift tool ━━━\n'
+        printf '  Mode:            run-%s\n' "$n"
+        printf 'verdict: ok\n'
+fi
+EOF
+chmod 755 "$SM_SCRATCH/fake-drift"
+before_pass=$SM_PASS
+before_fail=$SM_FAIL
+# The drift run's one equality failure is a deliberate engine probe -
+# counted like every other injected failure in the final verdict's math.
+probe_failures=$((probe_failures + 1))
+SM_TRITEST_STRUCTURAL=1 sm_color_tritest "selftest: fake-drift structural tri" 5 -- "$SM_SCRATCH/fake-drift"
+gained_pass=$((SM_PASS - before_pass))
+gained_fail=$((SM_FAIL - before_fail))
+if [[ "$gained_pass" -eq 6 && "$gained_fail" -eq 1 ]]; then
+	sm_pass "selftest: a drifting colon-key row fails the structural equality"
+else
+	sm_fail "selftest: drift law" \
+		"want 6 pass / 1 fail on a skeleton-drifting tool, got $gained_pass / $gained_fail"
 fi
 
 # 6. The flag registry. The grep "--" separator matters here in

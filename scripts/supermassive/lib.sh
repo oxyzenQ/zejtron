@@ -267,9 +267,11 @@ sm_deterministic() {
 # Structural determinism: the full table of a live kernel surface
 # (sockets, processes, interfaces) moves under the suite's feet by
 # definition; the honest determinism claim there is the stable
-# skeleton. This helper extracts only section headers and verdict
-# lines (the non-data render tier) and byte-compares those across the
-# two runs. Named in the README as structural determinism.
+# skeleton. This helper extracts only the stable render furniture -
+# section headers, verdict lines, and the report frame's banner and
+# indented colon-key rows (the non-data render tier) - and
+# byte-compares those across the two runs. Named in the README as
+# structural determinism.
 sm_deterministic_structural() {
 	local label="$1" tmo="${2:-$SM_TEST_TIMEOUT}"
 	shift 2
@@ -284,16 +286,20 @@ sm_deterministic_structural() {
 	fi
 	sm_normalize "$SM_SCRATCH/sdet1.out" "$SM_SCRATCH/sdet1.nout"
 	sm_normalize "$SM_SCRATCH/sdet2.out" "$SM_SCRATCH/sdet2.nout"
-	# The skeleton: the top-level labeled lines - headers, verdicts,
-	# mode declarations - which start with a letter. The data rows hang
-	# under tree glyphs (| ├ └) or lead with digits, so this one rule
-	# separates the stable skeleton from the moving rows on every
-	# zejtron render. The skeleton then goes through the volatile-field
+	# The skeleton: the stable render furniture of the zejtron grammar -
+	# the letter-led top-level lines (headers, verdicts, mode
+	# declarations), the bracket-led section headers ([eBPF]), the report
+	# frame's heavy-bar banner, and the frame's indented colon-key rows
+	# ("  Mode:  unprivileged" - the family grammar since
+	# night-weekly-maintenance-2). The data rows still fail the rule:
+	# they hang under tree glyphs (| ├ └), lead with digits, or are
+	# indented without a colon key ("  PID 42 (probe)"), so the moving
+	# rows stay out. The skeleton then goes through the volatile-field
 	# table: gauge surfaces (doctor --symptom ram) carry letter-led
 	# gauge lines ("Memory used: 525.4 MiB"), and the gauge NUMBERS are
 	# exactly what the table names as volatile.
-	grep -E '^[A-Za-z]' "$SM_SCRATCH/sdet1.nout" >"$SM_SCRATCH/sdet1.skel" || true
-	grep -E '^[A-Za-z]' "$SM_SCRATCH/sdet2.nout" >"$SM_SCRATCH/sdet2.skel" || true
+	grep -E '^([A-Za-z]|\[|━|[[:space:]]+[^[:space:]]+:)' "$SM_SCRATCH/sdet1.nout" >"$SM_SCRATCH/sdet1.skel" || true
+	grep -E '^([A-Za-z]|\[|━|[[:space:]]+[^[:space:]]+:)' "$SM_SCRATCH/sdet2.nout" >"$SM_SCRATCH/sdet2.skel" || true
 	if cmp -s "$SM_SCRATCH/sdet1.skel" "$SM_SCRATCH/sdet2.skel" && [[ -s "$SM_SCRATCH/sdet1.skel" ]]; then
 		sm_pass "$label (structural skeleton byte-equal)"
 	else
@@ -358,8 +364,8 @@ sm_color_tritest() {
 		sm_normalize "$SM_SCRATCH/ct1.err" "$SM_SCRATCH/ct1.nerr"
 		sm_normalize "$SM_SCRATCH/ct2.out" "$SM_SCRATCH/ct2.nout"
 		sm_normalize "$SM_SCRATCH/ct2.err" "$SM_SCRATCH/ct2.nerr"
-		grep -E '^[A-Za-z]' "$SM_SCRATCH/ct1.nout" >"$SM_SCRATCH/ct1.skel" || true
-		grep -E '^[A-Za-z]' "$SM_SCRATCH/ct2.nout" >"$SM_SCRATCH/ct2.skel" || true
+		grep -E '^([A-Za-z]|\[|━|[[:space:]]+[^[:space:]]+:)' "$SM_SCRATCH/ct1.nout" >"$SM_SCRATCH/ct1.skel" || true
+		grep -E '^([A-Za-z]|\[|━|[[:space:]]+[^[:space:]]+:)' "$SM_SCRATCH/ct2.nout" >"$SM_SCRATCH/ct2.skel" || true
 		local c1o="$SM_SCRATCH/ct1.skel" c1e="$SM_SCRATCH/ct1.nerr"
 		local c2o="$SM_SCRATCH/ct2.skel" c2e="$SM_SCRATCH/ct2.nerr"
 	elif [[ "${SM_TRITEST_NORMALIZE:-0}" == "1" ]]; then
