@@ -83,7 +83,12 @@ surface_why() {
 	sm_deterministic "why determinism (readme fixture)" 5 -- "$SM_DEFAULT_BIN" why "$file"
 
 	# The color tri-test.
-	sm_color_tritest "why" 5 -- "$SM_DEFAULT_BIN" why "$file"
+	# The tri-test rides the normalized bytes: the render carries the
+	# evidence file's access time, and reading the file IS the act
+	# that moves it - the tool's own two passes land a second apart
+	# on hosts without relatime throttling. The volatile-field table
+	# owns that stamp; the strict raw claim cannot hold for it.
+	SM_TRITEST_NORMALIZE=1 sm_color_tritest "why" 5 -- "$SM_DEFAULT_BIN" why "$file"
 
 	# Lane honesty: no dormant build exists (owner law); the lane
 	# declaration and the no-fake-observed-rows rule are the check.

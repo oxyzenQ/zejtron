@@ -88,6 +88,17 @@ else
 	sm_fail "selftest: normalizer absorbs timestamps and pids" "normalized fixtures differ"
 fi
 
+printf 'pkts rx=1201 tx=99, errors=0 drops=2, 4.5KB moved\n' >"$SM_SCRATCH/g1"
+printf 'pkts rx=1207 tx=104, errors=0 drops=2, 4.9KB moved\n' >"$SM_SCRATCH/g2"
+sm_normalize "$SM_SCRATCH/g1" "$SM_SCRATCH/g1.norm"
+sm_normalize "$SM_SCRATCH/g2" "$SM_SCRATCH/g2.norm"
+if cmp -s "$SM_SCRATCH/g1.norm" "$SM_SCRATCH/g2.norm"; then
+	sm_pass "selftest: normalizer absorbs gauge counters and the KB range"
+else
+	sm_fail "selftest: normalizer absorbs gauge counters and the KB range" \
+		"normalized gauge fixtures differ"
+fi
+
 # 4. The escape detector: a file with CSI is caught, clean text is not.
 printf 'plain line\n' >"$SM_SCRATCH/clean"
 printf 'colored \033[38;2;255;90;90mred\033[0m line\n' >"$SM_SCRATCH/dirty"
@@ -121,6 +132,32 @@ if [[ "$gained_pass" -eq 7 && "$gained_fail" -eq 0 ]]; then
 	sm_pass "selftest: tri-test scores 7/7 on an obedient tool"
 else
 	sm_fail "selftest: tri-test scoring" "want 7 pass / 0 fail, got $gained_pass / $gained_fail"
+fi
+
+# 5b. The structural tri-test mode: a rank-sampled gauge tool whose
+# data rows move between ANY two invocations passes the NO_COLOR
+# equality on the skeleton, while a skeleton change still fails.
+cat >"$SM_SCRATCH/fake-ranked" <<'EOF'
+#!/usr/bin/env bash
+if [[ -n "${CLICOLOR_FORCE:-}" ]]; then
+	printf '\033[38;2;80;250;123mdoctor\033[0m\n'
+else
+	printf 'doctor\n'
+	printf '  PID %s (probe) PSS %s.1 MiB\n' "$$" "$((RANDOM % 9))"
+	printf 'verdict: ok\n'
+fi
+EOF
+chmod 755 "$SM_SCRATCH/fake-ranked"
+before_pass=$SM_PASS
+before_fail=$SM_FAIL
+SM_TRITEST_STRUCTURAL=1 sm_color_tritest "selftest: fake-ranked structural tri" 5 -- "$SM_SCRATCH/fake-ranked"
+gained_pass=$((SM_PASS - before_pass))
+gained_fail=$((SM_FAIL - before_fail))
+if [[ "$gained_pass" -eq 7 && "$gained_fail" -eq 0 ]]; then
+	sm_pass "selftest: structural tri scores 7/7 on a rank-sampled tool"
+else
+	sm_fail "selftest: structural tri scoring" \
+		"want 7 pass / 0 fail, got $gained_pass / $gained_fail"
 fi
 
 # 6. The flag registry. The grep "--" separator matters here in

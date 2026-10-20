@@ -37,11 +37,14 @@ surface_doctor_ram() {
 	sm_deterministic_structural "doctor --symptom ram determinism (structural)" 5 -- \
 		"$SM_DEFAULT_BIN" doctor --symptom ram
 
-	# The color tri-test. The ram report is a GAUGE surface (memory
-	# values move between any two invocations), so the NO_COLOR
-	# equality is asserted on the normalized bytes - every other
-	# surface keeps the strict raw-byte claim.
-	SM_TRITEST_NORMALIZE=1 sm_color_tritest "doctor --symptom ram" 5 -- \
+	# The color tri-test. The ram report is a rank-sampled GAUGE
+	# surface: the top-consumer table's ROW ORDER follows the moving
+	# PSS gauges, so two passes differ by re-sampling even after the
+	# volatile-field table masks every value. The NO_COLOR equality
+	# rides the stable skeleton - the same depth the determinism check
+	# above already claims for this surface - because the tri-test
+	# answers the color question, never the data question.
+	SM_TRITEST_STRUCTURAL=1 sm_color_tritest "doctor --symptom ram" 5 -- \
 		"$SM_DEFAULT_BIN" doctor --symptom ram
 
 	sm_flag_used "doctor --symptom"

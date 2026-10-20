@@ -36,8 +36,9 @@ holds, touch, why, net, doctor, `doctor --symptom ram`, `-h/--help`,
    suite by definition. Both flavors are labeled in the check names.
 6. **Color tri-test.** Three passes of the same invocation: piped
    (zero escapes on both streams), NO_COLOR (byte-equal to the piped
-   pass, same exit status; normalized for gauge surfaces), forced
-   truecolor (`CLICOLOR_FORCE=1` + `COLORTERM=truecolor` + a
+   pass, same exit status; normalized for gauge surfaces, stable
+   skeleton for rank-sampled ones whose row order follows the moving
+   gauge), forced truecolor (`CLICOLOR_FORCE=1` + `COLORTERM=truecolor` + a
    recognized `TERM` carries 24-bit RGB escapes and is NOT
    byte-identical to the plain pass). The capability ladder these
    tests pin lives in `src/output/mod.rs`; the 16-color forced floor
