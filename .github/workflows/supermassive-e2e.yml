@@ -1,0 +1,192 @@
+---
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+#
+# zejtron - SUPERMASSIVE E2E (the surface lane; the sibling's suite
+# name, zejtron's own depth contract).
+#
+# The contract: every surface, every flag, every error path,
+# exercised against the REAL compiled binary, on two legs - the
+# low-spec leg (the MSRV floor, 60s wall budget) and the best-spec
+# leg (the stable frontier, 300s wall budget). Both legs run the
+# IDENTICAL suite and the IDENTICAL check depth: the budget buys
+# headroom, never depth. The depth is owned by
+# scripts/supermassive/ (its README is the contract's home); this
+# file only makes the legs run on every push that touches the code
+# surface.
+#
+# Why a separate lane from supermassive.yml: that lane owns the
+# toolchain-span x libc-shape cross (the MSRV/stable frontier
+# crossed with gnu/musl); this lane owns the per-surface end-to-end
+# depth (success + error + determinism + color tri-tests per
+# surface). Two contracts, two lanes - neither reduces the other,
+# and the existing lane's name and matrix stay untouched.
+#
+# Build shape: each leg builds the ONE release shape (the
+# ebpf-enabled binary the release ships - there is no dormant build,
+# by owner law: Cargo.toml's night-weekly-maintenance-1 made aya a
+# plain dependency and no build flag can produce a dormant binary).
+# The lane-honesty checks in the suite pin the honest unavailability
+# rendering on unprivileged/old-kernel runners instead - see
+# scripts/supermassive/README.md.
+#
+# Trigger discipline (the estate's spelling): push on main through
+# the estate-wide path filter plus this file's own name (a workflow
+# that can change its own contract owes itself a run), plus
+# workflow_dispatch as the manual recovery lane. No pull_request
+# trigger on purpose: the fast lane (ci.yml) owns PRs; a failing
+# surface leg lands on main and pages the owner, the same shape the
+# other heavy lanes carry.
+#
+# The jobs fail on any FAIL (the suite's exit code is trustworthy:
+# 0 = all passed or skipped-with-reason; 1 = any failure or a
+# breached wall budget). SKIP appears only when the sandbox genuinely
+# cannot run a check, and every SKIP names its reason in the log -
+# a bare SKIP is a bug.
+
+name: zejtron - Supermassive E2E
+
+"on":
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'scripts/**'
+      - '.github/workflows/supermassive-e2e.yml'
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  supermassive-low:
+    # Low specs = the MSRV floor (the estate's envelope vocabulary,
+    # night-improve-31): the oldest toolchain zejtron promises to run
+    # on, 60s wall budget inside the leg script.
+    name: supermassive e2e - low specs (MSRV)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust (1.98.1, the MSRV floor)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.98.1"
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: supermassive-e2e-low
+
+      - name: Build the release binary
+        run: |
+          cargo build --release --locked
+          cp target/release/zejtron target/release/zejtron-built
+
+      - name: Run the low leg (60s wall budget, full depth)
+        run: |
+          ./scripts/supermassive/legs/low.sh \
+            --bin target/release/zejtron-built
+
+      - name: Leg verdict
+        if: always()
+        env:
+          LEG_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "| leg | toolchain | shape | verdict |"
+            echo "|-----|-----------|-------|---------|"
+            echo "| supermassive e2e - low specs | 1.98.1 (MSRV) | release (ebpf always-on) | ${LEG_STATUS} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  supermassive-best:
+    # Best specs = the stable frontier (the estate's envelope
+    # vocabulary): the moving stable channel at full optimization,
+    # 300s wall budget inside the leg script. Same suite, same depth.
+    name: supermassive e2e - best specs (stable)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust (stable, the moving frontier)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: supermassive-e2e-best
+
+      - name: Build the release binary
+        run: |
+          cargo build --release --locked
+          cp target/release/zejtron target/release/zejtron-built
+
+      - name: Run the best leg (300s wall budget, full depth)
+        run: |
+          ./scripts/supermassive/legs/best.sh \
+            --bin target/release/zejtron-built
+
+      - name: Leg verdict
+        if: always()
+        env:
+          LEG_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "| leg | toolchain | shape | verdict |"
+            echo "|-----|-----------|-------|---------|"
+            echo "| supermassive e2e - best specs | stable | release (ebpf always-on) | ${LEG_STATUS} |"
+          } >> "$GITHUB_STEP_SUMMARY"
