@@ -207,8 +207,10 @@ sm_assert_no_escapes() {
 #   <DURATION>   elapsed/rendered durations (500ms, 1.2s, 3m, 2h)
 #   <UPTIME>     uptime and load-family kernel counters that move
 #                between any two invocations by definition
-#   <COUNTER>    free-running kernel byte/packet counters (net), and
-#                memory/pressure gauges that move on their own
+#   <COUNTER>    free-running kernel byte/packet counters - the net
+#                surface's human-byte rows, its bare pkts gauges
+#                (rx=/tx=) and error/drop gauges (errors=/drops=) -
+#                plus memory/pressure gauges that move on their own
 sm_normalize() {
 	local in_file="$1" out_file="$2"
 	sed -E \
@@ -223,7 +225,9 @@ sm_normalize() {
 		-e 's/\b[0-9]+(\.[0-9]+)?(s|m|h) ago\b/<AGE> ago/g' \
 		-e 's/\b(up|uptime)([ :]+)[0-9]+([dhm]| [0-9]+ min)?/\1\2<UPTIME>/g' \
 		-e 's/load average[s]?: [0-9.]+,? ?[0-9.]*,? ?[0-9.]*/load average: <UPTIME>/g' \
-		-e 's/[0-9]+(\.[0-9]+)? ?(B|kB|KiB|MB|MiB|GB|GiB)\b/<COUNTER>/g' \
+		-e 's/[0-9]+(\.[0-9]+)? ?(B|kB|KB|KiB|MB|MiB|GB|GiB|TB|TiB)\b/<COUNTER>/g' \
+		-e 's/(rx|tx)=[0-9]+/\1=<COUNTER>/g' \
+		-e 's/(errors|drops)=[0-9]+/\1=<COUNTER>/g' \
 		-e 's/[0-9]+(\.[0-9]+)?%/<COUNTER>/g' \
 		"$in_file" >"$out_file"
 }
@@ -325,7 +329,12 @@ sm_deterministic_structural() {
 # Gauge surfaces (doctor --symptom ram) have values that move between
 # ANY two invocations; set SM_TRITEST_NORMALIZE=1 before calling and
 # the NO_COLOR equality is asserted on the NORMALIZED bytes (the
-# volatile-field table) instead of the raw ones. Every other surface
+# volatile-field table) instead of the raw ones. Rank-sampled gauge
+# surfaces (a top-consumer table whose ROW ORDER follows the moving
+# gauge) set SM_TRITEST_STRUCTURAL=1 instead: the NO_COLOR equality
+# rides the stable skeleton, the same depth the determinism check
+# already claims for that surface class - the tri-test answers the
+# COLOR question, never the data question. Every other surface
 # compares raw bytes - the strict claim.
 sm_color_tritest() {
 	local label="$1" tmo="${2:-$SM_TEST_TIMEOUT}"
@@ -344,7 +353,16 @@ sm_color_tritest() {
 	sm_run_env "$SM_SCRATCH/ct2.out" "$SM_SCRATCH/ct2.err" rc2 "$tmo" \
 		"NO_COLOR=1" -- "$@"
 	sm_assert_rc "$rc1" "$rc2" "$label: NO_COLOR keeps the exit status"
-	if [[ "${SM_TRITEST_NORMALIZE:-0}" == "1" ]]; then
+	if [[ "${SM_TRITEST_STRUCTURAL:-0}" == "1" ]]; then
+		sm_normalize "$SM_SCRATCH/ct1.out" "$SM_SCRATCH/ct1.nout"
+		sm_normalize "$SM_SCRATCH/ct1.err" "$SM_SCRATCH/ct1.nerr"
+		sm_normalize "$SM_SCRATCH/ct2.out" "$SM_SCRATCH/ct2.nout"
+		sm_normalize "$SM_SCRATCH/ct2.err" "$SM_SCRATCH/ct2.nerr"
+		grep -E '^[A-Za-z]' "$SM_SCRATCH/ct1.nout" >"$SM_SCRATCH/ct1.skel" || true
+		grep -E '^[A-Za-z]' "$SM_SCRATCH/ct2.nout" >"$SM_SCRATCH/ct2.skel" || true
+		local c1o="$SM_SCRATCH/ct1.skel" c1e="$SM_SCRATCH/ct1.nerr"
+		local c2o="$SM_SCRATCH/ct2.skel" c2e="$SM_SCRATCH/ct2.nerr"
+	elif [[ "${SM_TRITEST_NORMALIZE:-0}" == "1" ]]; then
 		sm_normalize "$SM_SCRATCH/ct1.out" "$SM_SCRATCH/ct1.nout"
 		sm_normalize "$SM_SCRATCH/ct1.err" "$SM_SCRATCH/ct1.nerr"
 		sm_normalize "$SM_SCRATCH/ct2.out" "$SM_SCRATCH/ct2.nout"
@@ -355,7 +373,7 @@ sm_color_tritest() {
 		local c1o="$SM_SCRATCH/ct1.out" c1e="$SM_SCRATCH/ct1.err"
 		local c2o="$SM_SCRATCH/ct2.out" c2e="$SM_SCRATCH/ct2.err"
 	fi
-	if cmp -s "$c1o" "$c2o" && cmp -s "$c1e" "$c2e"; then
+	if cmp -s "$c1o" "$c2o" && cmp -s "$c1e" "$c2e" && [[ -s "$c1o" ]]; then
 		sm_pass "$label: NO_COLOR output equals piped output"
 	else
 		sm_fail "$label: NO_COLOR output equals piped output" "NO_COLOR pass differs from the piped pass"
