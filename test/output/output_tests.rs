@@ -310,8 +310,17 @@ fn stdout_lane_wrappers_stay_plain_when_mono() {
     assert_eq!(ok_out(text), text);
     assert_eq!(grey_out(text), text);
     assert_eq!(warn_out(text), text);
-    assert_eq!(error_out(text), text);
     assert_eq!(brand_out(text), text);
+    // The bold verdict seats (night-weekly-maintenance-2) ride the
+    // same contract, and the banner composes to its exact plain shape.
+    assert_eq!(ok_bold_out(text), text);
+    assert_eq!(warn_bold_out(text), text);
+    assert_eq!(error_bold_out(text), text);
+    assert_eq!(brand_bold_out(text), text);
+    assert_eq!(
+        banner("zejtron System Doctor"),
+        "━━━ zejtron System Doctor ━━━"
+    );
 }
 
 #[test]
@@ -343,7 +352,6 @@ fn the_mono_override_forces_both_lanes_plain() {
     assert_eq!(ok_out("v"), "v");
     assert_eq!(grey_out("v"), "v");
     assert_eq!(warn_out("v"), "v");
-    assert_eq!(error_out("v"), "v");
     assert_eq!(brand_out("v"), "v");
     assert_eq!(error("v"), "v");
     assert_eq!(error_bold("v"), "v");

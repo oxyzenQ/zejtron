@@ -42,7 +42,7 @@ pub(super) fn section() -> String {
         &feature_row(),
         facts.release_label(),
         &btf_row(facts.btf_present),
-        facts.lockdown.label(),
+        &lockdown_row(facts.lockdown.label()),
         &facts.caps_label(),
         &lane_row(&verdict),
         &probes_row(),
@@ -53,26 +53,55 @@ pub(super) fn section() -> String {
 /// The Feature row: what THIS binary can do, by compile-time fact.
 /// The eBPF support is unconditional (night-weekly-maintenance-1) -
 /// every binary carries the full lane, so the row is a constant.
+/// The verdict token rides the bold green seat (night-weekly-
+/// maintenance-2, the sibling doctor's verdict law).
 fn feature_row() -> String {
-    "enabled (this binary)".to_owned()
+    format!("{} (this binary)", crate::output::ok_bold_out("enabled"))
 }
 
-/// The BTF row: the vmlinux BTF file, present or absent.
+/// The lockdown row: the verdict token rides the bold tiers - none
+/// is the affirmative seat (bold green), every degraded mode is the
+/// attention seat (bold yellow). The label fn is the single source
+/// of the tokens; this row only paints them.
+fn lockdown_row(label: &str) -> String {
+    if label == "none" {
+        crate::output::ok_bold_out(label)
+    } else {
+        crate::output::warn_bold_out(label)
+    }
+}
+
+/// The BTF row: the vmlinux BTF file, present or absent. Present is
+/// the affirmative verdict (bold green); absent degrades the lane
+/// (bold yellow) - the sibling doctor's YES/NO painting.
 fn btf_row(present: bool) -> String {
     if present {
-        "present (/sys/kernel/btf/vmlinux exists)".to_owned()
+        format!(
+            "{} (/sys/kernel/btf/vmlinux exists)",
+            crate::output::ok_bold_out("present")
+        )
     } else {
-        "absent".to_owned()
+        crate::output::warn_bold_out("absent")
     }
 }
 
 /// The Lane row from the verdict. The attached shape carries the live
-/// counter and the attach moment (see [`attached_detail`]).
+/// counter and the attach moment (see [`attached_detail`]). The
+/// verdict token rides the bold tiers: live is the affirmative seat,
+/// a snapshot lane the degraded one (night-weekly-maintenance-2).
 fn lane_row(verdict: &LaneVerdict) -> String {
     match verdict {
-        LaneVerdict::Live => "live (attach available)".to_owned(),
-        LaneVerdict::LiveAttached => format!("live (attached, {})", attached_detail()),
-        LaneVerdict::Snapshot(reason) => format!("snapshot ({reason})"),
+        LaneVerdict::Live => {
+            format!("{} (attach available)", crate::output::ok_bold_out("live"))
+        }
+        LaneVerdict::LiveAttached => format!(
+            "{} (attached, {})",
+            crate::output::ok_bold_out("live"),
+            attached_detail()
+        ),
+        LaneVerdict::Snapshot(reason) => {
+            format!("{} ({reason})", crate::output::warn_bold_out("snapshot"))
+        }
     }
 }
 
@@ -141,13 +170,15 @@ fn pin_names() -> Vec<&'static str> {
 }
 
 /// The pure row renderer - separated from [`section`] so the shape is
-/// unit-pinnable without probing the host. The alignment matches the
-/// doctor's table discipline: fixed label column. Roles (night-
-/// improve-37): the section header and the row labels ride green
-/// (the field labels), the values stay unwrapped (white, the facts
-/// the user came for). In Mono every wrap is the identity - the
-/// plain bytes the shape shipped with. Eight rows is the contract;
-/// the allow is the honest count, not an escape hatch.
+/// unit-pinnable without probing the host. The alignment is the KV
+/// discipline: fixed label column. Roles (night-weekly-maintenance-2,
+/// the family law): the section header rides green, the row labels
+/// are the KEYS and stay PLAIN (the family paints values, never
+/// keys), the verdict tokens inside the values ride the bold tiers
+/// their rows paint, and the remaining facts stay unwrapped (white).
+/// In Mono every wrap is the identity - the plain bytes the shape
+/// shipped with. Eight rows is the contract; the allow is the honest
+/// count, not an escape hatch.
 #[allow(clippy::too_many_arguments)]
 fn format_section(
     feature: &str,
@@ -172,7 +203,7 @@ fn format_section(
         ("  Probes:      ", probes),
         ("  Pins:        ", pins),
     ] {
-        out.push_str(&crate::output::ok_out(label));
+        out.push_str(label);
         out.push_str(value);
         out.push('\n');
     }

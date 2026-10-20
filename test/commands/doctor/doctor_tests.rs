@@ -27,7 +27,7 @@ fn summary_count_formatting() {
 
     assert_eq!(
         format_summary(summarize(&checks)),
-        "Summary: ok=1 warn=1 fail=1"
+        "  Summary:         ok=1 warn=1 fail=1"
     );
 }
 
@@ -35,21 +35,18 @@ fn summary_count_formatting() {
 fn status_row_formatting() {
     assert_eq!(
         format_check_row(&result(CheckStatus::Warn, "journalctl", "missing")),
-        "WARN    journalctl           missing"
+        "  journalctl:      WARN  missing"
     );
 }
 
 #[test]
 fn mode_labels_are_stable() {
-    assert_eq!(mode_label(Some(0)), "Mode: privileged");
+    assert_eq!(mode_value(Some(0)), "privileged");
     assert_eq!(
-        mode_label(Some(1000)),
-        "Mode: unprivileged (partial results expected)"
+        mode_value(Some(1000)),
+        "unprivileged (partial results expected)"
     );
-    assert_eq!(
-        mode_label(None),
-        "Mode: unprivileged (partial results expected)"
-    );
+    assert_eq!(mode_value(None), "unprivileged (partial results expected)");
 }
 
 #[test]
@@ -67,9 +64,8 @@ fn stable_output_shape() {
     let checks = [result(CheckStatus::Ok, "os", "linux")];
     let output = format_report(&checks, summarize(&checks), "abcdef123");
 
-    assert!(output.starts_with("Doctor report:\nMode: "));
-    assert!(output.contains("STATUS  CHECK                 MESSAGE"));
-    assert!(output.contains("OK      os                   linux"));
-    assert!(output.contains("Summary: ok=1 warn=0 fail=0"));
-    assert!(output.contains("Build: zejtron v"));
+    assert!(output.starts_with("━━━ zejtron System Doctor ━━━\n\n  Mode: "));
+    assert!(output.contains("  os:              OK    linux"));
+    assert!(output.contains("  Summary:         ok=1 warn=0 fail=0"));
+    assert!(output.contains("  Build:           zejtron v"));
 }
