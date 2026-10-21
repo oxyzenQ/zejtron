@@ -120,6 +120,43 @@ Five tools, five dialects, one investigation. zejtron answers the
 same questions in one dialect, deterministically, with the output
 diffable and pipeable.
 
+### Intended Environments and Users
+
+**Servers — production hosts and containers.** This is the ground
+zejtron is built for first. The tool ships as one binary — statically
+linked in the musl shape — that installs no daemon, leaves no
+background agent behind, and writes nothing to disk. Drop it onto a
+host, run a command, read the evidence. The deterministic UTC output
+is why the result survives production use: two runs against the same
+state print the same bytes, so a report can be diffed against an
+earlier one, attached to a post-mortem, or filed as a compliance
+record without translation.
+
+**Desktops — developer workstations.** The same binary answers the
+local questions a developer actually asks: which process is holding
+port 3000, what last modified that config file, where the RAM went.
+It runs, prints the ledger, and exits — no monitoring stack to
+install, nothing left running afterward.
+
+**Power users and sysadmins.** zejtron is for the person who already
+reaches for `ss`, `lsof`, `ps`, and `journalctl` in one investigation
+and parses four dialects to answer one question. Those tools stay
+faster for their single questions; zejtron carries the investigation
+in one grammar, and every row names its source — `[observed]` versus
+`[inferred]` — so an answer can be verified, not just read.
+
+**Security and forensics.** The tool is read-only by design: it does
+not alter system state and does not disturb forensic timestamps. It
+can be run during an active incident without destroying the evidence
+it is collecting.
+
+**Who should not use zejtron.** A beginner who wants a GUI dashboard
+— GNOME System Monitor, a task manager — is better served by one;
+zejtron is a CLI and does not try to be that. The same goes for
+anyone who needs continuous real-time monitoring: zejtron collects
+evidence and exits. It is an investigative CLI, not a monitoring
+daemon, and the docs do not pretend otherwise.
+
 ## Quick Start
 
 ### Requirements
