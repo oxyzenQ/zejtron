@@ -1,0 +1,187 @@
+---
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+#
+# zejtron - SUPERMASSIVE KERNEL WITNESSES (the report lane in CI; the
+# owner's next-cycle candidate b, riding candidate a's presets).
+#
+# The contract: the kernel-floor lane proves the FLOOR (strict mode,
+# jammy GA 5.15.0, the identity gate); this lane proves the SPAN -
+# the same suite green on the other side of the floor line, per
+# push, in report mode (the arbitrary lane's semantics: the init
+# reports the floor direction instead of gating the identity, and
+# the payload's exit code is the verdict):
+#
+#   * focal 5.4.0-26 GA - BELOW the floor: the attach specs run the
+#     refusal direction, BTF honestly reported unreadable (focal GA
+#     ships no BTF vmlinux) - a kernel no stock GitHub runner can
+#     host and the floor lane refuses by design;
+#   * jammy 5.15.0-25 GA - AT the floor, report mode: the same GA
+#     kernel the floor lane boots strict, here with the direction
+#     row and the capability computation composing the verdict;
+#   * noble 6.8.0-31 GA - ABOVE the floor: BTF readable, so the
+#     privileged attach lifecycle runs in the SUCCESS direction on
+#     a second kernel generation - the direction the ordinary CI
+#     legs can only compute, never exercise.
+#
+# One implementation, two seats: the lane runs the OPERATOR'S OWN
+# INSTRUMENT - scripts/sandbox/zejtron-sandbox.sh --kernel SUITE
+# --battery, the same entrypoint, packer, and init the local twin
+# uses. CI cannot drift from the operator's tool because they are
+# the same code path; the twin resolves the suite's GA kernel from
+# the LIVE archive's main pocket (frozen by archive policy), packs
+# the rootless initramfs, boots the KVM micro-VM, and relays the
+# verdict through the SANDBOX-* sentinel lines. The floor lane
+# stays strict-only by construction (it packs no lane marker);
+# this lane is report-mode by construction (the entrypoint packs
+# the marker when --kernel takes a witness name).
+#
+# The userland is held constant on jammy whatever the kernel (the
+# floor lane's own law: the lane's only variable is the KERNEL).
+#
+# Trigger discipline: every push (no path filter, no branch filter
+# - the owner's unfiltered-CI posture), plus workflow_dispatch as
+# the manual recovery lane. No pull_request trigger on purpose:
+# the fast lane (ci.yml) owns PRs; this lane's budget is for the
+# span, not per-PR churn.
+name: zejtron - Supermassive Kernel Witnesses
+
+"on":
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  witness:
+    name: ${{ matrix.title }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: focal
+            title: kernel witness - focal GA 5.4.0 (below the floor, report mode)
+          - suite: jammy
+            title: kernel witness - jammy GA 5.15.0 (at the floor, report mode)
+          - suite: noble
+            title: kernel witness - noble GA 6.8.0 (above the floor, report mode)
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      # The kernel can change; /dev/kvm is a GitHub runner guarantee
+      # (nested virt is enabled on every current Linux hosted image) -
+      # the floor lane's own check, verbatim.
+      - name: Verify KVM
+        run: |
+          test -e /dev/kvm || {
+            echo "FAIL: /dev/kvm is absent — this runner image cannot boot the witness micro-VMs"
+            exit 1
+          }
+          test -w /dev/kvm || sudo chmod 666 /dev/kvm
+          test -w /dev/kvm || {
+            echo "FAIL: /dev/kvm is not usable by the runner user even after chmod"
+            ls -l /dev/kvm
+            exit 1
+          }
+          echo "OK: /dev/kvm present and usable"
+
+      # The twin needs qemu only (the packer is pure python3, the newc
+      # writer needs no cpio); apt's retry knob rides the transaction.
+      - name: Install qemu
+        run: >-
+          sudo apt-get -o Acquire::Retries=5 update -qq &&
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86
+
+      # The warm witness cache: the suite's GA kernel deb + vmlinuz,
+      # the jammy index, the ubuntu-base tarball, the iproute2 closure.
+      # Keyed by the packer's hash - a table change re-resolves. The
+      # initrd.gz riding the same path is rebuilt every run anyway
+      # (the packer always repacks; the image embeds THIS checkout).
+      - name: Restore the witness cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: ~/.cache/zejtron-sandbox
+          key: sandbox-witness-${{ matrix.suite }}-${{ hashFiles('scripts/sandbox/rootfs-pack.py') }}
+          restore-keys: |
+            sandbox-witness-${{ matrix.suite }}-
+
+      # The ebpf feature is the default: the build source-builds the
+      # kernel object host-side (the floor lane's own steps).
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          prefix-key: supermassive-kernel-witnesses
+
+      - name: Build the release binary
+        run: |
+          cargo build --release --locked
+          cp target/release/zejtron target/release/zejtron-built
+
+      # The lane itself: the operator's own instrument, under KVM, in
+      # report mode. The twin resolves the suite's GA kernel, packs the
+      # initramfs, boots, runs the FULL low leg, and its exit code IS
+      # the verdict (it greps the SANDBOX-VERDICT sentinel itself).
+      - name: Run the witness (the local twin, report mode)
+        run: |
+          bash scripts/sandbox/zejtron-sandbox.sh \
+            --kernel "${{ matrix.suite }}" \
+            --binary "$PWD/target/release/zejtron-built" \
+            --battery \
+            --timeout 900
+
+      # The sentinel rows for the run's page (the verdict itself is
+      # the previous step's exit code; the twin always leaves vm.log
+      # at the cache root).
+      - name: Witness verdict rows
+        if: always()
+        run: |
+          LOG="$HOME/.cache/zejtron-sandbox/vm.log"
+          {
+            echo "## zejtron - Supermassive Kernel Witnesses"
+            echo
+            echo "- witness: ${{ matrix.suite }} GA (report mode)"
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### the init's sentinel rows"
+            echo
+            echo '```'
+            grep -E '^SANDBOX-(RESULT|VERDICT)' "$LOG" || true
+            echo '```'
+            echo
+            echo "### FAIL inventory"
+            echo
+            echo '```'
+            grep -E '^  FAIL ' "$LOG" | head -40 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
