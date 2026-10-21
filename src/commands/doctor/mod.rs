@@ -82,10 +82,10 @@ pub fn run(
 
     let checks = collect_checks(git_hash);
     let summary = summarize(&checks);
-    // The snapshot report closes with the [eBPF] section
-    // (night-improve-1): always present, always honest about what
-    // this binary and this host can do.
-    let report = format_report(&checks, summary, git_hash);
+    // The check block closes with the Summary row and the separated
+    // [eBPF] sub-report follows (night-improve-1): always present,
+    // always honest about what this binary and this host can do.
+    let report = format_report(&checks, summary);
     let section = ebpf::section();
     println!("{report}\n{section}");
     // Non-zero exit on FAIL so CI / automation can gate on doctor.
@@ -122,17 +122,18 @@ use checks::{
     check_os, check_proc_access, check_proc_net, check_procfs, check_systemctl, check_visible_pids,
 };
 
-fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> String {
+fn format_report(checks: &[CheckResult], summary: Summary) -> String {
     // The report frame (night-weekly-maintenance-2, the sibling
     // doctor's masterclass law): the banner opens the report, the KV
     // rows align their keys to one column, and the keys stay PLAIN -
     // the family paints values, never keys. The Mode row's verdict
     // token rides the bold tier its meaning carries ([`mode_row`]);
-    // the check rows, the summary, and the build fact ride
-    // [`format_check_row`], [`format_summary`], and the plain frame
-    // below. In Mono every wrap is the identity, byte-identical to
-    // the pinned shape.
-    let build = build_label(git_hash);
+    // the check rows and the summary ride [`format_check_row`] and
+    // [`format_summary`]. The Summary row closes the report with no
+    // blank line above it, and the build fact rides the build_meta
+    // check row alone - no duplicate tail row repeats it
+    // (night-improve-42). In Mono every wrap is the identity,
+    // byte-identical to the pinned shape.
     let mut lines = vec![
         crate::output::banner("zejtron System Doctor"),
         String::new(),
@@ -147,9 +148,7 @@ fn format_report(checks: &[CheckResult], summary: Summary, git_hash: &str) -> St
         lines.push(format_check_row(check));
     }
 
-    lines.push(String::new());
     lines.push(format_summary(summary));
-    lines.push(format!("  {:<17}{build}", "Build:"));
     lines.join("\n")
 }
 
