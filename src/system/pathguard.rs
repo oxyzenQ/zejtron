@@ -36,6 +36,18 @@
 //! Any other location — including system paths (`/etc`, `/usr`, `/var`, etc.)
 //! and user credential paths (`~/.ssh`, `~/.gnupg`) — is rejected with a
 //! clear error message.
+//!
+//! ## Status
+//!
+//! Deliberately retained without a production caller (night-improve-0,
+//! restated by the night-total-lts-3 audit): the retired
+//! environment-snapshot lane was this module's one consumer, and the
+//! read-only claim is literal - nothing in the current tree writes
+//! state. The scoped dead-code allowance below covers exactly this
+//! documented retention; the tests keep the guard honest while it
+//! waits.
+
+#![allow(dead_code)]
 
 use std::path::{Component, Path, PathBuf};
 

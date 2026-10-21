@@ -6,33 +6,14 @@
 //! file belongs under test/) and is #[path]-wired from
 //! src/system/mod.rs, so `super::` reaches the module exactly like the
 //! inline tests did.
+//!
+//! The night-total-lts-3 hygiene pass removed the unwired half of the
+//! module (ProcState, ProcessContext, read_context, parent_chain, and
+//! their private parsers); the pins below cover exactly the inventory
+//! that remains.
 
 use super::*;
-
-#[test]
-fn proc_state_label_roundtrip() {
-    assert_eq!(ProcState::from_char('R'), ProcState::Running);
-    assert_eq!(ProcState::from_char('Z'), ProcState::Zombie);
-    assert_eq!(ProcState::from_char('S'), ProcState::Sleep);
-    assert_eq!(ProcState::from_char('?'), ProcState::Unknown);
-    assert_eq!(ProcState::Running.label(), "R");
-    assert_eq!(ProcState::Zombie.label(), "Z");
-}
-
-#[test]
-fn parse_status_field_finds_key() {
-    let s = "Name:\tbash\nPid:\t1234\nPPid:\t1\n";
-    assert_eq!(parse_status_field(s, "Name").as_deref(), Some("bash"));
-    assert_eq!(parse_status_field(s, "Pid").as_deref(), Some("1234"));
-    assert_eq!(parse_status_field(s, "Missing"), None);
-}
-
-#[test]
-fn parse_status_number_handles_kb_suffix() {
-    let s = "VmRSS:\t   8420 kB\n";
-    assert_eq!(parse_status_number(s, "VmRSS"), Some(8420));
-    assert_eq!(parse_status_number(s, "VmSize"), None);
-}
+use std::path::Path;
 
 #[test]
 fn root_refusal_pins_the_sibling_wording() {
@@ -50,23 +31,14 @@ fn root_refusal_pins_the_sibling_wording() {
 
 #[test]
 fn root_refusal_surfaces_interpolate_the_hazard() {
-    for surface in [
-        "the update check performs a network fetch",
-        "environment snapshot save writes files",
-        "environment snapshot delete removes files",
-    ] {
-        let refusal = root_refusal(true, surface).expect("root must be refused");
-        assert!(refusal.starts_with("root refused — "));
-        assert!(refusal.contains(surface));
-    }
-}
-
-#[test]
-fn parse_uid_pair_real_effective() {
-    let s = "Uid:\t1000\t1000\t1000\t1000\n";
-    assert_eq!(parse_uid_pair(s), Some((1000, 1000)));
-    let s2 = "Uid:\t0\t0\t0\t0\n";
-    assert_eq!(parse_uid_pair(s2), Some((0, 0)));
+    // The fatal set is exactly one surface since night-improve-0
+    // retired the environment-snapshot writes: the --check-update
+    // network fetch. The wording carries whatever hazard string the
+    // caller passes, pinned here with the live surface.
+    let surface = "the update check performs a network fetch";
+    let refusal = root_refusal(true, surface).expect("root must be refused");
+    assert!(refusal.starts_with("root refused — "));
+    assert!(refusal.contains(surface));
 }
 
 #[test]
@@ -86,83 +58,9 @@ fn lookup_username_unknown_uid_returns_numeric() {
 #[test]
 fn read_cmdline_self_pid() {
     let own_pid = std::process::id();
-    let ctx = read_context(Path::new("/proc"), own_pid);
-    assert!(ctx.is_some(), "should be able to read our own context");
-    let ctx = ctx.unwrap();
-    assert_eq!(ctx.pid, own_pid);
-    assert!(!ctx.name.is_empty());
-}
-
-#[test]
-fn parent_chain_self_reaches_init() {
-    let own_pid = std::process::id();
-    let chain = parent_chain(Path::new("/proc"), own_pid);
-    assert!(!chain.is_empty());
-    // Should end at PID 1 (init/systemd) or stop earlier if unprivileged.
-    let last = chain.last().unwrap();
-    assert!(last.pid == 1 || last.ppid == 0 || last.ppid == last.pid);
-}
-
-#[test]
-fn summary_line_includes_pid_and_state() {
-    let ctx = ProcessContext {
-        pid: 42,
-        ppid: 1,
-        name: "test".to_owned(),
-        cmdline: Some("test --flag".to_owned()),
-        uid: 1000,
-        euid: 1000,
-        state: ProcState::Running,
-        vm_rss_kb: 4096,
-        vm_size_kb: 16384,
-        vm_swap_kb: 0,
-        threads: 1,
-        cgroup: None,
-        netns_inode: None,
-        pidns_inode: None,
-    };
-    let line = ctx.summary_line("testuser");
-    assert!(line.contains("pid=42"));
-    assert!(line.contains("state=R"));
-    assert!(line.contains("user=testuser"));
-    assert!(line.contains("cmd='test --flag'"));
-}
-
-#[test]
-fn evidence_block_has_all_fields() {
-    let ctx = ProcessContext {
-        pid: 42,
-        ppid: 1,
-        name: "test".to_owned(),
-        cmdline: Some("test --flag".to_owned()),
-        uid: 1000,
-        euid: 1000,
-        state: ProcState::Zombie,
-        vm_rss_kb: 4096,
-        vm_size_kb: 16384,
-        vm_swap_kb: 0,
-        threads: 4,
-        cgroup: Some("0::/user.slice".to_owned()),
-        netns_inode: Some(4026531992),
-        pidns_inode: Some(4026531836),
-    };
-    let block = ctx.evidence_block("testuser");
-    let joined = block.join("\n");
-    assert!(joined.contains("name: test"));
-    assert!(joined.contains("cmdline: test --flag"));
-    assert!(joined.contains("pid: 42 (ppid=1)"));
-    assert!(joined.contains("state: Z (zombie)"));
-    assert!(joined.contains("threads: 4"));
-    assert!(joined.contains("cgroup: 0::/user.slice"));
-    assert!(joined.contains("netns: inode=4026531992"));
-    assert!(joined.contains("pidns: inode=4026531836"));
-}
-
-#[test]
-fn quote_if_needed_handles_spaces() {
-    assert_eq!(quote_if_needed("simple"), "simple");
-    assert_eq!(quote_if_needed("has space"), "'has space'");
-    assert_eq!(quote_if_needed("has'quote"), "\"has'quote\"");
+    let cmdline = read_cmdline(Path::new("/proc"), own_pid);
+    assert!(cmdline.is_some(), "should be able to read our own cmdline");
+    assert!(!cmdline.unwrap().is_empty());
 }
 
 #[test]
