@@ -22,6 +22,24 @@ v11.0.0
 
 ### Added
 
+- The README now documents its own ground. A new "Intended
+  Environments and Users" section under "Why zejtron?" states the two
+  environments the tool is built for - production servers and
+  containers (one binary, statically linked in the musl shape, no
+  daemon, no background agent, writes nothing to disk, the
+  deterministic UTC output diffable between runs and fileable as a
+  post-mortem or compliance record) and developer desktops (who
+  holds this port, what modified this config, where the RAM went -
+  answered without installing a monitoring stack). The section names
+  the target users - power users and sysadmins (the
+  ss/lsof/ps/journalctl workflow carried in one grammar, every row
+  tagged [observed] or [inferred]) and security/forensics (read-only
+  by design: no state altered, no forensic timestamps disturbed,
+  safe to run during an active incident) - and names who should NOT
+  use zejtron: beginners who want a GUI dashboard, and anyone who
+  needs continuous real-time monitoring. zejtron collects evidence
+  and exits; it is an investigative CLI, not a monitoring daemon.
+  docs/README.md's map line for the front page mentions the section.
 - The CI witnesses lane (the owner's next-cycle ask, candidate b,
   riding candidate a's presets): `.github/workflows/
   supermassive-kernel-witnesses.yml` - a three-leg matrix (focal
