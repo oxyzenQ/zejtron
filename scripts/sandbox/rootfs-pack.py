@@ -21,7 +21,10 @@ NOTHING but python3 and git - no docker, no host root:
     promises to run on, the kernel no stock GitHub runner ships
     (the ubuntu images ride 6.x HWE kernels). The vmlinuz is
     extracted from the .deb with a pure-python ar reader - no
-    binutils, no root.
+    binutils, no root. The SUITE_TABLE below extends the same
+    discipline to the witness presets (focal, jammy, noble): each
+    name resolves that Ubuntu suite's GA release-day kernel from
+    its own main pocket - the report lane's ready-made witnesses.
   * rootfs: the ubuntu:22.04 base tarball (glibc 2.35, the suite
     jammy itself shipped - the same userland the floor kernel
     natively booted) plus iproute2 provisioned by REAL dependency
@@ -48,7 +51,9 @@ directory deletes the dynamic linker from the image).
 
 Usage (the bash entrypoint scripts/sandbox/zejtron-sandbox.sh owns
 the orchestration; these subcommands are its legs):
-  python3 scripts/sandbox/rootfs-pack.py kernel --suite floor --cache DIR
+  python3 scripts/sandbox/rootfs-pack.py kernel --suite SUITE --cache DIR
+      (SUITE = floor, the jammy GA 5.15.0 floor kernel; or a witness
+      name - focal, jammy, noble - that suite's GA release-day kernel)
   python3 scripts/sandbox/rootfs-pack.py initrd --cache DIR --repo DIR \
       --binary PATH --init PATH [--payload PATH] [--lane floor|arbitrary]
   python3 scripts/sandbox/rootfs-pack.py self-test
@@ -69,16 +74,55 @@ import urllib.request
 
 UBUNTU_BASE_URL = "http://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/"
 UBUNTU_BASE_PINNED = "ubuntu-base-22.04.5-base-amd64.tar.gz"
-JAMMY_PACKAGES = "http://archive.ubuntu.com/ubuntu/dists/jammy/main/binary-amd64/Packages.gz"
 ARCHIVE_POOL = "http://archive.ubuntu.com/ubuntu/"
-# The floor kernel, by exact upstream version: the jammy main pocket
-# (the GA suite, frozen by archive policy) carries exactly one
-# 5.15.0 generic image - the release-day kernel the floor documents.
-# The regex pins the floor NUMBER: an archive that stops carrying a
-# 5.15.0 image fails the lane loudly instead of silently booting a
-# newer kernel under the floor lane's name.
-FLOOR_KERNEL_RE = re.compile(r"^linux-image-unsigned-5\.15\.0-([0-9]+)-generic$")
-FLOOR_VERSION_PREFIX = "5.15.0"
+ARCHIVE_DIST = "http://archive.ubuntu.com/ubuntu/dists/"
+
+# The suite table (the witness presets): every Ubuntu LTS GA suite,
+# resolvable by NAME on the same discipline the floor rides. Each
+# entry: the LIVE archive main pocket (the GA suite, frozen by
+# archive policy - the weekly ABI bumps live in <suite>-updates and
+# are deliberately NOT configured; main carries exactly ONE generic
+# image per major.minor, the release-day kernel), the regex pinning
+# that major.minor (an archive that stops carrying the suite's GA
+# image fails the lane loudly instead of silently booting a
+# different kernel under the suite's name), the version prefix the
+# resolved deb must carry, and the cache file the vmlinuz lands in.
+# floor == jammy's kernel (the documented 5.15.0 floor); focal is
+# the below-floor witness (5.4 GA - verified live: 5.4.0-26.30);
+# jammy as a named witness is the floor kernel ridden on the report
+# lane; noble is the above-floor witness (6.8 GA - verified live:
+# 6.8.0-31.31).
+SUITE_TABLE = {
+    "floor": {
+        "pocket": "jammy",
+        "kernel_re": re.compile(r"^linux-image-unsigned-5\.15\.0-([0-9]+)-generic$"),
+        "version_prefix": "5.15.0",
+        "out": "vmlinuz-floor",
+    },
+    "focal": {
+        "pocket": "focal",
+        "kernel_re": re.compile(r"^linux-image-unsigned-5\.4\.0-([0-9]+)-generic$"),
+        "version_prefix": "5.4.0",
+        "out": "vmlinuz-focal",
+    },
+    "jammy": {
+        "pocket": "jammy",
+        "kernel_re": re.compile(r"^linux-image-unsigned-5\.15\.0-([0-9]+)-generic$"),
+        "version_prefix": "5.15.0",
+        "out": "vmlinuz-jammy",
+    },
+    "noble": {
+        "pocket": "noble",
+        "kernel_re": re.compile(r"^linux-image-unsigned-6\.8\.0-([0-9]+)-generic$"),
+        "version_prefix": "6.8.0",
+        "out": "vmlinuz-noble",
+    },
+}
+
+
+def suite_packages_url(pocket):
+    return f"{ARCHIVE_DIST}{pocket}/main/binary-amd64/Packages.gz"
+
 ROOT_PACKAGES = ["iproute2"]
 
 
@@ -404,44 +448,50 @@ def resolve_closure(index, roots):
     return ordered
 
 
-# -- the floor kernel (the lane's whole point) -----------------------
+# -- the suite kernels (the lane's whole point) --------------------
 
 
-def jammy_index(cache):
-    """The jammy main-pocket Packages index, cached. One index serves
-    the floor-kernel resolution AND the package closure - the lane
-    downloads it once."""
-    pkg_path = os.path.join(cache, "jammy-Packages.gz")
+def suite_index(cache, suite):
+    """The suite's main-pocket Packages index, cached. The floor/jammy
+    pocket shares this cache file with the iproute2 closure resolution
+    in build_initrd - one download serves the kernel resolution AND
+    the package closure on that pocket."""
+    entry = SUITE_TABLE[suite]
+    pkg_path = os.path.join(cache, f"{entry['pocket']}-Packages.gz")
     if not os.path.exists(pkg_path):
-        say("fetching the jammy main-pocket Packages index...")
-        download_atomic(JAMMY_PACKAGES, pkg_path, timeout=600)
+        say(f"fetching the {entry['pocket']} main-pocket Packages index...")
+        download_atomic(suite_packages_url(entry["pocket"]), pkg_path, timeout=600)
     with open(pkg_path, "rb") as fh:
         return parse_packages(fh.read())
 
 
-def fetch_floor_kernel(cache, index):
-    """Resolve + download + extract the vmlinuz of the jammy GA floor
-    kernel (linux-image-unsigned-5.15.0-25-generic - the exact oldest
-    kernel zejtron promises to run on). The version prefix is the
-    floor guard: an index that stops carrying a 5.15.0 image fails
-    loudly instead of booting a newer kernel under the floor name."""
-    out = os.path.join(cache, "vmlinuz-floor")
+def fetch_suite_kernel(cache, suite):
+    """Resolve + download + extract the vmlinuz of a suite's GA
+    kernel. floor == jammy's 5.15.0 (the documented floor, the exact
+    oldest kernel zejtron promises to run on); the witnesses resolve
+    their own GA release-day kernels the same way. The version
+    prefix is the identity guard: an index that stops carrying the
+    suite's GA image fails loudly instead of booting a different
+    kernel under the suite's name."""
+    entry = SUITE_TABLE[suite]
+    out = os.path.join(cache, entry["out"])
     if os.path.exists(out):
         return out
+    index = suite_index(cache, suite)
     cands = []
     for name, meta in index.items():
-        match = FLOOR_KERNEL_RE.match(name)
-        if match and meta["version"].startswith(FLOOR_VERSION_PREFIX):
+        match = entry["kernel_re"].match(name)
+        if match and meta["version"].startswith(entry["version_prefix"]):
             cands.append((int(match.group(1)), name, meta))
     if not cands:
         raise SystemExit(
-            "no linux-image-unsigned-5.15.0-*-generic in the jammy main pocket - "
-            "the archive moved; the floor lane refuses to boot a different kernel "
-            "under the floor name"
+            f"no {entry['kernel_re'].pattern} package in the {entry['pocket']} main pocket - "
+            "the archive moved; the lane refuses to boot a different kernel "
+            "under the suite's name"
         )
     cands.sort()
     abi, name, meta = cands[-1]
-    say(f"floor kernel: {name} ({meta['version']}, the jammy GA release-day kernel)")
+    say(f"{suite} kernel: {name} ({meta['version']}, the {entry['pocket']} GA release-day kernel)")
     deb_path = os.path.join(cache, f"{name}.deb")
     if not _intact_deb(deb_path):
         say(f"downloading {os.path.basename(meta['filename'])}...")
@@ -458,7 +508,7 @@ def fetch_floor_kernel(cache, index):
             None,
         )
         if member is None:
-            raise SystemExit("no vmlinuz inside the floor-kernel deb")
+            raise SystemExit(f"no vmlinuz inside the {suite}-kernel deb")
         with open(out, "wb") as fh:
             fh.write(tar.extractfile(member).read())
     os.chmod(out, 0o644)
@@ -517,8 +567,11 @@ def build_initrd(cache, repo, binary, init, payload, lane=None):
                 tar.extractall(rootfs)
         # 2. iproute2 by real dependency resolution (the init's
         #    loopback bring-up; the suite itself is bash + coreutils
-        #    and rides the base as-is)
-        index = jammy_index(cache)
+        #    and rides the base as-is). The userland is held constant
+        #    on jammy whatever kernel the lane boots - the lane's only
+        #    variable is the KERNEL, the CI twin's own law - and the
+        #    same index file serves the floor/jammy kernel resolution.
+        index = suite_index(cache, "jammy")
         say("resolving iproute2 against the jammy index...")
         debs_dir = os.path.join(cache, "debs")
         os.makedirs(debs_dir, exist_ok=True)
@@ -657,21 +710,42 @@ def self_test():
     )
     check("resolver tolerates unknown deps", resolve_closure(index, ["ghost"]) == [])
 
-    # the floor regex: the jammy GA name matches with its ABI, and
-    # near-miss names do not match (a 5.16 kernel, a signed image, or
-    # a filename with the version suffix attached must never ride the
-    # floor lane's name).
-    floor_name = "linux-image-unsigned-5.15.0-25-generic"
-    m = FLOOR_KERNEL_RE.match(floor_name)
+    # the suite table: every suite's regex matches its own GA name
+    # with the ABI captured, and near-miss names never match (a
+    # neighbor minor, a signed image, or a filename with the version
+    # suffix attached must never ride a lane's name). The GA names
+    # are the archive's own, verified live against the main pockets
+    # (focal 5.4.0-26.30, noble 6.8.0-31.31; jammy's GA is the floor
+    # kernel the lane already documents).
+    ga_names = {
+        "floor": ("linux-image-unsigned-5.15.0-25-generic", "25"),
+        "focal": ("linux-image-unsigned-5.4.0-26-generic", "26"),
+        "jammy": ("linux-image-unsigned-5.15.0-25-generic", "25"),
+        "noble": ("linux-image-unsigned-6.8.0-31-generic", "31"),
+    }
+    for suite, (ga, abi) in ga_names.items():
+        m = SUITE_TABLE[suite]["kernel_re"].match(ga)
+        check(
+            f"{suite} regex matches its GA kernel",
+            bool(m) and m.group(1) == abi,
+        )
     check(
-        "floor regex matches the jammy GA kernel",
-        bool(m) and m.group(1) == "25",
+        "suite regexes reject neighbor kernels and suffixed names",
+        not SUITE_TABLE["floor"]["kernel_re"].match(
+            "linux-image-unsigned-5.15.0-131-generic_5.15.0-131.141_amd64.deb"
+        )
+        and not SUITE_TABLE["floor"]["kernel_re"].match("linux-image-unsigned-5.16.0-25-generic")
+        and not SUITE_TABLE["floor"]["kernel_re"].match("linux-image-5.15.0-25-generic")
+        and not SUITE_TABLE["focal"]["kernel_re"].match("linux-image-unsigned-5.5.0-26-generic")
+        and not SUITE_TABLE["noble"]["kernel_re"].match("linux-image-unsigned-6.9.0-31-generic"),
     )
     check(
-        "floor regex rejects non-floor kernels",
-        not FLOOR_KERNEL_RE.match("linux-image-unsigned-5.15.0-131-generic_5.15.0-131.141_amd64.deb")
-        and not FLOOR_KERNEL_RE.match("linux-image-unsigned-5.16.0-25-generic")
-        and not FLOOR_KERNEL_RE.match("linux-image-5.15.0-25-generic"),
+        "the suite table is complete and shaped",
+        set(SUITE_TABLE) == {"floor", "focal", "jammy", "noble"}
+        and SUITE_TABLE["floor"]["pocket"] == "jammy"
+        and SUITE_TABLE["jammy"]["pocket"] == "jammy"
+        and len({e["out"] for e in SUITE_TABLE.values()}) == 4,
+        "floor and jammy share the pocket; each suite owns its vmlinuz cache file",
     )
 
     # newc: pack entries, parse them back, verify every field.
@@ -769,8 +843,16 @@ def main():
         prog="rootfs-pack", description="the zejtron kernel-floor sandbox provisioner"
     )
     sub = ap.add_subparsers(dest="cmd", required=True)
-    k = sub.add_parser("kernel", help="resolve + fetch the jammy GA floor vmlinuz into the cache")
-    k.add_argument("--suite", choices=["floor"], default="floor")
+    k = sub.add_parser(
+        "kernel",
+        help="resolve + fetch a suite's GA vmlinuz into the cache",
+    )
+    k.add_argument(
+        "--suite",
+        choices=sorted(SUITE_TABLE),
+        default="floor",
+        help="floor = the jammy GA 5.15.0 kernel; a witness name (focal, jammy, noble) resolves that suite's GA kernel",
+    )
     k.add_argument("--cache", required=True)
     i = sub.add_parser("initrd", help="build the gzipped newc initramfs")
     i.add_argument("--cache", required=True)
@@ -789,7 +871,7 @@ def main():
         return self_test()
     os.makedirs(args.cache, exist_ok=True)
     if args.cmd == "kernel":
-        print(fetch_floor_kernel(args.cache, jammy_index(args.cache)))
+        print(fetch_suite_kernel(args.cache, args.suite))
         return 0
     build_initrd(args.cache, args.repo, args.binary, args.init, args.payload, args.lane)
     return 0
