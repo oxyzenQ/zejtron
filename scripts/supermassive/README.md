@@ -141,6 +141,15 @@ software emulation otherwise). This entry replaces the stale
 and never attached - the claim documented a leg that did not
 exist until the micro-VM lane built one.
 
+The local twin grew the arbitrary-kernel lane for the same
+reason: `--kernel PATH` boots any vmlinuz the operator chooses,
+the init reports the floor direction instead of gating the
+identity, and the suite adapts by its own capability computation
+- proven live on the REAL focal GA 5.4.0-26 (below the floor,
+no BTF: the attach specs run the refusal direction, 276/276) and
+on the floor kernel itself via PATH (280/280, the success
+direction).
+
 ## The exit code
 
 - `0` = every check passed or skipped WITH its named reason, and the

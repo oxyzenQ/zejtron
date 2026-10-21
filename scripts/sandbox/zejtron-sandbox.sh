@@ -16,6 +16,14 @@
 # supermassive-kernel-floor.yml) proves the same lane on a hosted
 # runner with KVM.
 #
+# --kernel PATH opens the arbitrary lane: any vmlinuz the operator
+# wants zejtron proven on, booted under the same micro-VM shape.
+# The init reports the floor direction of the booted release
+# instead of gating the identity, the suite adapts by its own
+# capability computation, and the payload's exit code is the
+# verdict - the floor lane stays strict by construction (a marker
+# at .sandbox/lane, packed only when --kernel takes a PATH).
+#
 # Usage:
 #   scripts/sandbox/zejtron-sandbox.sh --battery      # the supermassive low leg, root, in the VM
 #   scripts/sandbox/zejtron-sandbox.sh --run <cmd...> # any root-requiring command, in the VM
@@ -25,8 +33,12 @@
 # Options:
 #   --kernel floor|PATH     floor = the jammy GA 5.15.0 kernel (the
 #                           default and the lane's point); PATH = a
-#                           local vmlinuz (any kernel you want to
-#                           prove zejtron on)
+#                           local vmlinuz - the arbitrary lane: any
+#                           kernel you want to prove zejtron on. The
+#                           init reports the floor direction instead
+#                           of gating the identity, the suite adapts
+#                           by its own capability computation, and
+#                           the payload's exit code is the verdict
 #   --binary PATH           the zejtron payload binary (default: the
 #                           newest repo build — every cargo alias
 #                           output is a candidate; without /dev/kvm
@@ -261,6 +273,11 @@ fi
 note "binary: ${BINARY}"
 
 # ── the kernel ──────────────────────────────────────────────────────────
+# The lane rides the kernel choice: floor resolves the documented
+# floor kernel (the strict identity lane); a PATH is the arbitrary
+# lane - any kernel the operator wants zejtron proven on, with the
+# init reporting the floor direction instead of gating the identity.
+LANE="floor"
 case "${KERNEL}" in
 floor)
 	VMLINUZ="$(python3 "${SCRIPT_DIR}/rootfs-pack.py" kernel --suite floor --cache "${CACHE}")" ||
@@ -268,10 +285,11 @@ floor)
 	;;
 *)
 	VMLINUZ="${KERNEL}"
+	LANE="arbitrary"
 	;;
 esac
 [ -f "${VMLINUZ}" ] || die "kernel not found: ${VMLINUZ}"
-note "kernel: ${VMLINUZ}"
+note "kernel: ${VMLINUZ} (lane: ${LANE})"
 
 # ── the payload script (packed into the image; the init runs it) ────────
 PAYLOAD="$(mktemp "${CACHE}/payload.XXXXXX.sh")"
@@ -280,11 +298,12 @@ case "${MODE}" in
 battery)
 	cat >"${PAYLOAD}" <<'EOF'
 #!/usr/bin/env bash
-# The canonical low leg, root, inside the floor-kernel VM: the FULL
+# The canonical low leg, root, inside the micro-VM: the FULL
 # supermassive suite (every surface, every flag, every error path)
-# against the packed binary, on the exact 5.15.0 kernel the floor
-# documents — the leg no stock GitHub runner can host. Each leg's
-# exit code is a verdict row; the init relays the final one.
+# against the packed binary, on the booted kernel (the floor lane:
+# the exact documented 5.15.0; the arbitrary lane: whatever
+# --kernel PATH pointed at). Each leg's exit code is a verdict row;
+# the init relays the final one.
 set -u
 cd /opt/zejtron
 bash scripts/supermassive/legs/low.sh --bin /opt/zejtron/zejtron
@@ -294,7 +313,7 @@ if [ "$rc" -eq 0 ]; then
 else
         verdict=FAIL
 fi
-echo "SANDBOX-RESULT: supermassive low leg (full suite, root, floor kernel) - $verdict"
+echo "SANDBOX-RESULT: supermassive low leg (full suite, root, booted kernel) - $verdict"
 [ "$rc" -eq 0 ]
 EOF
 	;;
@@ -333,7 +352,8 @@ python3 "${SCRIPT_DIR}/rootfs-pack.py" initrd \
 	--repo "${REPO_ROOT}" \
 	--binary "${BINARY}" \
 	--init "${SCRIPT_DIR}/sandbox-init.sh" \
-	--payload "${PAYLOAD}" || die "initramfs build failed"
+	--payload "${PAYLOAD}" \
+	--lane "${LANE}" || die "initramfs build failed"
 [ "${KEEP}" -eq 1 ] || rm -f "${PAYLOAD}"
 trap - EXIT
 note "initramfs: ${INITRD}"
@@ -365,7 +385,7 @@ if [ "$NET" -eq 1 ]; then
 	note "user-mode networking ON (egress through the host)"
 fi
 VM_LOG="${CACHE}/vm.log"
-note "booting the kernel-floor micro-VM (timeout ${TIMEOUT}s; serial console follows)..."
+note "booting the ${LANE}-lane micro-VM (timeout ${TIMEOUT}s; serial console follows)..."
 set +e
 timeout "${TIMEOUT}" qemu-system-x86_64 \
 	"${ACCEL_FLAGS[@]}" \
@@ -392,7 +412,7 @@ fi
 echo "── sandbox verdicts ──"
 grep -E '^SANDBOX-(RESULT|VERDICT)' "${VM_LOG}" || true
 if grep -q '^SANDBOX-VERDICT: PASS' "${VM_LOG}"; then
-	echo "[sandbox] OK: the payload ran green inside the floor-kernel VM"
+	echo "[sandbox] OK: the payload ran green inside the ${LANE}-lane micro-VM"
 	exit 0
 fi
 echo "[sandbox] FAIL: the VM did not report PASS (log: ${VM_LOG})"

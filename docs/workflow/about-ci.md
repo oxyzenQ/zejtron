@@ -206,7 +206,19 @@ verdict relays through SANDBOX-* sentinel lines on the serial
 console - the VM cannot relay exit codes through qemu). The local
 twin is `scripts/sandbox/zejtron-sandbox.sh` (the same boot shape,
 rootless-packed by `scripts/sandbox/rootfs-pack.py`, KVM when
-`/dev/kvm` is writable, TCG software emulation otherwise). Triggers:
+`/dev/kvm` is writable, TCG software emulation otherwise). The
+same twin grew the arbitrary-kernel lane: `--kernel PATH` boots
+any local vmlinuz under the same discipline, and the init
+switches to report mode (a marker packed at `.sandbox/lane`,
+only present when `--kernel` takes a PATH): the floor guard
+becomes the floor DIRECTION row (at/above or below the 5.15
+floor - the same number the suite's capability computation
+reads), the substrate probes report instead of gate, and the
+payload's exit code is the verdict. The CI lane stays
+floor-strict by construction (it packs no lane marker); the
+arbitrary lane is the local operator's instrument for any kernel
+zejtron is asked to prove itself on, from either side of the
+floor line. Triggers:
 the estate-wide push filter plus the file's own name, plus
 `workflow_dispatch`; no `pull_request` trigger (the fast lane owns
 PRs).
