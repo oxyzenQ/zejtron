@@ -189,27 +189,11 @@ pub(crate) fn format_system_time(time: SystemTime) -> String {
 }
 
 pub(crate) fn parse_passwd() -> io::Result<HashMap<u32, String>> {
-    parse_passwd_contents(&fs::read_to_string("/etc/passwd")?)
-}
-
-fn parse_passwd_contents(contents: &str) -> io::Result<HashMap<u32, String>> {
-    let mut users = HashMap::new();
-    for line in contents.lines() {
-        let mut fields = line.split(':');
-        let Some(name) = fields.next().filter(|name| !name.is_empty()) else {
-            continue;
-        };
-        fields.next();
-        let Some(uid) = fields.next().and_then(|uid| uid.parse::<u32>().ok()) else {
-            continue;
-        };
-        users.insert(uid, name.to_owned());
-    }
-    Ok(users)
+    crate::system::passwd_users()
 }
 
 pub(crate) fn uid_to_user(uid: u32, users: &HashMap<u32, String>) -> String {
-    users.get(&uid).cloned().unwrap_or_else(|| uid.to_string())
+    crate::system::uid_to_user(uid, users)
 }
 
 #[cfg(test)]

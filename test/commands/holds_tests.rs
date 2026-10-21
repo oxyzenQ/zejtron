@@ -63,7 +63,14 @@ fn broken_symlink_error_is_clean() {
 
 #[test]
 fn vanished_holder_is_skipped() {
-    assert!(read_holder(u32::MAX, vec![Evidence::Fd(1, FdMode::Read)]).is_none());
+    assert!(
+        read_holder(
+            u32::MAX,
+            vec![Evidence::Fd(1, FdMode::Read)],
+            &std::collections::HashMap::new()
+        )
+        .is_none()
+    );
 }
 
 #[test]

@@ -93,7 +93,7 @@ fn timestamp_format_is_stable_shape() {
 
 #[test]
 fn parses_passwd_contents() {
-    let users = parse_passwd_contents(
+    let users = crate::system::parse_passwd_users(
         "root:x:0:0::/root:/bin/sh\nrezky:x:1000:1000::/home/rezky:/bin/zsh\n",
     )
     .unwrap();

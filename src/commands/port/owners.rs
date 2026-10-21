@@ -14,6 +14,9 @@ pub(crate) fn map_socket_owners(
 ) -> (OwnerMap, ScanStats) {
     let mut owners: OwnerMap = HashMap::new();
     let mut stats = ScanStats::default();
+    // One passwd read for the whole scan - not one per owner
+    // (night-total-lts-3: resolve_username re-read /etc/passwd per call).
+    let users = crate::system::passwd_users().unwrap_or_default();
     let Ok(entries) = fs::read_dir(proc_root) else {
         return (owners, stats);
     };
@@ -65,7 +68,7 @@ pub(crate) fn map_socket_owners(
             continue;
         }
 
-        let mut process = read_process_info(&process_dir, pid);
+        let mut process = read_process_info(&process_dir, pid, &users);
         // Read cmdline once per process to share across all its sockets
         process.cmdline = crate::system::read_cmdline(Path::new("/proc"), pid);
 
@@ -95,14 +98,14 @@ fn parse_socket_inode(path: &Path) -> Option<u64> {
     inode.parse().ok()
 }
 
-fn read_process_info(process_dir: &Path, pid: u32) -> ProcessInfo {
+fn read_process_info(process_dir: &Path, pid: u32, users: &HashMap<u32, String>) -> ProcessInfo {
     let status = fs::read_to_string(process_dir.join("status")).unwrap_or_default();
     let name = crate::system::read_status_name(&status).unwrap_or_else(|| "unknown".to_owned());
     let uid = crate::system::read_status_value(&status, "Uid")
         .and_then(|value| value.split_whitespace().next().map(ToOwned::to_owned));
     let user = uid
         .as_deref()
-        .and_then(resolve_username)
+        .and_then(|uid| resolve_username(uid, users))
         .or_else(|| uid.map(|uid| format!("uid={uid}")))
         .unwrap_or_else(|| "uid=unknown".to_owned());
     let cwd = fs::read_link(process_dir.join("cwd")).ok();
@@ -117,13 +120,7 @@ fn read_process_info(process_dir: &Path, pid: u32) -> ProcessInfo {
     }
 }
 
-fn resolve_username(uid: &str) -> Option<String> {
-    let passwd = fs::read_to_string("/etc/passwd").ok()?;
-    passwd.lines().find_map(|line| {
-        let mut fields = line.split(':');
-        let name = fields.next()?;
-        fields.next()?;
-        let entry_uid = fields.next()?;
-        (entry_uid == uid).then(|| name.to_owned())
-    })
+fn resolve_username(uid: &str, users: &HashMap<u32, String>) -> Option<String> {
+    let uid = uid.parse::<u32>().ok()?;
+    users.get(&uid).cloned()
 }
