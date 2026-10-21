@@ -24,7 +24,7 @@ tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, file_eve
     );
     assert_eq!(
         section,
-        "[eBPF]\n  \
+        "\n  [eBPF]\n  \
          Feature:     enabled (this binary)\n  \
          Kernel:      6.1.11\n  \
          BTF:         present (/sys/kernel/btf/vmlinux exists)\n  \
@@ -39,19 +39,25 @@ file_events, offsets)"
 }
 
 #[test]
-fn live_section_renders_nine_lines() {
+fn live_section_renders_the_separated_block() {
     // The live section (host-probing) still renders the contract
-    // shape: the header plus exactly eight rows, whatever the host
-    // says - a broken renderer cannot hide behind host variance.
+    // shape: one blank line, the indented header, then exactly eight
+    // rows, whatever the host says - a broken renderer cannot hide
+    // behind host variance.
     let section = section();
     let lines: Vec<&str> = section.lines().collect();
-    assert_eq!(lines.len(), 9, "the section is the header + 8 rows");
-    assert_eq!(lines[0], "[eBPF]");
-    for row in &lines[1..] {
+    assert_eq!(
+        lines.len(),
+        10,
+        "the section is the blank line + header + 8 rows"
+    );
+    assert_eq!(lines[0], "", "one blank line separates the section");
+    assert_eq!(lines[1], "  [eBPF]", "the header rides the KV indent");
+    for row in &lines[2..] {
         assert!(row.starts_with("  "), "every row is indented: {row}");
     }
     assert_eq!(
-        lines[7], "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write",
+        lines[8], "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write",
         "the probes row is the binary's contract, host-independent"
     );
 }

@@ -65,10 +65,13 @@ fn build_metadata_row() {
 #[test]
 fn stable_output_shape() {
     let checks = [result(CheckStatus::Ok, "os", "linux")];
-    let output = format_report(&checks, summarize(&checks), "abcdef123");
+    let output = format_report(&checks, summarize(&checks));
 
     assert!(output.starts_with("━━━ zejtron System Doctor ━━━\n\n  Mode: "));
     assert!(output.contains("  os:              OK    linux"));
-    assert!(output.contains("  Summary:         ok=1 warn=0 fail=0"));
-    assert!(output.contains("  Build:           zejtron v"));
+    // The Summary row closes the report with no blank line above it,
+    // and the build fact rides the build_meta row alone - no
+    // duplicate Build tail row repeats it (night-improve-42).
+    assert!(output.ends_with("  Summary:         ok=1 warn=0 fail=0"));
+    assert!(!output.contains("  Build:"));
 }

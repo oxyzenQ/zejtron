@@ -7,18 +7,20 @@
 //! an incapable host reports the snapshot lane with the reason, an
 //! attached one reports the live pins.
 //! The rows are the contract (night-improve-2 added the Tracepoints
-//! row - the one doctor change the pass is allowed):
+//! row): night-improve-42 seats the header on the two-space KV
+//! indent one blank line below the check rows, so the section reads
+//! as the separated sub-report it is:
 //!
 //! ```text
-//! \[eBPF]
+//!
+//!   [eBPF]
 //!   Feature:     enabled (this binary)
 //!   Kernel:      6.1.11
 //!   BTF:         present (/sys/kernel/btf/vmlinux exists)
 //!   Lockdown:    none
 //!   Caps:        CAP_BPF + CAP_PERFMON present
 //!   Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))
-//!   Probes: sched_process_exec, inet_sock_set_state, vfs_open, vfs_write
-
+//!   Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write
 //!   Pins:        /sys/fs/bpf/zejtron (present: tap, tap_link, stats, sock_tap, sock_tap_link, sock_events)
 //! ```
 //!
@@ -191,7 +193,11 @@ fn format_section(
     pins: &str,
 ) -> String {
     let mut out = String::new();
-    out.push_str(&crate::output::ok_out("[eBPF]"));
+    // The separated sub-report (night-improve-42): one blank line
+    // splits the section from the check rows above it, and the
+    // header rides the same two-space KV indent as its rows.
+    out.push('\n');
+    out.push_str(&crate::output::ok_out("  [eBPF]"));
     out.push('\n');
     for (label, value) in [
         ("  Feature:     ", feature),
