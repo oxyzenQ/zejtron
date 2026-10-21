@@ -48,37 +48,24 @@
 #     inside the budget instead of hanging the runner.
 #
 # Weekly cadence mirrors the sibling contract: miri is slow and
-# nightly-only, so it is not on the per-PR critical path - the push
-# filter catches Rust-surface changes the same week, and the Sunday
-# run (00:00 UTC / 07:00 WIB) picks up whatever slipped through.
-# The `--no-install` flag is the CI contract: this workflow installs
-# its own pinned toolchain below, so a missing component must fail
-# loudly rather than silently download a moving nightly.
+# nightly-only, so it is not on the per-PR critical path. With the
+# push and pull_request triggers unfiltered (the owner's
+# unfiltered-CI simplification), nothing slips past the per-change
+# burn; the Sunday run's remaining signal is nightly-toolchain drift
+# (a moving nightly's miri can surface new UB against an unchanged
+# tree). The `--no-install` flag is the CI contract: this workflow
+# installs its own pinned toolchain below, so a missing component
+# must fail loudly rather than silently download a moving nightly.
 
 name: zejtron - Miri
 
 'on':
   push:
-    branches: ["main"]
-    paths:
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/miri.yml'
   pull_request:
-    branches: ["main"]
-    paths:
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/miri.yml'
   schedule:
-    # Sunday 00:00 UTC (07:00 WIB) - picks up the week's commits in
-    # one shot, the sibling cadence.
+    # Sunday 00:00 UTC (07:00 WIB) - the per-change burn is unfiltered
+    # now; this run watches the moving nightly itself (new miri
+    # findings against an unchanged tree), the sibling cadence.
     - cron: '0 0 * * 0'
   # Manual trigger from the Actions tab.
   workflow_dispatch:

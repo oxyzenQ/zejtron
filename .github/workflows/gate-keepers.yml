@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # Gate-keepers - the one wholesale gate workflow (the sibling's
-# NIGHT-hunt-23 class closure lineage): ci.yml carries the
-# path-filtered build/test jobs, this workflow runs
+# NIGHT-hunt-23 class closure lineage): this workflow runs
 # scripts/gate-keepers.sh wholesale on EVERY push and PR with NO
-# paths filter - a docs-only or workflow-only change never skips the
-# gates that police it.
+# filters at all (the owner's unfiltered-CI simplification retired
+# the branch scoping together with the estate's path filters) - a
+# docs-only or workflow-only change never skips the gates that
+# police it.
 #
 # Checks performed by gate-keepers.sh (16 sections: the pre-commit
 # self-install seat plus 15 numbered gates):
@@ -26,9 +27,7 @@ name: zejtron - Gate-keepers
 
 'on':
   push:
-    branches: ["main"]
   pull_request:
-    branches: ["main"]
 
 permissions:
   contents: read

@@ -4,31 +4,15 @@
 ---
 name: zejtron - Docs CI
 
+# No filters of any kind (the owner's unfiltered-CI simplification):
+# the branch law and the docs-path filter are retired together - every
+# push (any branch, any tag) and every pull request (any base) burn
+# the spelling lane. The publish lanes are the only filtered seats
+# left in the estate, and theirs is a tag trigger (v*), not a path
+# filter.
 "on":
   push:
-    # night-improve-35: the estate's branch law - every workflow
-    # scopes its push and pull_request triggers to main
-    # (gate-keepers.yml, ci.yml, the audit lanes all carry the
-    # same spelling). Without it this lane also woke for tag
-    # pushes and side-branch pushes, runs with no merge decision
-    # behind them.
-    branches:
-      - main
-    paths:
-      - '**/*.md'
-      - '**/*.txt'
-      - '**/*.rst'
-      - 'LICENSE'
   pull_request:
-    branches:
-      # Same branch law as push (the no-drift rule).
-      - main
-    paths:
-      # Same paths as push (the no-drift rule).
-      - '**/*.md'
-      - '**/*.txt'
-      - '**/*.rst'
-      - 'LICENSE'
 
 # One run per ref (the estate's concurrency shape).
 concurrency:

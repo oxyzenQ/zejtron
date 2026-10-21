@@ -7,29 +7,16 @@
 # /proc, sysfs, and the filesystem and renders to a terminal. The
 # analysis is pinned to `rust` - the whole shipped surface. Shell and
 # Python tooling scripts are covered by the shell quad and the
-# language discipline via the wholesale gate-keepers job, which runs
-# unfiltered on every push. The paths filters are Rust-only: a
-# tooling-only diff has nothing new for a rust-language scan to find.
+# language discipline via the wholesale gate-keepers job. The paths
+# filters are retired (the owner's unfiltered-CI simplification):
+# every push and pull request burns the scan - the filters' sync tax
+# cost more than the runner minutes they saved.
 
 name: zejtron - CodeQL
 
 'on':
   push:
-    branches: ["main"]
-    paths:
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - '.github/workflows/codeql.yml'
   pull_request:
-    branches: ["main"]
-    paths:
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - '.github/workflows/codeql.yml'
   schedule:
     # Monday 00:00 UTC (07:00 WIB) - the owner's morning, one clock
     # for every scheduled workflow.

@@ -7,7 +7,12 @@ This project uses GitHub Actions for CI and GitHub Releases.
 
 ## CI
 
-CI runs on pushes and pull requests targeting `main`.
+CI runs on every push and every pull request - no path filter, no
+branch filter (the owner's unfiltered-CI simplification: the filter
+spelling's sync tax across every workflow cost more than the runner
+minutes it saved). The publish lanes (`release.yml`, `crates-io.yml`)
+are the estate's one deliberate exception: they wake only on the
+owner-pushed `v*` tag, never blind.
 
 It installs stable Rust with `rustfmt` and `clippy`, installs `codespell`, restores the Rust cache, and runs:
 
@@ -60,7 +65,9 @@ configured (the cargo-side variable the lane derives from it is
 the explicit flag and secret the publish step
 refuses to run, so the dry-run lane is the default posture.
 Code-surface pushes and pull requests never wake this lane - the fast
-lane (`zejtron - CI`) owns those.
+lane (`zejtron - CI`) owns those. The publish lanes are the estate's
+one deliberate exception to the unfiltered-CI posture: every other
+lane burns on any change, while a publish waits for the owner's tag.
 
 ## Version Bump Flow
 
@@ -138,13 +145,13 @@ stable-lane pass. The musl legs build the static release shape
 (musl-tools, exactly as the release matrix provisions it) and then run
 the CLI battery against the leg's own binary via `ZEJTRON_BIN_PATH` -
 closing the honest gap where the shipped musl binary had never
-executed the runtime battery. Triggers (night-improve-28): the
-estate-wide push filter - five shared surface globs plus the file's
-own name, the same spelling every build workflow carries (a workflow
-that can change its own contract owes itself a run) - and
-`workflow_dispatch`; the weekly schedule is retired, because the
-heavy lane rides the estate's push surface now instead of a clock.
-No pull_request trigger, because `zejtron - CI` owns PRs.
+executed the runtime battery. Triggers: every
+push - no path filter, no branch filter (the owner's unfiltered-CI
+simplification retired the estate-wide spelling; the filter's sync
+tax across every workflow cost more than the runner minutes it saved)
+- plus `workflow_dispatch`; the weekly schedule stays retired
+(night-improve-28). No pull_request trigger, because `zejtron - CI`
+owns PRs.
 `scripts/build.sh battery` is the lane's reusable entry point: the
 runtime battery alone, no compile, against whatever binary
 `ZEJTRON_BIN_PATH` names.
@@ -157,9 +164,10 @@ REAL compiled binary through `scripts/supermassive/` (that suite's
 README is the contract's home). Two legs run the IDENTICAL check
 depth - the low-spec leg on the MSRV floor (60s wall budget) and
 the best-spec leg on the stable frontier (300s wall budget); the
-budget buys headroom, never depth. Triggers: the estate-wide push
-filter plus the file's own name, plus `workflow_dispatch`; no
-`pull_request` trigger (the fast lane owns PRs).
+budget buys headroom, never depth. Triggers: every push (no path
+filter, no branch filter - the owner's unfiltered-CI simplification),
+plus `workflow_dispatch`; no `pull_request` trigger (the fast lane
+owns PRs).
 
 ## Supermassive Container E2E (the container lane)
 
@@ -172,9 +180,9 @@ and exit clean on every read-only surface. The lane's docker is
 unprivileged by design: the eBPF lane's privileged attach belongs
 to the host kernel, not a container namespace, so the container
 lane pins the honest refusal rendering (the attach itself found its
-CI seat in the kernel-floor lane below). Triggers: the estate-wide
-push filter on pushes AND pull requests (this lane is cheap enough
-for the PR path), plus `workflow_dispatch`.
+CI seat in the kernel-floor lane below). Triggers: every push and
+every pull request (no filters - this lane is cheap enough for the
+PR path), plus `workflow_dispatch`.
 
 ## Supermassive Kernel Floor (the micro-VM lane)
 
@@ -219,6 +227,6 @@ floor-strict by construction (it packs no lane marker); the
 arbitrary lane is the local operator's instrument for any kernel
 zejtron is asked to prove itself on, from either side of the
 floor line. Triggers:
-the estate-wide push filter plus the file's own name, plus
-`workflow_dispatch`; no `pull_request` trigger (the fast lane owns
-PRs).
+every push (no path filter, no branch filter - the owner's
+unfiltered-CI simplification), plus `workflow_dispatch`; no
+`pull_request` trigger (the fast lane owns PRs).

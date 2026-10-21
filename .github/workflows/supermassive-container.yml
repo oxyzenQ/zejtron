@@ -25,33 +25,15 @@
 
 name: zejtron - Supermassive Container E2E
 
+# Trigger discipline (the owner's unfiltered-CI simplification): the
+# estate-wide path spelling and the branch scoping are retired
+# together - every push (any branch, any tag) and every pull request
+# (any base) burn the container lane, plus the manual dispatch. The
+# publish lanes are the only filtered seats left in the estate, and
+# theirs is a tag trigger (v*), not a path filter.
 'on':
   push:
-    branches: ["main"]
-    paths:
-      # night-improve-32: the estate-wide spelling (the sibling's
-      # NIGHT-boost-10 shape) - the surface the lane reads, identical
-      # in every build workflow, plus this file's own name (a
-      # workflow that can change its own contract owes itself a run).
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/supermassive-container.yml'
   pull_request:
-    branches: ["main"]
-    paths:
-      # night-improve-32: the estate-wide spelling (the sibling's
-      # NIGHT-boost-10 shape) - the surface the lane reads, identical
-      # in every build workflow, plus this file's own name (a
-      # workflow that can change its own contract owes itself a run).
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/supermassive-container.yml'
   workflow_dispatch:
 
 permissions:

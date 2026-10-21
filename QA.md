@@ -63,7 +63,8 @@ tree-wide 600-line cap per `.rs` file (no exemptions, split the same
 hour), 1000-line cap per script, SPDX headers on every tracked file,
 644/755 permission contract, English-only discipline with a live
 detector, repo-wide emoji ban, the version-pin sync check, and the
-wholesale gate-keepers run on every push with no paths filter. The
+wholesale gate-keepers run on every push and pull request with no
+filters at all. The
 reason is compounding: every file that lands over the limit makes the
 next change harder to review. Maturity is what does not need to be
 refactored later.
