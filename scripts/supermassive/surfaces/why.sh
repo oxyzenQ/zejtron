@@ -144,10 +144,10 @@ surface_why() {
                         sleep 8;
                 ' "$wv_file" >"$SM_SCRATCH/wv-writer.out" 2>"$SM_SCRATCH/wv-writer.err" &
 		wv_writer=$!
-		wait "$wv_why_pid"
-		wv_rc=$?
+		wv_rc=0
+		wait "$wv_why_pid" || wv_rc=$?
 		sm_assert_rc 0 "$wv_rc" "writev proof: why --since 5s --raw exits 0"
-		wv_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/wv-writer.out" 2>/dev/null | head -1 | cut -d= -f2)"
+		wv_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/wv-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
 		if grep -q "wrote (writev)" "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
 			sm_pass "writev proof: the ledger names the vectorized write path"
 		else
@@ -172,8 +172,8 @@ surface_why() {
 			sm_fail "writev proof: the writev row is [observed]" \
 				"no [observed] tag in the why render"
 		fi
-		kill "$wv_writer" 2>/dev/null
-		wait "$wv_writer" 2>/dev/null
+		kill "$wv_writer" 2>/dev/null || true
+		wait "$wv_writer" 2>/dev/null || true
 		# The surface ends clean: the tap it attached, it detaches.
 		sm_run "$SM_SCRATCH/wv-detach.out" "$SM_SCRATCH/wv-detach.err" rc 20 -- \
 			"$SM_DEFAULT_BIN" doctor --detach
