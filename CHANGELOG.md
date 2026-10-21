@@ -528,6 +528,24 @@ v11.0.0
 
 ### Fixed
 
+- The duration parsers saturate instead of overflowing
+  (night-total-lts-1, the sharpest-skill depth audit's one real
+  find). Both `--since` grammars multiplied the parsed u64 amount
+  by the unit multiplier with plain `*`: recent's day arm by
+  86400, the port window's hour arm by 3600. An absurd input
+  (`--since 5124095576030432h` - exactly 2^64 seconds) wrapped to
+  ZERO seconds in release builds: recent silently filtered to
+  nothing-but-instant files, and the port window's clamp then
+  shaped the wrapped zero into the 1s floor - an ask for the
+  maximum window produced the smallest one. Debug builds (the
+  test lane) panicked on the same input. Every arm now rides
+  saturating_mul: an absurd age ask is "older than everything"
+  (u64::MAX seconds), an absurd window ask saturates to the
+  ceiling that clamp_window then shapes into the honest 1h
+  maximum. Two regression tests pin the exact wrap-to-zero input
+  and the saturate-then-clamp shape, one per grammar, alongside
+  the existing sane-input pins (unchanged - no behavior moves for
+  any in-range value).
 - The README's Limitations list named two dead subcommands (`service`
   needing systemd/systemctl, `git` needing the git binary) and one
   dead verb in a survivors list (`env`) - all four wrappers died in

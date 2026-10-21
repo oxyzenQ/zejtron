@@ -26,6 +26,34 @@ fn rejects_invalid_duration() {
 }
 
 #[test]
+fn huge_amounts_saturate_instead_of_overflowing() {
+    // night-total-lts-1: the pre-fix arithmetic (amount * 60 * 60 and
+    // friends) panicked in debug and wrapped in release - the hour
+    // arm at 5124095576030432h wrapped to exactly zero seconds. The
+    // saturating law: an absurd age ask is "older than everything",
+    // never a wrapped-to-small window that filters the wrong file
+    // set. Every arm saturates at the same u64::MAX seconds.
+    assert_eq!(
+        parse_duration("18446744073709551615m").unwrap(),
+        Duration::from_secs(u64::MAX)
+    );
+    assert_eq!(
+        parse_duration("18446744073709551615h").unwrap(),
+        Duration::from_secs(u64::MAX)
+    );
+    assert_eq!(
+        parse_duration("18446744073709551615d").unwrap(),
+        Duration::from_secs(u64::MAX)
+    );
+    // The exact wrap-to-zero input from the audit (2^64 seconds =
+    // 5124095576030432 * 3600): pre-fix this parsed as zero seconds.
+    assert_eq!(
+        parse_duration("5124095576030432h").unwrap(),
+        Duration::from_secs(u64::MAX)
+    );
+}
+
+#[test]
 fn sorts_newest_first() {
     let now = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
     let mut files = vec![
