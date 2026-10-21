@@ -723,11 +723,11 @@ def self_test():
         "jammy": ("linux-image-unsigned-5.15.0-25-generic", "25"),
         "noble": ("linux-image-unsigned-6.8.0-31-generic", "31"),
     }
-    for suite, (ga, abi) in ga_names.items():
-        m = SUITE_TABLE[suite]["kernel_re"].match(ga)
+    for suite, (ga_name, ga_abi) in ga_names.items():
+        m = SUITE_TABLE[suite]["kernel_re"].match(ga_name)
         check(
             f"{suite} regex matches its GA kernel",
-            bool(m) and m.group(1) == abi,
+            bool(m) and m.group(1) == ga_abi,
         )
     check(
         "suite regexes reject neighbor kernels and suffixed names",
