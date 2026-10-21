@@ -22,6 +22,26 @@ v11.0.0
 
 ### Added
 
+- The arbitrary-kernel lane for the kernel-floor sandbox (the
+  owner's next-cycle ask): `zejtron-sandbox.sh --kernel PATH`
+  now boots ANY local vmlinuz, not just the floor kernel. The
+  lane rides a marker packed at `.sandbox/lane` (floor = the
+  strict 5.15.0 identity gate, unchanged and still the CI lane's
+  only mode; arbitrary = report mode): the init reports the
+  floor direction of the booted release (at/above or below the
+  5.15 floor - the same number the suite's capability
+  computation reads) instead of gating the identity, the
+  substrate probes (BTF, tracefs) become reports, and the
+  payload's exit code is the verdict. Proven live both ways on
+  this agent box (TCG): the REAL jammy GA 5.15.0-25 via PATH -
+  280/280, the full privileged attach lifecycle in the success
+  direction, 12s wall; and the REAL focal GA 5.4.0-26 (a kernel
+  no stock runner can host and the floor lane would refuse by
+  design) - 276/276, the attach specs in the refusal direction,
+  BTF honestly reported unreadable (focal GA ships no BTF
+  vmlinux), 9s wall. The instrument now proves zejtron on any
+  kernel the operator chooses, from either side of the floor
+  line.
 - The kernel-floor micro-VM lane (night-improve-43, the owner's
   correction of its own first pass: the low-specs test must run on
   the REAL minimum kernel, not a computed agreement against a newer

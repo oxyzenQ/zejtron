@@ -14,13 +14,21 @@
 # payload the entrypoint packed into /opt/zejtron/.sandbox/payload.sh
 # and relays the exit code through the SANDBOX-VERDICT sentinel line.
 #
-# The lane's own contract rides the bring-up probes: the kernel
-# release MUST be the jammy GA floor kernel (5.15.0-*, the exact
-# documented minimum — a wrong kernel booted under the floor lane's
-# name fails HERE, before any payload spends its budget), BTF must
-# be readable (the floor kernel ships it; the tap lane's offsets
-# verification reads it), and the binary must run and answer the
-# doctor's bpf syscall probe on THIS kernel.
+# Two lanes, one init. The FLOOR lane (the default, and the only
+# lane the CI twin runs): the kernel that booted must BE the jammy
+# GA floor kernel (5.15.0-*, the exact documented minimum — a wrong
+# kernel booted under the floor lane's name fails HERE, before any
+# payload spends its budget), BTF must be readable (the floor kernel
+# ships it; the tap lane's offsets verification reads it), and the
+# binary must run and answer the doctor's bpf syscall probe on THIS
+# kernel: bring-up is a GATE - any failed probe ends the VM before
+# the payload. The ARBITRARY lane (the entrypoint's --kernel PATH,
+# a marker packed at .sandbox/lane): the same probes REPORT instead
+# of gate - the floor guard becomes the floor DIRECTION row (at/above
+# or below the 5.15 floor, the same number the suite's own capability
+# computation reads), because the point of the arbitrary lane is
+# proving zejtron on a kernel of the operator's choice, and the
+# payload's exit code is the verdict there.
 #
 # Contract: SANDBOX-RESULT lines for the bring-up probes plus one
 # final SANDBOX-VERDICT line (PASS, or FAIL with the payload's exit
@@ -33,10 +41,13 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export TERM="${TERM:-dumb}"
 
 FAILURES=0
+LANE="floor"
 
 note() {
 	echo "SANDBOX-RESULT: $1 — $2"
-	if [ "$2" != "PASS" ]; then
+	# The floor lane gates on bring-up; the arbitrary lane only
+	# reports - there the payload's exit code is the verdict.
+	if [ "$2" != "PASS" ] && [ "$LANE" = "floor" ]; then
 		FAILURES=$((FAILURES + 1))
 	fi
 }
@@ -77,6 +88,24 @@ mount -t devtmpfs dev /dev
 exec >/dev/console 2>&1
 echo "SANDBOX: init on $(uname -r)"
 
+# The lane (the entrypoint packs it at .sandbox/lane): floor = the
+# strict identity contract; arbitrary = the report mode. A garbage
+# lane file is an assembly bug - fail loudly, never guess.
+if [ -r "$Z/.sandbox/lane" ]; then
+	LANE="$(cat "$Z/.sandbox/lane" 2>/dev/null)"
+fi
+LANE="${LANE:-floor}"
+case "$LANE" in
+floor | arbitrary) ;;
+*)
+	echo "SANDBOX-VERDICT: FAIL (unknown lane: $LANE — assembly bug)"
+	guest_exit
+	;;
+esac
+if [ "$LANE" = "arbitrary" ]; then
+	echo "SANDBOX: arbitrary lane — the identity rows below are reports; the payload is the verdict"
+fi
+
 # Everything the zejtron battery needs (PID 1 owns it all): tmpfs
 # scratch (the suite's run dirs), bpffs (the tap lane's pin surface,
 # /sys/fs/bpf/zejtron), devpts (the pty-shaped color probes),
@@ -103,27 +132,52 @@ else
 	note "kernel surfaces" FAIL
 fi
 
-# The lane's own floor guard: the kernel that booted must BE the
-# documented floor kernel — 5.15.0-*, the jammy GA release. A newer
-# kernel riding the floor lane's name (a resolver regression, a
-# cached wrong vmlinuz) fails HERE, loudly, before the payload.
-case "$(uname -r)" in
-5.15.0-*)
-	note "kernel floor (release $(uname -r) is the jammy GA 5.15.0 floor kernel)" PASS
-	;;
-*)
-	note "kernel floor (release $(uname -r) is NOT the 5.15.0 floor kernel — wrong kernel booted)" FAIL
-	;;
-esac
+# The lane's own floor guard. Floor lane: the kernel that booted
+# must BE the documented floor kernel — 5.15.0-*, the jammy GA
+# release; a newer kernel riding the floor lane's name (a resolver
+# regression, a cached wrong vmlinuz) fails HERE, loudly, before the
+# payload. Arbitrary lane: the same release is REPORTED with its
+# floor direction instead — the suite's capability computation
+# composes that direction with BTF and the effective capabilities,
+# so the row states the floor dimension only.
+if [ "$LANE" = "floor" ]; then
+	case "$(uname -r)" in
+	5.15.0-*)
+		note "kernel floor (release $(uname -r) is the jammy GA 5.15.0 floor kernel)" PASS
+		;;
+	*)
+		note "kernel floor (release $(uname -r) is NOT the 5.15.0 floor kernel — wrong kernel booted)" FAIL
+		;;
+	esac
+else
+	KREL="$(uname -r)"
+	KMAJ="${KREL%%.*}"
+	KREST="${KREL#*.}"
+	KMIN="${KREST%%[-.]*}"
+	case "${KMAJ}${KMIN}" in
+	'' | *[!0-9]*)
+		note "kernel direction (release $KREL is unparsable — the suite's own osrelease computation owns the direction)" PASS
+		;;
+	*)
+		if [ "$KMAJ" -gt 5 ] || { [ "$KMAJ" -eq 5 ] && [ "$KMIN" -ge 15 ]; }; then
+			note "kernel direction (release $KREL is at/above the 5.15 floor)" PASS
+		else
+			note "kernel direction (release $KREL is BELOW the 5.15 floor)" PASS
+		fi
+		;;
+	esac
+fi
 
 # The BTF substrate: the floor kernel ships /sys/kernel/btf/vmlinux
 # (CONFIG_DEBUG_INFO_BTF=y, jammy GA), and the tap lane's offsets
-# verification reads it at attach time — its absence on THIS kernel
-# would mean the image or the kernel is not what the lane documents.
+# verification reads it at attach time — on the floor lane its
+# absence would mean the image or the kernel is not what the lane
+# documents; on the arbitrary lane it is a reported property of the
+# operator's chosen kernel.
 if [ -r /sys/kernel/btf/vmlinux ]; then
 	note "BTF (/sys/kernel/btf/vmlinux readable — the offsets substrate)" PASS
 else
-	note "BTF (/sys/kernel/btf/vmlinux unreadable on the floor kernel)" FAIL
+	note "BTF (/sys/kernel/btf/vmlinux unreadable — no offsets substrate on this kernel)" FAIL
 fi
 
 # The tracing substrate (the lane contract the first floor-kernel
@@ -140,23 +194,25 @@ fi
 # The lean prelude: the binary runs and the doctor answers on this
 # kernel, before any payload spends its budget.
 if ./zejtron -V >/dev/null 2>&1; then
-	note "zejtron -V (binary runs on the floor kernel)" PASS
+	note "zejtron -V (the binary runs on this kernel)" PASS
 else
-	note "zejtron -V (binary runs on the floor kernel)" FAIL
+	note "zejtron -V (the binary runs on this kernel)" FAIL
 fi
 if ./zejtron doctor >/dev/null 2>&1; then
-	note "doctor (the bpf syscall answers on the floor kernel)" PASS
+	note "doctor (the bpf syscall answers on this kernel)" PASS
 else
-	note "doctor (the bpf syscall answers on the floor kernel)" FAIL
+	note "doctor (the bpf syscall answers on this kernel)" FAIL
 fi
 
 # ── the payload ────────────────────────────────────────────────────
 # Whatever the entrypoint packed: --battery runs the supermassive
-# low leg (the full suite, root, on the floor kernel), --shell drops
+# low leg (the full suite, root, on the booted kernel), --shell drops
 # into an interactive root bash on this console, --run executes an
 # arbitrary root-requiring script. The payload's exit code IS the
-# verdict; bring-up FAILURES above fail the run too (a guest that
-# cannot host the lane has no payload verdict worth reporting).
+# verdict; bring-up FAILURES above fail the run too on the floor
+# lane (a guest that cannot host the lane has no payload verdict
+# worth reporting) - on the arbitrary lane the payload is the
+# verdict, bring-up only reported.
 PAYLOAD="$Z/.sandbox/payload.sh"
 if [ "$FAILURES" -ne 0 ]; then
 	echo "SANDBOX-VERDICT: FAIL (bring-up probes failed — payload never ran)"

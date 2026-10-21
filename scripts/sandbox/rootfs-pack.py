@@ -50,7 +50,7 @@ Usage (the bash entrypoint scripts/sandbox/zejtron-sandbox.sh owns
 the orchestration; these subcommands are its legs):
   python3 scripts/sandbox/rootfs-pack.py kernel --suite floor --cache DIR
   python3 scripts/sandbox/rootfs-pack.py initrd --cache DIR --repo DIR \
-      --binary PATH --init PATH [--payload PATH]
+      --binary PATH --init PATH [--payload PATH] [--lane floor|arbitrary]
   python3 scripts/sandbox/rootfs-pack.py self-test
 """
 
@@ -505,7 +505,7 @@ def git_archive_into(repo, dest):
     extract_tar_bytes_into(proc.stdout, dest)
 
 
-def build_initrd(cache, repo, binary, init, payload):
+def build_initrd(cache, repo, binary, init, payload, lane=None):
     rootfs = tempfile.mkdtemp(prefix="zejtron-sandbox-rootfs-")
     try:
         # 1. the base userland (the suite the floor kernel shipped with)
@@ -542,6 +542,15 @@ def build_initrd(cache, repo, binary, init, payload):
         if payload:
             shutil.copy2(payload, os.path.join(sbx, "payload.sh"))
             os.chmod(os.path.join(sbx, "payload.sh"), 0o755)
+        if lane:
+            # The lane marker /init (sandbox-init.sh) reads: floor = the
+            # strict identity gate; arbitrary = report mode. Absent = floor,
+            # so the CI twin (which packs no lane file) is unchanged by
+            # construction.
+            lane_path = os.path.join(sbx, "lane")
+            with open(lane_path, "w", encoding="utf-8") as fh:
+                fh.write(lane + "\n")
+            os.chmod(lane_path, 0o644)
         shutil.copy2(init, os.path.join(rootfs, "init"))
         os.chmod(os.path.join(rootfs, "init"), 0o755)
         # 4. pack (degraded /dev placeholders are dropped inside; the
@@ -769,6 +778,10 @@ def main():
     i.add_argument("--binary", required=True)
     i.add_argument("--init", required=True)
     i.add_argument("--payload", default=None)
+    i.add_argument(
+        "--lane", choices=["floor", "arbitrary"], default=None,
+        help="the lane marker packed at .sandbox/lane (absent = floor)",
+    )
     sub.add_parser("self-test", help="rootless unit checks, no network")
     args = ap.parse_args()
 
@@ -778,7 +791,7 @@ def main():
     if args.cmd == "kernel":
         print(fetch_floor_kernel(args.cache, jammy_index(args.cache)))
         return 0
-    build_initrd(args.cache, args.repo, args.binary, args.init, args.payload)
+    build_initrd(args.cache, args.repo, args.binary, args.init, args.payload, args.lane)
     return 0
 
 
