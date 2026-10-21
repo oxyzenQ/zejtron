@@ -139,6 +139,30 @@ fn lane_verdict_live_or_attached_when_capable() {
 }
 
 #[test]
+fn lane_verdict_names_the_missing_caps_once() {
+    // The caps reason rides caps_label alone (night-improve-43, the
+    // one-truth law): the label already names which capability is
+    // missing, so the reason must not re-state the fact above it -
+    // the doctor's Lane row stays one paren level deep. The pin state
+    // precedes the caps seat in the verdict order, so a host with a
+    // complete pin set never reaches this branch; the reason contract
+    // is pinned on the pinless hosts the suite rides.
+    let no_caps = facts(Some("6.1.11"), LockdownMode::None, false, false);
+    let verdict = lane_verdict(&no_caps);
+    match verdict {
+        LaneVerdict::Snapshot(reason) => {
+            assert_eq!(
+                reason,
+                "missing (CAP_BPF + CAP_PERFMON) - attach needs root"
+            );
+        }
+        LaneVerdict::Live | LaneVerdict::LiveAttached => {
+            // The host's pin state answered first - nothing to pin here.
+        }
+    }
+}
+
+#[test]
 fn pin_constants_carry_the_removal_order() {
     // Link first (unlinking the link detaches the tap), program and
     // map last - ALL_PINS is the removal order, not a set.

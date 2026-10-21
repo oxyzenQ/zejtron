@@ -286,10 +286,12 @@ pub fn lane_verdict(facts: &KernelFacts) -> LaneVerdict {
         return LaneVerdict::Live;
     }
     if !facts.caps_sufficient() {
-        return LaneVerdict::Snapshot(format!(
-            "no CAP_BPF/CAP_PERFMON ({}) - attach needs root",
-            facts.caps_label()
-        ));
+        // The reason rides caps_label alone (one truth, no drift): the
+        // label already names exactly which capability is missing, so
+        // re-stating "no CAP_BPF/CAP_PERFMON" above it repeated the
+        // same fact and nested the doctor's Lane row three parens deep
+        // (night-improve-43).
+        return LaneVerdict::Snapshot(format!("{} - attach needs root", facts.caps_label()));
     }
     LaneVerdict::Live
 }
