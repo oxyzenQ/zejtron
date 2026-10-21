@@ -22,6 +22,41 @@ v11.0.0
 
 ### Added
 
+- A false-negative gap in the file-write arena is closed. zejtron now
+  taps vfs_writev alongside vfs_write, ensuring that processes using
+  vectorized I/O are not invisible to the Evidence Ledger - the
+  detective no longer mistakes silence for the absence of writes.
+  Before this pass, a writev(2)/pwritev(2) write never crossed the
+  vfs_write kprobe: a database, a web server, or any vectorized
+  logger could write the queried file THROUGH an open window while
+  the ledger read silent - for a forensic tool, the wrongest kind of
+  quiet. The fifth tap program (writev_tap) publishes op=4, rendered
+  "wrote (writev)" in the ledger row and "write (writev)" on the raw
+  lane, so the row names WHICH write path crossed; writev(2),
+  pwritev(2), and pwritev2(2) all funnel through vfs_writev, so one
+  probe covers the family. The attach symbol is verified from the
+  host's own BTF at attach time - the argument-position sibling of
+  the offsets law: vfs_writev's first argument must be a pointer to
+  struct file (do_iter_write is the verified fallback; a symbol
+  present but reshaped refuses by name, never a silent fallthrough;
+  neither verifiable refuses the whole attach). The Writes-only
+  window filter counts op=4 as a write, so the gap cannot be reborn
+  one layer up in the filter. The honest cannot-lines and the
+  README's Limitations now name the residuals that remain: mmap'd
+  writes, async kiocb writes (io_uring/AIO ride call_write_iter
+  directly), and splice-class copies. The pin set grows to fifteen
+  (the writev tap's program/link pair); the doctor's Probes row
+  names vfs_writev. Proven live, the same night, under TCG on the
+  noble 6.8.0-31 witness: a real writev(2) - two iovecs through
+  syscall 20 - surfaced as [observed] "wrote (writev)" with the
+  writer's pid attributed in BOTH why and touch, fifteen pins
+  planted and detached clean. The battery grows the proof with the
+  first live event-window checks it has ever carried (the why and
+  touch surfaces, gated on attach + perl): every push now re-proves
+  the weapon absolute on the witnesses lane - the twin-run found and
+  fixed the proof harness's own race before CI ever saw it (perl's
+  redirected stdout is block-buffered; the writer now flushes its
+  pid print at once).
 - SECURITY.md carries a "Forensics scope (DFIR)" section - the
   incident-response claim stated with its own boundary. What the
   tool offers an investigator: read-only collection (the command

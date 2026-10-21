@@ -32,6 +32,7 @@ pub(crate) fn raw_section(parts: &lane::LaneParts) -> String {
                 crate::ebpf::events::FILE_OP_OPEN => "open",
                 crate::ebpf::events::FILE_OP_WRITE => "write",
                 crate::ebpf::events::FILE_OP_UNLINK => "unlink",
+                crate::ebpf::events::FILE_OP_WRITEV => "write (writev)",
                 _ => "unknown",
             };
             let device_hex = format!("{:#x}", event.device);

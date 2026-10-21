@@ -170,19 +170,21 @@ fn pin_constants_carry_the_removal_order() {
     assert_eq!(ALL_PINS[1], PIN_LINK_SOCK);
     assert_eq!(ALL_PINS[2], PIN_LINK_OPEN);
     assert_eq!(ALL_PINS[3], PIN_LINK_WRITE);
-    assert_eq!(ALL_PINS[4], PIN_PROG);
-    assert_eq!(ALL_PINS[5], PIN_PROG_SOCK);
-    assert_eq!(ALL_PINS[6], PIN_PROG_OPEN);
-    assert_eq!(ALL_PINS[7], PIN_PROG_WRITE);
-    assert_eq!(ALL_PINS[8], PIN_MAP_STATS);
-    assert_eq!(ALL_PINS[9], PIN_MAP_SOCK_EVENTS);
-    assert_eq!(ALL_PINS[10], PIN_MAP_TRACKED_INODES);
-    assert_eq!(ALL_PINS[11], PIN_MAP_FILE_EVENTS);
-    assert_eq!(ALL_PINS[12], PIN_MAP_OFFSETS);
+    assert_eq!(ALL_PINS[4], PIN_LINK_WRITEV);
+    assert_eq!(ALL_PINS[5], PIN_PROG);
+    assert_eq!(ALL_PINS[6], PIN_PROG_SOCK);
+    assert_eq!(ALL_PINS[7], PIN_PROG_OPEN);
+    assert_eq!(ALL_PINS[8], PIN_PROG_WRITE);
+    assert_eq!(ALL_PINS[9], PIN_PROG_WRITEV);
+    assert_eq!(ALL_PINS[10], PIN_MAP_STATS);
+    assert_eq!(ALL_PINS[11], PIN_MAP_SOCK_EVENTS);
+    assert_eq!(ALL_PINS[12], PIN_MAP_TRACKED_INODES);
+    assert_eq!(ALL_PINS[13], PIN_MAP_FILE_EVENTS);
+    assert_eq!(ALL_PINS[14], PIN_MAP_OFFSETS);
     assert_eq!(
         ALL_PINS.len(),
-        13,
-        "thirteen pins: 4 links, 4 programs, 5 maps"
+        15,
+        "fifteen pins: 5 links, 5 programs, 5 maps"
     );
     for pin in ALL_PINS {
         assert!(

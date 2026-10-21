@@ -232,8 +232,9 @@ fn cannot_line(parts: &lane::LaneParts) -> String {
     let mut segs: Vec<String> = Vec::new();
     match parts.mode {
         crate::evidence::Mode::Live => segs.push(
-            "writes that did not cross write(2) - writev, pwritev, mmap'd writes - and \
-             anything older than the window (the log lane was not consulted in live mode)"
+            "writes that crossed neither write tap - mmap'd writes, async kiocb writes \
+             (io_uring/AIO), splice-class copies - and anything older than the window \
+             (the log lane was not consulted in live mode)"
                 .to_owned(),
         ),
         crate::evidence::Mode::SnapshotJournal => segs.push(

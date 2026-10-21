@@ -5,9 +5,10 @@
 // zelynic/zylaxion lineage precedent: there is no C twin, the
 // aya-ebpf program IS the production source).
 //
-// FOUR programs, one object (night-improve-34 removes the two
+// FIVE programs, one object (night-improve-34 removes the two
 // sched_process lifecycle tracepoints the `proc --live` surface
-// drove; the four programs of phases 1-3 keep their shapes):
+// drove; night-improve-42 adds the fifth program, the writev tap -
+// the false-negative closer for the file-write arena):
 //
 //   1. sched_process_exec (phase 1, unchanged since): count process
 //      executions. The counter is the phase-1 chain proof, still the
@@ -38,11 +39,25 @@
 //      write(2). vfs_write(struct file *, ...) hands this program
 //      the file; it walks file->f_inode for the inode and
 //      file->f_path.mnt->mnt_sb->s_dev for the device, checks the
-//      filter map, publishes op=2. writev/pwritev ride
-//      vfs_writev/io_write_iter and never cross this probe; mmap'd
-//      writes cross no syscall at all - both gaps are named in the
-//      README's Limitations and the log lane (audit) may still
-//      catch them.
+//      filter map, publishes op=2. mmap'd writes cross no syscall at
+//      all - the gap is named in the README's Limitations and the
+//      log lane (audit) may still catch it.
+//
+//   5. writev_tap on vfs_writev (night-improve-42): a kprobe at
+//      the head of the vectorized write path. writev(2), pwritev(2),
+//      and pwritev2(2) all funnel through vfs_writev(struct file *,
+//      ...), so one probe covers the family; do_iter_write is the
+//      verified fallback the host side may attach instead (the
+//      arg0 contract is identical: a pointer to struct file,
+//      verified from the host's own BTF at attach). The walk, the
+//      filter, and the record mirror the write tap; the op
+//      vocabulary gains op=4. Before this tap a vectorized writer
+//      (a database, a web server, an advanced logger) never crossed
+//      the kernel lane - the ledger could read silent while the
+//      file was under active write, and a silent detective is a
+//      lying one. Async kiocb writes (io_uring, libaio) call
+//      call_write_iter directly and cross neither write tap - the
+//      named residual.
 //
 //   stats           (Array<AtomicU64>) — phase 1's counter, one slot,
 //                                    unchanged. stats[0] counts
@@ -136,7 +151,7 @@ use aya_ebpf::{
 mod events;
 
 use events::{
-    FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITE, FileEvent, OFF_SLOTS,
+    FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITE, FILE_OP_WRITEV, FileEvent, OFF_SLOTS,
     OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH,
     OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV,
     OFF_SLOT_VFSMOUNT_MNT_SB, SOCK_EVENT_BYTES, SockEvent, device_token_from_kernel,
@@ -470,6 +485,57 @@ pub fn write_tap(ctx: ProbeContext) -> u32 {
             &FileEvent {
                 timestamp_ns: bpf_ktime_get_ns(),
                 op: FILE_OP_WRITE,
+                _pad: [0; 7],
+                inode: ino,
+                device,
+                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
+                _pad2: 0,
+            },
+            0,
+        );
+    }
+    0
+}
+
+/// The writev tap (night-improve-42, the false-negative closer):
+/// vfs_writev hands the program the file being written through the
+/// vectorized path - the shape writev(2)/pwritev(2)/pwritev2(2) all
+/// funnel into (arg0: struct file *, the same contract as the write
+/// tap, verified from the host's own BTF at attach by the loader).
+/// The walk, the filter, and the record mirror the write tap; the op
+/// is FILE_OP_WRITEV so the ledger names the write path that
+/// crossed. The section name carries the primary symbol; the loader
+/// attaches the BTF-verified one (vfs_writev, do_iter_write
+/// fallback) - aya's kprobe attach takes its symbol as an argument,
+/// the section only types the program.
+#[kprobe(function = "vfs_writev")]
+pub fn writev_tap(ctx: ProbeContext) -> u32 {
+    unsafe {
+        // arg0: struct file * (BTF-verified at attach).
+        let Some(file) = ctx.arg::<u64>(0) else { return 0 };
+        let file = file as usize;
+        if file == 0 {
+            return 0;
+        }
+        let Some(o) = read_offset_set() else { return 0 };
+
+        let Some(inode) = read_ptr_at(file, o[OFF_SLOT_FILE_F_INODE as usize]) else { return 0 };
+        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else { return 0 };
+        let f_path = file.wrapping_add(o[OFF_SLOT_FILE_F_PATH as usize] as usize);
+        let Some(mnt) = read_ptr_at(f_path, o[OFF_SLOT_PATH_MNT as usize]) else { return 0 };
+        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else { return 0 };
+        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else { return 0 };
+
+        let device = device_token_from_kernel(s_dev);
+        let key = pack_filter_key(ino, device);
+        if tracked_inodes.get(&key).is_none() {
+            return 0;
+        }
+
+        let _ = file_events.output::<FileEvent>(
+            &FileEvent {
+                timestamp_ns: bpf_ktime_get_ns(),
+                op: FILE_OP_WRITEV,
                 _pad: [0; 7],
                 inode: ino,
                 device,

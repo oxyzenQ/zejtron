@@ -69,6 +69,14 @@ pub const PIN_PROG_WRITE: &str = "/sys/fs/bpf/zejtron/write_tap";
 /// Link pin - the file-write tap's attachment.
 pub const PIN_LINK_WRITE: &str = "/sys/fs/bpf/zejtron/write_tap_link";
 
+/// Program pin - the vectorized-write tap (night-improve-42's
+/// kprobe on vfs_writev - the BTF-verified symbol; do_iter_write is
+/// the verified fallback the loader may attach instead).
+pub const PIN_PROG_WRITEV: &str = "/sys/fs/bpf/zejtron/writev_tap";
+
+/// Link pin - the vectorized-write tap's attachment.
+pub const PIN_LINK_WRITEV: &str = "/sys/fs/bpf/zejtron/writev_tap_link";
+
 /// Map pin - the tracked_inodes filter map (the in-kernel price
 /// control: the kprobes check it before recording; the holds/touch/
 /// why windows write and clear it through this pin).
@@ -85,24 +93,28 @@ pub const PIN_MAP_OFFSETS: &str = "/sys/fs/bpf/zejtron/offsets";
 
 /// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
-/// last). Thirteen pins: one link/program pair per tap (the exec
-/// tracepoint, the sock tracepoint, the two file kprobes) and five
-/// maps (stats, sock_events, tracked_inodes, file_events, offsets).
-/// The exec tap reuses its existing pins (the phase-1 program carries
-/// the counter, not a new section). Thirteen through night-improve-3,
+/// last). Fifteen pins: one link/program pair per tap (the exec
+/// tracepoint, the sock tracepoint, the three file kprobes - the
+/// open tap, the write tap, the writev tap) and five maps (stats,
+/// sock_events, tracked_inodes, file_events, offsets). The exec tap
+/// reuses its existing pins (the phase-1 program carries the
+/// counter, not a new section). Thirteen through night-improve-3,
 /// eighteen from night-improve-4, thirteen again since
-/// night-improve-34: the five lifecycle-stream pins (two tracepoint
-/// programs, their links, the ring map) went with the lifecycle
-/// stream surface's removal.
-pub const ALL_PINS: [&str; 13] = [
+/// night-improve-34, fifteen from night-improve-42: the writev
+/// tap's pair joined when the vectorized-write false-negative gap
+/// closed (the five lifecycle-stream pins went with the lifecycle
+/// stream surface's removal long before).
+pub const ALL_PINS: [&str; 15] = [
     PIN_LINK,
     PIN_LINK_SOCK,
     PIN_LINK_OPEN,
     PIN_LINK_WRITE,
+    PIN_LINK_WRITEV,
     PIN_PROG,
     PIN_PROG_SOCK,
     PIN_PROG_OPEN,
     PIN_PROG_WRITE,
+    PIN_PROG_WRITEV,
     PIN_MAP_STATS,
     PIN_MAP_SOCK_EVENTS,
     PIN_MAP_TRACKED_INODES,

@@ -57,7 +57,8 @@ fn live_section_renders_the_separated_block() {
         assert!(row.starts_with("  "), "every row is indented: {row}");
     }
     assert_eq!(
-        lines[8], "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write",
+        lines[8],
+        "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev",
         "the probes row is the binary's contract, host-independent"
     );
 }
@@ -96,10 +97,12 @@ fn pins_row_lists_every_pin_in_planting_order() {
             "sock_tap_link",
             "open_tap_link",
             "write_tap_link",
+            "writev_tap_link",
             "tap",
             "sock_tap",
             "open_tap",
             "write_tap",
+            "writev_tap",
             "stats",
             "sock_events",
             "tracked_inodes",

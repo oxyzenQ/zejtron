@@ -55,6 +55,65 @@ pub fn parse_probe_offsets() -> Result<ProbeOffsets, String> {
     parse_btf_offsets(&data)
 }
 
+// ── The writev-lane symbol verification (night-improve-42) ──────
+//
+// The same law the offsets parse rides, extended from member
+// offsets to argument positions: the kprobe's attach point and its
+// first argument shape are read from the host's own BTF at attach
+// time, never compiled in. A kprobe at a symbol whose arg0 is not
+// the expected pointer reads garbage SILENTLY - the loud refusal is
+// the only honest alternative.
+
+/// The writev-lane attach symbols, in preference order: vfs_writev
+/// is the direct analog of the write tap (writev(2), pwritev(2), and
+/// pwritev2(2) all funnel through it, 5.15 through the current 6.x
+/// line); do_iter_write is the convergence one layer deeper, the
+/// verified fallback for a host whose BTF omits the former (inlined
+/// away or refactored). Both carry the same arg0 contract: a
+/// pointer to struct file.
+const WRITEV_SYMBOLS: [&str; 2] = ["vfs_writev", "do_iter_write"];
+
+/// Verify the writev tap's attach point from the host's own BTF:
+/// return the symbol whose FUNC prototype the host vouches for
+/// (first argument a pointer to struct file), or an error naming
+/// exactly what could not be verified. The refusal, not a guess,
+/// is the point.
+pub fn verify_writev_symbol() -> Result<&'static str, String> {
+    let data = std::fs::read("/sys/kernel/btf/vmlinux")
+        .map_err(|e| format!("cannot read /sys/kernel/btf/vmlinux: {e}"))?;
+    verify_writev_symbol_in(&data)
+}
+
+/// The pure verifier: given the raw BTF file bytes, return the
+/// verified symbol. Separated from [`verify_writev_symbol`] so the
+/// tests can drive it with synthetic blobs end to end. Preference
+/// order: the first symbol whose FUNC record the host carries wins;
+/// a symbol PRESENT with a different first-argument shape is a hard
+/// refusal (the name exists but the contract moved - the loud
+/// moment, never a silent fallthrough); an ABSENT symbol falls
+/// through to the next candidate.
+pub fn verify_writev_symbol_in(data: &[u8]) -> Result<&'static str, String> {
+    let ctx = BtfFile::new(data)?;
+    for symbol in WRITEV_SYMBOLS {
+        let Some(func) = ctx.find_func(symbol) else {
+            continue;
+        };
+        let struct_name = ctx.func_arg0_struct(func, symbol)?;
+        if struct_name == "file" {
+            return Ok(symbol);
+        }
+        return Err(format!(
+            "{symbol}'s first argument is struct {struct_name}, not struct file - the \
+             symbol exists but its shape moved; refusing rather than guessing"
+        ));
+    }
+    Err(format!(
+        "no BTF FUNC record for {} - this kernel does not carry the \
+         vectorized-write path under a verifiable name",
+        WRITEV_SYMBOLS.join(" or ")
+    ))
+}
+
 /// The pure parser: given the raw BTF file bytes, return the eight
 /// offsets. Separated from [`parse_probe_offsets`] so the tests can
 /// drive it with synthetic blobs end to end. The six struct lookups
@@ -135,6 +194,13 @@ struct BtfFile<'a> {
 struct StructEntry {
     members_pos: usize,
     vlen: usize,
+}
+
+/// One located FUNC record (night-improve-42): its header position -
+/// the FUNC_PROTO type id rides in the size/type field at pos+8.
+#[derive(Clone, Copy)]
+struct FuncEntry {
+    pos: usize,
 }
 
 impl<'a> BtfFile<'a> {
@@ -236,6 +302,152 @@ impl<'a> BtfFile<'a> {
             pos += 12 + extra;
         }
         None
+    }
+
+    /// Walk the type records looking for the FUNC record (kind 12)
+    /// with the given name - the same walk discipline as
+    /// [`Self::find_struct`]. The FUNC record's vlen is the linkage
+    /// (static/global/extern), not a count; the payload is zero
+    /// bytes either way.
+    fn find_func(&self, want: &str) -> Option<FuncEntry> {
+        let mut pos = self.types_base;
+        let end = self.types_base + self.types_len;
+        while pos + 12 <= end {
+            let name_off = u32_at(self.data, pos);
+            let info = u32_at(self.data, pos + 4);
+            let kind = (info >> 24) & 0x1F;
+            let vlen = (info & 0xFFFF) as usize;
+            let extra = kind_extra_bytes(kind, vlen);
+            let Some(extra) = extra else {
+                break;
+            };
+            if pos + 12 + extra > end {
+                break;
+            }
+            if kind == 12 && self.name(name_off) == Some(want) {
+                return Some(FuncEntry { pos });
+            }
+            pos += 12 + extra;
+        }
+        None
+    }
+
+    /// The record start position for a BTF type id. Ids are assigned
+    /// sequentially from 1 in section order (0 is the void type), so
+    /// the position is the id-th record - one bounded walk. `None`
+    /// when the id is out of the section; the caller refuses by name.
+    fn record_pos(&self, want_id: u32) -> Option<usize> {
+        if want_id == 0 {
+            return None;
+        }
+        let mut pos = self.types_base;
+        let end = self.types_base + self.types_len;
+        let mut id = 1u32;
+        while pos + 12 <= end {
+            if id == want_id {
+                return Some(pos);
+            }
+            let info = u32_at(self.data, pos + 4);
+            let kind = (info >> 24) & 0x1F;
+            let vlen = (info & 0xFFFF) as usize;
+            let extra = kind_extra_bytes(kind, vlen)?;
+            if pos + 12 + extra > end {
+                return None;
+            }
+            pos += 12 + extra;
+            id = id.checked_add(1)?;
+        }
+        None
+    }
+
+    /// The FUNC's first-argument shape: the struct name arg0 points
+    /// at, resolved through the pointer and any typedef/qualifier
+    /// chains. Every refusal names its stage; a pointer to a pointer
+    /// or a by-value struct is refused as loudly as an absent proto -
+    /// each is a different wrong answer at the same attach point.
+    fn func_arg0_struct(&self, func: FuncEntry, fname: &str) -> Result<String, String> {
+        let proto_id = u32_at(self.data, func.pos + 8);
+        let Some(proto_pos) = self.record_pos(proto_id) else {
+            return Err(format!(
+                "{fname}'s FUNC_PROTO (type id {proto_id}) is not in the section"
+            ));
+        };
+        let info = u32_at(self.data, proto_pos + 4);
+        let kind = (info >> 24) & 0x1F;
+        let vlen = (info & 0xFFFF) as usize;
+        if kind != 13 {
+            return Err(format!(
+                "{fname}'s type id {proto_id} is not a FUNC_PROTO (kind {kind})"
+            ));
+        }
+        if vlen == 0 {
+            return Err(format!("{fname} takes no arguments in BTF"));
+        }
+        let param_pos = proto_pos + 12;
+        if param_pos + 8 > self.types_base + self.types_len {
+            return Err(format!(
+                "{fname}'s first parameter lies past the type section"
+            ));
+        }
+        let arg0_id = u32_at(self.data, param_pos + 4);
+        // Resolve arg0: exactly one PTR, then typedef/qualifier
+        // chains, then a named STRUCT/UNION - anything else is the
+        // wrong shape for the probe's first read.
+        let mut id = arg0_id;
+        let mut through_ptr = false;
+        for _ in 0..8 {
+            let Some(pos) = self.record_pos(id) else {
+                return Err(format!(
+                    "{fname}'s first argument type id {id} is not in the section"
+                ));
+            };
+            let name_off = u32_at(self.data, pos);
+            let info = u32_at(self.data, pos + 4);
+            let kind = (info >> 24) & 0x1F;
+            let target = u32_at(self.data, pos + 8);
+            match kind {
+                // PTR: follow the pointee - but only once; a pointer
+                // to a pointer is not the file contract.
+                2 => {
+                    if through_ptr {
+                        return Err(format!(
+                            "{fname}'s first argument is a pointer to a pointer, \
+                             not a pointer to struct file"
+                        ));
+                    }
+                    through_ptr = true;
+                    id = target;
+                }
+                // TYPEDEF / VOLATILE / CONST / RESTRICT / TYPE_TAG:
+                // follow the target.
+                8 | 9 | 10 | 11 | 18 => id = target,
+                // STRUCT / UNION: the terminal shape.
+                4 | 5 => {
+                    let name = self.name(name_off).unwrap_or("");
+                    if name.is_empty() {
+                        return Err(format!(
+                            "{fname}'s first argument points at an anonymous struct"
+                        ));
+                    }
+                    if !through_ptr {
+                        return Err(format!(
+                            "{fname}'s first argument is struct {name} by value, \
+                             not a pointer to struct file"
+                        ));
+                    }
+                    return Ok(name.to_owned());
+                }
+                other => {
+                    return Err(format!(
+                        "{fname}'s first argument is BTF kind {other}, \
+                         not a pointer to struct file"
+                    ));
+                }
+            }
+        }
+        Err(format!(
+            "{fname}'s first argument resolves through too many indirections - refusing"
+        ))
     }
 
     /// The struct's members as (name, bit offset) pairs.

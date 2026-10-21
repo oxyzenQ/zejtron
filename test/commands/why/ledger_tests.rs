@@ -208,23 +208,39 @@ fn raw_section_is_honest_about_its_absence() {
 
 #[test]
 fn raw_section_renders_the_records_as_drained() {
-    use crate::ebpf::events::{FILE_OP_OPEN, FileEvent};
+    use crate::ebpf::events::{FILE_OP_OPEN, FILE_OP_WRITEV, FileEvent};
     let parts = lane::LaneParts {
         mode: Mode::Live,
         changes: ChangesSection::default(),
         unaccounted: Vec::new(),
-        raw: vec![FileEvent {
-            timestamp_ns: 123_456_789_012,
-            op: FILE_OP_OPEN,
-            _pad: [0; 7],
-            inode: 12345,
-            device: 0x800002,
-            pid: 4321,
-            _pad2: 0,
-        }],
+        raw: vec![
+            FileEvent {
+                timestamp_ns: 123_456_789_012,
+                op: FILE_OP_OPEN,
+                _pad: [0; 7],
+                inode: 12345,
+                device: 0x800002,
+                pid: 4321,
+                _pad2: 0,
+            },
+            FileEvent {
+                timestamp_ns: 123_456_789_013,
+                op: FILE_OP_WRITEV,
+                _pad: [0; 7],
+                inode: 12345,
+                device: 0x800002,
+                pid: 4321,
+                _pad2: 0,
+            },
+        ],
     };
     let section = raw_section(&parts);
     assert!(section.contains("123456789012 op=open inode=12345 device=0x800002 pid=4321"));
+    // The writev parenthetical (night-improve-42): the raw lane
+    // names WHICH write path crossed.
+    assert!(
+        section.contains("123456789013 op=write (writev) inode=12345 device=0x800002 pid=4321")
+    );
 }
 
 #[test]
@@ -232,7 +248,13 @@ fn the_cannot_line_names_the_live_and_log_gaps() {
     let quiet = ScanStats::default();
     let live = path_cannot_line(&quiet, Mode::Live, 1, 1);
     assert!(live.contains("the log lane was not consulted in live mode"));
-    assert!(live.contains("writev, mmap'd writes"));
+    // night-improve-42: writev is no longer the named gap - the
+    // taps now cover it; the cannot line names what still crosses
+    // neither write tap.
+    assert!(live.contains("crossed neither write tap"));
+    assert!(live.contains("mmap'd writes"));
+    assert!(live.contains("io_uring/AIO"));
+    assert!(live.contains("splice-class copies"));
 
     let nothing = path_cannot_line(&quiet, Mode::SnapshotJournal, 0, 0);
     assert!(nothing.contains("no evidence was collected for this target"));
