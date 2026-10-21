@@ -92,6 +92,13 @@ pub fn root_refusal(euid_is_root: bool, surface: &str) -> Option<String> {
 /// night-total-lts-3 dedupe collapsed three byte-identical private
 /// copies (proc, holds/procfs, port/owners) into this module so the
 /// status grammar has one definition and one place to harden.
+///
+/// The reader stays FAITHFUL on purpose: several fields are
+/// multi-value lines (Uid is tab-separated), so bytes pass through
+/// unmodified and every parser keeps its structure. Neutralizing
+/// hostile text is the display layer's job - the free-form Name
+/// field goes through [`read_status_name`], cmdlines through
+/// [`sanitize_display`] inside [`read_cmdline`].
 pub fn read_status_value(status: &str, key: &str) -> Option<String> {
     let prefix = format!("{key}:");
     status
@@ -99,6 +106,49 @@ pub fn read_status_value(status: &str, key: &str) -> Option<String> {
         .find_map(|line| line.strip_prefix(&prefix).map(str::trim))
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
+}
+
+/// The display-bound reader for the one status field whose value is
+/// free-form hostile text: the process Name (comm). A local process
+/// controls those bytes via prctl, and the Name renders on the proc
+/// tree, the holds/why actor rows, and the port owner rows - so this
+/// is the one field the terminal-safety neutralizer runs on at the
+/// read boundary (night-total-lts-3, the CWE-150 pass).
+pub fn read_status_name(status: &str) -> Option<String> {
+    read_status_value(status, "Name").map(|name| sanitize_display(&name))
+}
+
+/// The terminal-safety neutralizer for every hostile-sourced string
+/// that reaches a rendered row - process names, cmdlines, audit comm
+/// values, cgroup units, cwd and symlink targets, filenames from
+/// trees other users write. A local process controls its own comm and
+/// argv byte for byte, and an escape sequence that survives into the
+/// terminal can forge the evidence stream zejtron exists to report
+/// (CWE-150, the same class the update check's `tag_is_safe` already
+/// refuses for the release tag).
+///
+/// The neutral form keeps the evidence readable: every Unicode control
+/// character (C0, DEL, and the C1 range - `char::is_control`) renders
+/// as its `escape_debug` form (`ESC` becomes the six printable
+/// characters `\u{1b}`), so the hostile byte stays visible in the row
+/// without ever reaching the terminal as a control. Honest data pays
+/// one scan and comes back byte-identical.
+pub fn sanitize_display(input: &str) -> String {
+    // The fast path: honest text is the overwhelming common case, and
+    // one `any` scan proves it without a per-char rebuild.
+    if !input.chars().any(char::is_control) {
+        return input.to_owned();
+    }
+    input
+        .chars()
+        .map(|c| {
+            if c.is_control() {
+                c.escape_debug().to_string()
+            } else {
+                c.to_string()
+            }
+        })
+        .collect()
 }
 
 /// Read `/proc/<pid>/cmdline` and split on NUL bytes into argv tokens.
@@ -139,7 +189,7 @@ pub fn read_cmdline(proc_root: &Path, pid: u32) -> Option<String> {
     if tokens.is_empty() {
         None
     } else {
-        Some(tokens.join(" "))
+        Some(sanitize_display(&tokens.join(" ")))
     }
 }
 

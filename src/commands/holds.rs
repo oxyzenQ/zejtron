@@ -299,8 +299,7 @@ fn read_holder(pid: u32, evidence: Vec<Evidence>) -> Option<Holder> {
         Err(error) if error.kind() == io::ErrorKind::NotFound => return None,
         Err(_) => String::new(),
     };
-    let name =
-        crate::system::read_status_value(&status, "Name").unwrap_or_else(|| "unknown".to_owned());
+    let name = crate::system::read_status_name(&status).unwrap_or_else(|| "unknown".to_owned());
     let uid = crate::system::read_status_value(&status, "Uid")
         .and_then(|value| value.split_whitespace().next().map(str::to_owned));
     let user = uid

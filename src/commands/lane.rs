@@ -214,7 +214,7 @@ fn pid_context(pid: u32, users: &HashMap<u32, String>) -> Option<(String, String
     use crate::commands::touch::uid_to_user;
     use crate::system::read_status_value;
     let status = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
-    let name = read_status_value(&status, "Name")?;
+    let name = crate::system::read_status_name(&status)?;
     let uid = read_status_value(&status, "Uid").and_then(|value| {
         value
             .split_whitespace()

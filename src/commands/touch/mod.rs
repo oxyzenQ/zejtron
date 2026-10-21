@@ -142,7 +142,7 @@ fn build_file_meta(
     let symlink_target = if is_symlink {
         fs::read_link(path)
             .ok()
-            .map(|p| p.to_string_lossy().into_owned())
+            .map(|p| crate::system::sanitize_display(&p.to_string_lossy()))
     } else {
         None
     };
