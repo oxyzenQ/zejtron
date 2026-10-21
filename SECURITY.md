@@ -139,6 +139,48 @@ updated with every security pass.
   dismisses every open match right after each analysis, and no other
   rule or path is ever touched), and the rename stays rejected.
 
+## Forensics scope (DFIR)
+
+DFIR — digital forensics and incident response — is the use where
+the read-only law matters most: zejtron can run during an active
+incident without altering the evidence it is collecting. This
+section states that claim and its boundary together.
+
+What the tool offers an investigator:
+
+- Read-only collection. The command surface writes nothing: no
+  files created, modified, or deleted, so the mtime/ctime of the
+  evidence stand as the kernel holds them. `zejtron touch` is not
+  shell `touch` — it reads the timestamps, never sets them.
+- Provenance on every row. The Evidence Ledger tags each row
+  `[observed]` (kernel event), `[measured]` (snapshot read),
+  `[inferred]` (log replay), or `[unaccounted]` (the honest gap) —
+  the analyst knows which evidence is direct and which is
+  circumstantial without re-deriving it.
+- Deterministic, UTC-stamped output. Two runs against the same
+  state print the same bytes, and no timestamp carries a
+  local-timezone ambiguity — the report diffs against an earlier
+  run and files into the incident record without translation.
+
+What the tool is not:
+
+- Not a write-blocker or an acquisition tool. zejtron takes no
+  disk images and preserves no chain of custody — it prints
+  evidence to the operator's terminal; filing the output is the
+  operator's act.
+- Not a rootkit hunter. A process that hides from the kernel hides
+  from zejtron (evasion of introspection is out of scope by
+  design, see Scope above).
+- Not host-wide from inside a container. zejtron reads the /proc
+  of the namespace it runs in; host processes stay invisible
+  unless the container shares the host's pid namespace.
+
+One residual, named: the opt-in eBPF attach lane
+(`doctor --attach` / `doctor --detach`) plants and removes its own
+pins under `/sys/fs/bpf/zejtron` — the single state-changing
+surface. An analyst preserving a byte-exact host image should not
+run it; every other surface leaves the host as it found it.
+
 ## Easy to use, by construction
 
 Security that costs usability gets switched off by users. zejtron keeps

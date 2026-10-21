@@ -22,6 +22,34 @@ v11.0.0
 
 ### Added
 
+- SECURITY.md carries a "Forensics scope (DFIR)" section - the
+  incident-response claim stated with its own boundary. What the
+  tool offers an investigator: read-only collection (the command
+  surface writes nothing, so the mtime/ctime of the evidence stand
+  as the kernel holds them - zejtron touch reads timestamps,
+  never sets them), provenance on every Evidence Ledger row
+  ([observed], [measured], [inferred], [unaccounted] - direct
+  versus circumstantial, named per row), and deterministic
+  UTC-stamped output that diffs between runs without translation.
+  What it is not: a write-blocker or acquisition tool (no disk
+  images, no chain of custody - it prints; filing the output is
+  the operator's act), a rootkit hunter (a process that hides
+  from the kernel hides from zejtron), or host-wide from inside a
+  container (it reads the namespace's /proc). The one named
+  residual: the opt-in eBPF attach lane plants and removes pins
+  under /sys/fs/bpf/zejtron - the single state-changing surface,
+  which an analyst preserving a byte-exact host image should not
+  run. docs/README.md's map line for the security policy mentions
+  the section.
+- QA.md answers the monitoring question on the record (Q7, "Is
+  zejtron a monitoring tool?"): no - zejtron collects evidence and
+  exits; no daemon, no polling interval, no alerting, no data
+  retention, nothing running after the process ends. The
+  deterministic output exists so two separate invocations can be
+  diffed, which is investigation, not monitoring; a workload that
+  needs continuous watch needs a monitoring daemon, a different
+  product class. The answer points at the front page's "Intended
+  Environments and Users" section as the positioning source.
 - The README now documents its own ground. A new "Intended
   Environments and Users" section under "Why zejtron?" states the two
   environments the tool is built for - production servers and
