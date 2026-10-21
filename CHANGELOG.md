@@ -22,6 +22,34 @@ v11.0.0
 
 ### Added
 
+- The supermassive doctor surface grows the kernel-floor specs
+  (night-improve-43). The depth audit found the suite pinned only
+  the [eBPF] header, the Feature row, and the Lane row: the
+  section's six remaining rows (Kernel, BTF, Lockdown, Caps,
+  Probes, Pins) were unpinned, and no check anywhere tied the
+  host's kernel release to the documented 5.15 floor
+  (src/ebpf/mod.rs's KERNEL_FLOOR, the README's "kernel >= 5.15").
+  The new checks, all against the real binary: every row key
+  renders on every host (the values are host facts, the keys are
+  the binary's contract); the Probes row carries the four tap
+  names in planting order (sched_process_exec,
+  inet_sock_set_state, vfs_open, vfs_write - the binary's
+  contract, not host state); the Kernel row agrees with the host's
+  own /proc/sys/kernel/osrelease (the harness reads the same file
+  the binary reads); and the kernel-floor agreement check computes
+  the floor direction harness-side and holds the render to it from
+  BOTH sides of the line - at or above 5.15 the Lane row never
+  carries a false floor refusal, below 5.15 (or an unparsable
+  release, the binary's refuse-what-it-cannot-verify law) the Lane
+  row AND the doctor --attach refusal name "below the 5.15 floor"
+  by word. The floor number rides the matched string, so a floor
+  bump without a suite bump fails the check. Honest scope: no
+  stock GitHub runner ships a below-floor kernel today (the
+  ubuntu-22.04 image rides a 6.8 HWE kernel), so the CI legs pin
+  the at/above direction only; the below-floor direction pins
+  itself wherever a maintainer runs the suite on an old-kernel
+  host. The suite's README grows the same contract in its
+  lane-honesty list.
 - The supermassive suite lands: every surface — path, recent, port,
   proc, holds, touch, why, net, doctor, doctor --symptom ram,
   -h/--help, -V/--version — is exercised end to end on both a
