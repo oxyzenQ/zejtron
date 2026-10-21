@@ -51,8 +51,14 @@ In scope:
   tarballs, checksums, install scripts.
 - The security-relevant UX contract: privilege guards, error surfaces,
   the update-check guardrails.
-- The environment snapshot store (`env save/list/diff/delete`) — the
-  one place zejtron writes, under the user's own XDG data dir.
+- The eBPF attach lane (`doctor --attach` / `doctor --detach`) — the
+  one surface that changes state, planting kernel pins under
+  `/sys/fs/bpf/zejtron` and removing them again.
+- The hostile-text display boundary: process names, cmdlines, audit
+  comm values, cwd and symlink targets, and scanned filenames are
+  attacker-controlled bytes; the neutralizer that keeps them from
+  weaponizing the terminal (`src/system/mod.rs`'s
+  `sanitize_display`) is security surface.
 
 Out of scope (by design, not neglect):
 
@@ -78,8 +84,8 @@ Concrete classes we care about, with the current posture of each:
 |-------|---------|
 | Privilege confusion (root used where it is not needed, or the inverse) | Guarded — `--check-update` refuses root with a drop-sudo tip; every read surface works unprivileged |
 | Injection (command, path, format-string, CI script) | Audited — argv-array command invocation, kernel-generated paths rendered through the sanitizer boundaries, env-isolated CI scripts |
-| Terminal escape injection | Audited — /proc-derived strings (comm, cmdline) cross the trust boundary into the terminal sanitized; the color ladder degrades to plain text, never renders untrusted bytes as control sequences |
-| Panic surfaces reachable from user input | Pinned by the unit surface — port/argument guardrails (`pathguard.rs`) reject malformed targets with labeled errors |
+| Terminal escape injection | Guarded — the CWE-150 pass (night-total-lts-3): /proc-derived strings (comm, cmdline), audit comm values, cwd and symlink targets, and scanned filenames cross the trust boundary through the shared neutralizer (`system::sanitize_display`), which renders every control character as its printable `\u{..}` form; the release tag is refused outright (fail-closed); the color ladder degrades to plain text, never renders untrusted bytes as control sequences. Verified live with a `prctl(PR_SET_NAME)` process carrying ESC bytes |
+| Panic surfaces reachable from user input | Pinned by the unit surface — clap-typed arguments and the per-verb target parsers reject malformed targets with labeled errors; `src/` carries zero `unwrap`/`expect`/`panic!` reachable from input |
 | Supply chain (dependency compromise) | 4 direct deps, `cargo audit` + `cargo deny` in CI, chrono banned, every dep justified in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) |
 | Release artifact tampering | SHA-512 + BLAKE3 + SHAKE256 checksums + GPG detached signatures; verify per [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) |
 
@@ -93,9 +99,13 @@ updated with every security pass.
   (`--check-update`) refuses euid 0 before any network I/O with a
   drop-sudo tip — the network path must never ride root privileges.
 - Read-only discipline: the command surface never modifies system
-  state — no kill, no close, no service control. The one writable
-  path is the environment snapshot store under the user's own XDG
-  data dir (never a world-writable directory).
+  state — no kill, no close, no service control, and since the v80
+  surface reduction (night-improve-0) no filesystem writes at all:
+  the read-only claim is literal. The lone state-changer is the
+  opt-in eBPF attach lane, which plants and removes its own pins
+  under `/sys/fs/bpf/zejtron` and nothing else. The `pathguard`
+  module stays as the tested foundation for any future lane that
+  would reintroduce state I/O.
 - CodeQL + dependency audit (cargo audit, cargo deny) + the wholesale
   gate-keepers run in CI on every change.
 - No config files, no daemons, no background network surface: the

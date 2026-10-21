@@ -53,13 +53,13 @@ src/
   cli/           — CLI definition (clap derive) + clap brand styling
                    + the UX bridge (typo rescue, migration redirects)
   commands/      — the read-only command surfaces (path, recent, port/,
-                   proc/, holds/, touch/, why, env, service, shell, net,
-                   git, doctor/)
+                   proc/, holds/, touch/, why, net, doctor/)
   info/          — the -V version report + the std-only civil clock
                    (Hinnant civil_from_days)
   output/        — runtime color tier (capability ladder, error lane)
-  system/        — /proc readers + username lookup + path/argument
-                   guardrails (pathguard)
+  system/        — the /proc readers (status grammar, cmdline, passwd
+                   map, display neutralizer) + the retained state-dir
+                   guard (pathguard)
   update/        — --check-update (curl-backed, refuses root)
 test/            — the single test tree (night-improve-18: every *.rs
                    test file lives here, #[path]-wired from its src
