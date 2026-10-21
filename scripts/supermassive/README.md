@@ -64,7 +64,21 @@ surface file carries where a lane applies:
   must NOT carry fake `[observed]` rows (that tag belongs to the tap
   lane only).
 - doctor: the `[eBPF]` section must render its Feature and Lane
-  declarations on every host, whatever state they report.
+  declarations on every host, whatever state they report
+  (night-improve-43 grows the estate): the section's full row
+  estate (Kernel, BTF, Lockdown, Caps, Probes, Pins) must render
+  its keys on every host; the Probes row must carry the four tap
+  names in planting order (the binary's contract, not host state);
+  and the kernel-floor agreement check reads
+  /proc/sys/kernel/osrelease on the harness side and holds the
+  Lane row to the documented 5.15 floor from BOTH sides of the
+  line - at or above the floor no false floor refusal, below the
+  floor the refusal names the floor (and `doctor --attach`'s
+  refusal names it too). No stock GitHub runner ships a
+  below-floor kernel today (the ubuntu-22.04 image rides a 6.8
+  HWE kernel), so the CI legs pin the at/above direction; the
+  below-floor direction pins itself wherever a maintainer runs
+  the suite on an old-kernel host.
 - port --events-only: the event window must state its capture
   ability plainly (unavailable or observed — never a fake event
   table).
