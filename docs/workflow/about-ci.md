@@ -148,3 +148,30 @@ No pull_request trigger, because `zejtron - CI` owns PRs.
 `scripts/build.sh battery` is the lane's reusable entry point: the
 runtime battery alone, no compile, against whatever binary
 `ZEJTRON_BIN_PATH` names.
+
+## Supermassive E2E (the surface lane)
+
+`zejtron - Supermassive E2E` owns the per-surface end-to-end depth:
+every surface, every flag, every error path, exercised against the
+REAL compiled binary through `scripts/supermassive/` (that suite's
+README is the contract's home). Two legs run the IDENTICAL check
+depth - the low-spec leg on the MSRV floor (60s wall budget) and
+the best-spec leg on the stable frontier (300s wall budget); the
+budget buys headroom, never depth. Triggers: the estate-wide push
+filter plus the file's own name, plus `workflow_dispatch`; no
+`pull_request` trigger (the fast lane owns PRs).
+
+## Supermassive Container E2E (the container lane)
+
+`zejtron - Supermassive Container E2E` proves the container claim
+the doctor makes: the static musl binary runs inside a REAL docker
+container (alpine 3.20, pinned by manifest digest - the actions-pin
+discipline applied to the test substrate) and must report container
+evidence, render the [eBPF] section with the container's own facts,
+and exit clean on every read-only surface. The lane's docker is
+unprivileged by design: the eBPF lane's privileged attach belongs
+to the host kernel, not a container namespace, so no lane anywhere
+runs an attach - every leg pins the honest refusal rendering
+instead. Triggers: the estate-wide push filter on pushes AND pull
+requests (this lane is cheap enough for the PR path), plus
+`workflow_dispatch`.

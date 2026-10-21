@@ -109,13 +109,23 @@ and EVERY skip names its reason in the log. A bare SKIP is a harness
 bug (the engine converts it to a failure by law). Known legitimate
 skips:
 
-- "root + BTF + kernel 5.15+ host" — the privileged attach leg
-  belongs to the container lane; the host battery pins the refusal
-  instead.
 - "Cargo.toml not found next to the suite" — the version pin needs
   the tree.
+- "/proc/sys/kernel/osrelease unreadable" — the kernel-floor
+  agreement (night-improve-43) cannot compute the floor direction
+  without the same file the binary reads.
 
 Anything else that skips should be read as a question, not a pass.
+
+The privileged attach leg (root, BTF, kernel 5.15+, on the host
+kernel) has NO seat in any CI lane, by design: every CI leg runs
+unprivileged and pins the refusal rendering instead (the
+lane-honesty checks, the attach refusal, and the kernel-floor
+agreement's at/above direction). This entry replaces the stale
+"the privileged attach leg belongs to the container lane" claim
+(night-total-lts-2): the container lane runs unprivileged docker
+and never attached - the claim documented a leg that does not
+exist.
 
 ## The exit code
 
