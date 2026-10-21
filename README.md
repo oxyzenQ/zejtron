@@ -413,12 +413,20 @@ same stamp.
   snapshot-only with an honest unaccounted block naming the missing
   window. The log lane is `[inferred]` however strong an audit record
   reads - the tag is the truth about the source.
-- The live file taps record what crossed them: writev, pwritev, and
-  mmap'd writes never cross write(2), O_PATH peeks never reach
-  vfs_open, and no vfs_unlink kprobe ships (its signature churned
-  across the floor - mnt_userns in 5.12 moved dentry from arg1 to
-  arg2 - so no single offset serves the range). The log lane may
-  still catch what the kernel lane does not.
+- The live file taps record what crossed them: write(2) via the
+  `vfs_write` kprobe, and the vectorized paths — `writev(2)`,
+  `pwritev(2)`, `pwritev2(2)` — via the `vfs_writev` kprobe
+  (night-improve-42; the tap's symbol and its first-argument shape
+  are verified from the host's own BTF at attach, `do_iter_write`
+  the verified fallback, and attach refuses when neither can be
+  vouched for). The writes that still cross neither tap, named:
+  mmap'd writes (no syscall at write time), async kiocb writes
+  (io_uring/AIO call `call_write_iter` directly), and splice-class
+  copies (`splice`/`sendfile`/`copy_file_range`). O_PATH peeks
+  never reach vfs_open, and no vfs_unlink kprobe ships (its
+  signature churned across the floor - mnt_userns in 5.12 moved
+  dentry from arg1 to arg2 - so no single offset serves the range).
+  The log lane may still catch what the kernel lane does not.
 - `doctor --symptom ram` reads /proc alone: another user's process
   memory (smaps_rollup), fd tables, and /proc/slabinfo are
   permission-gated, and everything this invocation cannot see is

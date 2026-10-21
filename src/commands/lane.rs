@@ -149,7 +149,13 @@ fn collect_live(
     let mut gone_writes: usize = 0;
     for event in &events {
         let is_open = event.op == crate::ebpf::events::FILE_OP_OPEN;
-        let is_write = event.op == crate::ebpf::events::FILE_OP_WRITE;
+        // Both write paths are writes: the plain write tap (op=2) and
+        // the vectorized writev tap (op=4, night-improve-42). The
+        // filter must never re-open the gap the second tap closed -
+        // a Writes-only window that dropped writev rows would be the
+        // false negative reborn one layer up.
+        let is_write = event.op == crate::ebpf::events::FILE_OP_WRITE
+            || event.op == crate::ebpf::events::FILE_OP_WRITEV;
         let wanted = match filter {
             OpFilter::Opens => is_open,
             OpFilter::Writes => is_write,
@@ -171,7 +177,14 @@ fn collect_live(
             }
             continue;
         };
-        let action = if is_open { "opened" } else { "wrote" };
+        // The action names the write path that crossed: the writev
+        // parenthetical is the whole point of op=4 - the operator
+        // learns WHICH syscall family the writer used.
+        let action = match event.op {
+            crate::ebpf::events::FILE_OP_OPEN => "opened",
+            crate::ebpf::events::FILE_OP_WRITEV => "wrote (writev)",
+            _ => "wrote",
+        };
         rows.push(EvidenceRow::new(
             crate::ebpf::filetap::event_unix_secs(event),
             action,

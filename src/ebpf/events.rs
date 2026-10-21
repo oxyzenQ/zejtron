@@ -155,6 +155,18 @@ pub const FILE_OP_WRITE: u8 = 2;
 #[allow(dead_code)]
 pub const FILE_OP_UNLINK: u8 = 3;
 
+/// `op` for FileEvent: a file was written through the vectorized
+/// path (the vfs_writev kprobe fired on the queried inode's file).
+/// op=4, night-improve-42: the false-negative gap named in README
+/// Limitations since phase 3 - a writev/pwritev write never crossed
+/// vfs_write, so the ledger could read silent ("no writes") while a
+/// vectorized writer was active on the file. writev(2), pwritev(2),
+/// and pwritev2(2) all funnel through vfs_writev, so one op covers
+/// the syscall family; the host-side label names the path ("writev")
+/// so the row tells the operator WHICH write path crossed. The op
+/// vocabulary renumbers never: 3 stays reserved for unlink.
+pub const FILE_OP_WRITEV: u8 = 4;
+
 /// One file action, as the kernel saw it at the moment it happened.
 ///
 /// Offsets (repr(C), natural alignment, pinned by test):
@@ -173,7 +185,8 @@ pub const FILE_OP_UNLINK: u8 = 3;
 pub struct FileEvent {
     /// CLOCK_MONOTONIC nanoseconds at the action.
     pub timestamp_ns: u64,
-    /// One of FILE_OP_OPEN / FILE_OP_WRITE / FILE_OP_UNLINK.
+    /// One of FILE_OP_OPEN / FILE_OP_WRITE / FILE_OP_UNLINK (reserved)
+    /// / FILE_OP_WRITEV.
     pub op: u8,
     /// Padding to 8-byte alignment (pinned by test at 9..16).
     pub _pad: [u8; 7],

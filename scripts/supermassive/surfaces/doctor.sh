@@ -70,12 +70,12 @@ surface_doctor() {
 	# pin directory names itself, the BTF-verified offsets claim
 	# pins itself, the second attach is the honest idempotent
 	# nothing-to-do, and the detach that follows is the REAL
-	# unpin (13 pins removed, the pin directory gone). A success
+	# unpin (15 pins removed, the pin directory gone). A success
 	# on a host the harness reads as incapable is a loud failure:
 	# the binary attached where its own preflight must refuse.
 	# The 20s per-call budget is the leg's documented slow class
 	# (the same vocabulary --check-update rides): the one-shot
-	# loads four BPF programs and pins thirteen objects.
+	# loads five BPF programs and pins fifteen objects.
 	sm_run "$SM_SCRATCH/att.out" "$SM_SCRATCH/att.err" rc 20 -- "$SM_DEFAULT_BIN" doctor --attach
 	sm_flag_used "doctor --attach"
 	if [[ "$rc" -eq 0 ]]; then
@@ -172,11 +172,11 @@ surface_doctor() {
 	sm_assert_contains "$SM_SCRATCH/ok.out" "Pins:" "row estate: the Pins row renders"
 
 	# The Probes row is the binary's contract, not host state (the
-	# tap object carries all four programs whatever the host allows):
-	# the four names, in planting order, on every host.
+	# tap object carries all five programs whatever the host allows):
+	# the five names, in planting order, on every host.
 	sm_assert_contains "$SM_SCRATCH/ok.out" \
-		"sched_process_exec, inet_sock_set_state, vfs_open, vfs_write" \
-		"probes contract: the four tap names render in order"
+		"sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev" \
+		"probes contract: the five tap names render in order"
 
 	# The kernel floor agreement (night-improve-43): the eBPF lane's
 	# documented floor is 5.15 (KERNEL_FLOOR in src/ebpf/mod.rs, the

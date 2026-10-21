@@ -20,7 +20,7 @@
 //!   Lockdown:    none
 //!   Caps:        CAP_BPF + CAP_PERFMON present
 //!   Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))
-//!   Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write
+//!   Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev
 //!   Pins:        /sys/fs/bpf/zejtron (present: tap, tap_link, stats, sock_tap, sock_tap_link, sock_events)
 //! ```
 //!
@@ -120,12 +120,13 @@ fn attached_detail() -> String {
 }
 
 /// The Probes row (night-improve-2 opened it as Tracepoints,
-/// night-improve-3 renames it to carry the file taps too): the
-/// events the tap listens to, by name - the binary's contract, not
-/// host state (the tap object carries all four programs whatever the
-/// host allows).
+/// night-improve-3 renames it to carry the file taps,
+/// night-improve-42 adds the vectorized-write tap): the events the
+/// tap listens to, by name - the binary's contract, not host state
+/// (the tap object carries all five programs whatever the host
+/// allows).
 fn probes_row() -> String {
-    "sched_process_exec, inet_sock_set_state, vfs_open, vfs_write".to_owned()
+    "sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev".to_owned()
 }
 
 /// The Pins row: the whole pin set, a partial set named honestly (a

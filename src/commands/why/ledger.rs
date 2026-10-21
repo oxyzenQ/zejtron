@@ -424,7 +424,8 @@ fn path_cannot_line(
     match mode {
         Mode::Live => segs.push(
             "changes older than the window (the log lane was not consulted in live mode); \
-             writes that did not cross write(2) - writev, mmap'd writes"
+             writes that crossed neither write tap - mmap'd writes, async kiocb writes \
+             (io_uring/AIO), splice-class copies"
                 .to_owned(),
         ),
         Mode::SnapshotJournal => segs.push(

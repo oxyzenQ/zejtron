@@ -31,12 +31,16 @@ fn file_event_offsets_are_pinned_field_by_field() {
 }
 
 #[test]
-fn op_numbering_is_open_write_unlink() {
+fn op_numbering_is_open_write_unlink_writev() {
     assert_eq!(FILE_OP_OPEN, 1);
     assert_eq!(FILE_OP_WRITE, 2);
     // Reserved (the vfs_unlink skip is named in the module docs);
     // the numbering never renumbers.
     assert_eq!(FILE_OP_UNLINK, 3);
+    // The vectorized-write path (night-improve-42): the op the
+    // vfs_writev kprobe publishes, rendered "write (writev)" on the
+    // raw lane and "wrote (writev)" in the ledger row.
+    assert_eq!(FILE_OP_WRITEV, 4);
 }
 
 #[test]

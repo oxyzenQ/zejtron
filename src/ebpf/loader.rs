@@ -9,13 +9,18 @@
 //! night-improve-34 shrinks it back to four programs and five maps -
 //! the two sched_process lifecycle tracepoints and their ring went
 //! with the lifecycle stream surface's removal, and the offsets
-//! contract shrinks to the eight file-walk slots).
+//! contract shrinks to the eight file-walk slots; night-improve-42
+//! grows it to five programs and the same five maps - the writev
+//! tap, whose attach symbol is verified from the host's own BTF
+//! before anything is planted, the argument-position sibling of
+//! the offsets law).
 //!
 //! This is the privileged one-shot. `doctor --attach` loads the
-//! embedded tap object, loads ALL FOUR programs (phase 1's
+//! embedded tap object, loads ALL FIVE programs (phase 1's
 //! sched/sched_process_exec counter, phase 2's
 //! sock/inet_sock_set_state socket-event tap, phase 3's
-//! vfs_open/vfs_write file taps), attaches each, and pins
+//! vfs_open/vfs_write file taps, night-improve-42's vfs_writev
+//! vectorized-write tap), attaches each, and pins
 //! EVERYTHING to bpffs - programs, links, maps - then writes the
 //! BTF-parsed struct offsets into the `offsets` map, and the
 //! process may exit, because the pinned links keep the taps alive
@@ -46,10 +51,10 @@ use aya::programs::links::FdLink;
 use super::btf;
 use super::embedded;
 use super::{
-    LaneVerdict, PIN_DIR, PIN_LINK, PIN_LINK_OPEN, PIN_LINK_SOCK, PIN_LINK_WRITE,
+    LaneVerdict, PIN_DIR, PIN_LINK, PIN_LINK_OPEN, PIN_LINK_SOCK, PIN_LINK_WRITE, PIN_LINK_WRITEV,
     PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS,
     PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_OPEN, PIN_PROG_SOCK, PIN_PROG_WRITE,
-    any_pin_present, lane_verdict, probe_kernel,
+    PIN_PROG_WRITEV, any_pin_present, lane_verdict, probe_kernel,
 };
 
 use super::events::{
@@ -106,6 +111,15 @@ const WRITE_PROGRAM: &str = "write_tap";
 
 /// The kernel symbol the write tap attaches to.
 const WRITE_SYMBOL: &str = "vfs_write";
+
+/// The vectorized-write program's name (night-improve-42) - the ELF
+/// symbol in ebpf/src/main.rs. The ATTACH symbol is not a constant:
+/// it is verified from the host's own BTF at attach time
+/// (vfs_writev preferred, do_iter_write the verified fallback), the
+/// argument-position sibling of the offsets law - a symbol whose
+/// first argument the host cannot vouch for is a guess, and a
+/// guessed argument position reads garbage silently.
+const WRITEV_PROGRAM: &str = "writev_tap";
 
 /// The tracked_inodes filter map name in the tap object.
 const MAP_TRACKED_INODES: &str = "tracked_inodes";
@@ -170,6 +184,25 @@ pub fn attach() -> Result<String, String> {
         )
     })?;
 
+    // 1.6. The writev symbol verification (night-improve-42): the
+    //      vectorized-write tap probes a symbol whose first argument
+    //      must be a pointer to struct file. The symbol and its
+    //      argument shape are read from the same host BTF, before
+    //      anything is planted - the argument-position sibling of
+    //      the offsets law above. A kernel that carries neither
+    //      vfs_writev nor do_iter_write under a verifiable shape
+    //      refuses here, by name, with zero pins touched.
+    let writev_symbol = btf::verify_writev_symbol().map_err(|e| {
+        format!(
+            "attach refused: cannot verify the vectorized-write tap's attach \
+             point from BTF ({e}). The writev tap probes vfs_writev (fallback \
+             do_iter_write) at its first argument, and the host's BTF must \
+             vouch for that argument being a pointer to struct file - a \
+             guessed argument position reads garbage silently. No tap is \
+             planted"
+        )
+    })?;
+
     // 2. Self-heal: a partial pin set (a crashed attach, a manual rm)
     //    is cleaned before replanting; a stale pin directory (a prior
     //    mkdir that failed before planting) is removed the same way.
@@ -211,7 +244,7 @@ pub fn attach() -> Result<String, String> {
     let mut bpf =
         Ebpf::load(TAP_ELF).map_err(|e| fail(format!("the tap object failed to load: {e}")))?;
 
-    let attach_result = plant(&mut bpf);
+    let attach_result = plant(&mut bpf, writev_symbol);
     match attach_result {
         Ok(()) => {
             // 6.5. Write the BTF-parsed offsets through the pin - the
@@ -232,22 +265,24 @@ pub fn attach() -> Result<String, String> {
                 .unwrap_or_else(|e| format!("counter unreadable ({e})"));
             Ok(format!(
                 "tap attached: tracepoints sched/sched_process_exec + \
-                 sock/inet_sock_set_state, kprobes vfs_open + vfs_write, \
-                 offsets verified from this host's BTF, counter live; events \
-                 since attach: {count}\npins: {PIN_DIR} (tap, tap_link, stats, \
+                 sock/inet_sock_set_state, kprobes vfs_open + vfs_write + \
+                 {writev_symbol} (the vectorized-write tap, verified from this \
+                 host's BTF), offsets verified from this host's BTF, counter live; \
+                 events since attach: {count}\npins: {PIN_DIR} (tap, tap_link, stats, \
                  sock_tap, sock_tap_link, sock_events, open_tap, open_tap_link, \
-                 write_tap, write_tap_link, tracked_inodes, file_events, offsets)"
+                 write_tap, write_tap_link, writev_tap, writev_tap_link, \
+                 tracked_inodes, file_events, offsets)"
             ))
         }
         Err(e) => Err(fail(e)),
     }
 }
 
-/// The plant step: load all four programs, attach each to its
+/// The plant step: load all five programs, attach each to its
 /// point, pin programs + links + maps. Any error names itself; the
 /// caller's fail() protocol cleans up everything the attempt
 /// planted - never a half-attached tap.
-fn plant(bpf: &mut Ebpf) -> Result<(), String> {
+fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
     plant_tracepoint(
         bpf,
         PROGRAM,
@@ -271,6 +306,13 @@ fn plant(bpf: &mut Ebpf) -> Result<(), String> {
         WRITE_SYMBOL,
         PIN_PROG_WRITE,
         PIN_LINK_WRITE,
+    )?;
+    plant_kprobe(
+        bpf,
+        WRITEV_PROGRAM,
+        writev_symbol,
+        PIN_PROG_WRITEV,
+        PIN_LINK_WRITEV,
     )?;
     bpf.take_map(MAP_STATS)
         .ok_or_else(|| format!("the tap object carries no '{MAP_STATS}' map"))?
