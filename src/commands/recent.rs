@@ -94,10 +94,26 @@ pub fn parse_duration(input: &str) -> Result<Duration, String> {
         .parse()
         .map_err(|_| format!("invalid duration: {input}"))?;
 
+    // Saturating on purpose (night-total-lts-1): the u64 amount times
+    // the unit multiplier can overflow (the day arm multiplies by
+    // 86400 - a five-digit-exponent ask wraps), and a wrapped
+    // Duration silently filters the wrong file set. Saturating sends
+    // every absurd ask to u64::MAX seconds - the honest "older than
+    // everything" answer for an age request no filesystem can outlive;
+    // debug builds (the test lane) panicked on the same input before
+    // the fix. The port window parser (window.rs) carries the same
+    // law for the same reason.
     match unit {
-        "m" => Ok(Duration::from_secs(amount * 60)),
-        "h" => Ok(Duration::from_secs(amount * 60 * 60)),
-        "d" => Ok(Duration::from_secs(amount * 24 * 60 * 60)),
+        "m" => Ok(Duration::from_secs(amount.saturating_mul(60))),
+        "h" => Ok(Duration::from_secs(
+            amount.saturating_mul(60).saturating_mul(60),
+        )),
+        "d" => Ok(Duration::from_secs(
+            amount
+                .saturating_mul(24)
+                .saturating_mul(60)
+                .saturating_mul(60),
+        )),
         _ => Err(format!("invalid duration: {input}")),
     }
 }

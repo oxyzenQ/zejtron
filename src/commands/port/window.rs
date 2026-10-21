@@ -68,10 +68,18 @@ pub fn parse_window(input: &str) -> Result<Duration, PortError> {
     }
     let (amount, unit) = input.split_at(input.len() - 1);
     let amount: u64 = amount.parse().map_err(|_| invalid())?;
+    // Saturating on purpose (night-total-lts-1): a parsed u64 times
+    // the unit multiplier can overflow (an absurd "18446744073709551h"
+    // asks for more seconds than a u64 holds), and the wrapping
+    // product was not the clamp's contract - a wrapped value can
+    // land anywhere, including inside the window floor. Saturating
+    // sends every absurd ask to the ceiling, which clamp_window
+    // then shapes into the honest 1h maximum; debug builds (the
+    // test lane) panicked on the same input before the fix.
     match unit {
         "s" => Ok(Duration::from_secs(amount)),
-        "m" => Ok(Duration::from_secs(amount * 60)),
-        "h" => Ok(Duration::from_secs(amount * 3600)),
+        "m" => Ok(Duration::from_secs(amount.saturating_mul(60))),
+        "h" => Ok(Duration::from_secs(amount.saturating_mul(3600))),
         _ => Err(invalid()),
     }
 }

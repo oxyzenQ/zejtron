@@ -47,6 +47,35 @@ fn window_grammar_rejects_the_shapes_it_does_not_speak() {
 }
 
 #[test]
+fn huge_amounts_saturate_instead_of_overflowing() {
+    // night-total-lts-1: the pre-fix arithmetic (amount * 3600)
+    // panicked in debug and wrapped in release - 5124095576030432h
+    // wrapped to exactly zero seconds, which the clamp then shaped
+    // into the 1s floor: an absurd ask produced the SMALLEST window.
+    // The saturating law: an absurd window ask is "the maximum",
+    // which clamp_window shapes into the honest 1h ceiling.
+    assert_eq!(
+        parse_window("18446744073709551615m").unwrap(),
+        Duration::from_secs(u64::MAX)
+    );
+    assert_eq!(
+        parse_window("18446744073709551615h").unwrap(),
+        Duration::from_secs(u64::MAX)
+    );
+    // The exact wrap-to-zero input from the audit (2^64 seconds =
+    // 5124095576030432 * 3600): pre-fix this parsed as zero seconds.
+    assert_eq!(
+        parse_window("5124095576030432h").unwrap(),
+        Duration::from_secs(u64::MAX)
+    );
+    // And the clamp shapes the saturated ask into the ceiling.
+    assert_eq!(
+        clamp_window(parse_window("5124095576030432h").unwrap()),
+        Duration::from_secs(3600)
+    );
+}
+
+#[test]
 fn window_clamps_into_the_evidence_shaped_range() {
     // The pinned clamps: 0s -> 1s, 2h -> 1h - and the in-range
     // values pass through untouched.
