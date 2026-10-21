@@ -97,8 +97,9 @@ fn parse_socket_inode(path: &Path) -> Option<u64> {
 
 fn read_process_info(process_dir: &Path, pid: u32) -> ProcessInfo {
     let status = fs::read_to_string(process_dir.join("status")).unwrap_or_default();
-    let name = parse_status_value(&status, "Name").unwrap_or_else(|| "unknown".to_owned());
-    let uid = parse_status_value(&status, "Uid")
+    let name =
+        crate::system::read_status_value(&status, "Name").unwrap_or_else(|| "unknown".to_owned());
+    let uid = crate::system::read_status_value(&status, "Uid")
         .and_then(|value| value.split_whitespace().next().map(ToOwned::to_owned));
     let user = uid
         .as_deref()
@@ -115,15 +116,6 @@ fn read_process_info(process_dir: &Path, pid: u32) -> ProcessInfo {
         cmdline: None,
         fd: None,
     }
-}
-
-fn parse_status_value(status: &str, key: &str) -> Option<String> {
-    let prefix = format!("{key}:");
-    status
-        .lines()
-        .find_map(|line| line.strip_prefix(&prefix).map(str::trim))
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
 }
 
 fn resolve_username(uid: &str) -> Option<String> {

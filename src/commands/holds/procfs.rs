@@ -266,15 +266,6 @@ pub(super) fn parse_socket_inode(path: &Path) -> Option<u64> {
     inode.parse().ok()
 }
 
-pub(crate) fn parse_status_value(status: &str, key: &str) -> Option<String> {
-    let prefix = format!("{key}:");
-    status
-        .lines()
-        .find_map(|line| line.strip_prefix(&prefix).map(str::trim))
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
-}
-
 pub(super) fn resolve_username(uid: &str) -> Option<String> {
     let passwd = fs::read_to_string("/etc/passwd").ok()?;
     passwd.lines().find_map(|line| {
