@@ -104,6 +104,7 @@ changelog_release() {
         { print }
       ' CHANGELOG.md >"${tmp}"
 			mv "${tmp}" CHANGELOG.md
+			chmod 644 CHANGELOG.md
 			echo "  OK CHANGELOG.md        -> ${ver} (## [Released], newest first)"
 		else
 			rm -f "${tmp}"
@@ -124,6 +125,7 @@ changelog_release() {
         { print }
       ' CHANGELOG.md >"${tmp}"
 			mv "${tmp}" CHANGELOG.md
+			chmod 644 CHANGELOG.md
 			echo "  OK CHANGELOG.md        -> ${ver} (section created above ## [Unreleased])"
 		else
 			rm -f "${tmp}"

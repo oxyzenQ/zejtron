@@ -61,13 +61,22 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
       prerelease: ${{ steps.tag.outputs.prerelease }}
-      version: ${{ steps.tag.outputs.version }}
     steps:
       - name: Derive the release facts from the tag
         id: tag
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
+          # The strict gate (night-total-lts-2): the case below only
+          # classifies the pre-release split; it was never a
+          # validator. A glob * crosses dots, semicolons and quotes,
+          # so a crafted refname rode its * into the build jobs'
+          # string interpolations. Only a strict vX.Y.Z(-SUFFIX)
+          # refname reaches the release lane.
+          if ! printf '%s' "${TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$'; then
+            echo "::error::tag ${TAG} is not a strict v-prefixed semver (vX.Y.Z or vX.Y.Z-suffix)"
+            exit 1
+          fi
           case "${TAG}" in
             v[0-9]*.[0-9]*.[0-9]*)
               echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
@@ -207,12 +216,16 @@ jobs:
           sha512sum "${PKG}.tar.gz" > "${PKG}.tar.gz.sha512sum"
           b3sum "${PKG}.tar.gz" > "${PKG}.tar.gz.b3sum"
           # SHAKE256 via Python (cross-platform, consistent 64-byte output)
+          # PKG rides argv, never string interpolation
+          # (night-total-lts-2): a name is data, not code - the old
+          # inline form let a quote in the name break out of the
+          # Python string.
           python3 -c "
-          import hashlib
-          data = open('${PKG}.tar.gz', 'rb').read()
+          import hashlib, sys
+          data = open(sys.argv[1], 'rb').read()
           h = hashlib.shake_256(data).hexdigest(64)
-          print(f'{h}  ${PKG}.tar.gz')
-          " > "${PKG}.tar.gz.shake256"
+          print(h + '  ' + sys.argv[1])
+          " "${PKG}.tar.gz" > "${PKG}.tar.gz.shake256"
 
           echo ""
           echo "=== Release artifacts ==="
@@ -296,7 +309,7 @@ jobs:
           # workflow re-runs never re-sign (stable artifact bytes).
           # Passphrase (if any) flows via --passphrase-fd 0 from stdin -
           # never via the command line.
-          find . -type f -name '*.tar.gz' ! -name '*.asc' -print0 \
+          find . -type f -name '*.tar.gz' -print0 \
             | while IFS= read -r -d '' artifact; do
                 if [ -f "${artifact}.asc" ]; then
                   echo "  (existing sig) ${artifact}.asc"

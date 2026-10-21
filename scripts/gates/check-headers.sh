@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# OS: Linux only — zelynic is a Linux eBPF tool; no other OS is supported.
+# OS: Linux only — zejtron is a Linux introspection tool; no other OS is supported.
 #
 # ZEJTRON SPDX HEADER CHECK
 #
@@ -33,14 +33,12 @@
 #   former CHANGELOG-V11-ERA.md root duplicate was removed in
 #   NIGHT-dinner-19 (its frozen content lives in git history);
 #   the regex below keeps the era-file arm so an old checkout
-#   running this gate still excludes it. NIGHT-improve-43 added
-#   CHANGELOG-V20-ERA.md — the v20-era record split out of the
-#   live file at the b743d9c blob — the same frozen-record class
-#   (byte-frozen history the header gate must not demand edits
-#   in). The task's re-issue moved that file from the root into
-#   docs/archive/, where it carries the license header the
-#   PRE_V11 archive file established — so this root regex arm is
-#   the old-checkout shield now, not the live exemption.
+#   running this gate still excludes it. The v20-era record was
+#   later folded back into the same frozen-record class and the
+#   archived file now lives at docs/archive/CHANGELOG-V10.0.0-ERA.md
+#   with the license header the archive lane established - the
+#   regex arm below matches that path (night-total-lts-2 corrected
+#   the stale CHANGELOG-V20-ERA.md reference, no such file exists).
 #
 # Usage: bash scripts/gates/check-headers.sh
 

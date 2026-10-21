@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# OS: Linux only — zelynic is a Linux eBPF tool; no other OS is supported.
+# OS: Linux only — zejtron is a Linux introspection tool; no other OS is supported.
 #
 # ZEJTRON RUST VERSION SYNC CHECK
 #
@@ -79,15 +79,62 @@ for wf in .github/workflows/*.yml; do
 	[ "$(basename "$wf")" = "audit.yml" ] && continue
 
 	if grep -q 'RUST_VERSION:' "$wf"; then
-		WF_VERSION=$(grep 'RUST_VERSION:' "$wf" | head -1 | sed 's/.*RUST_VERSION: *"\(.*\)".*/\1/')
-		if [ "$WF_VERSION" != "$FULL_VERSION" ]; then
-			echo "FAIL: $wf RUST_VERSION = \"$WF_VERSION\" — expected \"$FULL_VERSION\""
+		# Every RUST_VERSION match rides the check - the first one
+		# alone let a drifted later pin hide behind it
+		# (night-total-lts-2).
+		while IFS= read -r WF_VERSION; do
+			[ -z "$WF_VERSION" ] && continue
+			if [ "$WF_VERSION" != "$FULL_VERSION" ]; then
+				echo "FAIL: $wf RUST_VERSION = \"$WF_VERSION\" — expected \"$FULL_VERSION\""
+				FAILED=$((FAILED + 1))
+			else
+				echo "OK: $wf RUST_VERSION = \"$WF_VERSION\""
+			fi
+		done < <(grep 'RUST_VERSION:' "$wf" | sed 's/.*RUST_VERSION: *"\(.*\)".*/\1/')
+	fi
+
+	# The quoted-literal `toolchain: "X.Y.Z"` install pins
+	# (night-total-lts-2): release/crates-io/supermassive spell
+	# their pins this way, so a drift was invisible to the
+	# RUST_VERSION spelling. Channel aliases (stable, nightly) and
+	# matrix references stay out of scope - they are deliberate
+	# moving lanes, not pins.
+	while IFS= read -r WF_TOOLCHAIN; do
+		[ -z "$WF_TOOLCHAIN" ] && continue
+		if [ "$WF_TOOLCHAIN" != "$FULL_VERSION" ]; then
+			echo "FAIL: $wf toolchain pin = \"$WF_TOOLCHAIN\" — expected \"$FULL_VERSION\""
 			FAILED=$((FAILED + 1))
 		else
-			echo "OK: $wf RUST_VERSION = \"$WF_VERSION\""
+			echo "OK: $wf toolchain pin = \"$WF_TOOLCHAIN\""
 		fi
-	fi
+	done < <(grep -E '^[[:space:]]*toolchain: *"[0-9]+\.[0-9]+' "$wf" | sed 's/.*toolchain: *"\(.*\)".*/\1/')
 done
+
+# ── 4. The eBPF tool pin constants ──
+# BPF_LINKER_VERSION lives in three sites, B3SUM_VERSION in two; the
+# in-file comments demand lockstep bumps, so the lockstep is enforced
+# here instead of trusted (night-total-lts-2).
+check_pin() {
+	local name="$1"
+	shift
+	local expected=""
+	local file value
+	for file in "$@"; do
+		# The first line that names the constant AND carries a
+		# quoted number: comment mentions of the name (the
+		# lockstep notes) carry no number and are skipped.
+		value=$(grep -m1 "${name}.*\"[0-9]" "$file" | sed 's/.*"\([0-9][^"]*\)".*/\1/')
+		if [ -z "$expected" ]; then
+			expected="$value"
+			echo "OK: ${name} = \"${expected}\" (${file})"
+		elif [ "$value" != "$expected" ]; then
+			echo "FAIL: ${file} ${name} = \"${value}\" — expected \"${expected}\""
+			FAILED=$((FAILED + 1))
+		fi
+	done
+}
+check_pin "BPF_LINKER_VERSION" build/ebpf.rs scripts/dev/bootstrap-ebpf.sh scripts/dev/regenerate-ebpf-prebuilt.sh
+check_pin "B3SUM_VERSION" scripts/dev/bootstrap-ebpf.sh scripts/dev/regenerate-ebpf-prebuilt.sh
 
 echo ""
 if [ "$FAILED" -gt 0 ]; then

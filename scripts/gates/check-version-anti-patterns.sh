@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# OS: Linux only — zelynic is a Linux eBPF tool; no other OS is supported.
+# OS: Linux only — zejtron is a Linux introspection tool; no other OS is supported.
 # =============================================================================
 # ZEJTRON VERSION-ANTI-PATTERN GUARD
 # =============================================================================
@@ -17,8 +17,9 @@
 #
 # Correct pattern (allowed):
 #   The current package version is verified by cargo metadata and by
-#   test/integration/smoke.rs::test_version (which uses the --version
-#   CLI flag). No test should assert that Cargo.toml contains its own
+#   the CLI battery's build_meta rows (which use the -V/--version
+#   shape against the compiled binary). No test should assert that
+#   Cargo.toml contains its own
 #   version field — that is tautological (always true).
 #
 # Historical CHANGELOG assertions (e.g. contains("v1.2.3")) are NOT
@@ -54,7 +55,7 @@ while IFS= read -r -d '' file; do
 		fi
 	done
 done < <(
-	find "$REPO_ROOT/src" \
+	find "$REPO_ROOT/src" "$REPO_ROOT/test" \
 		-name '*.rs' \
 		-not -path '*/target/*' \
 		-print0 2>/dev/null
@@ -77,7 +78,7 @@ while IFS= read -r -d '' file; do
 		META_REPORTED="$META_REPORTED $basename_file"
 	fi
 done < <(
-	find "$REPO_ROOT/src" \
+	find "$REPO_ROOT/src" "$REPO_ROOT/test" \
 		-name '*.rs' \
 		-not -path '*/target/*' \
 		-print0 2>/dev/null
@@ -91,7 +92,7 @@ else
 	echo -e "${RED}FAIL: $VIOLATIONS file(s) contain hardcoded version assertions${NC}"
 	echo ""
 	echo "Fix: delete tautological version tests. The current package version"
-	echo "is already verified by test/integration/smoke.rs::test_version."
+	echo "is already verified by the CLI battery's build_meta rows."
 	echo ""
 	echo "If you genuinely need to assert a version in a test, use:"
 	echo '  const V: &str = env!("CARGO_PKG_VERSION");'

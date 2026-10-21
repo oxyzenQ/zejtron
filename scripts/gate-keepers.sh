@@ -88,11 +88,18 @@
 
 set -euo pipefail
 
+# One mktemp -d scratch instead of fixed /tmp/zj-* names
+# (night-total-lts-2): no symlink planting on multi-user hosts, no
+# crosstalk between concurrent gate runs, and the EXIT trap leaves
+# nothing behind. build.sh's tmpdir contract, ported home.
+SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/zejtron-gate.XXXXXX")"
+trap 'rm -rf "${SCRATCH}"' EXIT
+
 # ── Colors ─────────────────────────────────────────────────────────────────
-RED='\033'
-GREEN='\033'
-YELLOW='\033'
-NC='\033'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
 
 FIX_ALL=false
 if [[ "${1:-}" == "--fix-all" ]]; then
@@ -150,16 +157,16 @@ QUAD_FAIL=0
 # 1a. bash -n (always available)
 if [ -n "${SHELL_FILES}" ]; then
 	while IFS= read -r f; do
-		if ! bash -n "$f" 2>/tmp/zj-bashn.err; then
+		if ! bash -n "$f" 2>"${SCRATCH}/zj-bashn.err"; then
 			echo "  bash -n: $f"
-			cat /tmp/zj-bashn.err
+			cat "${SCRATCH}/zj-bashn.err"
 			QUAD_FAIL=1
 		fi
 	done <<<"${SHELL_FILES}"
 fi
-if ! bash -n .githooks/pre-commit 2>/tmp/zj-bashn.err; then
+if ! bash -n .githooks/pre-commit 2>"${SCRATCH}/zj-bashn.err"; then
 	echo "  bash -n: .githooks/pre-commit"
-	cat /tmp/zj-bashn.err
+	cat "${SCRATCH}/zj-bashn.err"
 	QUAD_FAIL=1
 fi
 [ "${QUAD_FAIL}" -eq 0 ] && pass "1a. bash -n syntax"
@@ -168,16 +175,15 @@ fi
 if command -v shellcheck >/dev/null 2>&1; then
 	QUAD_FAIL=0
 	while IFS= read -r f; do
-		if ! shellcheck "$f" 2>&1 | grep -q "^$"; then :; fi
-		if ! shellcheck "$f" >/tmp/zj-sc.out 2>&1; then
+		if ! shellcheck "$f" >"${SCRATCH}/zj-sc.out" 2>&1; then
 			echo "  shellcheck: $f"
-			head -20 /tmp/zj-sc.out
+			head -20 "${SCRATCH}/zj-sc.out"
 			QUAD_FAIL=1
 		fi
 	done <<<"${SHELL_FILES}"
-	if ! shellcheck .githooks/pre-commit >/tmp/zj-sc.out 2>&1; then
+	if ! shellcheck .githooks/pre-commit >"${SCRATCH}/zj-sc.out" 2>&1; then
 		echo "  shellcheck: .githooks/pre-commit"
-		head -20 /tmp/zj-sc.out
+		head -20 "${SCRATCH}/zj-sc.out"
 		QUAD_FAIL=1
 	fi
 	if [ "${QUAD_FAIL}" -eq 0 ]; then
@@ -199,11 +205,11 @@ if command -v shfmt >/dev/null 2>&1; then
 		shfmt -w ${SHELL_FILES} .githooks/pre-commit
 	fi
 	# shellcheck disable=SC2086
-	if shfmt -d ${SHELL_FILES} .githooks/pre-commit >/tmp/zj-shfmt.out 2>&1; then
+	if shfmt -d ${SHELL_FILES} .githooks/pre-commit >"${SCRATCH}/zj-shfmt.out" 2>&1; then
 		pass "1c. shfmt canonical formatting"
 	else
 		echo "  shfmt diff (run ./scripts/gate-keepers.sh --fix-all to auto-fix):"
-		head -20 /tmp/zj-shfmt.out
+		head -20 "${SCRATCH}/zj-shfmt.out"
 		fail "1c. shfmt canonical formatting"
 	fi
 else
@@ -250,10 +256,10 @@ fi
 # ── 2. yamllint ─────────────────────────────────────────────────────────────
 header "2. yamllint (.github YAML)"
 if command -v yamllint >/dev/null 2>&1; then
-	if yamllint .github/ >/tmp/zj-yaml.out 2>&1; then
+	if yamllint .github/ >"${SCRATCH}/zj-yaml.out" 2>&1; then
 		pass "yamllint"
 	else
-		head -20 /tmp/zj-yaml.out
+		head -20 "${SCRATCH}/zj-yaml.out"
 		fail "yamllint"
 	fi
 else
@@ -263,10 +269,10 @@ fi
 # ── 3. actionlint ───────────────────────────────────────────────────────────
 header "3. actionlint (workflows)"
 if command -v actionlint >/dev/null 2>&1; then
-	if actionlint -color >/tmp/zj-al.out 2>&1; then
+	if actionlint -color >"${SCRATCH}/zj-al.out" 2>&1; then
 		pass "actionlint"
 	else
-		head -30 /tmp/zj-al.out
+		head -30 "${SCRATCH}/zj-al.out"
 		fail "actionlint"
 	fi
 else
@@ -277,9 +283,12 @@ fi
 header "4. TOML syntax (python3 tomllib)"
 TOML_FAIL=0
 while IFS= read -r f; do
-	if ! python3 -c "import tomllib; tomllib.load(open('$f','rb'))" 2>/tmp/zj-toml.err; then
+	# The TOML path rides argv, never a quoted interpolation
+	# (night-total-lts-2): a filename is data, not code - a crafted
+	# name broke out of the single-quoted -c string and ran Python.
+	if ! python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$f" 2>"${SCRATCH}/zj-toml.err"; then
 		echo "  invalid TOML: $f"
-		head -3 /tmp/zj-toml.err
+		head -3 "${SCRATCH}/zj-toml.err"
 		TOML_FAIL=1
 	fi
 done < <(git ls-files --cached --others --exclude-standard -- '*.toml' 2>/dev/null)
@@ -292,10 +301,10 @@ fi
 # ── 5. codespell ────────────────────────────────────────────────────────────
 header "5. codespell"
 if command -v codespell >/dev/null 2>&1; then
-	if codespell --config .codespellrc . >/tmp/zj-cs.out 2>&1; then
+	if codespell --config .codespellrc . >"${SCRATCH}/zj-cs.out" 2>&1; then
 		pass "codespell"
 	else
-		head -20 /tmp/zj-cs.out
+		head -20 "${SCRATCH}/zj-cs.out"
 		fail "codespell"
 	fi
 else

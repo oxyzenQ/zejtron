@@ -116,6 +116,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
 
       # The runner's own toolchain: the moving `nightly` tag with the
       # miri component - exactly what `./scripts/build.sh miri` would
@@ -138,6 +140,15 @@ jobs:
         run: |
           ./scripts/dev/bootstrap-ebpf.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # The read-lane cache (night-total-lts-2): every other compile
+      # lane caches; miri recompiles and interprets the whole crate
+      # per run, so the missing cache eroded exactly the 20-minute
+      # budget the job is sized to. save-if: false keeps it read-only.
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          save-if: false
 
       - name: Run Miri verification (stamp + log land in target/)
         run: ./scripts/build.sh miri --no-install
