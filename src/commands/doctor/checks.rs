@@ -83,7 +83,14 @@ pub(super) fn check_container() -> CheckResult {
             // Only flag if other evidence also present, to avoid false positives
             // on minimal hosts
             if !evidence.is_empty() {
-                evidence.push(format!("pid 1: {first_line}"));
+                // The sched first line rides the kernel's
+                // "name (pid, #threads: N)" shape: the evidence item
+                // already says "pid 1", and the host-namespace pid and
+                // thread count are noise nested inside the row's
+                // evidence parens (night-improve-43) - the init name
+                // is the signal, so it rides alone.
+                let init_name = first_line.split(" (").next().unwrap_or(first_line);
+                evidence.push(format!("pid 1: {init_name}"));
             }
         }
     }
