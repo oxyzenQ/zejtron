@@ -52,7 +52,15 @@ pub const AF_INET6: u16 = 10;
 ///
 /// Offsets (repr(C), natural alignment, pinned by test):
 /// timestamp_ns 0, skaddr 8, family 16, protocol 18, oldstate 19,
-/// newstate 20, sport 22, dport 24, pid 28; total 32 bytes.
+/// newstate 20, _pad 21, sport 22, dport 24, _pad2 26..27,
+/// pid 28; total 32 bytes. The pads are EXPLICIT fields, the
+/// FileEvent discipline: the ring record's every byte is written
+/// by the tap constructor, because the 5.15 verifier (the
+/// documented kernel floor, proven live by the kernel-floor
+/// micro-VM lane) rejects an `output` read whose stack bytes were
+/// never initialized - "invalid indirect read from stack" - while
+/// newer verifiers tolerate the holes. A pad that rides implicit
+/// is a pad a future field reorder can silently un-write.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SockEvent {
@@ -69,11 +77,16 @@ pub struct SockEvent {
     pub oldstate: u8,
     /// The state after the transition (tcp_states.h numbering).
     pub newstate: u8,
+    /// Padding to 2-byte alignment for `sport` (pinned by test at 21).
+    pub _pad: u8,
     /// The local (source) port, host byte order - the tracepoint
     /// already applied ntohs.
     pub sport: u16,
     /// The remote (destination) port, host byte order.
     pub dport: u16,
+    /// Padding to 4-byte alignment for `pid` (pinned by test at
+    /// 26..27).
+    pub _pad2: u16,
     /// The pid of the process whose syscall made the change (the
     /// tgid half of bpf_get_current_pid_tgid) - the truth the /proc
     /// snapshot cannot see: who changed it, not who holds it now.

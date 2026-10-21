@@ -306,8 +306,15 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
             protocol,
             oldstate,
             newstate,
+            // The explicit pads, zeroed: the ring record's every
+            // byte is written before output() reads it — the 5.15
+            // verifier (the floor kernel) refuses an output read
+            // that touches a never-written stack byte, exactly the
+            // refusal the kernel-floor micro-VM lane caught live.
+            _pad: 0,
             sport,
             dport,
+            _pad2: 0,
             // The tgid half: the process (thread group) whose
             // syscall made the change — the /proc snapshot cannot
             // see this, only the record can.

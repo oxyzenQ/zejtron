@@ -1,0 +1,339 @@
+---
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+#
+# zejtron - SUPERMASSIVE KERNEL FLOOR (the micro-VM lane;
+# night-improve-43, the owner's ask: the low-specs test must run on
+# the REAL minimum kernel, not a gimmick - it boots a KVM micro-VM
+# on the exact kernel the floor documents).
+#
+# The contract: the documented floor is 5.15 (KERNEL_FLOOR in
+# src/ebpf/mod.rs, the README's "kernel >= 5.15"), and NO stock
+# GitHub runner ships it - the ubuntu images ride 6.x HWE kernels,
+# so every other lane proves the floor only as an at/above agreement
+# check against the runner's own newer kernel. This lane boots the
+# REAL floor kernel - the jammy GA release-day image,
+# linux-image-unsigned-5.15.0-25-generic, fetched from the LIVE
+# archive's jammy main pocket (the GA suite, frozen by archive
+# policy; the weekly ABI bumps live in jammy-updates and are
+# deliberately NOT configured) - in a KVM micro-VM on the runner,
+# and runs the FULL supermassive low leg inside it, as root, on
+# exactly the oldest kernel zejtron promises to run on.
+#
+# What the lane proves that no other lane can:
+#   * the at-floor direction of the kernel-floor agreement, LIVE
+#     (5.15.0-25 meets the 5.15 floor - no false refusal, pinned on
+#     the real kernel, not a computed direction);
+#   * the privileged attach lifecycle for real: root + BTF + the
+#     floor kernel inside the VM is the one place CI can attach the
+#     tap (the doctor surface's success-direction specs, pinned the
+#     same night);
+#   * the binary and the whole suite run on the floor userland shape
+#     (ubuntu 22.04, the suite jammy itself shipped with).
+#
+# The local twin is scripts/sandbox/zejtron-sandbox.sh (the same
+# boot shape, rootless-packed, KVM when /dev/kvm is writable, TCG
+# otherwise) - the owner's local instrument for the same floor.
+#
+# Build shape: the lane builds the ONE release shape the e2e legs
+# build (the ebpf-enabled binary the release ships) on the runner,
+# then packs it into a RAM-resident initramfs (no disk, no modules -
+# the suite is loopback-only and every filesystem it needs is =y in
+# the Ubuntu generic kernel).
+#
+# Trigger discipline (the estate's spelling): push on main through
+# the estate-wide path filter plus this file's own name (a workflow
+# that can change its own contract owes itself a run), plus
+# workflow_dispatch as the manual recovery lane. No pull_request
+# trigger on purpose: the fast lane (ci.yml) owns PRs.
+#
+# VM shape: direct kernel boot, KVM host-passthrough CPU (/dev/kvm
+# is a GitHub runner guarantee - nested virt is enabled on every
+# current Linux hosted image), no disk, serial console to stdout,
+# panic=-1 + -no-reboot so a kernel panic ends qemu instead of
+# hanging the job, the DYNAMIC low envelope derived from the runner
+# at boot time (one quarter of the cores floored at 1, one eighth of
+# the RAM floored at 1024 MB - the low leg's own math), an outer
+# timeout so a wedged guest can never burn the job budget, and the
+# isa-debug-exit device - the guest (PID 1) ends the VM
+# deterministically by writing one byte to port 0xf4 (qemu exits
+# with status 1), the kernel-CI standard for initramfs guests whose
+# direct-boot path never reaches an ACPI S5 poweroff. The verdict
+# rides the SANDBOX-* sentinel lines (scripts/sandbox/
+# sandbox-init.sh owns them) - the VM cannot relay exit codes
+# through qemu; the sentinel lines ARE the relay.
+
+name: zejtron - Supermassive Kernel Floor
+
+"on":
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'scripts/**'
+      - '.github/workflows/supermassive-kernel-floor.yml'
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kernel-floor:
+    # The low-specs leg's envelope vocabulary, on the REAL floor
+    # kernel: the MSRV-pinned toolchain builds the payload (the
+    # lane's variable is the KERNEL, not the toolchain - the e2e
+    # lane owns the toolchain span), and the 60s low-leg budget runs
+    # inside the VM against the quarter-core/eighth-RAM slice.
+    name: supermassive kernel floor (jammy GA 5.15.0, KVM micro-VM)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      # The kernel can change; /dev/kvm is a GitHub runner guarantee
+      # (nested virt is enabled on every current Linux hosted image) -
+      # but the node ships 0660 root:kvm and the runner user is not in
+      # the kvm group, so the job opens it up itself. Failing LOUDLY
+      # here beats a TCG fallback: the floor lane's point is the real
+      # kernel at real speed (the low leg's 60s wall budget is a
+      # real-hardware contract; under TCG it can breach without the
+      # binary being at fault).
+      - name: Verify KVM
+        run: |
+          test -e /dev/kvm || {
+            echo "FAIL: /dev/kvm is absent — this runner image cannot boot the kernel-floor micro-VM"
+            echo "(nested virt is expected on every current GitHub Linux runner image)"
+            exit 1
+          }
+          test -w /dev/kvm || sudo chmod 666 /dev/kvm
+          test -w /dev/kvm || {
+            echo "FAIL: /dev/kvm is not usable by the runner user even after chmod"
+            ls -l /dev/kvm
+            exit 1
+          }
+          echo "OK: /dev/kvm present and usable"
+
+      # apt's own retry knob rides every apt transaction below (a
+      # flaky archive mirror is the same GitHub-infra class as the
+      # curl 500s, and apt's default is zero retries).
+      - name: Install qemu + cpio
+        run: >-
+          sudo apt-get -o Acquire::Retries=5 update -qq &&
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
+
+      # The e2e lane's bring-up shape (the payload must be the
+      # ebpf-enabled release binary - there is no dormant build by
+      # owner law): the pinned MSRV toolchain, the eBPF build
+      # prerequisites, the locked release build.
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          prefix-key: supermassive-kernel-floor
+
+      - name: Build the release binary
+        run: |
+          cargo build --release --locked
+          cp target/release/zejtron target/release/zejtron-built
+
+      # The floor kernel: the jammy GA release-day image (5.15.0-25),
+      # resolved from the LIVE archive's jammy main pocket - the GA
+      # suite, frozen by archive policy, so the resolution cannot
+      # drift with the weekly jammy-updates ABI bumps (which stay
+      # 5.15.0-x but move the target). The resolver is isolated by
+      # source list (names-only search, the 5.15.0- regex pins the
+      # floor number) and fails LOUDLY with the discovery evidence
+      # if the archive ever stops carrying the floor kernel.
+      - name: Fetch the jammy GA 5.15.0 floor kernel
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kfloor && cd /tmp/kfloor
+          echo "deb http://archive.ubuntu.com/ubuntu/ jammy main" \
+            | sudo tee /etc/apt/sources.list.d/jammy-floor.list >/dev/null
+          sudo apt-get -o Acquire::Retries=5 update \
+            -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/jammy-floor.list \
+            -o Dir::Etc::sourceparts=/dev/null \
+            -o APT::Get::List-Cleanup=0
+          IMG=$(apt-cache search --names-only \
+            'linux-image-unsigned-5\.15\.0-.*-generic' 2>/dev/null \
+            | grep -oE 'linux-image-unsigned-5\.15\.0-[0-9]+-generic' \
+            | sort -V | tail -1 || true)
+          if test -z "$IMG"; then
+            echo "FAIL: no linux-image-unsigned-5.15.0-*-generic in the jammy main pocket — resolver evidence:"
+            apt-cache search --names-only 'linux-image-unsigned-5\.15' || true
+            exit 1
+          fi
+          echo "resolved: $IMG (the jammy GA release-day kernel)"
+          apt-get -o Acquire::Retries=5 download "$IMG"
+          dpkg -x "${IMG}"*_amd64.deb pkg
+          VMLINUZ=$(find pkg/boot -name 'vmlinuz-5.15.0-*' | head -1)
+          if test -z "$VMLINUZ"; then
+            echo "FAIL: no vmlinuz inside the deb — pkg/boot contents:"
+            ls -la pkg/boot || true
+            exit 1
+          fi
+          cp "$VMLINUZ" /tmp/kfloor/vmlinuz-floor
+          KNAME=$(basename "$VMLINUZ")
+          echo "kernel: $(du -h /tmp/kfloor/vmlinuz-floor | cut -f1) at /tmp/kfloor/vmlinuz-floor ($KNAME)"
+
+      # The userland, held constant on purpose (the lane's only
+      # variable is the KERNEL): the ubuntu:24.04 container - the
+      # runner's own distro, the exact glibc the release binary was
+      # just built against (glibc 2.39's kernel floor is 3.2, so the
+      # 5.15.0 floor kernel is safe). iproute2 rides along for the
+      # init's loopback bring-up; the suite itself is bash +
+      # coreutils and rides the container base as-is. The checkout
+      # (tracked files only) and the payload binary land at
+      # /opt/zejtron, scripts/sandbox/sandbox-init.sh becomes /init
+      # (PID 1) - then the whole tree packs into ONE newc cpio (the
+      # initramfs IS the rootfs; no disk, no modules: every
+      # filesystem the suite touches is =y in the Ubuntu generic
+      # kernel).
+      - name: Assemble the kernel-floor micro-VM rootfs
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          docker pull -q ubuntu:24.04
+          docker rm -f floor-rootfs >/dev/null 2>&1 || true
+          docker run --name floor-rootfs -d ubuntu:24.04 sleep infinity
+          docker exec floor-rootfs apt-get update -qq
+          docker exec floor-rootfs apt-get install -y --no-install-recommends iproute2
+          docker export floor-rootfs -o rootfs.tar
+          mkdir -p rootfs
+          tar -xf rootfs.tar -C rootfs
+          mkdir -p rootfs/opt/zejtron
+          git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/zejtron
+          cp "$GITHUB_WORKSPACE/target/release/zejtron-built" rootfs/opt/zejtron/zejtron
+          chmod 755 rootfs/opt/zejtron/zejtron
+          mkdir -p rootfs/opt/zejtron/.sandbox
+          cat > rootfs/opt/zejtron/.sandbox/payload.sh <<'EOF'
+          #!/usr/bin/env bash
+          # The canonical low leg, root, inside the floor-kernel VM:
+          # the FULL supermassive suite (every surface, every flag,
+          # every error path) against the packed binary, on the exact
+          # 5.15.0 kernel the floor documents.
+          set -u
+          cd /opt/zejtron
+          bash scripts/supermassive/legs/low.sh --bin /opt/zejtron/zejtron
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            verdict=PASS
+          else
+            verdict=FAIL
+          fi
+          echo "SANDBOX-RESULT: supermassive low leg (full suite, root, floor kernel) - $verdict"
+          [ "$rc" -eq 0 ]
+          EOF
+          chmod 755 rootfs/opt/zejtron/.sandbox/payload.sh
+          cp "$GITHUB_WORKSPACE/scripts/sandbox/sandbox-init.sh" rootfs/init
+          chmod +x rootfs/init
+          # PID 1 needs a console to exec onto before devtmpfs lands
+          # (the kernel opens the initramfs's static /dev/console for
+          # it). The docker export ships a /dev/console entry tar
+          # could not restore as a device (a non-root extract degrades
+          # it to a placeholder file) - remove whatever landed, mknod
+          # the real char device fresh.
+          sudo rm -f rootfs/dev/console
+          sudo mknod -m 600 rootfs/dev/console c 5 1
+          ( cd rootfs && sudo find . -print0 | sudo cpio --null -o -H newc ) | gzip -1 > initrd.gz
+          echo "initramfs: $(du -h initrd.gz | cut -f1)"
+
+      # Boot the micro-VM: the dynamic low envelope (the low leg's
+      # math), KVM host-passthrough, the outer budget generous over
+      # the leg's 60s (a first boot spends it on the kernel's own
+      # bring-up; the suite itself runs in single-digit seconds).
+      - name: Boot the kernel-floor micro-VM and run the supermassive low leg
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          CORES=$(nproc)
+          TOTAL_MB=$(free -m | awk '/^Mem:/{print $2}')
+          SMP=$(( CORES / 4 )); [ "$SMP" -lt 1 ] && SMP=1
+          MEM=$(( TOTAL_MB / 8 )); [ "$MEM" -lt 1024 ] && MEM=1024
+          echo "envelope: $SMP vCPU / $MEM MB (low, of $CORES cores / $TOTAL_MB MB on the runner)"
+          set +e
+          timeout 900 qemu-system-x86_64 \
+            -machine q35,accel=kvm -cpu host \
+            -m "$MEM" -smp "$SMP" \
+            -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+            -kernel vmlinuz-floor \
+            -initrd initrd.gz \
+            -append "console=ttyS0 panic=-1" \
+            -nographic -no-reboot 2>&1 | tee vm.log
+          QEMU_RC=${PIPESTATUS[0]}
+          set -e
+          # rc 0 = a natural poweroff; rc 1 = the guest's deliberate
+          # isa-debug-exit (the verdict itself rides the SANDBOX-*
+          # sentinel lines, so the Verdict step below stays the
+          # authority). Anything else — the timeout (124), a KVM init
+          # failure — fails HERE with the tail attached.
+          if test "$QEMU_RC" -ne 0 && test "$QEMU_RC" -ne 1; then
+            echo "FAIL: qemu exited $QEMU_RC — log tail:"
+            tail -40 vm.log
+            exit 1
+          fi
+
+      # The verdict lives in the log (the VM cannot relay exit codes
+      # through qemu; the SANDBOX-* sentinel lines are the contract —
+      # scripts/sandbox/sandbox-init.sh owns them).
+      - name: Verdict
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          echo "── kernel-floor verdicts (jammy GA 5.15.0) ──"
+          grep -E '^SANDBOX-(RESULT|VERDICT)' vm.log || true
+          grep -q '^SANDBOX-VERDICT: PASS' vm.log
+          echo "OK: the full supermassive low leg ran green inside the real 5.15.0 floor kernel"
+
+      - name: Watch summary (the floor lane's own rows)
+        if: always()
+        run: |
+          cd /tmp/kfloor
+          {
+            echo "## zejtron - Supermassive Kernel Floor"
+            echo
+            echo "- trigger: ${{ github.event_name }}"
+            echo "- run: ${{ github.run_id }} (attempt ${{ github.run_attempt }})"
+            echo
+            echo "### the lane's bring-up probes and verdicts (the init's sentinel rows)"
+            echo
+            echo '```'
+            grep -E '^SANDBOX-(RESULT|VERDICT)' vm.log || true
+            echo '```'
+            echo
+            echo "### FAIL inventory"
+            echo
+            echo '```'
+            grep -E '^  FAIL ' vm.log | head -40 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -22,6 +22,70 @@ v11.0.0
 
 ### Added
 
+- The kernel-floor micro-VM lane (night-improve-43, the owner's
+  correction of its own first pass: the low-specs test must run on
+  the REAL minimum kernel, not a computed agreement against a newer
+  one - it boots a KVM micro-VM on the exact kernel the floor
+  documents). The lane: `.github/workflows/
+  supermassive-kernel-floor.yml` fetches the jammy GA release-day
+  kernel (linux-image-unsigned-5.15.0-25-generic, the LIVE
+  archive's jammy main pocket - frozen by archive policy, the
+  weekly jammy-updates ABI bumps deliberately not configured; the
+  5.15.0- resolution pins the floor number and fails loudly if the
+  archive ever stops carrying it), boots it in a KVM micro-VM on
+  the runner (direct kernel boot, host-passthrough CPU, no disk, no
+  modules - every filesystem the suite touches is built into the
+  Ubuntu generic kernel; a RAM-resident initramfs: the ubuntu:24.04
+  container + the checkout + the release binary; the dynamic low
+  envelope, quarter cores / eighth RAM floored at 1 vCPU / 1024 MB;
+  panic=-1 + -no-reboot + an outer timeout; qemu's isa-debug-exit
+  port device as the deterministic guest exit), and runs the FULL
+  supermassive low leg inside it, as root, on exactly the oldest
+  kernel zejtron promises to run on. What it proves that no other
+  lane can: the at-floor direction of the kernel-floor agreement,
+  LIVE (no stock GitHub runner ships a 5.15 kernel - the ubuntu
+  images ride 6.x HWE kernels, so every other lane only computes
+  the at/above direction); the privileged attach lifecycle for real
+  (root + BTF + the floor kernel is the one CI place attach can
+  succeed); and the whole suite on the floor userland shape.
+- The local twin of the kernel-floor lane:
+  `scripts/sandbox/zejtron-sandbox.sh` (one click: the low leg in
+  the VM; `--run`, `--shell`, `--self-test` beside it) with
+  `scripts/sandbox/rootfs-pack.py` (the rootless provisioner -
+  the jammy GA floor kernel resolved from the same Packages index
+  that provisions iproute2 by real dependency resolution, the
+  ubuntu:22.04 base, the newc initramfs with the device nodes a
+  non-root packer cannot mknod synthesized into the stream, every
+  load-bearing lesson of the sibling's packer kept: the 4-byte
+  header+name alignment, the usr-merge symlink rule, the atomic
+  download cache) and `scripts/sandbox/sandbox-init.sh` (PID 1:
+  the mounts, the lane's own floor guard - the booted release MUST
+  be 5.15.0-* or the run fails before the payload - BTF
+  readability, the binary's -V and doctor probes, and the
+  SANDBOX-* sentinel verdict relay). KVM when /dev/kvm is writable,
+  TCG software emulation otherwise (under TCG the low leg's 60s
+  wall budget can breach without the binary being at fault - the
+  budget is a real-hardware contract).
+- The doctor surface's attach lifecycle specs grow the privileged
+  direction (the missing low-spec spec the micro-VM lane exposed:
+  --attach was pinned to the refusal contract unconditionally, so
+  the suite could never run green on a host where attach actually
+  works). The harness now computes the binary's own preflight
+  (the floor direction from the same osrelease file, BTF
+  readability, CAP_BPF + CAP_PERFMON from the effective set) and
+  branches: a refusal keeps the verified contract (exit 1, "attach
+  refused" naming its reason); a SUCCESS on a provably capable host
+  carries its own contract (the tap names itself, the pin directory
+  names itself, the BTF-verified offsets claim pins itself, the
+  second attach is the honest idempotent nothing-to-do, the detach
+  is the REAL unpin - the pin directory gone from the filesystem -
+  and the second detach the idempotent nothing-to-detach); a
+  success on a host the harness reads as incapable is a loud
+  failure (the binary attached where its own preflight must
+  refuse). The attach/detach invocations ride the leg's documented
+  20s slow-class per-call budget (the one-shot loads four BPF
+  programs and pins thirteen objects - the same vocabulary
+  --check-update rides).
 - The infra depth audit (night-total-lts-2, the second pass under
   the name - the first fixed the deny.toml schedule claim and the
   gate's tmpdir contract) hunts the stale-documentation cluster
