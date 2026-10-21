@@ -37,7 +37,8 @@
 #   - output::      the color capability ladder + tier escapes
 #   - version::     the version report contract pins
 #   - cli::         the clap argument parsing pins
-#   - pathguard::   the port/argument guardrail pins
+#   - pathguard::   the state-dir guard pins (the retained
+#                   pathguard module)
 #
 # Verification status is cached in target/miri-stamp (key=value format)
 # so a build does not re-run miri; a banner at the start of every
