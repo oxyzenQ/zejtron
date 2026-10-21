@@ -129,7 +129,10 @@ pub fn build_port_report(
         if let Some(cwd) = &holder.cwd {
             measured.push(EvidenceRow::new(
                 Some(scan_instant),
-                format!("cwd {}", cwd.display()),
+                format!(
+                    "cwd {}",
+                    crate::system::sanitize_display(&cwd.to_string_lossy())
+                ),
                 actor.clone(),
                 Provenance::Measured,
             ));

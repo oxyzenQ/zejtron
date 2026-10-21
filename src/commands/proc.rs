@@ -319,7 +319,7 @@ fn scan_processes_for_uid_at(proc_root: &Path, target_uid: u32) -> Result<ScanRe
 }
 
 pub fn parse_status(contents: &str) -> Result<Process, String> {
-    let name = crate::system::read_status_value(contents, "Name");
+    let name = crate::system::read_status_name(contents);
     let pid = parse_status_number(contents, "Pid")?.ok_or_else(|| "missing Pid".to_owned())?;
     let ppid = parse_status_number(contents, "PPid")?.ok_or_else(|| "missing PPid".to_owned())?;
     let uid = crate::system::read_status_value(contents, "Uid")

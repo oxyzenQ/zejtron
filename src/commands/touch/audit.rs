@@ -61,7 +61,12 @@ pub(crate) fn try_audit_log(
         if is_syscall {
             entry.syscall = extract_kv_u64(&line, "syscall");
             entry.uid = extract_kv_u32(&line, "uid");
-            entry.comm = extract_kv_string(&line, "comm");
+            // The comm value is attacker-controlled process metadata
+            // (prctl can set any bytes); it renders as the process name
+            // on the touch rows - sanitize_display keeps escape
+            // sequences out of the terminal (night-total-lts-3).
+            entry.comm =
+                extract_kv_string(&line, "comm").map(|c| crate::system::sanitize_display(&c));
             entry.pid = extract_kv_u32(&line, "pid");
             entry.a1 = extract_kv_hex_u64(&line, "a1");
             entry.a2 = extract_kv_hex_u64(&line, "a2");

@@ -40,7 +40,11 @@ pub fn run(
         .map(|file| {
             let owner = crate::system::lookup_username(file.uid);
             (
-                display_relative_path(path, &file.path),
+                // Scanned trees can hold files other users created; a
+                // filename is attacker-controlled bytes, so the
+                // displayed column goes through the terminal-safety
+                // neutralizer (night-total-lts-3).
+                crate::system::sanitize_display(&display_relative_path(path, &file.path)),
                 rough_age(now, file.modified),
                 format!(
                     "{} {} {:04o}",
