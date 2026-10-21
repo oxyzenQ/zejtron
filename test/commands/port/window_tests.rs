@@ -223,8 +223,10 @@ mod live {
             protocol,
             oldstate,
             newstate,
+            _pad: 0,
             sport,
             dport: 0,
+            _pad2: 0,
             pid,
         }
     }

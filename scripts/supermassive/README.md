@@ -75,10 +75,17 @@ surface file carries where a lane applies:
   line - at or above the floor no false floor refusal, below the
   floor the refusal names the floor (and `doctor --attach`'s
   refusal names it too). No stock GitHub runner ships a
-  below-floor kernel today (the ubuntu-22.04 image rides a 6.8
-  HWE kernel), so the CI legs pin the at/above direction; the
-  below-floor direction pins itself wherever a maintainer runs
-  the suite on an old-kernel host.
+  below-floor kernel (the ubuntu images ride 6.x HWE kernels), so
+  the ordinary CI legs pin the at/above direction; the below-floor
+  direction pins itself wherever a maintainer runs the suite on an
+  old-kernel host. The attach lifecycle itself is pinned from BOTH
+  directions too: the refusal contract on incapable hosts, and on
+  a host the harness proves capable (floor met + BTF readable +
+  CAP_BPF/CAP_PERFMON in the effective set) the success contract
+  (the tap names itself, the idempotent second attach, the real
+  detach unpin, the pin directory gone) - a success on a host the
+  harness reads as incapable is a loud failure, the binary
+  attached where its own preflight must refuse.
 - port --events-only: the event window must state its capture
   ability plainly (unavailable or observed — never a fake event
   table).
@@ -118,14 +125,21 @@ skips:
 Anything else that skips should be read as a question, not a pass.
 
 The privileged attach leg (root, BTF, kernel 5.15+, on the host
-kernel) has NO seat in any CI lane, by design: every CI leg runs
-unprivileged and pins the refusal rendering instead (the
-lane-honesty checks, the attach refusal, and the kernel-floor
-agreement's at/above direction). This entry replaces the stale
+kernel) HAS a seat now, and the seat is the kernel-floor micro-VM
+lane (night-improve-43): `.github/workflows/
+supermassive-kernel-floor.yml` boots the REAL jammy GA 5.15.0
+kernel (linux-image-unsigned-5.15.0-25-generic, the exact
+documented minimum) in a KVM micro-VM on the runner and runs the
+full low leg inside it as root - the one CI place where attach
+can succeed for real, which is exactly why the doctor surface's
+attach specs grew the success-direction contract the same night.
+The local twin is `scripts/sandbox/zejtron-sandbox.sh` (the same
+boot shape, rootless-packed, KVM when `/dev/kvm` is writable, TCG
+software emulation otherwise). This entry replaces the stale
 "the privileged attach leg belongs to the container lane" claim
 (night-total-lts-2): the container lane runs unprivileged docker
-and never attached - the claim documented a leg that does not
-exist.
+and never attached - the claim documented a leg that did not
+exist until the micro-VM lane built one.
 
 ## The exit code
 
@@ -141,5 +155,21 @@ deeper, and low is never shallower.
 
 Not part of `cargo test` — cargo test covers units, supermassive
 covers the binary a user actually runs. The suite is wired into CI
-by `.github/workflows/supermassive-e2e.yml` (two jobs: the low-spec
-leg on the MSRV floor, the best-spec leg on the stable frontier).
+by three lanes:
+
+- `.github/workflows/supermassive-e2e.yml` (two jobs: the
+  low-spec leg on the MSRV floor, the best-spec leg on the stable
+  frontier) - the surface depth, on the runner's own kernel.
+- `.github/workflows/supermassive-kernel-floor.yml` (the micro-VM
+  lane, night-improve-43) - the full low leg booted inside the
+  REAL jammy GA 5.15.0 floor kernel in a KVM micro-VM, as root:
+  the at-floor direction of the kernel-floor agreement, LIVE, and
+  the one CI seat where the privileged attach lifecycle runs for
+  real. No stock GitHub runner ships a 5.15 kernel (the ubuntu
+  images ride 6.x HWE kernels), so the floor is booted, not
+  assumed.
+- the local twin `scripts/sandbox/zejtron-sandbox.sh --battery` -
+  the same VM on a developer box (KVM when `/dev/kvm` is
+  writable, TCG software emulation otherwise; under TCG the low
+  leg's 60s wall budget can breach without the binary being at
+  fault - the budget is a real-hardware contract).

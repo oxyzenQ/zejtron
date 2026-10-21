@@ -170,8 +170,43 @@ discipline applied to the test substrate) and must report container
 evidence, render the [eBPF] section with the container's own facts,
 and exit clean on every read-only surface. The lane's docker is
 unprivileged by design: the eBPF lane's privileged attach belongs
-to the host kernel, not a container namespace, so no lane anywhere
-runs an attach - every leg pins the honest refusal rendering
-instead. Triggers: the estate-wide push filter on pushes AND pull
-requests (this lane is cheap enough for the PR path), plus
-`workflow_dispatch`.
+to the host kernel, not a container namespace, so the container
+lane pins the honest refusal rendering (the attach itself found its
+CI seat in the kernel-floor lane below). Triggers: the estate-wide
+push filter on pushes AND pull requests (this lane is cheap enough
+for the PR path), plus `workflow_dispatch`.
+
+## Supermassive Kernel Floor (the micro-VM lane)
+
+`zejtron - Supermassive Kernel Floor` boots the REAL documented
+floor kernel - the jammy GA release-day image,
+linux-image-unsigned-5.15.0-25-generic from the LIVE archive's
+jammy main pocket (frozen by archive policy; the weekly
+jammy-updates ABI bumps are deliberately not configured) - in a KVM
+micro-VM on the runner, and runs the FULL supermassive low leg
+inside it, as root, on exactly the oldest kernel zejtron promises
+to run on. No stock GitHub runner ships a 5.15 kernel (the ubuntu
+images ride 6.x HWE kernels), so every other lane proves the floor
+only as an at/above agreement check against a newer kernel; this
+lane boots it. What it proves that nothing else can: the at-floor
+direction of the kernel-floor agreement, LIVE; the privileged
+attach lifecycle for real (root + BTF + the floor kernel is the
+one CI place attach can succeed - the doctor surface's
+success-direction specs); and the whole suite on the floor
+userland shape (ubuntu, the suite jammy itself shipped with). The
+VM: direct kernel boot, KVM host-passthrough, no disk, no modules
+(every filesystem the suite touches is built into the Ubuntu
+generic kernel), a RAM-resident initramfs (ubuntu:24.04 container +
+the checkout + the binary, the same assembly the sibling projects'
+lanes use), the dynamic low envelope (quarter cores / eighth RAM,
+floored at 1 vCPU / 1024 MB), panic=-1 + -no-reboot + an outer
+timeout so a wedged guest cannot burn the job budget, and qemu's
+isa-debug-exit port device as the deterministic guest exit (the
+verdict relays through SANDBOX-* sentinel lines on the serial
+console - the VM cannot relay exit codes through qemu). The local
+twin is `scripts/sandbox/zejtron-sandbox.sh` (the same boot shape,
+rootless-packed by `scripts/sandbox/rootfs-pack.py`, KVM when
+`/dev/kvm` is writable, TCG software emulation otherwise). Triggers:
+the estate-wide push filter plus the file's own name, plus
+`workflow_dispatch`; no `pull_request` trigger (the fast lane owns
+PRs).

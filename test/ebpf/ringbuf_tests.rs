@@ -25,8 +25,10 @@ fn event(timestamp_ns: u64, sport: u16, pid: u32) -> SockEvent {
         protocol: IPPROTO_TCP,
         oldstate: TCP_CLOSE,
         newstate: TCP_LISTEN,
+        _pad: 0,
         sport,
         dport: 0,
+        _pad2: 0,
         pid,
     }
 }
@@ -45,15 +47,19 @@ fn sock_event_is_exactly_32_bytes() {
 #[test]
 fn sock_event_offsets_are_pinned() {
     // repr(C) natural alignment: the two u64s first, the narrowing
-    // scalars, the pid last; pad bytes ride at 21 and 26..27.
+    // scalars, the pid last; the pads are EXPLICIT fields (the
+    // FileEvent discipline, the 5.15-verifier lesson: every byte of
+    // the ring record is written, never left to implicit padding).
     assert_eq!(offset_of!(SockEvent, timestamp_ns), 0);
     assert_eq!(offset_of!(SockEvent, skaddr), 8);
     assert_eq!(offset_of!(SockEvent, family), 16);
     assert_eq!(offset_of!(SockEvent, protocol), 18);
     assert_eq!(offset_of!(SockEvent, oldstate), 19);
     assert_eq!(offset_of!(SockEvent, newstate), 20);
+    assert_eq!(offset_of!(SockEvent, _pad), 21);
     assert_eq!(offset_of!(SockEvent, sport), 22);
     assert_eq!(offset_of!(SockEvent, dport), 24);
+    assert_eq!(offset_of!(SockEvent, _pad2), 26);
     assert_eq!(offset_of!(SockEvent, pid), 28);
 }
 
