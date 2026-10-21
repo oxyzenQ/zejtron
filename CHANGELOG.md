@@ -38,10 +38,16 @@ v11.0.0
   claim stops going stale the moment the tree moves. The witness
   cache (the suite's GA kernel deb, the base tarball, the
   iproute2 closure) rides actions/cache keyed by the packer's
-  hash; the initramfs is rebuilt every run. Verified against the
-  same-night live record (all three sides green under TCG:
-  276/276, 280/280, 280/280); the lane's first KVM run is this
-  very push.
+  hash; the initramfs is rebuilt every run. The lane's first run
+  found its own payload bug and the fix rode the same night: the
+  gnu binary built on the glibc-2.39 runner refused to execute in
+  the twin's ubuntu:22.04 userland (glibc 2.35) - every surface
+  failed at execution on guests whose substrate probes all
+  passed. The lane now builds and rides the STATIC musl shape
+  (userland-free - the same shape the same-night live proofs
+  rode: 276/276, 280/280, 280/280 under TCG); the floor lane keeps
+  the gnu shape, its userland being the ubuntu:24.04 container
+  the exact glibc the runner builds with.
 - The witness presets for the kernel-floor sandbox (the owner's
   next-cycle ask, candidate a): `--kernel focal`, `--kernel jammy`,
   `--kernel noble` - ready-made witnesses that resolve that Ubuntu

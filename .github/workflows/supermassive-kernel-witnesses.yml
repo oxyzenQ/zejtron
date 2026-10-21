@@ -40,6 +40,18 @@
 # The userland is held constant on jammy whatever the kernel (the
 # floor lane's own law: the lane's only variable is the KERNEL).
 #
+# The payload-shape law (the first run's own finding, fixed the
+# same night): the twin's userland is the ubuntu:22.04 base
+# (glibc 2.35), while the runner's default gnu build links against
+# its own ubuntu:24.04 glibc (2.39) - the dynamic binary refuses to
+# execute in the guest (exit 1, no output) and every surface fails
+# at execution on a guest whose kernel and substrate probes all
+# passed. The lane therefore builds and rides the STATIC musl
+# shape - userland-free, the same shape the twin's own TCG probe
+# prefers and the same-night live proofs rode (276/276, 280/280,
+# 280/280). The floor lane keeps the gnu shape: ITS userland is the
+# ubuntu:24.04 container, the exact glibc the runner builds with.
+#
 # Trigger discipline: every push (no path filter, no branch filter
 # - the owner's unfiltered-CI posture), plus workflow_dispatch as
 # the manual recovery lane. No pull_request trigger on purpose:
@@ -83,6 +95,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
         with:
           persist-credentials: false
+
+      # The MSRV pin rides the job env (RUSTUP_TOOLCHAIN, the floor
+      # lane's shape); the musl target rides the action's own input
+      # (the payload-shape law: the static musl binary is the twin's
+      # contract payload - userland-free against the 22.04 base).
+      - name: Install Rust (MSRV + musl target)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
 
       # The kernel can change; /dev/kvm is a GitHub runner guarantee
       # (nested virt is enabled on every current Linux hosted image) -
@@ -142,20 +164,25 @@ jobs:
         with:
           prefix-key: supermassive-kernel-witnesses
 
-      - name: Build the release binary
+      # The payload: the static musl shape, exactly as the release
+      # lane's musl legs provision it (musl-tools, the same install
+      # the release matrix carries).
+      - name: Build the static musl binary
         run: |
-          cargo build --release --locked
-          cp target/release/zejtron target/release/zejtron-built
+          sudo apt-get -o Acquire::Retries=5 update -qq
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends musl-tools
+          cargo build --release --locked --target x86_64-unknown-linux-musl
 
       # The lane itself: the operator's own instrument, under KVM, in
-      # report mode. The twin resolves the suite's GA kernel, packs the
-      # initramfs, boots, runs the FULL low leg, and its exit code IS
-      # the verdict (it greps the SANDBOX-VERDICT sentinel itself).
+      # report mode, riding the static payload. The twin resolves the
+      # suite's GA kernel, packs the initramfs, boots, runs the FULL
+      # low leg, and its exit code IS the verdict (it greps the
+      # SANDBOX-VERDICT sentinel itself).
       - name: Run the witness (the local twin, report mode)
         run: |
           bash scripts/sandbox/zejtron-sandbox.sh \
             --kernel "${{ matrix.suite }}" \
-            --binary "$PWD/target/release/zejtron-built" \
+            --binary "$PWD/target/x86_64-unknown-linux-musl/release/zejtron" \
             --battery \
             --timeout 900
 
