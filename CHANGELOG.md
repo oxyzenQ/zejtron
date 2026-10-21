@@ -22,6 +22,27 @@ v11.0.0
 
 ### Added
 
+- The witness presets for the kernel-floor sandbox (the owner's
+  next-cycle ask, candidate a): `--kernel focal`, `--kernel jammy`,
+  `--kernel noble` - ready-made witnesses that resolve that Ubuntu
+  suite's GA release-day kernel from the LIVE archive's main pocket
+  through one suite table in the packer (the same discipline the
+  floor kernel rides: the GA suite frozen by archive policy, main
+  carrying exactly one generic image per major.minor; verified live
+  against the pockets - focal 5.4.0-26.30, noble 6.8.0-31.31). The
+  report lane is now one word wide on either side of the floor
+  line. Proven live, all three sides, under TCG on this agent box:
+  focal 5.4.0-26 BELOW the floor - 276/276, 0 fail, 0 skip, the
+  attach specs in the refusal direction, 11s wall of the 60s
+  budget; jammy 5.15.0-25 at the floor on the report lane -
+  280/280, the success direction, 12s; noble 6.8.0-31 ABOVE the
+  floor - 280/280, 0 fail, 0 skip, the privileged attach lifecycle
+  in the success direction on a second kernel generation (BTF
+  readable on 6.8 GA), 19s - the first proof anywhere above the
+  floor. The entrypoint's usage slice is repaired with the same
+  edit: the old head-30 sizing was already leaking Requirements
+  lines into -h; the block now ends at its own marker, and the
+  option table grew the preset spelling without any fixed cap.
 - The arbitrary-kernel lane for the kernel-floor sandbox (the
   owner's next-cycle ask): `zejtron-sandbox.sh --kernel PATH`
   now boots ANY local vmlinuz, not just the floor kernel. The

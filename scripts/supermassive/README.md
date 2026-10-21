@@ -150,6 +150,21 @@ no BTF: the attach specs run the refusal direction, 276/276) and
 on the floor kernel itself via PATH (280/280, the success
 direction).
 
+The witness presets name the GA suites so the operator never
+hands the instrument a PATH by hand: `--kernel focal`, `--kernel
+jammy`, `--kernel noble` resolve that Ubuntu suite's GA
+release-day kernel from the LIVE archive's main pocket (the GA
+suite frozen by archive policy; verified live against the
+pockets: focal 5.4.0-26.30, noble 6.8.0-31.31) through the
+packer's one suite table. Proven live the same night, all three
+sides of the floor line, under TCG (KVM is the CI lane's
+contract): focal 5.4.0-26 BELOW the floor - 276/276, the attach
+specs in the refusal direction, 11s wall of the 60s budget;
+jammy 5.15.0-25 at the floor - 280/280, the success direction,
+12s; noble 6.8.0-31 ABOVE the floor - 280/280, the privileged
+attach lifecycle in the success direction on a second kernel
+generation, 19s.
+
 ## The exit code
 
 - `0` = every check passed or skipped WITH its named reason, and the
