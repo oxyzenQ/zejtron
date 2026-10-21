@@ -246,6 +246,11 @@ cannot drift from the operator's tool: they are one code path.
 The witness cache (the suite's GA kernel deb, the base tarball,
 the iproute2 closure) rides `actions/cache` keyed by the
 packer's hash; the initramfs itself is rebuilt every run. The
+payload is the STATIC musl shape - the twin's userland is the
+ubuntu:22.04 base (glibc 2.35) and a glibc-2.39 runner build
+refuses to execute there (the lane's first run found exactly
+that); the floor lane keeps the gnu shape against its own
+ubuntu:24.04 userland. The
 one CI-only proof this lane owns: the privileged attach
 lifecycle in the success direction on 6.8 GA under KVM (BTF
 readable above the floor), and the below-floor refusal direction
