@@ -10,8 +10,18 @@
 # behavior: the doctor reports the container evidence, procfs reads
 # still work, and every read-only surface exits clean.
 #
-# The BPF side of the sibling's lane has no zejtron analog by design
-# - zejtron is a pure procfs/sysfs reader with no kernel surface.
+# The BPF side of the sibling's lane has no zejtron analog here:
+# this lane's docker is unprivileged by design (a container root
+# without CAP_BPF/CAP_PERFMON reads honestly as incapable - the
+# doctor's own caps law), and the eBPF lane's privileged attach
+# belongs to the host kernel, not a container namespace. The binary
+# this lane tests still ships the full eBPF lane (the feature is
+# unconditional by owner law, Cargo.toml - see the source-built
+# prerequisites below), so the lane asserts the honest
+# container-side rendering: the [eBPF] section renders with the
+# container's own facts, never a fake attach (night-total-lts-2
+# rewrote the stale "pure procfs/sysfs reader" claim this paragraph
+# used to carry - it predates the eBPF lane and had drifted).
 
 name: zejtron - Supermassive Container E2E
 
@@ -96,11 +106,22 @@ jobs:
       # image, reads the container's own /proc and sysfs, and must
       # behave exactly as the doctor's container-detection contract
       # promises: evidence found, no crash, exit codes clean.
+      #
+      # The substrate pin (night-total-lts-2): every action in this
+      # estate rides a SHA pin and every tool a version pin - the
+      # container substrate rides the same discipline. alpine:3.20
+      # is pinned by its multi-arch manifest digest so the test
+      # substrate is reproducible, not whatever the floating tag
+      # points at on the day a lane runs. Refresh deliberately (the
+      # actions-pin law): `docker manifest inspect alpine:3.20` (or
+      # the Hub registry API), then update the digest in this same
+      # commit - a silent tag drift is exactly the supply-chain
+      # surface the pin removes.
       - name: Run the read-only surfaces inside docker
         run: |
           set -euo pipefail
           docker build -t zejtron-e2e -f- . <<'DOCKERFILE'
-          FROM alpine:3.20
+          FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
           COPY target/x86_64-unknown-linux-musl/release/zejtron /usr/local/bin/zejtron
           DOCKERFILE
 
@@ -124,6 +145,16 @@ jobs:
           fi
           if [ "${DOC_RC}" -ne 0 ]; then
             echo "::error::doctor exited ${DOC_RC} inside the container (a FAIL row landed)"
+            exit 1
+          fi
+          # The [eBPF] section is the binary's unconditional contract
+          # (the feature is always on by owner law): inside the
+          # container it must render with the container's own facts -
+          # the values are host facts, the section's presence is the
+          # contract. A missing section inside docker is a rendering
+          # regression the host battery cannot catch (night-total-lts-2).
+          if ! grep -qF "[eBPF]" <<<"${DOC_OUT}"; then
+            echo "::error::doctor did not render the [eBPF] section inside the container"
             exit 1
           fi
 

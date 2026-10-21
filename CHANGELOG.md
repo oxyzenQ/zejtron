@@ -22,6 +22,38 @@ v11.0.0
 
 ### Added
 
+- The infra depth audit (night-total-lts-2, the second pass under
+  the name - the first fixed the deny.toml schedule claim and the
+  gate's tmpdir contract) hunts the stale-documentation cluster
+  around the container lane and closes it. Three findings, three
+  fixes, all in the same commit because they are one drift: (1)
+  supermassive-container.yml's header still claimed "zejtron is a
+  pure procfs/sysfs reader with no kernel surface" - a comment
+  written before the eBPF lane landed, contradicting the very
+  workflow that installs the eBPF build prerequisites three steps
+  later; the paragraph now tells the truth (the lane's docker is
+  unprivileged by design, the binary ships the full eBPF lane, the
+  lane asserts the honest container-side rendering). (2) The
+  supermassive README's known-skip list documented "root + BTF +
+  kernel 5.15+ host - the privileged attach leg belongs to the
+  container lane" - but no surface emits that skip and no container
+  lane ever ran an attach leg; the list now carries the two skips
+  that actually exist (the version pin's Cargo.toml lookup, the
+  kernel-floor agreement's osrelease read) plus an honest note that
+  the privileged attach leg has no CI seat anywhere by design.
+  (3) docs/workflow/about-ci.md documented only one of the three
+  supermassive lanes; the surface lane (supermassive-e2e.yml, the
+  per-surface depth contract) and the container lane now have
+  their own sections. The same pass hardens the container lane's
+  supply chain: the alpine:3.20 test substrate is now pinned by
+  its multi-arch manifest digest (the same discipline every
+  SHA-pinned action and version-pinned tool already rides - a
+  floating tag was the one dependency the lane pulled by name
+  alone), with the deliberate-refresh procedure documented in the
+  workflow; and the lane now asserts the [eBPF] section renders
+  inside the container (the section is the binary's unconditional
+  contract - a missing render inside docker is a regression the
+  host battery cannot catch).
 - The supermassive doctor surface grows the kernel-floor specs
   (night-improve-43). The depth audit found the suite pinned only
   the [eBPF] header, the Feature row, and the Lane row: the
