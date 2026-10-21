@@ -182,6 +182,10 @@ sm_init
 # Run-level state dir: outlives the per-surface scratch dirs (the
 # flag registry lives here). The runner owns its cleanup.
 SM_RUN_TMP="$(mktemp -d "${TMPDIR:-/tmp}/supermassive-run.XXXXXX")"
+# The promised cleanup, enforced (night-total-lts-2): the comment
+# said the runner owns it, no rm existed - a mid-surface set -e
+# abort leaked the whole run dir. The EXIT trap owns it now.
+trap 'rm -rf "${SM_RUN_TMP}"' EXIT
 sm_flags_init
 WALL_START=$SECONDS
 

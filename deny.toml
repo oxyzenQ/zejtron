@@ -3,8 +3,9 @@
 
 # cargo-deny policy for zejtron (the sibling's supply-chain lineage,
 # night-improve-12). Enforced by .github/workflows/audit.yml (the
-# daily observation run) and the release lane. Local: cargo deny check
-# all (install: cargo install cargo-deny --locked).
+# weekly observation run; corrected from the stale daily-and-release
+# claim - the release lane carries no deny step, night-total-lts-2).
+# Local: cargo deny check all (install: cargo install cargo-deny --locked).
 
 [graph]
 # The full dependency graph is small (4 direct deps), but the policy

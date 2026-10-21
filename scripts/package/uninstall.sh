@@ -46,10 +46,19 @@ remove_at() {
 	local target="$1"
 	local need_sudo="$2"
 	if [[ -f "${target}" ]]; then
+		# The removal result is checked (night-total-lts-2): a denied
+		# sudo prompt or a busy file must not print "removed:" - the
+		# script tells the truth and exits non-zero instead.
 		if [[ "${need_sudo}" == "yes" ]]; then
-			sudo rm -f "${target}"
+			if ! sudo rm -f "${target}"; then
+				echo "   FAILED to remove: ${target} (sudo denied? removed by hand?)" >&2
+				exit 1
+			fi
 		else
-			rm -f "${target}"
+			if ! rm -f "${target}"; then
+				echo "   FAILED to remove: ${target}" >&2
+				exit 1
+			fi
 		fi
 		echo "   removed: ${target}"
 		removed=$((removed + 1))
