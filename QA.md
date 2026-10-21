@@ -86,3 +86,14 @@ The roadmap lives in [docs/ROADMAP.md](ROADMAP.md) and
 like every version number. The standing constraints: read-only stays
 read-only, the dependency set stays boring, and no surface ships a
 claim its code cannot back.
+
+## Q7 - Is zejtron a monitoring tool?
+
+No. zejtron collects evidence and exits: no daemon, no polling
+interval, no alerting, no data retention - nothing is running
+after the process ends. The deterministic output exists so two
+separate invocations can be diffed, which is investigation, not
+monitoring. A workload that needs continuous watch (metrics,
+alerting, dashboards) needs a monitoring daemon - a different
+product class. The positioning is on the record at
+[README.md](README.md), "Intended Environments and Users".

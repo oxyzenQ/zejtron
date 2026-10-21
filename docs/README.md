@@ -28,7 +28,7 @@ carries the disclaimer and yields to it.
 | [../NOTICE](../NOTICE) | The one-page license, trademark, and forking summary. |
 | [../COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) | The commercial license offer: tiers, payment, verification. |
 | [../CLA.md](../CLA.md) | The Contributor License Agreement (perpetual relicense grant; copyright stays with the contributor). |
-| [../SECURITY.md](../SECURITY.md) | The security policy: reporting routes, scope, the hardening posture. |
+| [../SECURITY.md](../SECURITY.md) | The security policy: reporting routes, scope, the hardening posture, the forensics (DFIR) scope. |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | How to contribute: the gates, the coding standards, the pre-commit contract. |
 | [../QA.md](../QA.md) | The Q&A record: the claims a serious reader asks about, answered with sources. |
 | [../TRADEMARK.md](../TRADEMARK.md) | Trademark usage terms for the zejtron name and branding. |
