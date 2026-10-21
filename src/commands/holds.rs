@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -207,7 +207,7 @@ pub(crate) fn scan_port_holders(port: u16) -> Result<(Vec<Holder>, ScanStats), H
         return Ok((Vec::new(), ScanStats::default()));
     }
 
-    scan_socket_holders(&target_inodes)
+    scan_socket_holders(&target_inodes, &passwd_map())
 }
 
 pub(crate) fn scan_path_holders(path: &Path) -> Result<(Vec<Holder>, ScanStats), HoldsError> {
@@ -221,6 +221,7 @@ pub(crate) fn scan_path_holders(path: &Path) -> Result<(Vec<Holder>, ScanStats),
     let target = FileId::from_metadata(&metadata);
     let (target_major, target_minor) = dev_major_minor(target.dev);
     let pids = list_pids().map_err(|error| HoldsError(error.to_string()))?;
+    let users = passwd_map();
     let mut holders = Vec::new();
     let mut stats = ScanStats::default();
 
@@ -249,7 +250,7 @@ pub(crate) fn scan_path_holders(path: &Path) -> Result<(Vec<Holder>, ScanStats),
 
         evidence.sort();
         evidence.dedup();
-        if let Some(holder) = read_holder(pid, evidence) {
+        if let Some(holder) = read_holder(pid, evidence, &users) {
             holders.push(holder);
         }
     }
@@ -258,8 +259,16 @@ pub(crate) fn scan_path_holders(path: &Path) -> Result<(Vec<Holder>, ScanStats),
     Ok((holders, stats))
 }
 
+/// The one /etc/passwd read per scan: every holder's user label rides
+/// this map instead of re-reading the file per holder
+/// (night-total-lts-3).
+fn passwd_map() -> HashMap<u32, String> {
+    crate::system::passwd_users().unwrap_or_default()
+}
+
 fn scan_socket_holders(
     target_inodes: &BTreeSet<u64>,
+    users: &HashMap<u32, String>,
 ) -> Result<(Vec<Holder>, ScanStats), HoldsError> {
     let pids = list_pids().map_err(|error| HoldsError(error.to_string()))?;
     let mut holders = Vec::new();
@@ -277,7 +286,7 @@ fn scan_socket_holders(
                     .collect();
                 evidence.sort();
                 evidence.dedup();
-                if let Some(holder) = read_holder(pid, evidence) {
+                if let Some(holder) = read_holder(pid, evidence, users) {
                     holders.push(holder);
                 }
             }
@@ -292,7 +301,7 @@ fn scan_socket_holders(
     Ok((holders, stats))
 }
 
-fn read_holder(pid: u32, evidence: Vec<Evidence>) -> Option<Holder> {
+fn read_holder(pid: u32, evidence: Vec<Evidence>, users: &HashMap<u32, String>) -> Option<Holder> {
     let process_dir = PathBuf::from(format!("/proc/{pid}"));
     let status = match fs::read_to_string(process_dir.join("status")) {
         Ok(status) => status,
@@ -304,7 +313,7 @@ fn read_holder(pid: u32, evidence: Vec<Evidence>) -> Option<Holder> {
         .and_then(|value| value.split_whitespace().next().map(str::to_owned));
     let user = uid
         .as_deref()
-        .and_then(resolve_username)
+        .and_then(|uid| resolve_username(uid, users))
         .or_else(|| uid.map(|uid| format!("uid={uid}")))
         .unwrap_or_else(|| "uid=unknown".to_owned());
     let cwd = fs::read_link(process_dir.join("cwd")).ok();

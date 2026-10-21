@@ -9,7 +9,7 @@
 //! pub(super) exactly where the parent calls in.
 
 use super::{FdMode, FileId, MapEntry, MmapPerms, Protocol, SocketEntry};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{self, BufRead};
 use std::path::Path;
@@ -266,15 +266,9 @@ pub(super) fn parse_socket_inode(path: &Path) -> Option<u64> {
     inode.parse().ok()
 }
 
-pub(super) fn resolve_username(uid: &str) -> Option<String> {
-    let passwd = fs::read_to_string("/etc/passwd").ok()?;
-    passwd.lines().find_map(|line| {
-        let mut fields = line.split(':');
-        let name = fields.next()?;
-        fields.next()?;
-        let entry_uid = fields.next()?;
-        (entry_uid == uid).then(|| name.to_owned())
-    })
+pub(super) fn resolve_username(uid: &str, users: &HashMap<u32, String>) -> Option<String> {
+    let uid = uid.parse::<u32>().ok()?;
+    users.get(&uid).cloned()
 }
 
 pub(super) fn dev_major_minor(dev: u64) -> (u32, u32) {

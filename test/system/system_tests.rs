@@ -42,17 +42,22 @@ fn root_refusal_surfaces_interpolate_the_hazard() {
 }
 
 #[test]
-fn lookup_username_resolves_known_uid() {
+fn passwd_users_resolves_known_uid() {
     // UID 0 should always resolve to "root" on any Linux system.
-    assert_eq!(lookup_username(0), "root");
+    let users = passwd_users().expect("/etc/passwd must be readable");
+    assert_eq!(users.get(&0).map(String::as_str), Some("root"));
 }
 
 #[test]
-fn lookup_username_unknown_uid_returns_numeric() {
-    // Pick an absurdly high UID unlikely to exist.
-    let s = lookup_username(65534);
-    // 65534 is 'nobody' on most systems; if it's not, we just want a non-empty string.
-    assert!(!s.is_empty());
+fn uid_to_user_falls_back_to_numeric() {
+    // An empty map (unreadable passwd, foreign uid) degrades to the
+    // numeric string - callers never guess.
+    let users = std::collections::HashMap::new();
+    assert_eq!(uid_to_user(65534, &users), "65534");
+    let parsed = parse_passwd_users("root:x:0:0::/root:/bin/sh\nbad:x:nope:x\n").unwrap();
+    assert_eq!(parsed.get(&0).map(String::as_str), Some("root"));
+    // The unparsable-uid line is skipped, not fatal.
+    assert_eq!(parsed.len(), 1);
 }
 
 #[test]

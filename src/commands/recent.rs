@@ -35,10 +35,13 @@ pub fn run(
     }
 
     let now = SystemTime::now();
+    // One passwd read for the whole report - not one per row
+    // (night-total-lts-3: this loop re-read /etc/passwd per file).
+    let users = crate::system::passwd_users().unwrap_or_default();
     let rows: Vec<(String, String, String)> = files
         .iter()
         .map(|file| {
-            let owner = crate::system::lookup_username(file.uid);
+            let owner = crate::system::uid_to_user(file.uid, &users);
             (
                 // Scanned trees can hold files other users created; a
                 // filename is attacker-controlled bytes, so the

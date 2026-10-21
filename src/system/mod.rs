@@ -16,32 +16,46 @@
 
 pub mod pacman;
 pub mod pathguard;
+use std::collections::HashMap;
 use std::fs;
+use std::io;
 use std::path::Path;
 
-/// A user/group name resolution cache. Reads `/etc/passwd` once and looks
-/// up UID → username. Returns the numeric string when no entry is found or
-/// when the file is unreadable (e.g., unprivileged user inside a container).
-pub fn lookup_username(uid: u32) -> String {
-    let Ok(contents) = fs::read_to_string("/etc/passwd") else {
-        return uid.to_string();
-    };
+/// The one `/etc/passwd` reader: uid -> username, built once per
+/// invocation and shared by every consumer that renders an owner.
+/// The night-total-lts-3 dedupe collapsed four parsers into this one
+/// (touch's map builder, system's per-call lookup_username, and the
+/// per-call resolve_username twins in holds and port) - and the hot
+/// one, `recent`, had been re-reading and re-parsing the file once
+/// PER ROW of its output.
+pub fn passwd_users() -> io::Result<HashMap<u32, String>> {
+    parse_passwd_users(&fs::read_to_string("/etc/passwd")?)
+}
+
+/// The pure parser behind [`passwd_users`]: passwd format
+/// `name:password:uid:gid:gecos:home:shell`, empty names and
+/// unparsable uids skipped.
+pub fn parse_passwd_users(contents: &str) -> io::Result<HashMap<u32, String>> {
+    let mut users = HashMap::new();
     for line in contents.lines() {
-        // passwd format: name:password:uid:gid:gecos:home:shell
-        let mut parts = line.split(':');
-        let Some(name) = parts.next() else { continue };
-        let _ = parts.next(); // password (x or *)
-        let Some(uid_str) = parts.next() else {
+        let mut fields = line.split(':');
+        let Some(name) = fields.next().filter(|name| !name.is_empty()) else {
             continue;
         };
-        let Ok(parsed_uid) = uid_str.parse::<u32>() else {
+        fields.next();
+        let Some(uid) = fields.next().and_then(|uid| uid.parse::<u32>().ok()) else {
             continue;
         };
-        if parsed_uid == uid {
-            return name.to_owned();
-        }
+        users.insert(uid, name.to_owned());
     }
-    uid.to_string()
+    Ok(users)
+}
+
+/// The display name for a uid: the passwd entry, or the numeric
+/// string when the map has no entry (unprivileged container, foreign
+/// uid) - callers degrade, never guess.
+pub fn uid_to_user(uid: u32, users: &HashMap<u32, String>) -> String {
+    users.get(&uid).cloned().unwrap_or_else(|| uid.to_string())
 }
 
 /// The real UID of the current process, read from /proc/self/status
