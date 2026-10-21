@@ -2,21 +2,23 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # The fast lane: fmt + clippy + tests + the CLI battery on every
-# code-surface push and pull request.
+# push and pull request.
 #
-# Trigger discipline (night-improve-32, the sibling's NIGHT-boost-10
-# shape): the estate-wide path spelling - the surface this lane
-# actually reads - replaces the old checkout-and-grep `changes` job.
-# Trigger-level filtering is the efficient shape: a docs-only push
-# never boots a runner here at all, where the detect job paid a full
-# checkout to decide the same thing. The filter is five shared
-# surface globs plus this file's own name, identical in every build
-# workflow (supermassive, supermassive-container, miri, crates-io
-# carry the same spelling; a workflow that can change its own
-# contract owes itself a run). A docs-only change matches nothing
-# here - gate-keepers.yml (unfiltered) polices the rest, including
-# the workflow lint this file's old workflow_quality job duplicated
-# (gate-keepers.sh sections 2-4: yamllint, actionlint, codespell).
+# Trigger discipline (the owner's unfiltered-CI simplification): the
+# estate-wide path spelling is retired whole. Every push (any branch,
+# any tag) and every pull request (any base) burns every lane - the
+# filter's maintenance cost (the six-glob spelling kept in sync across
+# every build workflow, the no-drift law between the push and
+# pull_request blocks) cost more than the runner minutes it saved. A
+# docs-only change now burns this lane too; the whole estate rides the
+# same blind posture, and gate-keepers.yml polices the workflow lint
+# this file's old workflow_quality job duplicated (gate-keepers.sh
+# sections 2-4: yamllint, actionlint, codespell).
+#
+# The one deliberate exception lives outside this lane: the publish
+# lanes (release.yml, crates-io.yml) are not blind - they keep their
+# dedicated v* tag trigger, because a publish is the owner's
+# deliberate act, never a consequence of an arbitrary change.
 #
 # The workflow_quality job is retired whole: it duplicated the
 # gate-keepers CI lane (which runs unfiltered on every push and
@@ -28,26 +30,7 @@ name: zejtron - CI
 
 "on":
   push:
-    branches:
-      - main
-    paths:
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/ci.yml'
   pull_request:
-    branches:
-      - main
-    paths:
-      # Same spelling as push (the no-drift law).
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read

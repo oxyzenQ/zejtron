@@ -31,13 +31,15 @@
 # rendering on unprivileged/old-kernel runners instead - see
 # scripts/supermassive/README.md.
 #
-# Trigger discipline (the estate's spelling): push on main through
-# the estate-wide path filter plus this file's own name (a workflow
-# that can change its own contract owes itself a run), plus
-# workflow_dispatch as the manual recovery lane. No pull_request
-# trigger on purpose: the fast lane (ci.yml) owns PRs; a failing
-# surface leg lands on main and pages the owner, the same shape the
-# other heavy lanes carry.
+# Trigger discipline (the owner's unfiltered-CI simplification):
+# every push (any branch, any tag) burns this lane - no path filter,
+# no branch filter, the same blind posture every push-triggered lane
+# in the estate now carries. The estate-wide spelling's sync tax
+# across every build workflow cost more than the runner minutes it
+# saved. workflow_dispatch stays as the manual recovery lane. No
+# pull_request trigger on purpose: the fast lane (ci.yml) owns PRs;
+# a failing surface leg lands on main and pages the owner, the same
+# shape the other heavy lanes carry.
 #
 # The jobs fail on any FAIL (the suite's exit code is trustworthy:
 # 0 = all passed or skipped-with-reason; 1 = any failure or a
@@ -50,15 +52,6 @@ name: zejtron - Supermassive E2E
 "on":
   workflow_dispatch:
   push:
-    branches:
-      - main
-    paths:
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/supermassive-e2e.yml'
 
 permissions:
   contents: read

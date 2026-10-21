@@ -221,6 +221,27 @@ v11.0.0
 
 ### Changed
 
+- The CI trigger surface is simplified to unfiltered (the owner's
+  cost-maintenance call): the estate-wide path spelling and the
+  branch law are retired whole - every push (any branch, any tag)
+  and every pull request (any base) now burns every lane, because
+  the filters' sync tax across ten workflow files (the six-glob
+  spelling kept identical everywhere, the no-drift law between the
+  push and pull_request blocks, the branch scoping) cost more than
+  the runner minutes they saved. A docs-only change now burns the
+  build lanes too; gate-keepers, docs-ci, audit, codeql, and miri
+  ride the same blind posture. The scheduled clocks stay, honestly
+  re-scoped: audit.yml's Monday run watches the advisory DB (a new
+  advisory lands against an unchanged tree - no change event can
+  carry that signal), and miri.yml's Sunday run watches the moving
+  nightly (new miri findings against an unchanged tree). The one
+  deliberate exception, exactly as the owner specified it: the
+  publish lanes (release.yml, crates-io.yml) are not blind - they
+  keep their dedicated v* tag trigger, so a publish stays the
+  owner's deliberate act, never a consequence of an arbitrary
+  change. Docs updated to match: about-ci.md (every trigger
+  paragraph plus the CI section), QA.md, docs/v5.md's CI
+  requirement, and each edited workflow's header comment.
 - This alpha is the first public release of zejtron, and this
   pass makes it publishable: the prebuilt lane lands so a crates.io
   install gets the full eBPF-enabled binary without a toolchain on

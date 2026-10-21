@@ -36,13 +36,15 @@
 # the override by rustup's own precedence, so a leg's declared
 # toolchain is the toolchain that actually runs.
 #
-# Trigger discipline (night-improve-28, the sibling's NIGHT-reject-1
-# shape): the weekly schedule is retired - the lane triggers on push
-# through the estate-wide path filter, the same spelling every build
-# workflow carries, plus workflow_dispatch as the manual recovery
-# lane. No pull_request trigger on purpose: the fast lane (ci.yml)
-# owns PRs; this lane's budget is for the wide cross, not per-PR
-# churn.
+# Trigger discipline (the owner's unfiltered-CI simplification, on
+# top of night-improve-28's retired clock): the estate-wide path
+# filter is retired whole - every push (any branch, any tag) burns
+# the wide cross, the same blind posture every push-triggered lane
+# in the estate now carries. The six-glob spelling's sync tax across
+# every build workflow cost more than the runner minutes it saved.
+# workflow_dispatch stays as the manual recovery lane. No
+# pull_request trigger on purpose: the fast lane (ci.yml) owns PRs;
+# this lane's budget is for the wide cross, not per-PR churn.
 #
 # Budget: timeout-minutes stays generous (a wedged leg fails the leg,
 # not the lane) but the lane as a whole stays off the PR path, so the
@@ -52,26 +54,6 @@ name: zejtron - Supermassive
 "on":
   workflow_dispatch:
   push:
-    branches:
-      - main
-    paths:
-      # night-improve-28 (the sibling's NIGHT-reject-1 shape): the
-      # weekly clock is retired - the heavy lane rides the estate's
-      # push filter now, the same spelling every build workflow
-      # carries (the surface the lane reads: five shared globs plus
-      # this file's own name). The seven hand-listed paths this
-      # filter used to carry were per-consumer drift tax - all
-      # sub-sets of the shared globs. A docs-only change matches
-      # nothing here - gate-keepers.yml (unfiltered) polices the
-      # rest. No pull_request trigger on purpose: the fast lane
-      # (ci.yml) owns PRs; this lane's budget is for the wide cross.
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/supermassive.yml'
-
 
 permissions:
   contents: read

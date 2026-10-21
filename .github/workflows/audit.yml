@@ -2,28 +2,21 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 # The security-audit lane (the sibling's observation-only posture):
-# advisory scan on every manifest/lockfile change plus the weekly
-# watch over the advisory DB itself. Red in the run list is the
-# owner's morning signal.
+# advisory scan on every push and pull request plus the weekly watch
+# over the advisory DB itself (a new advisory lands against an
+# unchanged tree - no change event can carry that signal). Red in the
+# run list is the owner's morning signal.
 
 name: zejtron - Security Audit
 
 'on':
   push:
-    branches: ["main"]
-    paths:
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.github/workflows/audit.yml'
   pull_request:
-    branches: ["main"]
-    paths:
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.github/workflows/audit.yml'
   schedule:
     # Every Monday at 00:00 UTC (07:00 WIB) - the owner's morning,
-    # one clock for every scheduled workflow.
+    # one clock for every scheduled workflow. The weekly run watches
+    # the advisory DB; the per-change runs (unfiltered now, the
+    # owner's unfiltered-CI simplification) watch the tree.
     - cron: "0 0 * * 1"
   workflow_dispatch:
 

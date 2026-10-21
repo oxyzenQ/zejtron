@@ -42,11 +42,13 @@
 # the suite is loopback-only and every filesystem it needs is =y in
 # the Ubuntu generic kernel).
 #
-# Trigger discipline (the estate's spelling): push on main through
-# the estate-wide path filter plus this file's own name (a workflow
-# that can change its own contract owes itself a run), plus
-# workflow_dispatch as the manual recovery lane. No pull_request
-# trigger on purpose: the fast lane (ci.yml) owns PRs.
+# Trigger discipline (the owner's unfiltered-CI simplification):
+# every push (any branch, any tag) burns this lane - no path filter,
+# no branch filter, the same blind posture every push-triggered lane
+# in the estate now carries. The estate-wide spelling's sync tax
+# across every build workflow cost more than the runner minutes it
+# saved. workflow_dispatch stays as the manual recovery lane. No
+# pull_request trigger on purpose: the fast lane (ci.yml) owns PRs.
 #
 # VM shape: direct kernel boot, KVM host-passthrough CPU (/dev/kvm
 # is a GitHub runner guarantee - nested virt is enabled on every
@@ -69,15 +71,6 @@ name: zejtron - Supermassive Kernel Floor
 "on":
   workflow_dispatch:
   push:
-    branches:
-      - main
-    paths:
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'scripts/**'
-      - '.github/workflows/supermassive-kernel-floor.yml'
 
 permissions:
   contents: read
