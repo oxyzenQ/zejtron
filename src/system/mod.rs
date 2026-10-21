@@ -87,6 +87,20 @@ pub fn root_refusal(euid_is_root: bool, surface: &str) -> Option<String> {
     }
 }
 
+/// The one `/proc/<pid>/status` field reader behind every consumer:
+/// the value after `key:`, trimmed, empty refused. The
+/// night-total-lts-3 dedupe collapsed three byte-identical private
+/// copies (proc, holds/procfs, port/owners) into this module so the
+/// status grammar has one definition and one place to harden.
+pub fn read_status_value(status: &str, key: &str) -> Option<String> {
+    let prefix = format!("{key}:");
+    status
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix).map(str::trim))
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+}
+
 /// Read `/proc/<pid>/cmdline` and split on NUL bytes into argv tokens.
 /// Returns `None` if the file is unreadable or empty.
 ///

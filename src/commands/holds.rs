@@ -12,8 +12,6 @@ use std::path::{Path, PathBuf};
 pub(crate) mod ledger;
 mod procfs;
 
-pub(crate) use procfs::parse_status_value;
-
 use procfs::{
     ProcRead, dev_major_minor, list_pids, read_fd_mode, read_proc_net_sockets, resolve_username,
     scan_pid_fds_for_file, scan_pid_fds_for_sockets, scan_pid_maps_for_file,
@@ -301,8 +299,9 @@ fn read_holder(pid: u32, evidence: Vec<Evidence>) -> Option<Holder> {
         Err(error) if error.kind() == io::ErrorKind::NotFound => return None,
         Err(_) => String::new(),
     };
-    let name = parse_status_value(&status, "Name").unwrap_or_else(|| "unknown".to_owned());
-    let uid = parse_status_value(&status, "Uid")
+    let name =
+        crate::system::read_status_value(&status, "Name").unwrap_or_else(|| "unknown".to_owned());
+    let uid = crate::system::read_status_value(&status, "Uid")
         .and_then(|value| value.split_whitespace().next().map(str::to_owned));
     let user = uid
         .as_deref()

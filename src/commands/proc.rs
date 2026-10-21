@@ -177,7 +177,7 @@ pub fn current_user() -> Result<TargetUser, String> {
 
 fn current_uid() -> Option<u32> {
     let status = fs::read_to_string("/proc/self/status").ok()?;
-    parse_status_value(&status, "Uid")?
+    crate::system::read_status_value(&status, "Uid")?
         .split_whitespace()
         .next()?
         .parse()
@@ -319,10 +319,10 @@ fn scan_processes_for_uid_at(proc_root: &Path, target_uid: u32) -> Result<ScanRe
 }
 
 pub fn parse_status(contents: &str) -> Result<Process, String> {
-    let name = parse_status_value(contents, "Name");
+    let name = crate::system::read_status_value(contents, "Name");
     let pid = parse_status_number(contents, "Pid")?.ok_or_else(|| "missing Pid".to_owned())?;
     let ppid = parse_status_number(contents, "PPid")?.ok_or_else(|| "missing PPid".to_owned())?;
-    let uid = parse_status_value(contents, "Uid")
+    let uid = crate::system::read_status_value(contents, "Uid")
         .and_then(|value| value.split_whitespace().next().map(str::to_owned))
         .ok_or_else(|| "missing Uid".to_owned())?
         .parse::<u32>()
@@ -349,17 +349,8 @@ pub fn parse_status(contents: &str) -> Result<Process, String> {
     })
 }
 
-fn parse_status_value(status: &str, key: &str) -> Option<String> {
-    let prefix = format!("{key}:");
-    status
-        .lines()
-        .find_map(|line| line.strip_prefix(&prefix).map(str::trim))
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
-}
-
 fn parse_status_number(contents: &str, key: &str) -> Result<Option<u32>, String> {
-    let Some(value) = parse_status_value(contents, key) else {
+    let Some(value) = crate::system::read_status_value(contents, key) else {
         return Ok(None);
     };
     value
@@ -370,7 +361,7 @@ fn parse_status_number(contents: &str, key: &str) -> Result<Option<u32>, String>
 
 /// Like parse_status_number but returns u64 (for memory/threads fields).
 fn parse_status_u64(contents: &str, key: &str) -> Option<u64> {
-    let value = parse_status_value(contents, key)?;
+    let value = crate::system::read_status_value(contents, key)?;
     // VmRSS: 1234 kB — take first whitespace-separated token
     value
         .split_whitespace()

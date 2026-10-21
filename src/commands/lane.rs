@@ -211,11 +211,11 @@ fn collect_live(
 /// The pid's Name and Uid (real) from /proc, resolved to a username.
 /// `None` when the process is gone or hidden - the honest absence.
 fn pid_context(pid: u32, users: &HashMap<u32, String>) -> Option<(String, String)> {
-    use crate::commands::holds::parse_status_value;
     use crate::commands::touch::uid_to_user;
+    use crate::system::read_status_value;
     let status = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
-    let name = parse_status_value(&status, "Name")?;
-    let uid = parse_status_value(&status, "Uid").and_then(|value| {
+    let name = read_status_value(&status, "Name")?;
+    let uid = read_status_value(&status, "Uid").and_then(|value| {
         value
             .split_whitespace()
             .next()
