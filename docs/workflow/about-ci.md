@@ -230,3 +230,25 @@ floor line. Triggers:
 every push (no path filter, no branch filter - the owner's
 unfiltered-CI simplification), plus `workflow_dispatch`; no
 `pull_request` trigger (the fast lane owns PRs).
+
+## Supermassive Kernel Witnesses (the report lane)
+
+`zejtron - Supermassive Kernel Witnesses` boots the GA kernels on
+either side of the floor line - focal 5.4.0-26 (below), jammy
+5.15.0-25 (at, report mode), noble 6.8.0-31 (above) - in KVM
+micro-VMs and runs the FULL supermassive low leg inside each, in
+report mode: the init reports the floor direction instead of
+gating the identity, and the payload's exit code is the verdict.
+The lane runs the OPERATOR'S OWN INSTRUMENT
+(`scripts/sandbox/zejtron-sandbox.sh --kernel SUITE --battery`)
+- the same entrypoint, packer, and init as the local twin, so CI
+cannot drift from the operator's tool: they are one code path.
+The witness cache (the suite's GA kernel deb, the base tarball,
+the iproute2 closure) rides `actions/cache` keyed by the
+packer's hash; the initramfs itself is rebuilt every run. The
+one CI-only proof this lane owns: the privileged attach
+lifecycle in the success direction on 6.8 GA under KVM (BTF
+readable above the floor), and the below-floor refusal direction
+- a kernel no stock runner can host. Triggers: every push (the
+unfiltered-CI posture), plus `workflow_dispatch`; no
+`pull_request` trigger (the fast lane owns PRs).

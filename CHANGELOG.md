@@ -22,6 +22,26 @@ v11.0.0
 
 ### Added
 
+- The CI witnesses lane (the owner's next-cycle ask, candidate b,
+  riding candidate a's presets): `.github/workflows/
+  supermassive-kernel-witnesses.yml` - a three-leg matrix (focal
+  GA 5.4.0 below the floor, jammy GA 5.15.0 at the floor in
+  report mode, noble GA 6.8.0 above the floor) that boots each
+  witness's GA kernel in a KVM micro-VM on the runner and runs
+  the FULL supermassive low leg inside it, per push, in report
+  mode (the init reports the floor direction instead of gating
+  the identity; the payload's exit code is the verdict). The lane
+  runs the operator's own instrument - the SAME entrypoint,
+  packer, and init as the local twin (`zejtron-sandbox.sh
+  --kernel SUITE --battery`), so CI cannot drift from the
+  operator's tool: they are one code path, and the kernel-span
+  claim stops going stale the moment the tree moves. The witness
+  cache (the suite's GA kernel deb, the base tarball, the
+  iproute2 closure) rides actions/cache keyed by the packer's
+  hash; the initramfs is rebuilt every run. Verified against the
+  same-night live record (all three sides green under TCG:
+  276/276, 280/280, 280/280); the lane's first KVM run is this
+  very push.
 - The witness presets for the kernel-floor sandbox (the owner's
   next-cycle ask, candidate a): `--kernel focal`, `--kernel jammy`,
   `--kernel noble` - ready-made witnesses that resolve that Ubuntu

@@ -179,7 +179,7 @@ deeper, and low is never shallower.
 
 Not part of `cargo test` — cargo test covers units, supermassive
 covers the binary a user actually runs. The suite is wired into CI
-by three lanes:
+by four lanes:
 
 - `.github/workflows/supermassive-e2e.yml` (two jobs: the
   low-spec leg on the MSRV floor, the best-spec leg on the stable
@@ -192,6 +192,12 @@ by three lanes:
   real. No stock GitHub runner ships a 5.15 kernel (the ubuntu
   images ride 6.x HWE kernels), so the floor is booted, not
   assumed.
+- `.github/workflows/supermassive-kernel-witnesses.yml` (the
+  report lane) - the GA kernels on either side of the floor line
+  (focal 5.4.0 below, jammy 5.15.0 at, noble 6.8.0 above), the
+  FULL low leg per witness in report mode, per push, through the
+  local twin's own code path - one implementation, two seats, so
+  CI cannot drift from the operator's instrument.
 - the local twin `scripts/sandbox/zejtron-sandbox.sh --battery` -
   the same VM on a developer box (KVM when `/dev/kvm` is
   writable, TCG software emulation otherwise; under TCG the low
