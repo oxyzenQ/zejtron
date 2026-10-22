@@ -439,6 +439,24 @@ v11.0.0
   warning when b3sum is absent (the wholesale contract); in CI the
   tool is always installed, so the seat never sleeps.
 
+- The logo's legal record is now explicit instead of implied
+  (night-improve-45). TRADEMARK.md section 1 now states the
+  artwork's origin on the record: the zejtron logo was created
+  through AI-assisted generation under the direct, original creative
+  direction and specific prompting of the owner, and is claimed and
+  used exclusively as the project's brand identity (Trademark). The
+  statement is deliberately two-sided - an honest disclosure of how
+  the image was produced, and a firm claim of who directed its
+  creation - because the trademark claim rests on the owner's
+  creative direction, not on the tool that rendered it. NOTICE's
+  trademark block carries the same origin sentence so the two legal
+  surfaces agree, and the README footer appends the identical
+  trademark sentence TRADEMARK.md already closes with ("zejtron and
+  the zejtron logo are trademarks of rezky_nightky (oxyzenQ)"), so
+  the claim reads the same in all three places. Pure legal
+  documentation pass - zero runtime code changes, and the
+  GPL-3.0-only terms for the source code are untouched.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's
