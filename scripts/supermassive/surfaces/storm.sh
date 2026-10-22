@@ -160,8 +160,27 @@ surface_storm() {
 			# round): the probe prints every 1024th drop with its stage
 			# map + a one-time walk-proof into this same trace buffer -
 			# captured BEFORE the ftrace section clears it, so the
-			# storm's own census is the evidence.
+			# storm's own census is the evidence. The silence round
+			# (night-improve-58 follow-up) adds three more facts: the
+			# kallsyms rows WITH addresses (the resolution ground
+			# truth), the planted pins (the attach's own state), and
+			# three fresh live writes AFTER tracing_on is forced - a
+			# clean re-capture with every variable controlled.
 			census="$(grep -h -m6 "\[zjw\]" "$trace_root/trace" 2>/dev/null |
+				tr '\n' ';' || true)"
+			zj_kallsyms="$(grep -E ' [tT] (__x64_sys_write|__do_sys_write|ksys_write|vfs_write|vfs_writev)$' /proc/kallsyms 2>/dev/null |
+				head -6 | tr '\n' ';' || true)"
+			zj_pins="$(find /sys/fs/bpf/zejtron -maxdepth 1 -mindepth 1 2>/dev/null |
+				tr '\n' ';' || true)"
+			echo 1 >"$trace_root/tracing_on" 2>/dev/null || true
+			: >"$trace_root/trace" 2>/dev/null || true
+			{
+				printf 'zj-live-1\n'
+				printf 'zj-live-2\n'
+				printf 'zj-live-3\n'
+			} >>"$hot1"
+			sleep 1
+			zj_live="$(grep -h -m4 "\[zjw\]" "$trace_root/trace" 2>/dev/null |
 				tr '\n' ';' || true)"
 			kallsyms="$(grep -E ' [tT] (__x64_sys_write|__x64_sys_writev|__do_sys_write|ksys_write|vfs_write|vfs_writev|new_sync_write|do_iter_write|vfs_iter_write|kernel_write|vfs_open)(\.[a-z0-9_.]+)?$' /proc/kallsyms 2>/dev/null |
 				awk '{print $3}' | sort -u | tr '\n' ';' || true)"
@@ -186,7 +205,7 @@ surface_storm() {
 				echo >"$trace_root/kprobe_events" 2>/dev/null || true
 			fi
 			sm_fail "storm: the ledger names the writes (wrote rows)" \
-				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; write-tap census: ${census:-silent (no drops, no walk proof)}; kallsyms family: ${kallsyms:-unavailable}; one controlled write (tracing_on was ${tracing_on:-NA}):${counts:- not probed}; ftrace-available family: ${avail:-unavailable} (tracefs root: $trace_root)"
+				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; write-tap census: ${census:-silent (no drops, no walk proof)}; three live writes census: ${zj_live:-silent}; kallsyms rows: ${zj_kallsyms:-unavailable}; planted pins: ${zj_pins:-absent}; kallsyms family: ${kallsyms:-unavailable}; one controlled write (tracing_on was ${tracing_on:-NA}):${counts:- not probed}; ftrace-available family: ${avail:-unavailable} (tracefs root: $trace_root)"
 		fi
 		if [[ "$saw_raw" -eq 1 ]]; then
 			sm_pass "storm: the raw lane names op=write records"
