@@ -157,7 +157,8 @@ export SUITE_CARGO_TOML="$SUITE_DIR/../../Cargo.toml"
 # The surface manifest (explicit order, never a glob).
 # ---------------------------------------------------------------------------
 
-ALL_SURFACES=(path recent port proc holds touch why net doctor doctor-ram help version)
+ALL_SURFACES=(path recent port proc holds touch why net doctor doctor-ram
+	doctor-cpu doctor-disk doctor-network doctor-gpu help version)
 
 # The documented-flag manifest. Every documented flag of every
 # surface; the runner reports any flag no surface exercised as
@@ -226,6 +227,10 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/why.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/net.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor-ram.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor-cpu.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor-disk.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor-network.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor-gpu.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/help.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/version.sh"
 

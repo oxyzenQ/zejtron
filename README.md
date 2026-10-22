@@ -319,6 +319,11 @@ records every process exit into a bounded kernel ring (leader-only:
 one record per process, carrying the pid and the process's own
 name), and `doctor --symptom ram` drains the last 5 seconds of it
 when the tap is attached, naming the recently-exited `[observed]`.
+The night-improve-48 symptoms read the same ring at a narrower
+window: `cpu`, `disk`, `network`, and `gpu` drain a 2-second exit
+overlay when the tap is attached, so a process that died inside
+the sampling window is named `[observed]` beside the numbers it
+can no longer explain.
 The Unaccounted block names the lane's state either way — a host
 that never attached says so, never a silent empty section.
 
@@ -397,6 +402,18 @@ zejtron doctor
 zejtron doctor --symptom ram
 zejtron doctor --symptom ram --raw
 
+# The four night-improve-48 symptom lanes: cpu, disk, and network
+# sample a 1.0-second delta window (two reads, one sleep, one
+# report - a snapshot, never a monitor); gpu is the instant
+# who-holds-the-device census, honest on a driver-fragmented
+# landscape (the NVIDIA pair is named unaccounted, never guessed).
+# Each report names its own permission refusals, and each drains
+# the 2-second exit overlay when the tap is attached.
+zejtron doctor --symptom cpu
+zejtron doctor --symptom disk
+zejtron doctor --symptom network
+zejtron doctor --symptom gpu
+
 # Version + build report; the upstream release check (refuses sudo)
 zejtron -V
 zejtron --check-update
@@ -469,9 +486,19 @@ same stamp.
   post-mortem exit ring for the last 5 seconds, naming the
   processes that exited `[observed]` - an old attach (pre
   night-improve-47) plants no exit tap; re-run
-  `sudo zejtron doctor --attach` to heal the pin set. `slow`,
-  `disk`, and `network` are named deferrals this
-  version: the flag prints the honest line and exits 0.
+  `sudo zejtron doctor --attach` to heal the pin set. The
+  night-improve-48 lanes hold the same honesty: `cpu`, `disk`, and
+  `network` take exactly one 1.0-second sampling window per run
+  (two reads, one sleep - a delta snapshot, never a monitor),
+  `disk` rides the block-backed /proc/<pid>/io pair (permission-
+  gated like the memory reads, every refusal counted), `network`
+  and `gpu` walk fd tables (another user's table is a counted
+  refusal, never a fake zero-holder scene), and `gpu` never
+  invents a number the kernel does not export (the proprietary
+  NVIDIA pair stays behind nvidia-smi and is named `[unaccounted]`).
+  `slow` is the one named deferral this version: the flag prints
+  the honest line and exits 0 (the umbrella needs the per-lane
+  reports to compose first).
 
 ## Safety Features
 
@@ -516,7 +543,9 @@ Evidence block, an Unaccounted block, and a two-line verdict. Every
 row carries exactly one provenance tag — `[observed]` (from an eBPF
 kernel event: the file taps, filtered in-kernel by the
 tracked-inodes map so only the queried file's events reach the ring,
-or the post-mortem exit tap the ram symptom drains), `[measured]`
+or the post-mortem exit tap the symptom family drains - ram for
+its last five seconds, the night-improve-48 lanes for their
+2-second overlay), `[measured]`
 (from a snapshot read at the instant of the query: /proc scans,
 stat(2)), `[inferred]` (from indirect evidence: audit.log or
 journalctl records, replayed), `[unaccounted]` (what the report

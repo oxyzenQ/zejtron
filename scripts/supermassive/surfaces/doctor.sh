@@ -14,10 +14,12 @@
 # move), the color tri-test, and the lane-honesty checks (the [eBPF]
 # section's Feature/Lane declaration - there is no dormant build by
 # owner law), plus the kernel-floor specs (night-improve-43): the
-# section's full row estate, the four-name Probes contract, and the
+# section's full row estate, the six-name Probes contract, and the
 # 5.15 floor agreement held from both sides of the line.
-# Exercised flags: --attach, --detach, --raw (the --symptom flag and
-# its values are the doctor-ram surface's estate).
+# Exercised flags: --attach, --detach, --raw (the --symptom flag
+# and its values are the five symptom surfaces' estate: doctor-ram
+# and night-improve-48's doctor-cpu, doctor-disk, doctor-network,
+# doctor-gpu).
 
 surface_doctor() {
 	local rc
@@ -127,14 +129,14 @@ surface_doctor() {
 	sm_flag_used "doctor --detach"
 
 	# Unknown symptom: a runtime refusal (exit 1) that names the
-	# symptom grammar - the four documented values must be in the
+	# symptom grammar - the six documented values must be in the
 	# refusal, so the error itself teaches the surface.
 	sm_run "$SM_SCRATCH/sym.out" "$SM_SCRATCH/sym.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" doctor --symptom definitely-not-a-symptom
 	sm_assert_rc 1 "$rc" "doctor --symptom <unknown> exits 1"
 	sm_assert_contains "$SM_SCRATCH/sym.err" "unknown symptom" \
 		"doctor --symptom <unknown> names the refusal"
-	sm_assert_contains "$SM_SCRATCH/sym.err" "ram, slow, disk, network" \
+	sm_assert_contains "$SM_SCRATCH/sym.err" "ram, cpu, disk, network, gpu, slow" \
 		"doctor --symptom <unknown> teaches the documented grammar"
 
 	# --raw without --symptom: the verified contract is a refusal

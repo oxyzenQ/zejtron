@@ -232,7 +232,7 @@ pub enum Commands {
             long,
             value_name = "SYMPTOM",
             conflicts_with_all = ["attach", "detach"],
-            help = "Analyze a symptom instead of the readiness check (ram | slow | disk | network)"
+            help = "Analyze a symptom instead of the readiness check (ram | cpu | disk | network | gpu | slow)"
         )]
         symptom: Option<String>,
         #[arg(

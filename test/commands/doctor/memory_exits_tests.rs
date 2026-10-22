@@ -98,7 +98,7 @@ fn the_window_keeps_the_fresh_slice_and_sorts_ascending() {
             &comm_bytes("fourth-second"),
         ),
     ];
-    let rows = window_rows(events);
+    let rows = window_rows(events, EXIT_WINDOW_SECS);
     let pids: Vec<u32> = rows.iter().map(|r| r.pid).collect();
     assert_eq!(pids, vec![111, 222], "fresh only, ascending by time");
 }
@@ -109,7 +109,7 @@ fn the_not_attached_lane_renders_no_section() {
     // never a fake empty section - an absent lane and an empty
     // window are different truths.
     let mut lines: Vec<String> = Vec::new();
-    render_section(&ExitLane::NotAttached, &mut lines);
+    render_section(&ExitLane::NotAttached, &mut lines, "5s");
     assert!(lines.is_empty(), "no section lines: {lines:?}");
 }
 
@@ -128,7 +128,7 @@ fn the_drained_lane_renders_the_spec_row_shape() {
             timestamp_ns: 2,
         },
     ]);
-    render_section(&lane, &mut lines);
+    render_section(&lane, &mut lines, "5s");
     assert_eq!(
         lines[0], "Recently exited (eBPF, last 5s):",
         "the header names the source and the window"
@@ -146,7 +146,7 @@ fn the_drained_lane_renders_the_spec_row_shape() {
 #[test]
 fn the_drained_lane_renders_the_empty_window_finding() {
     let mut lines: Vec<String> = Vec::new();
-    render_section(&ExitLane::Drained(Vec::new()), &mut lines);
+    render_section(&ExitLane::Drained(Vec::new()), &mut lines, "5s");
     assert_eq!(lines[0], "Recently exited (eBPF, last 5s):");
     assert_eq!(lines[1], "  (none observed)");
 }
@@ -161,7 +161,7 @@ fn the_drained_lane_caps_rows_at_the_ledger_top_n() {
         })
         .collect();
     let mut lines: Vec<String> = Vec::new();
-    render_section(&ExitLane::Drained(rows), &mut lines);
+    render_section(&ExitLane::Drained(rows), &mut lines, "5s");
     // header + 10 rows + the overflow note + the blank separator.
     assert_eq!(lines.len(), 13, "capped rows plus the note: {lines:?}");
     assert!(
@@ -176,6 +176,7 @@ fn the_drain_failed_lane_names_the_error_verbatim() {
     render_section(
         &ExitLane::DrainFailed("pinned proc_events map test-refused".to_owned()),
         &mut lines,
+        "5s",
     );
     assert_eq!(lines[0], "Recently exited (eBPF, last 5s):");
     assert!(

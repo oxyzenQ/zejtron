@@ -10,6 +10,7 @@
 //! is a condition the user verifies, never an instruction.
 //! zejtron remains read-only; the user decides.
 
+use super::exits::EXIT_WINDOW_LABEL;
 use super::exits::ExitLane;
 use super::{MemorySample, TmpfsFile, holders_label, residual_kib};
 
@@ -46,7 +47,7 @@ pub(crate) fn render(sample: &MemorySample, raw: bool) -> String {
     render_memfds(sample, &mut lines);
     render_kernel_buckets(sample, &mut lines);
     render_slab(sample, &mut lines);
-    super::exits::render_section(&sample.exit_lane, &mut lines);
+    super::exits::render_section(&sample.exit_lane, &mut lines, EXIT_WINDOW_LABEL);
     render_unaccounted(sample, &mut lines);
     render_verdict(sample, &mut lines);
     if raw {

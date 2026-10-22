@@ -206,11 +206,16 @@ sm_assert_no_escapes() {
 #   <PID>        process IDs (pid=NNN labels, owner rows, /proc reads)
 #   <DURATION>   elapsed/rendered durations (500ms, 1.2s, 3m, 2h)
 #   <UPTIME>     uptime and load-family kernel counters that move
-#                between any two invocations by definition
+#                between any two invocations by definition (the
+#                cpu symptom's "Load average (1m)" gauge rides
+#                the class)
 #   <COUNTER>    free-running kernel byte/packet counters - the net
 #                surface's human-byte rows, its bare pkts gauges
 #                (rx=/tx=) and error/drop gauges (errors=/drops=) -
-#                plus memory/pressure gauges that move on their own
+#                plus memory/pressure gauges that move on their own,
+#                and the delta symptoms' window tick gauges (the
+#                "(delta N ticks)" shapes - the scheduler's own
+#                moving counters, different every window)
 sm_normalize() {
 	local in_file="$1" out_file="$2"
 	sed -E \
@@ -225,10 +230,12 @@ sm_normalize() {
 		-e 's/\b[0-9]+(\.[0-9]+)?(s|m|h) ago\b/<AGE> ago/g' \
 		-e 's/\b(up|uptime)([ :]+)[0-9]+([dhm]| [0-9]+ min)?/\1\2<UPTIME>/g' \
 		-e 's/load average[s]?: [0-9.]+,? ?[0-9.]*,? ?[0-9.]*/load average: <UPTIME>/g' \
+		-e 's/([Ll]oad average \([0-9]+[a-z]\): )[0-9.]+/\1<UPTIME>/g' \
 		-e 's/[0-9]+(\.[0-9]+)? ?(B|kB|KB|KiB|MB|MiB|GB|GiB|TB|TiB)\b/<COUNTER>/g' \
 		-e 's/(rx|tx)=[0-9]+/\1=<COUNTER>/g' \
 		-e 's/(errors|drops)=[0-9]+/\1=<COUNTER>/g' \
 		-e 's/[0-9]+(\.[0-9]+)?%/<COUNTER>/g' \
+		-e 's/\(delta [0-9]+ ticks/(delta <COUNTER> ticks/g' \
 		"$in_file" >"$out_file"
 }
 

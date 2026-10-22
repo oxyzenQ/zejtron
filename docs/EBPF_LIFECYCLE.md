@@ -104,7 +104,12 @@ The lane's whole life, boot to boot:
    path - the read side needs no capabilities, only the bpffs walk
    - and drain the records the kernel holds. The doctor's ram
    symptom drains the exit ring the same way for its last-five-
-   seconds post-mortem section. A ring read CONSUMES:
+   seconds post-mortem section, and the night-improve-48 symptom
+   lanes (`cpu`, `disk`, `network`, `gpu`) drain a 2-second slice
+   of the same ring as their sampling overlay - wide enough to
+   cover their own 1.0-second sampling window plus the drain's own
+   skew, narrow enough that every [observed] row is one of the
+   freshest facts on the host. A ring read CONSUMES:
    advancing the reader advances the consumer position stored in
    the kernel map, so each drain sees what accumulated since the
    previous drain (or since attach, for the first). The window

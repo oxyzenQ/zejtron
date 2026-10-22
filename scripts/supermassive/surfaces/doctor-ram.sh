@@ -8,7 +8,7 @@
 # The symptom lane is its own surface row in the depth-audit table:
 # a symptom report has its own verdict, its own gauges, and its own
 # drill-down. Depth: the success shape, the --raw drill-down, the
-# known-symptom grammar (ram is one of the four documented values),
+# known-symptom grammar (ram is one of the six documented values),
 # structural determinism (memory gauges move on their own), and the
 # color tri-test. Exercised flags: --symptom ram, --raw.
 
