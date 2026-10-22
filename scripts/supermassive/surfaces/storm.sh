@@ -54,7 +54,7 @@ surface_storm() {
 
 	# One churn writer: plain appends into its own file for a
 	# fixed window, its op count landing in a sidecar file. The
-	# write tap's own lane (vfs_write) — four of these run
+	# write tap's own lane (the write(2) syscall entry) — four of these run
 	# concurrently for the storm's whole window.
 	storm_writer() {
 		local dir="$1" id="$2" secs="$3" count=0

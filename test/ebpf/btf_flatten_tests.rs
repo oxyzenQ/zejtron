@@ -43,6 +43,9 @@ fn the_six_point_eighteen_union_file_parses_end_to_end() {
     w.strukt(&mut s, "inode", 656, &[("i_ino", 64 * 8)]);
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
+    w.strukt(&mut s, "task_struct", 4096, &[("files", 16 * 8)]);
+    w.strukt(&mut s, "files_struct", 512, &[("fdt", 0)]);
+    w.strukt(&mut s, "fdtable", 32, &[("max_fds", 0), ("fd", 8 * 8)]);
     let offsets = parse_btf_offsets(&build_btf(w, s)).expect("the 6.18 shape parses");
     assert_eq!(
         offsets,
@@ -55,6 +58,10 @@ fn the_six_point_eighteen_union_file_parses_end_to_end() {
             16, // super_block.s_dev
             0,  // path.mnt
             8,  // path.dentry
+            16, // task_struct.files (night-improve-57)
+            0,  // files_struct.fdt
+            0,  // fdtable.max_fds
+            8,  // fdtable.fd
         ]
     );
 }

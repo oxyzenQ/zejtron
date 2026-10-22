@@ -4,9 +4,10 @@
 //! The touch surface's Evidence Ledger (night-improve-3): the write
 //! surface. The snapshot (\[measured] - the stat(2) facts: type, size,
 //! owner, perms, inode, the three timestamps) wrapped in the Ledger
-//! format, plus the write window (\[observed] writes from vfs_write
-//! when the kernel lane is live, \[inferred] from the log lane when
-//! it is not, the named unavailability when neither exists).
+//! format, plus the write window (\[observed] writes from the
+//! syscall-anchored write tap when the kernel lane is live, \[inferred]
+//! from the log lane when it is not, the named unavailability when
+//! neither exists).
 //!
 //! The old tree's metadata block is re-expressed, fact for fact:
 //! type, symlink-target, size, owner, perms, inode+dev, modified,

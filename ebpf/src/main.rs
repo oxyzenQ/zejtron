@@ -33,20 +33,24 @@
 //      tracked_inodes filter map FIRST (the price control: vfs_open
 //      fires on every open on the host - only the queried file's
 //      events are allowed to cross), and publishes a 40-byte
-//      FileEvent with the acting process's pid to the file_events
-//      ring. The tap records the binding attempt at entry; whether
-//      the open later failed is not recorded (the same residual
-//      class as vfs_write at entry). O_PATH peeks never reach
-//      vfs_open and are not recorded - an O_PATH fd is not an open
-//      in the data sense.
+//      file that anyone asked about. The tap records the binding
+//      attempt at entry; whether the open later failed is not
+//      recorded (the same residual class as the write tap at
+//      entry). O_PATH peeks never reach vfs_open and are not
+//      recorded - an O_PATH fd is not an open in the data sense.
 //
-//   4. write_tap on vfs_write (phase 3): a kprobe at the head of
-//      write(2). vfs_write(struct file *, ...) hands this program
-//      the file; it walks file->f_inode for the inode and
-//      file->f_path.mnt->mnt_sb->s_dev for the device, checks the
-//      filter map, publishes op=2. mmap'd writes cross no syscall at
-//      all - the gap is named in the README's Limitations and the
-//      log lane (audit) may still catch it.
+//   4. write_tap on __x64_sys_write (night-improve-57, the second
+//      generation - ebpf/src/write.rs owns the full story): the
+//      first generation anchored at vfs_write, which the newest
+//      -O3 distro builds (cachyos 7.x, found live by the
+//      moving-latest witness) inline into the syscall stub - the
+//      anchor stays attachable and never executes. The stub hands
+//      the probe the fd register; task_struct->files->fdt->fd[fd]
+//      resolves the file through BTF-verified offsets, then the
+//      inode/device walk, the filter map, and op=2 mirror the open
+//      tap. mmap'd writes cross no syscall at all - the gap is
+//      named in the README's Limitations and the log lane (audit)
+//      may still catch it.
 //
 //   5. writev_tap on vfs_writev (night-improve-42): a kprobe at
 //      the head of the vectorized write path. writev(2), pwritev(2),
@@ -179,8 +183,14 @@ mod events;
 // publishes to it.
 mod exits;
 
+// The plain-write tap, second generation (night-improve-57): the
+// module owns the probe, the syscall-stub anchor story, and the
+// fd-to-file walk - the exits.rs precedent (a dedicated module
+// under the 600-LOC no-mercy cap, same crate, same record).
+mod write;
+
 use events::{
-    FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITE, FILE_OP_WRITEV, FileEvent, OFF_SLOTS,
+    FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITEV, FileEvent, OFF_SLOTS,
     OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH,
     OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV,
     OFF_SLOT_VFSMOUNT_MNT_SB, SOCK_EVENT_BYTES, SockEvent, device_token_from_kernel,
@@ -228,17 +238,19 @@ static sock_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
 /// the value is always 1 (presence is the whole meaning).
 #[allow(non_upper_case_globals)]
 #[map(name = "tracked_inodes")]
-static tracked_inodes: HashMap<u64, u8> = HashMap::with_max_entries(1024, 0);
+pub(crate) static tracked_inodes: HashMap<u64, u8> = HashMap::with_max_entries(1024, 0);
 
 /// The file_events ring buffer (night-improve-3): 256 KiB, 6553
 /// records of 40 bytes. The filter map is the bound; a failed
 /// reservation drops the event without failing the probe.
 #[allow(non_upper_case_globals)]
 #[map(name = "file_events")]
-static file_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
+pub(crate) static file_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
 
-/// The offsets config map (night-improve-3): Array<u64>, the eight
-/// file-walk slots (see events.rs OFF_SLOT_*), written once at
+/// The offsets config map (night-improve-3, grown by
+/// night-improve-57): Array<u64>, the twelve slots - eight
+/// file-walk slots plus the four fd-walk slots the syscall-stub
+/// write tap rides (see events.rs OFF_SLOT_*), written once at
 /// attach time from the host's own BTF
 /// (src/ebpf/btf.rs). The slot indices are the shared contract in
 /// events.rs — OFF_SLOT_* on both sides.
@@ -390,7 +402,7 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
 /// # Safety
 /// The caller passes a kernel address; the read is probe-read, so a
 /// bad address returns `None` instead of faulting.
-unsafe fn read_u64_at(base: usize, offset: u64) -> Option<u64> {
+pub(crate) unsafe fn read_u64_at(base: usize, offset: u64) -> Option<u64> {
     unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const u64).ok() }
 }
 
@@ -398,7 +410,7 @@ unsafe fn read_u64_at(base: usize, offset: u64) -> Option<u64> {
 ///
 /// # Safety
 /// Same contract as [`read_u64_at`].
-unsafe fn read_u32_at(base: usize, offset: u64) -> Option<u32> {
+pub(crate) unsafe fn read_u32_at(base: usize, offset: u64) -> Option<u32> {
     unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const u32).ok() }
 }
 
@@ -406,7 +418,7 @@ unsafe fn read_u32_at(base: usize, offset: u64) -> Option<u32> {
 ///
 /// # Safety
 /// Same contract as [`read_u64_at`].
-unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
+pub(crate) unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
     unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const usize).ok() }
 }
 
@@ -414,10 +426,11 @@ unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
 /// (an unparsable or absent map) drops the event — the host wrote
 /// these at attach; an unreadable set this late is a chain that was
 /// never alive. The array length is the shared OFF_SLOTS contract
-/// (eight) - the kprobes read the same map, and a map resize cannot
-/// desync the two files.
-pub(crate) unsafe fn read_offset_set() -> Option<[u64; 8]> {
-    let mut set = [0u64; 8];
+/// (twelve since night-improve-57: eight file-walk slots plus the
+/// four fd-walk slots) - the kprobes read the same map, and a map
+/// resize cannot desync the two files.
+pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
+    let mut set = [0u64; OFF_SLOTS as usize];
     for slot in 0..OFF_SLOTS {
         set[slot as usize] = *offsets.get(slot)?;
     }
@@ -481,50 +494,6 @@ pub fn open_tap(ctx: ProbeContext) -> u32 {
     0
 }
 
-/// The write tap: vfs_write hands the program the file being
-/// written. The walk: file->f_inode for the inode,
-/// file->f_path.mnt->mnt_sb->s_dev for the device (f_path is an
-/// embedded struct path, so the path-member offsets apply to the
-/// f_path base). The filter and the record mirror the open tap.
-#[kprobe(function = "vfs_write")]
-pub fn write_tap(ctx: ProbeContext) -> u32 {
-    unsafe {
-        // arg0: struct file *.
-        let Some(file) = ctx.arg::<u64>(0) else { return 0 };
-        let file = file as usize;
-        if file == 0 {
-            return 0;
-        }
-        let Some(o) = read_offset_set() else { return 0 };
-
-        let Some(inode) = read_ptr_at(file, o[OFF_SLOT_FILE_F_INODE as usize]) else { return 0 };
-        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else { return 0 };
-        let f_path = file.wrapping_add(o[OFF_SLOT_FILE_F_PATH as usize] as usize);
-        let Some(mnt) = read_ptr_at(f_path, o[OFF_SLOT_PATH_MNT as usize]) else { return 0 };
-        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else { return 0 };
-        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else { return 0 };
-
-        let device = device_token_from_kernel(s_dev);
-        let key = pack_filter_key(ino, device);
-        if tracked_inodes.get(&key).is_none() {
-            return 0;
-        }
-
-        let _ = file_events.output::<FileEvent>(
-            &FileEvent {
-                timestamp_ns: bpf_ktime_get_ns(),
-                op: FILE_OP_WRITE,
-                _pad: [0; 7],
-                inode: ino,
-                device,
-                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-                _pad2: 0,
-            },
-            0,
-        );
-    }
-    0
-}
 
 /// The writev tap (night-improve-42, the false-negative closer):
 /// vfs_writev hands the program the file being written through the
