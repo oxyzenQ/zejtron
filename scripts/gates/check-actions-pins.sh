@@ -10,10 +10,15 @@
 #
 # The contract: every `uses:` reference in the CI estate stays on
 # the freshest version the upstream publishes, so the workflows
-# never rot on stale pins. Three seats, one engine:
+# never rot on stale pins. Four seats, one engine:
 #   - automatic report: the pre-commit hook (check-commit-gate.sh
 #     delegates here, advisory) - every commit on a wired clone
 #     reads the pins' freshness; skips stay skips, never blocks
+#   - push-time verdict: the Gate-keepers CI lane (gate-keepers.sh
+#     section 17 runs --strict with the runner's GITHUB_TOKEN) -
+#     the one seat with the network and the authenticated quota,
+#     so the verdict is binding there: a KNOWN-stale tag pin
+#     turns the push red; every skip reason stays a skip there too
 #   - on-demand read:   ./scripts/gates/check-actions-pins.sh
 #   - maintainer heal:  ./scripts/gates/check-actions-pins.sh --apply
 #       (the healed pins are committed like any other change)
@@ -23,10 +28,12 @@
 # the network and GitHub's answer right now. zejtron's commit gate
 # (scripts/build.sh check-all) is deliberately offline, so this
 # check is never wired into it - a gate that blocks a contributor's
-# commit on facts it cannot reach would be a dishonest gate. Run it
-# before a commit that touches workflows; pass --strict to fail on
-# a KNOWN-stale verdict (every skip reason stays a skip, never a
-# block: offline, quota low, branch pin, SHA pin).
+# commit on facts it cannot reach would be a dishonest gate. The
+# strict verdict lives where the network and the quota are native:
+# the Gate-keepers CI seat and the maintainer's pre-push run. Every
+# skip reason stays a skip in every seat - offline, quota low,
+# branch pin, SHA pin - so the only red --strict can produce is a
+# KNOWN-stale verdict, a fact upstream itself answered.
 #
 # The sweep contract, per uses: reference:
 #   - a tag pin (@vN) behind the latest stable release's major heals
@@ -47,8 +54,14 @@
 #     the sweep (reported, left alone).
 #
 # Version truth: GitHub releases/latest (stable releases only, no
-# prereleases) with a /tags fallback for release-less repos; a repo
-# with neither reports SKIP honestly. Failure modes stay honest
+# prereleases) with a /tags fallback for the release-less repo (a
+# 404 on releases/latest falls through to it) and for the release
+# line that points at a differently-shaped tag (codeql-action's
+# latest release is a bundle tag while the action's own v-tags
+# carry the version truth); a repo with neither reports SKIP
+# honestly. A subdirectory action (org/repo/path@vN) looks its
+# REPO up - the first two segments - while the heal rewrites the
+# full path's pin. Failure modes stay honest
 # separately: an unreachable API and a low quota are SKIP reasons of
 # their own - never a fake "no versions upstream". Set GITHUB_TOKEN
 # (standard GitHub tooling convention; CI provides it natively) to
@@ -135,30 +148,58 @@ latest_major() {
 		-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
 		"${auth[@]}" \
 		"https://api.github.com/repos/${slug}/releases/latest" 2>/dev/null)"; then
-		# Distinguish the failure mode: quota (403/429) vs unreachable.
+		# Distinguish the failure mode: quota (403/429) vs 404 (no
+		# releases, or no such repo) vs unreachable. A 404 is the
+		# release-less repo - the /tags fallback below exists for
+		# exactly that repo - so it falls through instead of skipping
+		# (the old shape read it as "unreachable" and the fallback
+		# could never run for the one case it was written for).
 		local code
 		code="$(curl -sS -o /dev/null -m 15 "${auth[@]}" -w '%{http_code}' \
 			-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
 			"https://api.github.com/repos/${slug}/releases/latest" 2>/dev/null || true)"
 		if [[ "${code}" == "403" || "${code}" == "429" ]]; then
 			SKIP_REASON="API quota low (HTTP ${code}): skip, retry later or set GITHUB_TOKEN"
-		else
-			SKIP_REASON="API unreachable (HTTP ${code:-000}): skip"
+			LATEST_MAJOR["${slug}"]=""
+			LATEST_TAG["${slug}"]=""
+			LATEST_REASON["${slug}"]="${SKIP_REASON}"
+			return 0
 		fi
-		LATEST_MAJOR["${slug}"]=""
-		LATEST_TAG["${slug}"]=""
-		LATEST_REASON["${slug}"]="${SKIP_REASON}"
-		return 0
+		if [[ "${code}" != "404" ]]; then
+			SKIP_REASON="API unreachable (HTTP ${code:-000}): skip"
+			LATEST_MAJOR["${slug}"]=""
+			LATEST_TAG["${slug}"]=""
+			LATEST_REASON["${slug}"]="${SKIP_REASON}"
+			return 0
+		fi
+		# 404: no releases to read. Fall through - a repo with semver
+		# tags still has version truth below; a repo without them (or
+		# a repo that does not exist at all) lands in the honest
+		# no-versions skip.
+		tag=""
+	else
+		tag="$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"${body}" | head -1)"
 	fi
-	tag="$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"${body}" | head -1)"
-	if [[ -z "${tag}" ]]; then
-		# Fallback: the repo's semver tags, highest first. A repo with
-		# neither a release nor semver tags reports nothing - the honest
-		# skip, never a guess.
+	if [[ ! "${tag}" =~ ^v[0-9]+ ]]; then
+		# Fallback: the repo's semver tags, highest first. Runs for the
+		# release-less repo (the 404 above) and for the release line
+		# that points at a differently-shaped tag (codeql-action's
+		# latest release is a bundle tag while the action's own v-tags
+		# carry the version truth). A repo with neither a usable
+		# release nor semver tags reports nothing - the honest skip,
+		# never a guess.
+		# The body's shape is not ours to choose - the API answers the
+		# sweep's own User-Agent with one compact line (zero newlines,
+		# verified live), and a line-based sed over that single line
+		# degenerates to its LAST match - an arbitrary tag, not the
+		# highest. The page's ordering is not a contract either. So:
+		# extract every v-tag token regardless of shape, then take the
+		# highest. Only the name field can match - a URL carries its
+		# version behind a slash, never behind a quote.
 		tag="$(curl -fsS -m 15 -H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
 			"${auth[@]}" \
 			"https://api.github.com/repos/${slug}/tags?per_page=100" 2>/dev/null |
-			sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\(v[0-9][^"]*\)".*/\1/p' | head -1 || true)"
+			grep -oE '"v[0-9]+(\.[0-9]+)*"' | tr -d '"' | sort -V | tail -1 || true)"
 	fi
 	if [[ "${tag}" =~ ^v([0-9]+) ]]; then
 		major="${BASH_REMATCH[1]}"
@@ -176,10 +217,20 @@ skip_count=0
 heal_count=0
 
 classify_pin() {
-	# $1 file, $2 line number, $3 uses ref (org/repo@ref, no comment)
+	# $1 file, $2 line number, $3 uses ref (org/repo[/path]@ref, no comment)
 	local file="$1" lineno="$2" ref="$3"
-	local slug="${ref%%@*}"
 	local pin="${ref##*@}"
+	local ref_head="${ref%%@*}"
+	# The repo the API answers for is the first two segments: a
+	# subdirectory action (github/codeql-action/init@v4) must query
+	# its REPO, never the path - the old shape queried
+	# .../codeql-action/init/releases/latest, read the permanent 404
+	# as "unreachable", and the estate's only tag pins (the codeql
+	# trio) never saw a real verdict. The heal below rewrites
+	# ref_head (path included); the slug is only the lookup key.
+	local org="${ref_head%%/*}"
+	local rest="${ref_head#*/}"
+	local slug="${org}/${rest%%/*}"
 	local verdict=""
 
 	case "${pin}" in
@@ -234,10 +285,12 @@ classify_pin() {
 	# Stale tag pin.
 	stale_count=$((stale_count + 1))
 	if [[ "${APPLY}" == true ]]; then
-		sed -i "s|uses:[[:space:]]*${slug}@${pin}\([[:space:]]*$\)|uses: ${slug}@v${major}\1|" "${file}"
-		if grep -q "uses: ${slug}@v${major}" "${file}"; then
+		# The heal rewrites the full ref head (path included) - the
+		# slug is only the lookup key, never the sed target.
+		sed -i "s|uses:[[:space:]]*${ref_head}@${pin}\([[:space:]]*$\)|uses: ${ref_head}@v${major}\1|" "${file}"
+		if grep -q "uses: ${ref_head}@v${major}" "${file}"; then
 			heal_count=$((heal_count + 1))
-			echo "HEAL      ${file}:${lineno}  ${ref} -> ${slug}@v${major} (upstream ${LATEST_TAG[${slug}]})"
+			echo "HEAL      ${file}:${lineno}  ${ref} -> ${ref_head}@v${major} (upstream ${LATEST_TAG[${slug}]})"
 		else
 			echo "FAILED    ${file}:${lineno}  ${ref} -> heal did not land (pattern mismatch; fix by hand)"
 		fi

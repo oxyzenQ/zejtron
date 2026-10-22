@@ -457,6 +457,54 @@ v11.0.0
   documentation pass - zero runtime code changes, and the
   GPL-3.0-only terms for the source code are untouched.
 
+- The actions-pin sweep's verdict now has a push-time CI seat, and
+  the sweep can actually see the pins it polices. The hunt's ask
+  was the seat: the freshness
+  check ran only at commit time (advisory, check-commit-gate.sh
+  section 3) - no workflow ever recomputed it, the exact gap shape
+  the prebuilt lane had before section 16. Wiring the seat
+  honestly forced the engine fixes first, because a strict seat
+  over a blind sweep is theater: the sweep read every `uses:`
+  ref's slug as `org/repo`, so a subdirectory action
+  (github/codeql-action/init@v4) queried
+  .../codeql-action/init/releases/latest, read the permanent 404
+  as "API unreachable", and skipped forever - the estate's only
+  tag pins (the codeql trio) had never received a real verdict.
+  The /tags fallback was equally dead: it ran only when
+  releases/latest returned no tag_name, never for the 404 of a
+  release-less repo (the one case it was written for) nor for a
+  release line pointing at a non-v tag (codeql-action's latest
+  release is a bundle tag; the action's own v-tags carry the
+  version truth). And the /tags fallback's own extraction was
+  shape-blind: the API answers the sweep's User-Agent with one
+  compact line - zero newlines, verified live - where the
+  line-based sed degenerates to its LAST match, an arbitrary tag
+  (a v3 read as "latest" while v4.39.1 sat in the same body),
+  and the page's ordering is not a contract either. The sweep now
+  looks the REPO up (the first two segments), a 404 and a non-v
+  latest tag both fall through to the /tags fallback, the
+  fallback extracts every v-tag token regardless of body shape
+  and takes the highest (grep -oE plus sort -V), and the heal
+  rewrites the full ref head
+  (path included) - verified against the live API: the codeql
+  trio reads CURRENT (v4 pins, v4.39.1 upstream) where it
+  previously read "unreachable". The seat itself is one new
+  section, not a new lane: gate-keepers.sh section 17 runs
+  check-actions-pins.sh --strict, the Gate-keepers workflow maps
+  the runner's GITHUB_TOKEN into the wholesale run (the
+  authenticated quota; read-only, sent as a Bearer header, never
+  written), and the only red the seat can produce is a
+  KNOWN-stale tag pin - a fact upstream itself answered. Every
+  skip reason stays a skip in every seat (offline, quota low,
+  branch pins, SHA pins), an offline local run passes honestly,
+  curl-less machines warn-skip per the wholesale contract, and
+  the commit hook keeps its advisory shape. Tamper-verified
+  before landing, both directions and both action shapes: a
+  stale flat pin (actions/checkout@v3) and a stale subdirectory
+  pin (github/codeql-action/init@v3) each fail the strict
+  verdict and the full gate with exactly section 17 red, and the
+  restored tree passes clean.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

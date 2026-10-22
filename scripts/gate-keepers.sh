@@ -81,6 +81,16 @@
 #        Gate-keepers CI lane installs the pinned tool, so the seat
 #        never sleeps in CI)
 #
+#   17.  actions-pin freshness (scripts/gates/check-actions-pins.sh
+#        --strict, the push-time CI seat of the commit hook's
+#        advisory actions-pin report: a KNOWN-stale tag pin - a
+#        verdict upstream itself answered, with the runner's
+#        GITHUB_TOKEN lifting the API quota - turns the push red.
+#        Every skip reason stays a skip in every seat: offline,
+#        quota low, branch pins, and SHA pins never block. Skips
+#        with a warning when curl is absent locally (the wholesale
+#        contract); CI always has it)
+#
 # Pre-commit hook: the first wholesale run on a clone self-installs
 # .githooks/pre-commit (git config core.hooksPath=.githooks - repo-
 # local, never --global), so every future commit on that clone
@@ -478,6 +488,28 @@ if command -v b3sum >/dev/null 2>&1; then
 	fi
 else
 	warn_skip "16. prebuilt pin parity (b3sum not installed)"
+fi
+
+# ── 17. actions-pin freshness ──────────────────────────────────────
+header "17. actions-pin freshness (the KNOWN-stale verdict, fail-closed)"
+# The push-time strict seat of the commit hook's advisory actions-pin
+# report (check-commit-gate.sh section 3). The hook never blocks a
+# commit on a remote fact - pin freshness needs the network and
+# GitHub's answer right now, and a gate that blocks on facts it
+# cannot reach is a dishonest gate. CI is the opposite seat: the
+# network is there and the GITHUB_TOKEN is native, so the strict
+# verdict runs here and a KNOWN-stale tag pin turns the push red.
+# Every skip reason stays a skip (offline, quota low, branch pins,
+# SHA pins), so an offline local run passes honestly and the commit
+# hook keeps its advisory shape everywhere.
+if command -v curl >/dev/null 2>&1; then
+	if bash scripts/gates/check-actions-pins.sh --strict; then
+		pass "17. actions-pin freshness"
+	else
+		fail "17. actions-pin freshness"
+	fi
+else
+	warn_skip "17. actions-pin freshness (curl not installed)"
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────
