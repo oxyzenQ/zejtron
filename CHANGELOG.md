@@ -505,6 +505,23 @@ v11.0.0
   verdict and the full gate with exactly section 17 red, and the
   restored tree passes clean.
 
+- The /tags read now names its own transport failures. The seat's
+  landing commit exposed the residual through its own hook run:
+  the advisory sweep, running unauthenticated, hit the IP quota on
+  the /tags read (403) and reported the codeql pins as "no upstream
+  release or semver tags" - a fake no-versions verdict, the exact
+  lie the script's header promises never to tell ("an unreachable
+  API and a low quota are SKIP reasons of their own - never a fake
+  'no versions upstream'"). The /tags read now classifies its own
+  failure with the same split the releases/latest read applies
+  (403/429 names the quota with the set-GITHUB_TOKEN hint, anything
+  else names unreachable), and only a read that SUCCEEDED and still
+  found no v-tag reports the human-decision skip. Zero verdict
+  changes: every case stays a skip, and the authenticated strict
+  CI seat is unaffected - verified live in both modes, the
+  unauthenticated run now reports the quota skip truthfully and
+  the authenticated run still reads the codeql trio CURRENT.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's
