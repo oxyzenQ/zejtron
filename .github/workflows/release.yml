@@ -186,7 +186,14 @@ jobs:
       # The gnu leg carries the full gate (fmt/clippy/test/battery);
       # the other legs build only - their shape difference IS the
       # product being released, and the gnu leg already vetted the
-      # source.
+      # source. check-all hard-requires codespell (build.sh's
+      # check_command gate), and the runner image does not carry it -
+      # the fast lane installs the same pinned version before its own
+      # check-all run; this leg needs the same install.
+      - name: Install codespell
+        if: matrix.platform == 'linux-amd64-v3-gnu'
+        run: python3 -m pip install --user codespell==2.4.3
+
       - name: Run full checks
         if: matrix.platform == 'linux-amd64-v3-gnu'
         run: ./scripts/build.sh check-all
