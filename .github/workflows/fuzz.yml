@@ -3,7 +3,7 @@
 #
 # The fuzz lane (night-improve-43): continuous proof that zejtron's
 # three critical input-parsing surfaces cannot be broken into a panic.
-# Zejtron reads bytes from the kernel (/sys/kernel/btf/vmlinux) and
+# zejtron reads bytes from the kernel (/sys/kernel/btf/vmlinux) and
 # from /proc - bytes a malicious or corrupted host controls - and the
 # reliability claim is only honest if it is tested against hostile
 # input, not just the happy path. One cargo-fuzz target per surface:
