@@ -9,7 +9,9 @@
 //! The rows are the contract (night-improve-2 added the Tracepoints
 //! row): night-improve-42 seats the header on the two-space KV
 //! indent one blank line below the check rows, so the section reads
-//! as the separated sub-report it is:
+//! as the separated sub-report it is, and night-improve-46 seats the
+//! Lazy Camera's Mode row between Lane and Probes (the doctrine's
+//! own posture line - docs/EBPF_LIFECYCLE.md owns the prose):
 //!
 //! ```text
 //!
@@ -20,6 +22,7 @@
 //!   Lockdown:    none
 //!   Caps:        CAP_BPF + CAP_PERFMON present
 //!   Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))
+//!   Mode:        Lazy Camera (Kernel: recording | CLI: asleep)
 //!   Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev
 //!   Pins:        /sys/fs/bpf/zejtron (present: tap, tap_link, stats, sock_tap, sock_tap_link, sock_events)
 //! ```
@@ -35,7 +38,7 @@ use std::path::Path;
 use crate::ebpf::{self, LaneVerdict};
 
 /// Render the live section: probe once, classify once, print the
-/// eight rows. Feature builds additionally read the counter and the
+/// nine rows. Feature builds additionally read the counter and the
 /// attach moment when (and only when) the tap is attached.
 pub(super) fn section() -> String {
     let facts = ebpf::probe_kernel();
@@ -47,6 +50,7 @@ pub(super) fn section() -> String {
         &lockdown_row(facts.lockdown.label()),
         &facts.caps_label(),
         &lane_row(&verdict),
+        &mode_row(&verdict),
         &probes_row(),
         &pins_row(),
     )
@@ -119,6 +123,25 @@ fn attached_detail() -> String {
     format!("{count} since {since}")
 }
 
+/// The Mode row (night-improve-46, the Lazy Camera doctrine): the
+/// camera's own posture, and the one row that says what the lane IS
+/// rather than what the host allows. The attached shape is the
+/// doctrine's own sentence - "Kernel: recording | CLI: asleep" -
+/// and every other verdict gets the honest negative: the CLI half
+/// is the standing truth either way (between invocations there is
+/// no CLI at all), and the kernel half follows the verdict so the
+/// row can never claim a recording that is not happening. The row
+/// rides unwrapped - like Kernel, Probes, and Pins, it is prose,
+/// not a painted verdict token.
+fn mode_row(verdict: &LaneVerdict) -> String {
+    match verdict {
+        LaneVerdict::LiveAttached => "Lazy Camera (Kernel: recording | CLI: asleep)".to_owned(),
+        LaneVerdict::Live | LaneVerdict::Snapshot(_) => {
+            "Lazy Camera (Kernel: not recording | CLI: asleep)".to_owned()
+        }
+    }
+}
+
 /// The Probes row (night-improve-2 opened it as Tracepoints,
 /// night-improve-3 renames it to carry the file taps,
 /// night-improve-42 adds the vectorized-write tap): the events the
@@ -180,7 +203,7 @@ fn pin_names() -> Vec<&'static str> {
 /// keys), the verdict tokens inside the values ride the bold tiers
 /// their rows paint, and the remaining facts stay unwrapped (white).
 /// In Mono every wrap is the identity - the plain bytes the shape
-/// shipped with. Eight rows is the contract; the allow is the honest
+/// shipped with. Nine rows is the contract; the allow is the honest
 /// count, not an escape hatch.
 #[allow(clippy::too_many_arguments)]
 fn format_section(
@@ -190,6 +213,7 @@ fn format_section(
     lockdown: &str,
     caps: &str,
     lane: &str,
+    mode: &str,
     probes: &str,
     pins: &str,
 ) -> String {
@@ -207,6 +231,7 @@ fn format_section(
         ("  Lockdown:    ", lockdown),
         ("  Caps:        ", caps),
         ("  Lane:        ", lane),
+        ("  Mode:        ", mode),
         ("  Probes:      ", probes),
         ("  Pins:        ", pins),
     ] {

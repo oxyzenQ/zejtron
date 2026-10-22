@@ -317,6 +317,29 @@ cost is named honestly in `doctor --symptom ram`'s Unaccounted block:
 processes that allocated memory and exited before a snapshot can no
 longer be attributed.
 
+### The Lazy Camera
+
+The eBPF lane's architecture in one name. After `doctor --attach`,
+the kernel-side programs record events into bounded ring buffers
+that live in kernel memory - nothing streams to userspace, nothing
+is written to disk, and no zejtron process exists between commands.
+The CLI is lazy: it wakes for exactly one command's lifetime, drains
+the window that command asked for (`--since`), prints its Evidence
+Ledger section, and exits. The kernel camera is the only thing
+working between invocations, and its film roll is fixed-size - the
+rings overwrite their oldest records, and a drain consumes what it
+reads.
+
+This is why zejtron is not a monitoring daemon: there is no daemon
+to be one. The doctor's [eBPF] section carries the camera's own
+posture - `Mode: Lazy Camera (Kernel: recording | CLI: asleep)` when
+the tap is attached, `Mode: Lazy Camera (Kernel: not recording |
+CLI: asleep)` when it is not.
+
+The full lifecycle - attach once per boot, the kernel records, a
+command drains, the honest limits of the rolling window - is
+documented in [docs/EBPF_LIFECYCLE.md](docs/EBPF_LIFECYCLE.md).
+
 ### Usage
 
 Every command, once — flags live in `--help` (Pro mode owns the

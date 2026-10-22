@@ -522,6 +522,36 @@ v11.0.0
   unauthenticated run now reports the quota skip truthfully and
   the authenticated run still reads the codeql trio CURRENT.
 
+- The eBPF lifecycle is now a doctrine with a citable document
+  (night-improve-46, the Lazy Camera). docs/EBPF_LIFECYCLE.md
+  defines how the lane lives on a host: the two modes a surface
+  can ride (snapshot - a /proc read of what holds; live - a
+  kernel-recorded event of what happened, with the acting PID),
+  the Lazy Camera concept itself (the kernel-side programs record
+  into bounded ring buffers that live in kernel memory - nothing
+  streams to userspace, nothing is written to disk, and no
+  zejtron process exists between commands), the four-step
+  lifecycle (attach once per boot - the pins live on bpffs and
+  the per-boot shape is physics, not policy; the kernel records;
+  a command drains its window, prints, and exits; optional
+  detach leaves the same zero footprint a never-attached host
+  has), and the non-monitoring argument in full: no daemon, no
+  agent, no telemetry, zero userspace footprint between
+  invocations, nothing written to disk, and a camera that only
+  answers when asked. The honest limits ride with the doctrine -
+  the rolling window, the consumption semantics, the filter
+  discipline, the pre-attach past, and the probe floor. The
+  doctor's [eBPF] section carries the doctrine's own posture as
+  a new Mode row between Lane and Probes: "Mode: Lazy Camera
+  (Kernel: recording | CLI: asleep)" on an attached host, "Mode:
+  Lazy Camera (Kernel: not recording | CLI: asleep)" on every
+  other verdict - the row is verdict-driven, so it can never
+  claim a recording that is not happening. README gains "The
+  Lazy Camera" section under the eBPF lane pointing at the
+  document, and docs/README.md's map carries it. The display row
+  is the only code touched - no behavior, no flags, no grammar
+  change beyond the new row.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

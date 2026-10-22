@@ -14,6 +14,7 @@ carries the disclaimer and yields to it.
 |---|---|
 | [../README.md](../README.md) | The project front page: what zejtron is, install, the command surface, compatibility, safety contract, the intended environments (servers, desktops) and the user profiles - including who the tool is wrong for. |
 | [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md) | The Evidence Ledger Specification v1 (Frozen): the citable output format - the four provenance tiers, the block grammar, the UTC/deterministic/zero-escape laws, and the non-eBPF compliance path. |
+| [EBPF_LIFECYCLE.md](EBPF_LIFECYCLE.md) | The Lazy Camera Doctrine: how the eBPF lane lives - the two modes (snapshot vs live), the kernel-side bounded rings, the attach/record/drain lifecycle, and why none of it is monitoring. |
 | [BRANDING.md](BRANDING.md) | The brand: naming, the purple palette (#A855F7), the color system ladder, the civil-clock UTC markers, third-party usage rules. |
 | [VERIFY_RELEASE.md](VERIFY_RELEASE.md) | How to verify a release: checksums (SHA-512 / BLAKE3 / SHAKE256), GPG signatures, the exact commands. |
 | [RULES.md](RULES.md) | The project law: the gates, the caps, the conventions a change must land under. |

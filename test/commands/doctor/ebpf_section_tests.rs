@@ -18,6 +18,7 @@ fn section_shape_pins_every_row() {
         "none",
         "CAP_BPF + CAP_PERFMON present",
         "live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))",
+        "Lazy Camera (Kernel: recording | CLI: asleep)",
         "sched_process_exec, inet_sock_set_state, vfs_open, vfs_write",
         "/sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, open_tap_link, write_tap_link, \
 tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, file_events, offsets)",
@@ -31,6 +32,7 @@ tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, file_eve
          Lockdown:    none\n  \
          Caps:        CAP_BPF + CAP_PERFMON present\n  \
          Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))\n  \
+         Mode:        Lazy Camera (Kernel: recording | CLI: asleep)\n  \
          Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write\n  \
          Pins:        /sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, open_tap_link, \
 write_tap_link, tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, \
@@ -41,23 +43,31 @@ file_events, offsets)"
 #[test]
 fn live_section_renders_the_separated_block() {
     // The live section (host-probing) still renders the contract
-    // shape: one blank line, the indented header, then exactly eight
+    // shape: one blank line, the indented header, then exactly nine
     // rows, whatever the host says - a broken renderer cannot hide
     // behind host variance.
     let section = section();
     let lines: Vec<&str> = section.lines().collect();
     assert_eq!(
         lines.len(),
-        10,
-        "the section is the blank line + header + 8 rows"
+        11,
+        "the section is the blank line + header + 9 rows"
     );
     assert_eq!(lines[0], "", "one blank line separates the section");
     assert_eq!(lines[1], "  [eBPF]", "the header rides the KV indent");
     for row in &lines[2..] {
         assert!(row.starts_with("  "), "every row is indented: {row}");
     }
+    assert!(
+        lines[8].starts_with("  Mode:        Lazy Camera (Kernel: "),
+        "the mode row rides between Lane and Probes: {section}"
+    );
+    assert!(
+        lines[8].ends_with("| CLI: asleep)"),
+        "the CLI half is the standing truth: {section}"
+    );
     assert_eq!(
-        lines[8],
+        lines[9],
         "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev",
         "the probes row is the binary's contract, host-independent"
     );
@@ -71,6 +81,27 @@ fn lane_rows_for_host_independent_verdicts() {
             "kernel 5.10.1 is below the 5.15 floor".to_owned()
         )),
         "snapshot (kernel 5.10.1 is below the 5.15 floor)"
+    );
+}
+
+#[test]
+fn mode_row_follows_the_verdict_and_never_claims_a_dead_camera() {
+    // The doctrine's own sentence, verbatim, on the attached host -
+    // and the honest negative on every other verdict: the row can
+    // never say "recording" while nothing is attached.
+    assert_eq!(
+        mode_row(&LaneVerdict::LiveAttached),
+        "Lazy Camera (Kernel: recording | CLI: asleep)"
+    );
+    assert_eq!(
+        mode_row(&LaneVerdict::Live),
+        "Lazy Camera (Kernel: not recording | CLI: asleep)"
+    );
+    assert_eq!(
+        mode_row(&LaneVerdict::Snapshot(
+            "kernel 5.10.1 is below the 5.15 floor".to_owned()
+        )),
+        "Lazy Camera (Kernel: not recording | CLI: asleep)"
     );
 }
 
