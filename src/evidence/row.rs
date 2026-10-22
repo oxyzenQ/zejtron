@@ -132,3 +132,11 @@ impl EvidenceRow {
 #[cfg(test)]
 #[path = "../../test/evidence/row_tests.rs"]
 mod tests;
+
+// The spec drift pin (night-improve-44): docs/EVIDENCE-LEDGER.md is
+// the citable Evidence Ledger Specification v1, and this module is
+// the clamp between the document and the tier vocabulary defined
+// above. Test-only - the release binary is byte-identical.
+#[cfg(test)]
+#[path = "../../test/evidence/spec_tests.rs"]
+mod spec_tests;

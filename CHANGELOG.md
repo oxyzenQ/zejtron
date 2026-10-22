@@ -23,6 +23,36 @@ v11.0.0
 
 ### Added
 
+- The Evidence Ledger is now a formal specification (v1, frozen).
+  docs/EVIDENCE-LEDGER.md defines the four provenance tiers, the
+  output grammar, and the UTC/deterministic laws. Any tool can now
+  claim compliance with the Evidence Ledger v1. zejtron is no
+  longer just a binary; it is the reference implementation of a
+  standard. The spec is extracted from the code, not written over
+  it: the four tiers ([observed], [measured], [inferred],
+  [unaccounted]) are defined epistemologically - direct perception
+  of events, direct perception of state, reconstruction from
+  indirect evidence, and the named absence - the block grammar
+  (header, mode line, evidence rows, Changes subsection,
+  Unaccounted block, two-line verdict) is stated byte for byte as
+  the renderer ships it, and the four laws (UTC everywhere with the
+  first-row (UTC) declaration, deterministic ordering with no hash
+  map iteration, zero escape bytes when piped, Unaccounted always
+  present) are the rules the render and capability modules already
+  enforce and pin. The escape hatch is on the record: a tool
+  without the kernel lane labels its replayed rows [inferred] - the
+  tag describes the source, never the ambition - and declares its
+  lane honestly in the mode line. v1 is frozen: a grammar change is
+  a new version and a breaking event, not an edit. The document and
+  the code are clamped together by a drift pin (test/evidence/
+  spec_tests.rs, wired test-only - the release binary is
+  byte-identical): the spec carries a machine-readable tier block,
+  the pin demands exactly the four code tags in tier order, and the
+  pin's exhaustive match has no wildcard arm, so a fifth Provenance
+  variant is a compile error in the test file before it can be a
+  format break anywhere. Pure documentation pass - zero runtime
+  code changes; README states the compliance fact near the top, and
+  docs/README.md's map carries the new document.
 - The reliability of the parsers is now a continuous guarantee. A
   cargo-fuzz lane runs against the BTF parser, the /proc parser, and
   the terminal sanitizer, proving that hostile or corrupted kernel
