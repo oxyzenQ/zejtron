@@ -2,16 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
 //! The ring readers (night-improve-2 opens the first, night-improve-3
-//! the second; feature builds only): the event-window pumps. std +
+//! the second, night-improve-47 the third; feature builds only): the
+//! event-window pumps. std +
 //! aya, nothing else — no thread, no poll loop, no daemon. The pump
 //! runs for exactly one command: open the pinned ring, read the
 //! records the kernel holds, hand back a bounded Vec (or feed one
 //! across a whole wait, slice by slice). The kernel-side filters
 //! already bound what crosses each ring (the port-surface transitions
-//! in sock_events; the tracked inodes in file_events); the rolling
+//! in sock_events; the tracked inodes in file_events; the leader
+//! check in proc_events); the rolling
 //! cap here bounds the Vec even if a ring holds more history than
-//! the window wants. (night-improve-34: the third reader, the
-//! lifecycle pump, went with the lifecycle stream surface.)
+//! the window wants. (night-improve-34 removed the old lifecycle
+//! pump with the lifecycle stream surface; night-improve-47 opens
+//! the third reader as the post-mortem exit pump - a different
+//! shape: the doctor drains once, filters to its window, prints,
+//! and exits.)
 //!
 //! One semantic the caller must know (and the CHANGELOG names): a
 //! ring buffer read CONSUMES. Advancing the reader advances the
@@ -30,8 +35,11 @@
 use aya::maps::{Map, MapData, RingBuf};
 
 use super::PIN_MAP_FILE_EVENTS;
+use super::PIN_MAP_PROC_EVENTS;
 use super::PIN_MAP_SOCK_EVENTS;
-use super::events::{FILE_EVENT_BYTES, FileEvent, SOCK_EVENT_BYTES, SockEvent};
+use super::events::{
+    FILE_EVENT_BYTES, FileEvent, PROCEXIT_EVENT_BYTES, ProcExitEvent, SOCK_EVENT_BYTES, SockEvent,
+};
 
 /// The rolling cap: the pump never hands back more than this many
 /// events, newest kept, oldest dropped. 4096 records is half the
@@ -110,6 +118,27 @@ pub fn drain_file_events() -> Result<Vec<FileEvent>, String> {
         // The pod-cast, the file record's turn: the same
         // contract-and-bounds proof as the sock reader's.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const FileEvent) };
+        push_rolling(&mut window, event, ROLLING_CAP);
+    }
+    Ok(window)
+}
+
+/// Drain every record the pinned proc_events ring holds (the
+/// post-mortem exit stream, night-improve-47) into a bounded,
+/// rolling Vec. The same contract as [`drain_file_events`], record
+/// for record; the caller owns the window cutoff - the doctor keeps
+/// the last five seconds and the read consumes, the Lazy Camera
+/// contract unchanged (docs/EBPF_LIFECYCLE.md).
+pub fn drain_proc_exits() -> Result<Vec<ProcExitEvent>, String> {
+    let mut ring = open_ring(PIN_MAP_PROC_EVENTS, "proc_events")?;
+    let mut window: Vec<ProcExitEvent> = Vec::new();
+    while let Some(record) = ring.next() {
+        if record.len() != PROCEXIT_EVENT_BYTES {
+            continue;
+        }
+        // The pod-cast, the exit record's turn: the same
+        // contract-and-bounds proof as the file reader's.
+        let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const ProcExitEvent) };
         push_rolling(&mut window, event, ROLLING_CAP);
     }
     Ok(window)

@@ -552,6 +552,55 @@ v11.0.0
   is the only code touched - no behavior, no flags, no grammar
   change beyond the new row.
 
+- The ram symptom can now see the freshly dead
+  (night-improve-47, the post-mortem doctor). A process that
+  allocated memory and exited three seconds before
+  `doctor --symptom ram` runs is invisible to every /proc read -
+  the hole night-improve-34 named in the Unaccounted block as
+  "attribution lost" is now partly closable, honestly: the exit
+  half of the lifecycle tap returns with a new consumer and a new
+  shape. The kernel object grows a sixth program, the
+  sched/sched_process_exit tracepoint (ebpf/src/exits.rs, its own
+  module under the LOC cap), filtered to the thread-group leader -
+  one record per process exit, carrying the pid, the process's
+  own name (bpf_get_current_comm, the same bytes /proc's Name:
+  field would have shown), and a monotonic timestamp in the new
+  32-byte ProcExitEvent record - published to the new proc_events
+  ring (256 KiB, 8192 records), unfiltered by design because the
+  doctor cannot know in advance which exit will be the one it is
+  asked about and the ring's rolling window is the bound. The
+  loader plants the sixth program and its map (the pin estate
+  grows from fifteen to eighteen: exit_tap, exit_tap_link,
+  proc_events), the attach summary and the doctor's Probes row
+  carry the sixth name, and the prebuilt lane is regenerated
+  through its one writer (object blake3 bfea9123..., tree blake3
+  728bc45f..., toolchain and version mirror unchanged). The
+  doctor drains once, keeps the last five seconds, prints, and
+  exits - the Lazy Camera contract holds: no daemon, no stream,
+  nothing written to disk. The ram report gains the
+  "Recently exited (eBPF, last 5s)" section with
+  `<HH:MM:SS UTC>  PID <pid> (<comm>)  exited  [observed]` rows
+  (the strongest provenance tier - the kernel itself recorded the
+  exit as it happened), capped at the report's own TOP_N; the
+  mode line names the lane's state ("snapshot + post-mortem ...
+  drained" when it ran, the not-attached truth otherwise); and
+  the Unaccounted block replaces the static night-improve-34
+  sentence with the lane's three truths - not attached: "eBPF is
+  not attached - processes that exited before this snapshot are
+  invisible" (the spec's own sentence); drained: exits before the
+  5-second window are not named; drain-failed: the verbatim error
+  rides the report, never a silent empty section. The monotonic
+  companions (the /proc/uptime "now", the wall offset, the
+  HH:MM:SS UTC renderer) moved from port's private copies to the
+  civil clock module - one source, two surfaces, the same dedup
+  law the unavailability sentence landed under. Upgrade note: an
+  attach planted before this pass carries no exit tap - the
+  doctor reports not-attached honestly until
+  `sudo zejtron doctor --attach` runs once more (the partial pin
+  set self-heals into the full eighteen). README, the Lazy Camera
+  doctrine document, the ebpf crate description, and the
+  supermassive doctor surface carry the six-program estate.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

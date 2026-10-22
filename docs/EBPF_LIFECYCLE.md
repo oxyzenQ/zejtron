@@ -65,9 +65,11 @@ be made to persist.
 This shape is the answer to the question every eBPF tool gets
 asked: "so it runs in the background?" No. The BACKGROUND is the
 kernel itself, doing what the kernel already does - executing
-processes, opening files, changing socket states - with five small
-programs riding those paths and writing compact records into two
-bounded rings. The userspace half of zejtron is lazy: it
+processes, opening files, changing socket states - with six small
+programs riding those paths and writing compact records into three
+bounded rings (the socket ring, the file ring, and the post-mortem
+exit ring night-improve-47 added). The userspace half of zejtron is
+lazy: it
 exists only for the lifetime of a command, and between commands it
 is not asleep, it is absent.
 
@@ -76,10 +78,11 @@ is not asleep, it is absent.
 The lane's whole life, boot to boot:
 
 1. **Attach, once per boot.** `sudo zejtron doctor --attach` loads
-   the embedded pure-Rust object (five programs: the
+   the embedded pure-Rust object (six programs: the
    `sched_process_exec` counter, the `inet_sock_set_state`
-   socket-event tap, and the `vfs_open`/`vfs_write`/`vfs_writev`
-   file taps), verifies every struct offset and the vectorized-
+   socket-event tap, the `vfs_open`/`vfs_write`/`vfs_writev` file
+   taps, and the `sched_process_exit` post-mortem exit tap),
+   verifies every struct offset and the vectorized-
    write symbol against the host's own BTF, attaches each program,
    and pins programs, links, and maps under `/sys/fs/bpf/zejtron`.
    The attach prints its summary and exits. Because bpffs is a
@@ -91,14 +94,17 @@ The lane's whole life, boot to boot:
    pinned links keep the programs attached and the pinned maps
    keep the rings alive with no zejtron process anywhere on the
    host. A record carries the fact and the actor - a port, a
-   transition, an inode, an action, a PID, a monotonic timestamp -
+   transition, an inode, an action, a process exit with its pid and
+   its name, a monotonic timestamp -
    and nothing else: no file contents, no addresses beyond the
    socket's own identity, no payload of any kind.
 
 3. **A command drains.** `zejtron port --since 30s`, `zejtron why
    <path> --since 30s`, and their siblings open the pinned rings by
    path - the read side needs no capabilities, only the bpffs walk
-   - and drain the records the kernel holds. A ring read CONSUMES:
+   - and drain the records the kernel holds. The doctor's ram
+   symptom drains the exit ring the same way for its last-five-
+   seconds post-mortem section. A ring read CONSUMES:
    advancing the reader advances the consumer position stored in
    the kernel map, so each drain sees what accumulated since the
    previous drain (or since attach, for the first). The window
@@ -134,8 +140,8 @@ stops:
   telemetry endpoint.
 
 - **Zero footprint when not invoked.** Between commands the lane's
-  entire presence is five small kernel programs writing fixed-size
-  records into two bounded rings - kernel memory the attach
+  entire presence is six small kernel programs writing fixed-size
+  records into three bounded rings - kernel memory the attach
   already paid for, zero CPU on quiet paths (the filters
   run before the records), zero userspace memory, zero wakeups.
 
@@ -177,7 +183,11 @@ hard way:
   command is asking about, for the duration that command asked -
   the tracked-inodes map is planted at the start of a wait and
   removed at its end. A file nobody queried has no file history
-  waiting anywhere.
+  waiting anywhere. The exit ring is the one deliberate
+  exception: it records every process exit (leader-only - one
+  record per process), because the post-mortem doctor cannot know
+  in advance which exit will be the one it is asked about; its
+  bound is the ring's own rolling window.
 
 - **The pre-attach past.** The camera starts at attach. What
   crossed the kernel before the attach is unreachable by this lane,

@@ -36,6 +36,18 @@ fn contract_constants_pin_the_attach_point() {
 }
 
 #[test]
+fn contract_constants_pin_the_post_mortem_exit_attach_point() {
+    // night-improve-47's exit tap (ebpf/src/exits.rs) carries its
+    // own contract, pinned the same way: the program symbol, the
+    // tracepoint pair, the ring map. The exit tracepoint exists
+    // on every kernel the 5.15 floor allows.
+    assert_eq!(EXIT_PROGRAM, "sched_process_exit");
+    assert_eq!(EXIT_TRACEPOINT_CATEGORY, "sched");
+    assert_eq!(EXIT_TRACEPOINT_EVENT, "sched_process_exit");
+    assert_eq!(MAP_PROC_EVENTS, "proc_events");
+}
+
+#[test]
 fn pin_paths_are_the_one_directory_contract() {
     // Every pin the loader plants lives under /sys/fs/bpf/zejtron -
     // the single directory detach removes whole.
@@ -43,4 +55,7 @@ fn pin_paths_are_the_one_directory_contract() {
     assert!(PIN_LINK.starts_with("/sys/fs/bpf/zejtron/"));
     assert!(PIN_PROG.starts_with("/sys/fs/bpf/zejtron/"));
     assert!(PIN_MAP_STATS.starts_with("/sys/fs/bpf/zejtron/"));
+    assert!(PIN_LINK_EXIT.starts_with("/sys/fs/bpf/zejtron/"));
+    assert!(PIN_PROG_EXIT.starts_with("/sys/fs/bpf/zejtron/"));
+    assert!(PIN_MAP_PROC_EVENTS.starts_with("/sys/fs/bpf/zejtron/"));
 }

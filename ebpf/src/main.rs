@@ -8,7 +8,12 @@
 // FIVE programs, one object (night-improve-34 removes the two
 // sched_process lifecycle tracepoints the `proc --live` surface
 // drove; night-improve-42 adds the fifth program, the writev tap -
-// the false-negative closer for the file-write arena):
+// the false-negative closer for the file-write arena); SIXTH in
+// its own module under the LOC cap (night-improve-47, exits.rs):
+// the post-mortem exit tap, the exit half of the lifecycle tap
+// returning with a new consumer and a new shape - a bounded
+// post-mortem record the doctor's ram symptom drains, not a live
+// stream.
 //
 //   1. sched_process_exec (phase 1, unchanged since): count process
 //      executions. The counter is the phase-1 chain proof, still the
@@ -59,12 +64,30 @@
 //      call_write_iter directly and cross neither write tap - the
 //      named residual.
 //
+//   6. sched_process_exit (night-improve-47, exits.rs): the
+//      post-mortem exit tap. The tracepoint fires for every
+//      exiting task; the program keeps only the thread-group
+//      leader (the tgid/tid halves of bpf_get_current_pid_tgid
+//      are equal only there - one record per process, and the
+//      leader's comm IS the process name /proc would have shown)
+//      and publishes the 32-byte ProcExitEvent - pid, comm,
+//      monotonic time - to the proc_events ring, unfiltered by
+//      design (every exit is potentially the one the doctor is
+//      asked about; the ring's rolling window is the bound). The
+//      doctor's ram symptom drains the last five seconds on
+//      demand; nothing streams, nothing is written to disk.
+//
 //   stats           (Array<AtomicU64>) — phase 1's counter, one slot,
 //                                    unchanged. stats[0] counts
 //                                    sched_process_exec events since
 //                                    attach; BPF_ATOMIC fetch_add only.
 //   sock_events     (RingBuf)          — phase 2's event stream, the
 //                                    port surface's window.
+//   proc_events     (RingBuf)          — night-improve-47's exit
+//                                    stream, the post-mortem
+//                                    doctor's window (exits.rs
+//                                    owns the program and the
+//                                    record contract).
 //   tracked_inodes  (HashMap<u64, u8>) — phase 3's filter map. The
 //                                    host inserts (inode<<32)|device
 //                                    for the one file a command is
@@ -119,8 +142,9 @@
 // cpu v3 bytecode (see .cargo/config.toml) — Linux 5.12+, under the
 // verified 5.15 floor.
 //
-// The attach points: sched/sched_process_exec (phase 1) and
-// sock/inet_sock_set_state (phase 2). Each #[tracepoint] macro
+// The attach points: sched/sched_process_exec (phase 1),
+// sock/inet_sock_set_state (phase 2), and sched/sched_process_exit
+// (night-improve-47, exits.rs). Each #[tracepoint] macro
 // carries BOTH halves into the ELF — the section name becomes
 // tracepoint/<category>/<event> and the no_mangle trampoline keeps
 // the symbol as the program name the loader looks up. The userspace
@@ -149,6 +173,11 @@ use aya_ebpf::{
 // for the layout and the filter discipline.
 #[path = "../../src/ebpf/events.rs"]
 mod events;
+
+// The post-mortem exit program (night-improve-47) - its own module
+// under the LOC cap, carrying its own map and the program that
+// publishes to it.
+mod exits;
 
 use events::{
     FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITE, FILE_OP_WRITEV, FileEvent, OFF_SLOTS,

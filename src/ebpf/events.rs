@@ -268,6 +268,52 @@ pub const OFF_SLOT_PATH_DENTRY: u32 = 7;
 #[allow(dead_code)]
 pub const OFF_SLOTS: u32 = 8;
 
+// ─────────────────────────────────────────────────────────────────────
+// night-improve-47, the process-exit record (the post-mortem doctor
+// pass). Same file, same discipline: the record the proc_events
+// ring carries is compiled into the bpfel object AND into the host
+// binary through #[path] - one truth for both sides of the ring.
+// ─────────────────────────────────────────────────────────────────────
+
+/// One process exit, as the kernel recorded it at the moment it
+/// happened - the post-mortem doctor's evidence, and the only thing
+/// that survives the exit: a second later /proc has no entry to
+/// read, so the process's own name (the comm, the same bytes
+/// /proc's `Name:` field would have shown) rides the record itself.
+///
+/// Offsets (repr(C), natural alignment, pinned by test):
+/// timestamp_ns 0, pid 8, _pad 12, comm 16..32; total 32 bytes.
+/// The pads are EXPLICIT fields, the SockEvent discipline: the ring
+/// record's every byte is written by the tap constructor, because
+/// the 5.15 verifier (the documented kernel floor) rejects an
+/// `output` read whose stack bytes were never initialized.
+///
+/// `pid` is the tgid half of bpf_get_current_pid_tgid - the process
+/// (thread group), not the exiting thread: the tap's leader-only
+/// filter (ebpf/src/exits.rs) keeps one record per process exit, so
+/// the pid IS the process identity and the comm IS the leader's
+/// name, exactly the pair a /proc read would have named before the
+/// exit.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcExitEvent {
+    /// CLOCK_MONOTONIC nanoseconds at the exit.
+    pub timestamp_ns: u64,
+    /// The exiting process (tgid).
+    pub pid: u32,
+    /// Padding to 8-byte alignment for `comm` (pinned by test at 12).
+    pub _pad: u32,
+    /// The process's comm (`bpf_get_current_comm`, TASK_COMM_LEN =
+    /// 16 bytes), NUL-terminated by the helper's contract and
+    /// zeroed past its end - the host renders up to the first NUL.
+    pub comm: [u8; 16],
+}
+
+/// The size of one proc_events ring record, in bytes - the number
+/// both the kernel side's `output` call and the host side's
+/// record-length check agree on.
+pub const PROCEXIT_EVENT_BYTES: usize = core::mem::size_of::<ProcExitEvent>();
+
 #[cfg(test)]
 #[path = "../../test/ebpf/file_events_tests.rs"]
 mod tests;

@@ -77,6 +77,14 @@ pub const PIN_PROG_WRITEV: &str = "/sys/fs/bpf/zejtron/writev_tap";
 /// Link pin - the vectorized-write tap's attachment.
 pub const PIN_LINK_WRITEV: &str = "/sys/fs/bpf/zejtron/writev_tap_link";
 
+/// Program pin - the post-mortem exit tap (night-improve-47's
+/// tracepoint on sched/sched_process_exit; the program lives in
+/// ebpf/src/exits.rs).
+pub const PIN_PROG_EXIT: &str = "/sys/fs/bpf/zejtron/exit_tap";
+
+/// Link pin - the post-mortem exit tap's attachment.
+pub const PIN_LINK_EXIT: &str = "/sys/fs/bpf/zejtron/exit_tap_link";
+
 /// Map pin - the tracked_inodes filter map (the in-kernel price
 /// control: the kprobes check it before recording; the holds/touch/
 /// why windows write and clear it through this pin).
@@ -86,6 +94,11 @@ pub const PIN_MAP_TRACKED_INODES: &str = "/sys/fs/bpf/zejtron/tracked_inodes";
 /// event stream).
 pub const PIN_MAP_FILE_EVENTS: &str = "/sys/fs/bpf/zejtron/file_events";
 
+/// Map pin - the proc_events ring buffer (night-improve-47's exit
+/// stream - the post-mortem doctor drains the last few seconds of
+/// process exits through this pin).
+pub const PIN_MAP_PROC_EVENTS: &str = "/sys/fs/bpf/zejtron/proc_events";
+
 /// Map pin - the offsets config map (the struct offsets parsed from
 /// the host's own BTF at attach; the kprobes read their walks from
 /// it).
@@ -93,30 +106,33 @@ pub const PIN_MAP_OFFSETS: &str = "/sys/fs/bpf/zejtron/offsets";
 
 /// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
-/// last). Fifteen pins: one link/program pair per tap (the exec
+/// last). Eighteen pins: one link/program pair per tap (the exec
 /// tracepoint, the sock tracepoint, the three file kprobes - the
-/// open tap, the write tap, the writev tap) and five maps (stats,
-/// sock_events, tracked_inodes, file_events, offsets). The exec tap
-/// reuses its existing pins (the phase-1 program carries the
-/// counter, not a new section). Thirteen through night-improve-3,
-/// eighteen from night-improve-4, thirteen again since
-/// night-improve-34, fifteen from night-improve-42: the writev
-/// tap's pair joined when the vectorized-write false-negative gap
-/// closed (the five lifecycle-stream pins went with the lifecycle
-/// stream surface's removal long before).
-pub const ALL_PINS: [&str; 15] = [
+/// open tap, the write tap, the writev tap - and the post-mortem
+/// exit tracepoint) and six maps (stats, sock_events, proc_events,
+/// tracked_inodes, file_events, offsets). The exec tap reuses its
+/// existing pins (the phase-1 program carries the counter, not a
+/// new section). Thirteen through night-improve-3, eighteen from
+/// night-improve-4, thirteen again since night-improve-34, fifteen
+/// from night-improve-42 (the writev tap's pair joined), eighteen
+/// from night-improve-47: the exit tap's pair and its proc_events
+/// ring joined when the post-mortem doctor grew its drain.
+pub const ALL_PINS: [&str; 18] = [
     PIN_LINK,
     PIN_LINK_SOCK,
     PIN_LINK_OPEN,
     PIN_LINK_WRITE,
     PIN_LINK_WRITEV,
+    PIN_LINK_EXIT,
     PIN_PROG,
     PIN_PROG_SOCK,
     PIN_PROG_OPEN,
     PIN_PROG_WRITE,
     PIN_PROG_WRITEV,
+    PIN_PROG_EXIT,
     PIN_MAP_STATS,
     PIN_MAP_SOCK_EVENTS,
+    PIN_MAP_PROC_EVENTS,
     PIN_MAP_TRACKED_INODES,
     PIN_MAP_FILE_EVENTS,
     PIN_MAP_OFFSETS,

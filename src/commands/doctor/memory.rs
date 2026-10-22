@@ -3,8 +3,13 @@
 //
 //! The memory symptom's /proc readers (night-improve-4, Part B):
 //! "RAM is at X percent used; who is using it?" answered from the
-//! kernel's own tables, with no eBPF and no capabilities beyond what
-//! the invoking user already has. Every read is a metadata read -
+//! kernel's own tables, with no capabilities beyond what the
+//! invoking user already has. night-improve-47 adds the one eBPF
+//! read the symptom can make without becoming a monitor: when the
+//! tap is attached, the post-mortem exit lane (exits.rs) drains
+//! the last five seconds of process exits from the pinned
+//! proc_events ring - the fact no /proc read can recover, named
+//! [observed] in its own section. Every read is a metadata read -
 //! paths, sizes, PIDs, names; no file content is ever opened (the
 //! zero-leakage posture holds).
 //!
@@ -28,6 +33,12 @@
 //! 7. the residual - used minus the kernel-level buckets minus the
 //!    readable PSS sum - named unaccounted.
 //!
+//! And when the tap is attached, the post-mortem exit lane
+//! (exits.rs) rides along - not an attribution bucket but a
+//! named-fact section: the processes that exited inside the last
+//! five seconds, named [observed], to qualify the residual's
+//! biggest blind spot.
+//!
 //! Permission honesty: every read another user's process refuses is
 //! COUNTED, never silently dropped - the counters ride the
 //! Unaccounted block by name. Where two categories overlap (a tmpfs
@@ -39,7 +50,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+mod exits;
 mod ledger;
+
+pub(crate) use exits::ExitLane;
 
 /// One byte of the report: the collected sample plus the render.
 /// `raw` appends the verbatim /proc reads for drill-down.
@@ -127,6 +141,11 @@ pub(crate) struct MemorySample {
     /// False when /proc/slabinfo was unreadable (root-only on
     /// hardened hosts) - the section renders the named absence.
     pub slab_readable: bool,
+    /// The post-mortem exit lane's state (night-improve-47): the
+    /// drains and verdicts the exits section and the Unaccounted
+    /// block render from. Defaults to not-attached - the honest
+    /// shape of a sample nobody filled.
+    pub exit_lane: ExitLane,
 }
 
 // ── The /proc walkers ───────────────────────────────────────────────
@@ -495,6 +514,7 @@ pub(crate) fn collect() -> MemorySample {
     collect_tmpfs(&mut sample);
     collect_fds(&pids, &mut sample);
     collect_slab(&mut sample);
+    sample.exit_lane = exits::collect();
     sample
 }
 

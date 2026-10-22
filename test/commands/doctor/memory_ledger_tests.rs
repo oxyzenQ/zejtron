@@ -8,9 +8,10 @@
 //! residual); the verdict names facts, never actions; the
 //! permission boundaries are named on every report.
 
+use super::super::exits::ExitRow;
 use super::*;
 use crate::commands::doctor::memory::{
-    DeletedOpenFile, MemInfo, MemfdFile, MemorySample, ProcessPss, SlabRow, TmpfsFile,
+    DeletedOpenFile, ExitLane, MemInfo, MemfdFile, MemorySample, ProcessPss, SlabRow, TmpfsFile,
 };
 
 const KIB: u64 = 1024;
@@ -93,7 +94,84 @@ fn the_report_carries_the_locked_header_and_mode() {
     assert_eq!(lines.next(), Some("Evidence report: memory / ram"));
     assert_eq!(
         lines.next(),
-        Some("Mode: snapshot (this symptom does not need eBPF)")
+        Some("Mode: snapshot (eBPF not attached - recent exits are invisible)")
+    );
+}
+
+#[test]
+fn the_mode_line_names_the_exit_lane_state() {
+    // Three truths, one line each (night-improve-47): the drained
+    // lane claims the post-mortem only when it ran, the failed
+    // drain names itself, and the not-attached host says what stays
+    // invisible.
+    let mut drained = sample();
+    drained.exit_lane = ExitLane::Drained(Vec::new());
+    assert!(
+        render(&drained, false)
+            .contains("Mode: snapshot + post-mortem (eBPF exit lane drained, last 5s)"),
+        "the drained lane's mode line"
+    );
+    let mut failed = sample();
+    failed.exit_lane = ExitLane::DrainFailed("test refusal".to_owned());
+    assert!(
+        render(&failed, false)
+            .contains("Mode: snapshot + post-mortem (the exit drain failed - named below)"),
+        "the failed drain's mode line"
+    );
+}
+
+#[test]
+fn the_unaccounted_block_names_the_exit_boundary_by_lane_state() {
+    // night-improve-47 reworks night-improve-34's static lifecycle
+    // line into the lane's three truths: the spec's own sentence
+    // when not attached, the window boundary when drained, the
+    // verbatim error when the drain failed.
+    let report = render(&sample(), false);
+    assert!(
+        report.contains(
+            "eBPF is not attached - processes that exited before this snapshot are invisible"
+        ),
+        "the not-attached sentence: {report}"
+    );
+
+    let mut drained = sample();
+    drained.exit_lane = ExitLane::Drained(vec![ExitRow {
+        pid: 1234,
+        comm: "python3".to_owned(),
+        timestamp_ns: 1,
+    }]);
+    let report = render(&drained, false);
+    assert!(
+        report.contains("Recently exited (eBPF, last 5s):"),
+        "the section rides when the lane ran: {report}"
+    );
+    assert!(
+        report.contains("PID 1234 (python3)  exited  [observed]"),
+        "the spec's own row: {report}"
+    );
+    assert!(
+        report.contains("processes that exited before the 5-second eBPF window: not named"),
+        "the drained boundary: {report}"
+    );
+
+    let mut failed = sample();
+    failed.exit_lane = ExitLane::DrainFailed("test refusal".to_owned());
+    let report = render(&failed, false);
+    assert!(
+        report.contains("the eBPF exit drain failed (test refusal)"),
+        "the failed drain names its error: {report}"
+    );
+}
+
+#[test]
+fn the_not_attached_report_has_no_exits_section() {
+    // The absent lane rides the mode line and the Unaccounted block
+    // only - never a fake empty section (an absent lane and an
+    // empty window are different truths).
+    let report = render(&sample(), false);
+    assert!(
+        !report.contains("Recently exited"),
+        "no section when the lane is off: {report}"
     );
 }
 

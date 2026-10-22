@@ -82,3 +82,32 @@ fn output_shape_is_zero_padded_core_with_utc_marker() {
     assert_eq!(&formatted[13..14], ":");
     assert_eq!(&formatted[16..17], ":");
 }
+
+#[test]
+fn time_of_day_core_renders_the_utc_shape() {
+    // The monotonic companion's pure core (night-improve-47): a
+    // known stamp plus a known offset, rendered as HH:MM:SS UTC -
+    // the same zero-padded civil shape, day-less. Offset zero is
+    // the boot-time-aligned identity: stamp 0 renders midnight.
+    assert_eq!(time_of_day_from_parts(0, 0), "00:00:00 UTC");
+    assert_eq!(
+        time_of_day_from_parts(((23 * 3600) + (59 * 60) + 59) * 1_000_000_000, 0),
+        "23:59:59 UTC"
+    );
+    assert_eq!(
+        time_of_day_from_parts(904 * 1_000_000_000, 0),
+        "00:15:04 UTC"
+    );
+}
+
+#[test]
+fn time_of_day_core_wraps_negative_offsets_like_the_epoch_math() {
+    // A pre-epoch wall (offset more negative than the stamp) rides
+    // the same floor-division shape format_unix_secs pins: rem_euclid
+    // keeps every result inside the day, never a negative hour.
+    assert_eq!(time_of_day_from_parts(0, -1_000_000_000), "23:59:59 UTC");
+    assert_eq!(
+        time_of_day_from_parts(3600 * 1_000_000_000, -3660 * 1_000_000_000),
+        "23:59:00 UTC"
+    );
+}

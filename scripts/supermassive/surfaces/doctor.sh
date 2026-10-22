@@ -172,11 +172,11 @@ surface_doctor() {
 	sm_assert_contains "$SM_SCRATCH/ok.out" "Pins:" "row estate: the Pins row renders"
 
 	# The Probes row is the binary's contract, not host state (the
-	# tap object carries all five programs whatever the host allows):
-	# the five names, in planting order, on every host.
+	# tap object carries all six programs whatever the host allows):
+	# the six names, in planting order, on every host.
 	sm_assert_contains "$SM_SCRATCH/ok.out" \
-		"sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev" \
-		"probes contract: the five tap names render in order"
+		"sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev, sched_process_exit" \
+		"probes contract: the six tap names render in order"
 
 	# The kernel floor agreement (night-improve-43): the eBPF lane's
 	# documented floor is 5.15 (KERNEL_FLOOR in src/ebpf/mod.rs, the

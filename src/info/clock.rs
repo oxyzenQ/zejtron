@@ -72,6 +72,74 @@ pub(crate) fn format_unix_secs(total_secs: i64) -> String {
     format!("{year:04}-{m:02}-{d:02} {hour:02}:{minute:02}:{second:02} (UTC)")
 }
 
+// ── The monotonic companions (night-improve-47) ─────────────────────
+//
+// The eBPF event records carry CLOCK_MONOTONIC stamps
+// (bpf_ktime_get_ns), so every surface that renders a kernel
+// event row needs the same two companions: the monotonic "now"
+// (the window arithmetic's cutoff) and the wall offset that turns
+// a monotonic stamp into civil time. They lived as private copies
+// in port's window; the post-mortem doctor's exit rows need them
+// too, so they moved here - one source, two surfaces (the same
+// dedup law the unavailability sentence landed under: the lower
+// layer owns the sentence, the surfaces delegate down).
+
+/// The monotonic "now", in nanoseconds, from /proc/uptime (the
+/// kernel's own CLOCK_BOOTTIME clock at 10 ms resolution). `None`
+/// when the file is unreadable - the honest degradation, never a
+/// guess. Boottime-inclusive: on a host that suspended, a cutoff
+/// computed from this sits slightly EARLY, so a boundary event
+/// survives that strict monotonic would drop - the error direction
+/// that over-includes, never under-reports.
+pub(crate) fn monotonic_now_ns() -> Option<u64> {
+    let uptime = std::fs::read_to_string("/proc/uptime").ok()?;
+    let first = uptime.split_whitespace().next()?;
+    let seconds: f64 = first.parse().ok()?;
+    Some((seconds * 1e9) as u64)
+}
+
+/// The wall-clock offset for rendering event timestamps: wall-now
+/// minus monotonic-now, both read in the same breath. An event's
+/// wall time is its monotonic stamp plus this offset. A pre-epoch
+/// wall clock or an unreadable uptime degrades to `None` - the row
+/// then renders `unknown UTC` rather than a fabricated time.
+pub(crate) fn wall_offset_ns() -> Option<i128> {
+    let wall = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_nanos() as i128;
+    let mono = monotonic_now_ns()? as i128;
+    Some(wall - mono)
+}
+
+/// Render a monotonic event stamp as `HH:MM:SS UTC` (the same
+/// UTC-only discipline every zejtron surface renders in). The
+/// wall offset is read in the caller's breath; an unreadable pair
+/// of clocks degrades to `unknown UTC` - an absent fact stays
+/// absent, never guessed.
+pub(crate) fn time_of_day_from_monotonic_ns(timestamp_ns: u64) -> String {
+    match wall_offset_ns() {
+        Some(offset) => time_of_day_from_parts(timestamp_ns, offset),
+        None => "unknown UTC".to_owned(),
+    }
+}
+
+/// The pure time-of-day core: a monotonic stamp plus a known wall
+/// offset, rendered as `HH:MM:SS UTC`. Separated from
+/// [`time_of_day_from_monotonic_ns`] so the arithmetic is
+/// unit-testable without depending on the live clocks, mirroring
+/// [`format_unix_secs`]'s split.
+fn time_of_day_from_parts(timestamp_ns: u64, offset_ns: i128) -> String {
+    let secs = ((timestamp_ns as i128 + offset_ns) / 1_000_000_000) as i64;
+    let time_of_day = secs.rem_euclid(86_400);
+    format!(
+        "{:02}:{:02}:{:02} UTC",
+        time_of_day / 3_600,
+        (time_of_day % 3_600) / 60,
+        time_of_day % 60
+    )
+}
+
 #[cfg(test)]
 #[path = "../../test/info/clock_tests.rs"]
 mod tests;

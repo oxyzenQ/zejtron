@@ -271,9 +271,10 @@ cargo build --release                  # a git checkout source-builds
 ```
 
 The build cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
-clang, no libbpf) into five programs — the `sched_process_exec`
-counter, the `inet_sock_set_state` socket-event stream, and the
-`vfs_open`/`vfs_write`/`vfs_writev` file probes — and embeds the
+clang, no libbpf) into six programs — the `sched_process_exec`
+counter, the `inet_sock_set_state` socket-event stream, the
+`vfs_open`/`vfs_write`/`vfs_writev` file probes, and the
+`sched_process_exit` post-mortem tap — and embeds the
 object into the host binary. The nightly
 toolchain and bpf-linker are build-time prerequisites only — the
 installed binary needs neither, and at runtime it needs no eBPF
@@ -311,11 +312,15 @@ its own wait rather than re-showing the first run's window).
 Without eBPF, `port` is the snapshot-only tool it was.
 
 `proc` is the process snapshot tree and stays one: zejtron does not
-watch process lifecycles. It is a read-only detective, not a monitor -
-the lifecycle stream surface was removed (night-improve-34), and the
-cost is named honestly in `doctor --symptom ram`'s Unaccounted block:
-processes that allocated memory and exited before a snapshot can no
-longer be attributed.
+stream process lifecycles. The lifecycle stream surface was removed
+(night-improve-34); night-improve-47 brought the exit half back as a
+post-mortem record, not a stream — the `sched_process_exit` tap
+records every process exit into a bounded kernel ring (leader-only:
+one record per process, carrying the pid and the process's own
+name), and `doctor --symptom ram` drains the last 5 seconds of it
+when the tap is attached, naming the recently-exited `[observed]`.
+The Unaccounted block names the lane's state either way — a host
+that never attached says so, never a silent empty section.
 
 ### The Lazy Camera
 
@@ -383,9 +388,11 @@ zejtron net
 # Host readiness — procfs visibility, socket parsing, evidence lanes
 zejtron doctor
 
-# Why is my RAM eaten? The memory symptom - /proc only, no eBPF:
+# Why is my RAM eaten? The memory symptom - /proc reads plus the
+# post-mortem exit drain (when the eBPF tap is attached):
 # per-process PSS, tmpfs files with holders, deleted-but-open files,
-# memfd files, page cache, slab, and the unaccounted residual.
+# memfd files, page cache, slab, the recently-exited [observed],
+# and the unaccounted residual.
 # --raw appends the verbatim /proc reads (drill-down)
 zejtron doctor --symptom ram
 zejtron doctor --symptom ram --raw
@@ -454,11 +461,16 @@ same stamp.
   signature churned across the floor - mnt_userns in 5.12 moved
   dentry from arg1 to arg2 - so no single offset serves the range).
   The log lane may still catch what the kernel lane does not.
-- `doctor --symptom ram` reads /proc alone: another user's process
+- `doctor --symptom ram` reads /proc (another user's process
   memory (smaps_rollup), fd tables, and /proc/slabinfo are
   permission-gated, and everything this invocation cannot see is
   counted in the report's Unaccounted block - never silently
-  dropped. `slow`, `disk`, and `network` are named deferrals this
+  dropped), and when the eBPF tap is attached it also drains the
+  post-mortem exit ring for the last 5 seconds, naming the
+  processes that exited `[observed]` - an old attach (pre
+  night-improve-47) plants no exit tap; re-run
+  `sudo zejtron doctor --attach` to heal the pin set. `slow`,
+  `disk`, and `network` are named deferrals this
   version: the flag prints the honest line and exits 0.
 
 ## Safety Features
@@ -502,13 +514,14 @@ runs in CI — the tree cannot drift back. See
 Evidence Ledger: a subject, a mode line naming which lane ran, an
 Evidence block, an Unaccounted block, and a two-line verdict. Every
 row carries exactly one provenance tag — `[observed]` (from an eBPF
-kernel event: vfs_open / vfs_write, filtered in-kernel by the
-tracked-inodes map so only the queried file's events reach the
-ring), `[measured]` (from a snapshot read at the instant of the
-query: /proc scans, stat(2)), `[inferred]` (from indirect evidence:
-audit.log or journalctl records, replayed), `[unaccounted]` (what
-the report cannot see — the block, not a row). Four tiers, no
-fifth, ever; the tag is the truth about the source, not marketing.
+kernel event: the file taps, filtered in-kernel by the
+tracked-inodes map so only the queried file's events reach the ring,
+or the post-mortem exit tap the ram symptom drains), `[measured]`
+(from a snapshot read at the instant of the query: /proc scans,
+stat(2)), `[inferred]` (from indirect evidence: audit.log or
+journalctl records, replayed), `[unaccounted]` (what the report
+cannot see — the block, not a row). Four tiers, no fifth, ever;
+the tag is the truth about the source, not marketing.
 The ladder is exclusive and every run names its lane: live
 (the kernel recorded it), journal fallback (the log answered), or
 no event lane available (the honest unavailability line). This
