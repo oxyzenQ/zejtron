@@ -26,21 +26,21 @@
 //! `struct path __f_path`, so the direct-member walk found nothing
 //! and every 6.18+ host refused at attach. The walk now descends
 //! anonymous struct/union members, and only those, accumulating bit
-//! offsets across the levels; a member still unfound after the
-//! descent is still the named error, never a guess.
+//! offsets; a member still unfound after the descent is the named error, never a guess.
 //!
 //! The parser is deliberately minimal: a BTF header check, a type
 //! walk, nine struct lookups, twelve member lookups. Pure std, no
 //! unsafe - it reads a file, trusts nothing, returns what THE HOST
 //! says, and names every lookup failure.
 //!
-//! night-improve-57: the plain-write tap moved to the syscall entry
-//! (__x64_sys_write) - the newest -O3 distro builds inline vfs_write
-//! into the stub (found dead on cachyos 7.2 by the moving-latest
-//! witness) - so the parse grows the four fd-walk slots
-//! (task_struct.files, files_struct.fdt, fdtable.max_fds,
-//! fdtable.fd) turning the syscall's fd register back into the
-//! struct file* the walk reads.
+//! night-improve-57: the plain-write tap left vfs_write behind
+//! (the newest -O3 distro builds inline it out of the executed
+//! path; found dead on cachyos 7.2 by the moving-latest witness;
+//! the tap now rides the raw_syscalls/sys_enter tracepoint,
+//! night-improve-59), so the parse grows the four fd-walk slots
+//! that turn the syscall's fd register back into the struct file*
+//! the walk reads: task_struct.files, files_struct.fdt,
+//! fdtable.max_fds, and fdtable.fd.
 
 /// The BTF magic, as a little-endian u16 over the file's first two
 /// bytes (0x9F 0xEB in the file).

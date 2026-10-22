@@ -19,7 +19,7 @@ fn section_shape_pins_every_row() {
         "CAP_BPF + CAP_PERFMON present",
         "live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))",
         "Lazy Camera (Kernel: recording | CLI: asleep)",
-        "sched_process_exec, inet_sock_set_state, vfs_open, __x64_sys_write",
+        "sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter",
         "/sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, open_tap_link, write_tap_link, \
 tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, file_events, offsets)",
     );
@@ -33,7 +33,7 @@ tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, file_eve
          Caps:        CAP_BPF + CAP_PERFMON present\n  \
          Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))\n  \
          Mode:        Lazy Camera (Kernel: recording | CLI: asleep)\n  \
-         Probes:      sched_process_exec, inet_sock_set_state, vfs_open, __x64_sys_write\n  \
+         Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter\n  \
          Pins:        /sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, open_tap_link, \
 write_tap_link, tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, \
 file_events, offsets)"
@@ -68,7 +68,7 @@ fn live_section_renders_the_separated_block() {
     );
     assert_eq!(
         lines[9],
-        "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, __x64_sys_write, vfs_writev, sched_process_exit",
+        "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, vfs_writev, sched_process_exit",
         "the probes row is the binary's contract, host-independent"
     );
 }

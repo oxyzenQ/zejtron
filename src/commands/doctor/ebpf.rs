@@ -23,7 +23,7 @@
 //!   Caps:        CAP_BPF + CAP_PERFMON present
 //!   Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))
 //!   Mode:        Lazy Camera (Kernel: recording | CLI: asleep)
-//!   Probes:      sched_process_exec, inet_sock_set_state, vfs_open, __x64_sys_write, vfs_writev
+//!   Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, vfs_writev
 //!   Pins:        /sys/fs/bpf/zejtron (present: tap, tap_link, stats, sock_tap, sock_tap_link, sock_events)
 //! ```
 //!
@@ -150,7 +150,7 @@ fn mode_row(verdict: &LaneVerdict) -> String {
 /// (the tap object carries all six programs whatever the host
 /// allows).
 fn probes_row() -> String {
-    "sched_process_exec, inet_sock_set_state, vfs_open, __x64_sys_write, \
+    "sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, \
      vfs_writev, sched_process_exit"
         .to_owned()
 }
