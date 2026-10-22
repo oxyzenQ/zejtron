@@ -150,26 +150,28 @@ surface_storm() {
 			# for one controlled write across the whole family, so a
 			# rerouted or cloned write path names itself in one
 			# round instead of hiding behind a bare FAIL.
-			local seen_rows trace_root kallsyms avail counts="" sym
+			local seen_rows trace_root kallsyms avail counts="" sym tracing_on
 			seen_rows="$(grep -h -m6 "\[observed\]" \
 				"$SM_SCRATCH/st-pollA.out" "$SM_SCRATCH/st-pollB.out" 2>/dev/null |
 				tr '\n' ';' || true)"
 			trace_root="/sys/kernel/tracing"
 			[[ -d "$trace_root" ]] || trace_root="/sys/kernel/debug/tracing"
-			kallsyms="$(grep -E ' [tT] (ksys_write|vfs_write|vfs_writev|new_sync_write|do_iter_write|vfs_iter_write|kernel_write)(\.[a-z0-9_.]+)?$' /proc/kallsyms 2>/dev/null |
+			kallsyms="$(grep -E ' [tT] (__x64_sys_write|__x64_sys_writev|__do_sys_write|ksys_write|vfs_write|vfs_writev|new_sync_write|do_iter_write|vfs_iter_write|kernel_write|vfs_open)(\.[a-z0-9_.]+)?$' /proc/kallsyms 2>/dev/null |
 				awk '{print $3}' | sort -u | tr '\n' ';' || true)"
-			avail="$(grep -x -E '(ksys_write|vfs_write|vfs_writev|new_sync_write|do_iter_write|vfs_iter_write|kernel_write)(\.[a-z0-9_.]+)?' \
+			avail="$(grep -x -E '(__x64_sys_write|__x64_sys_writev|__do_sys_write|ksys_write|vfs_write|vfs_writev|new_sync_write|do_iter_write|vfs_iter_write|kernel_write|vfs_open)(\.[a-z0-9_.]+)?' \
 				"$trace_root/available_filter_functions" 2>/dev/null | tr '\n' ';' || true)"
 			if [[ -d "$trace_root" && -w "$trace_root/kprobe_events" ]]; then
 				echo >"$trace_root/kprobe_events" 2>/dev/null || true
-				for sym in ksys_write vfs_write vfs_writev new_sync_write do_iter_write vfs_iter_write kernel_write; do
+				for sym in vfs_open __x64_sys_write __x64_sys_writev __do_sys_write ksys_write vfs_write vfs_writev vfs_iter_write; do
 					grep -qx "$sym" "$trace_root/available_filter_functions" 2>/dev/null || continue
 					echo "p:zjp$sym $sym" >>"$trace_root/kprobe_events" 2>/dev/null || true
 					echo 1 >"$trace_root/events/kprobes/zjp$sym/enable" 2>/dev/null || true
 				done
+				tracing_on="$(cat "$trace_root/tracing_on" 2>/dev/null || echo NA)"
+				echo 1 >"$trace_root/tracing_on" 2>/dev/null || true
 				: >"$trace_root/trace" 2>/dev/null || true
 				printf 'zejtron-storm-postmortem\n' >>"$hot1"
-				for sym in ksys_write vfs_write vfs_writev new_sync_write do_iter_write vfs_iter_write kernel_write; do
+				for sym in vfs_open __x64_sys_write __x64_sys_writev __do_sys_write ksys_write vfs_write vfs_writev vfs_iter_write; do
 					if [[ -d "$trace_root/events/kprobes/zjp$sym" ]]; then
 						counts="$counts $sym=$(grep -c "zjp$sym:" "$trace_root/trace" 2>/dev/null || true)"
 					fi
@@ -177,7 +179,7 @@ surface_storm() {
 				echo >"$trace_root/kprobe_events" 2>/dev/null || true
 			fi
 			sm_fail "storm: the ledger names the writes (wrote rows)" \
-				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; kallsyms family: ${kallsyms:-unavailable}; one controlled write:${counts:- not probed}; ftrace-available family: ${avail:-unavailable} (tracefs root: $trace_root)"
+				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; kallsyms family: ${kallsyms:-unavailable}; one controlled write (tracing_on was ${tracing_on:-NA}):${counts:- not probed}; ftrace-available family: ${avail:-unavailable} (tracefs root: $trace_root)"
 		fi
 		if [[ "$saw_raw" -eq 1 ]]; then
 			sm_pass "storm: the raw lane names op=write records"
