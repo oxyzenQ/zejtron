@@ -36,10 +36,14 @@
 # boot shape, rootless-packed, KVM when /dev/kvm is writable, TCG
 # otherwise) - the owner's local instrument for the same floor.
 #
-# Build shape: the lane builds the ONE release shape the e2e legs
-# build (the ebpf-enabled binary the release ships) on the runner,
-# then packs it into a RAM-resident initramfs (no disk, no modules -
-# the suite is loopback-only and every filesystem it needs is =y in
+# Build shape: the lane builds the pro-linux-amd64-v3-gnu alias -
+# the release page's amd64-v3 shape, the same shape the e2e legs
+# build (the owner's from-source law: the payload the micro-VM
+# exercises is the binary the release ships; the parity gate
+# scripts/gates/check-release-parity.sh binds the alias's -C
+# tokens to the release matrix's rustflags verbatim) - then packs
+# it into a RAM-resident initramfs (no disk, no modules - the
+# suite is loopback-only and every filesystem it needs is =y in
 # the Ubuntu generic kernel).
 #
 # Trigger discipline (the owner's unfiltered-CI simplification):
@@ -154,10 +158,8 @@ jobs:
         with:
           prefix-key: supermassive-kernel-floor
 
-      - name: Build the release binary
-        run: |
-          cargo build --release --locked
-          cp target/release/zejtron target/release/zejtron-built
+      - name: Build the pro-v3 binary (the release amd64-v3 shape)
+        run: cargo pro-linux-amd64-v3-gnu --locked
 
       # The floor kernel: the jammy GA release-day image (5.15.0-25),
       # resolved from the LIVE archive's jammy main pocket - the GA
@@ -226,7 +228,7 @@ jobs:
           tar -xf rootfs.tar -C rootfs
           mkdir -p rootfs/opt/zejtron
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/zejtron
-          cp "$GITHUB_WORKSPACE/target/release/zejtron-built" rootfs/opt/zejtron/zejtron
+          cp "$GITHUB_WORKSPACE/target/pro-linux-amd64-v3-gnu/zejtron" rootfs/opt/zejtron/zejtron
           chmod 755 rootfs/opt/zejtron/zejtron
           mkdir -p rootfs/opt/zejtron/.sandbox
           cat > rootfs/opt/zejtron/.sandbox/payload.sh <<'EOF'

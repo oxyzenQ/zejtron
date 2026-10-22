@@ -23,13 +23,18 @@
 # surface). Two contracts, two lanes - neither reduces the other,
 # and the existing lane's name and matrix stay untouched.
 #
-# Build shape: each leg builds the ONE release shape (the
-# ebpf-enabled binary the release ships - there is no dormant build,
-# by owner law: Cargo.toml's night-weekly-maintenance-1 made aya a
-# plain dependency and no build flag can produce a dormant binary).
-# The lane-honesty checks in the suite pin the honest unavailability
-# rendering on unprivileged/old-kernel runners instead - see
-# scripts/supermassive/README.md.
+# Build shape: each leg builds the pro-linux-amd64-v3-gnu alias -
+# the release page's amd64-v3 shape, never a bare `cargo build
+# --release` (the owner's from-source law: the binary the depth
+# suite exercises is the binary the release ships, and the parity
+# gate scripts/gates/check-release-parity.sh binds the alias's -C
+# tokens to the release matrix's rustflags verbatim). The ebpf
+# support is the binary's unconditional law (there is no dormant
+# build, by owner law: Cargo.toml's night-weekly-maintenance-1
+# made aya a plain dependency and no build flag can produce a
+# dormant binary). The lane-honesty checks in the suite pin the
+# honest unavailability rendering on unprivileged/old-kernel
+# runners instead - see scripts/supermassive/README.md.
 #
 # Trigger discipline (the owner's unfiltered-CI simplification):
 # every push (any branch, any tag) burns this lane - no path filter,
@@ -103,15 +108,13 @@ jobs:
         with:
           prefix-key: supermassive-e2e-low
 
-      - name: Build the release binary
-        run: |
-          cargo build --release --locked
-          cp target/release/zejtron target/release/zejtron-built
+      - name: Build the pro-v3 binary (the release amd64-v3 shape)
+        run: cargo pro-linux-amd64-v3-gnu --locked
 
       - name: Run the low leg (60s wall budget, full depth)
         run: |
           ./scripts/supermassive/legs/low.sh \
-            --bin target/release/zejtron-built
+            --bin target/pro-linux-amd64-v3-gnu/zejtron
 
       - name: Leg verdict
         if: always()
@@ -121,7 +124,7 @@ jobs:
           {
             echo "| leg | toolchain | shape | verdict |"
             echo "|-----|-----------|-------|---------|"
-            echo "| supermassive e2e - low specs | 1.98.1 (MSRV) | release (ebpf always-on) | ${LEG_STATUS} |"
+            echo "| supermassive e2e - low specs | 1.98.1 (MSRV) | pro-v3-gnu (ebpf always-on) | ${LEG_STATUS} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   supermassive-best:
@@ -163,15 +166,13 @@ jobs:
         with:
           prefix-key: supermassive-e2e-best
 
-      - name: Build the release binary
-        run: |
-          cargo build --release --locked
-          cp target/release/zejtron target/release/zejtron-built
+      - name: Build the pro-v3 binary (the release amd64-v3 shape)
+        run: cargo pro-linux-amd64-v3-gnu --locked
 
       - name: Run the best leg (300s wall budget, full depth)
         run: |
           ./scripts/supermassive/legs/best.sh \
-            --bin target/release/zejtron-built
+            --bin target/pro-linux-amd64-v3-gnu/zejtron
 
       - name: Leg verdict
         if: always()
@@ -181,5 +182,5 @@ jobs:
           {
             echo "| leg | toolchain | shape | verdict |"
             echo "|-----|-----------|-------|---------|"
-            echo "| supermassive e2e - best specs | stable | release (ebpf always-on) | ${LEG_STATUS} |"
+            echo "| supermassive e2e - best specs | stable | pro-v3-gnu (ebpf always-on) | ${LEG_STATUS} |"
           } >> "$GITHUB_STEP_SUMMARY"
