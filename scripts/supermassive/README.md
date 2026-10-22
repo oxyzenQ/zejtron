@@ -161,13 +161,15 @@ it, the pin directory gone - the lifecycle the doctor surface
 pins, re-proven under load). When the tap lane's write rows are
 absent on a whole kernel generation (the 7.2 moving-latest
 witness found exactly this on its first boot: the open and
-writev lanes observed, the plain-write lane silent), the
-failure carries its own post-mortem - the [observed] rows the
-renders actually saw, plus the ftrace probe counts for one
-controlled write where tracefs is writable (root inside the
-witness VMs) - so a rerouted write path names the generation it
-went silent on, never a bare FAIL (the named-never-swallowed
-law).
+writev lanes observed, the plain-write lane silent - and ftrace
+proved write(2) crosses neither vfs_write nor vfs_writev on that
+build), the failure carries its own post-mortem - the [observed]
+rows the renders actually saw, the kallsyms census of the write
+family (compiler clones included), the ftrace-available list, and
+probe counts for one controlled write across the whole family
+(where tracefs is writable, root inside the witness VMs) - so a
+rerouted or cloned write path names itself in one round, never a
+bare FAIL (the named-never-swallowed law).
 
 The local twin grew the arbitrary-kernel lane for the same
 reason: `--kernel PATH` boots any vmlinuz the operator chooses,
