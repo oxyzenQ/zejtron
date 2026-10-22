@@ -10,6 +10,7 @@
 //! is a condition the user verifies, never an instruction.
 //! zejtron remains read-only; the user decides.
 
+use super::exits::ExitLane;
 use super::{MemorySample, TmpfsFile, holders_label, residual_kib};
 
 /// 500 MiB: the threshold above which an unheld tmpfs file or a
@@ -19,25 +20,24 @@ use super::{MemorySample, TmpfsFile, holders_label, residual_kib};
 const ANOMALY_BYTES: u64 = 500 * 1024 * 1024;
 const RESIDUAL_PCT_THRESHOLD: u64 = 15;
 
-/// The top-N rows each section renders.
-const TOP_N: usize = 10;
+/// The top-N rows each section renders (the exits section shares
+/// it - one row cap for the whole report).
+pub(crate) const TOP_N: usize = 10;
 
 pub(crate) fn render(sample: &MemorySample, raw: bool) -> String {
     // Roles (night-improve-37): the section headers and field labels
     // ride green, the mode line / hints / annotations ride grey, the
-    // provenance tags ride the evidence split (green for [measured],
-    // grey for [unaccounted]), and the values (sizes, PIDs, comms,
-    // percentages) stay unwrapped - white, the terminal default. In
-    // Mono every wrap is the identity, byte-identical to the pinned
-    // shape.
+    // provenance tags ride the evidence split (green for [measured]
+    // and [observed], grey for [unaccounted]), and the values
+    // (sizes, PIDs, comms, percentages) stay unwrapped - white, the
+    // terminal default. In Mono every wrap is the identity,
+    // byte-identical to the pinned shape.
     let mut lines: Vec<String> = Vec::new();
     lines.push(format!(
         "{} memory / ram",
         crate::output::ok_out("Evidence report:")
     ));
-    lines.push(crate::output::grey_out(
-        "Mode: snapshot (this symptom does not need eBPF)",
-    ));
+    lines.push(crate::output::grey_out(mode_line(&sample.exit_lane)));
     lines.push(String::new());
     render_memory_header(sample, &mut lines);
     render_pss(sample, &mut lines);
@@ -46,12 +46,27 @@ pub(crate) fn render(sample: &MemorySample, raw: bool) -> String {
     render_memfds(sample, &mut lines);
     render_kernel_buckets(sample, &mut lines);
     render_slab(sample, &mut lines);
+    super::exits::render_section(&sample.exit_lane, &mut lines);
     render_unaccounted(sample, &mut lines);
     render_verdict(sample, &mut lines);
     if raw {
         render_raw(sample, &mut lines);
     }
     lines.join("\n")
+}
+
+/// The mode line, driven by the exit lane's state (night-improve-47):
+/// the post-mortem half is named only when it actually ran - and a
+/// failed drain says so instead of claiming the lane. One line,
+/// three truths, no drift with the section below.
+fn mode_line(lane: &ExitLane) -> &'static str {
+    match lane {
+        ExitLane::NotAttached => "Mode: snapshot (eBPF not attached - recent exits are invisible)",
+        ExitLane::Drained(_) => "Mode: snapshot + post-mortem (eBPF exit lane drained, last 5s)",
+        ExitLane::DrainFailed(_) => {
+            "Mode: snapshot + post-mortem (the exit drain failed - named below)"
+        }
+    }
 }
 
 /// Adaptive size label: GiB above one gibibyte (one decimal), MiB
@@ -370,23 +385,38 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
             ));
         }
     }
-    // The post-exit attribution loss, named always (night-improve-34):
-    // the lifecycle stream surface is gone, so a process that
-    // allocated memory and exited before this snapshot cannot be
-    // attributed any more. The report names the cost plainly -
-    // zejtron is a read-only detective, not a monitor - and leaves
-    // the trade-off where the reader can weigh it. The text rides
-    // grey (a boundary note); the [unaccounted] tag rides grey with
-    // it (the weakest evidence).
-    lines.push(format!(
-        "  {}  {}",
-        crate::output::grey_out(
-            "processes that allocated memory and exited before this snapshot: \
-             attribution lost (zejtron does not watch process lifecycles - it is \
-             a read-only detective, not a monitor)"
-        ),
-        crate::output::grey_out("[unaccounted]"),
-    ));
+    // The post-exit attribution boundary, named by lane state
+    // (night-improve-47 reworks night-improve-34's static line): the
+    // exit lane either named the recent exits [observed] in its own
+    // section, or names exactly why it cannot - the not-attached
+    // sentence is the spec's own. Grey text, grey [unaccounted] tag
+    // (a boundary note, the weakest evidence).
+    match &sample.exit_lane {
+        ExitLane::NotAttached => lines.push(format!(
+            "  {}  {}",
+            crate::output::grey_out(
+                "eBPF is not attached - processes that exited before this \
+                 snapshot are invisible"
+            ),
+            crate::output::grey_out("[unaccounted]"),
+        )),
+        ExitLane::Drained(_) => lines.push(format!(
+            "  {}  {}",
+            crate::output::grey_out(
+                "processes that exited before the 5-second eBPF window: \
+                 not named (the drain above holds the last 5 seconds only)"
+            ),
+            crate::output::grey_out("[unaccounted]"),
+        )),
+        ExitLane::DrainFailed(e) => lines.push(format!(
+            "  {}  {}",
+            crate::output::grey_out(&format!(
+                "the eBPF exit drain failed ({e}) - exited processes are \
+                 invisible to this report"
+            )),
+            crate::output::grey_out("[unaccounted]"),
+        )),
+    }
     // The permission boundaries, named always - a report that only
     // mentions them when they fired would read as "everything was
     // visible" on the runs where they did not fire. The text rides

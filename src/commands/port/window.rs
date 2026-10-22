@@ -242,7 +242,7 @@ fn collect_over_window(
 /// honest shape of a command-lifetime pump.
 fn window_events(events: &[SockEvent], options: &PortOptions) -> Vec<SockEvent> {
     use crate::ebpf::events::{IPPROTO_TCP, IPPROTO_UDP};
-    let now_ns = monotonic_now_ns();
+    let now_ns = crate::info::clock::monotonic_now_ns();
     let cutoff_ns = now_ns.map(|now| now.saturating_sub(options.window.as_nanos() as u64));
 
     let mut selected: Vec<_> = events
@@ -282,45 +282,13 @@ fn window_events(events: &[SockEvent], options: &PortOptions) -> Vec<SockEvent> 
     selected
 }
 
-/// The monotonic "now", in nanoseconds, from /proc/uptime (the
-/// kernel's own CLOCK_BOOTTIME clock at 10 ms resolution). `None`
-/// when the file is unreadable - the honest degradation, never a
-/// guess.
-fn monotonic_now_ns() -> Option<u64> {
-    let uptime = std::fs::read_to_string("/proc/uptime").ok()?;
-    let first = uptime.split_whitespace().next()?;
-    let seconds: f64 = first.parse().ok()?;
-    Some((seconds * 1e9) as u64)
-}
-
-/// The wall-clock offset for rendering event timestamps: wall-now
-/// minus monotonic-now, both read in the same breath. An event's
-/// wall time is its monotonic stamp plus this offset. A pre-epoch
-/// wall clock or an unreadable uptime degrades to `None` - the row
-/// then renders `unknown UTC` rather than a fabricated time.
-fn wall_offset_ns() -> Option<i128> {
-    let wall = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()?
-        .as_nanos() as i128;
-    let mono = monotonic_now_ns()? as i128;
-    Some(wall - mono)
-}
-
-/// Render an event's wall-clock time of day as `HH:MM:SS UTC` (the
-/// same UTC-only discipline every zejtron surface renders in).
+/// Render an event's wall-clock time of day as `HH:MM:SS UTC` -
+/// the civil clock module's monotonic companion owns the
+/// arithmetic and the UTC-only law (night-improve-47 moved the
+/// helper trio to one source; this is port's thin facade over it,
+/// so the port window and the doctor's exit rows cannot drift).
 fn event_time_of_day(event: &SockEvent) -> String {
-    let Some(offset) = wall_offset_ns() else {
-        return "unknown UTC".to_owned();
-    };
-    let secs = ((event.timestamp_ns as i128 + offset) / 1_000_000_000) as i64;
-    let time_of_day = secs.rem_euclid(86_400);
-    format!(
-        "{:02}:{:02}:{:02} UTC",
-        time_of_day / 3_600,
-        (time_of_day % 3_600) / 60,
-        time_of_day % 60
-    )
+    crate::info::clock::time_of_day_from_monotonic_ns(event.timestamp_ns)
 }
 
 /// The process name for a pid at render time, from the same

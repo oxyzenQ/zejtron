@@ -144,12 +144,15 @@ fn mode_row(verdict: &LaneVerdict) -> String {
 
 /// The Probes row (night-improve-2 opened it as Tracepoints,
 /// night-improve-3 renames it to carry the file taps,
-/// night-improve-42 adds the vectorized-write tap): the events the
+/// night-improve-42 adds the vectorized-write tap, night-improve-47
+/// adds the post-mortem exit tap): the events the
 /// tap listens to, by name - the binary's contract, not host state
-/// (the tap object carries all five programs whatever the host
+/// (the tap object carries all six programs whatever the host
 /// allows).
 fn probes_row() -> String {
-    "sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev".to_owned()
+    "sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev, \
+     sched_process_exit"
+        .to_owned()
 }
 
 /// The Pins row: the whole pin set, a partial set named honestly (a

@@ -12,8 +12,12 @@
 //! hidden feature, no "coming soon" promise - the line names exactly
 //! what exists and exactly what does not.
 //!
-//! The memory symptom rides /proc alone (no eBPF, no capabilities):
-//! every consumer the kernel exposes to this invocation is named,
+//! The memory symptom rides /proc, plus the one eBPF read it can
+//! make without becoming a monitor (night-improve-47): when the
+//! tap is attached, the post-mortem exit lane drains and names the
+//! processes that exited in the last five seconds, [observed]. No
+//! capabilities are needed for any of it. Every consumer the kernel
+//! exposes to this invocation is named,
 //! and whatever cannot be attributed is named as unaccounted - the
 //! Evidence Ledger discipline, applied to RAM.
 

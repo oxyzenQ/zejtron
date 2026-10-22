@@ -68,7 +68,7 @@ fn live_section_renders_the_separated_block() {
     );
     assert_eq!(
         lines[9],
-        "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev",
+        "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, vfs_write, vfs_writev, sched_process_exit",
         "the probes row is the binary's contract, host-independent"
     );
 }
@@ -129,13 +129,16 @@ fn pins_row_lists_every_pin_in_planting_order() {
             "open_tap_link",
             "write_tap_link",
             "writev_tap_link",
+            "exit_tap_link",
             "tap",
             "sock_tap",
             "open_tap",
             "write_tap",
             "writev_tap",
+            "exit_tap",
             "stats",
             "sock_events",
+            "proc_events",
             "tracked_inodes",
             "file_events",
             "offsets"

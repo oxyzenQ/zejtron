@@ -13,14 +13,18 @@
 //! grows it to five programs and the same five maps - the writev
 //! tap, whose attach symbol is verified from the host's own BTF
 //! before anything is planted, the argument-position sibling of
-//! the offsets law).
+//! the offsets law; night-improve-47 grows it to six programs and
+//! six maps - the post-mortem exit tap (ebpf/src/exits.rs) and its
+//! proc_events ring, the drain the doctor's ram symptom reads).
 //!
 //! This is the privileged one-shot. `doctor --attach` loads the
-//! embedded tap object, loads ALL FIVE programs (phase 1's
+//! embedded tap object, loads ALL SIX programs (phase 1's
 //! sched/sched_process_exec counter, phase 2's
 //! sock/inet_sock_set_state socket-event tap, phase 3's
 //! vfs_open/vfs_write file taps, night-improve-42's vfs_writev
-//! vectorized-write tap), attaches each, and pins
+//! vectorized-write tap, night-improve-47's
+//! sched/sched_process_exit post-mortem exit tap), attaches each,
+//! and pins
 //! EVERYTHING to bpffs - programs, links, maps - then writes the
 //! BTF-parsed struct offsets into the `offsets` map, and the
 //! process may exit, because the pinned links keep the taps alive
@@ -51,10 +55,11 @@ use aya::programs::links::FdLink;
 use super::btf;
 use super::embedded;
 use super::{
-    LaneVerdict, PIN_DIR, PIN_LINK, PIN_LINK_OPEN, PIN_LINK_SOCK, PIN_LINK_WRITE, PIN_LINK_WRITEV,
-    PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS,
-    PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_OPEN, PIN_PROG_SOCK, PIN_PROG_WRITE,
-    PIN_PROG_WRITEV, any_pin_present, lane_verdict, probe_kernel,
+    LaneVerdict, PIN_DIR, PIN_LINK, PIN_LINK_EXIT, PIN_LINK_OPEN, PIN_LINK_SOCK, PIN_LINK_WRITE,
+    PIN_LINK_WRITEV, PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS, PIN_MAP_PROC_EVENTS,
+    PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS, PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_EXIT,
+    PIN_PROG_OPEN, PIN_PROG_SOCK, PIN_PROG_WRITE, PIN_PROG_WRITEV, any_pin_present, lane_verdict,
+    probe_kernel,
 };
 
 use super::events::{
@@ -121,11 +126,24 @@ const WRITE_SYMBOL: &str = "vfs_write";
 /// guessed argument position reads garbage silently.
 const WRITEV_PROGRAM: &str = "writev_tap";
 
+/// The post-mortem exit program's name (night-improve-47) - the ELF
+/// symbol in ebpf/src/exits.rs, the program whose records name the
+/// processes that exited while nobody was asking.
+const EXIT_PROGRAM: &str = "sched_process_exit";
+
+/// The post-mortem exit tracepoint's category and event.
+const EXIT_TRACEPOINT_CATEGORY: &str = "sched";
+const EXIT_TRACEPOINT_EVENT: &str = "sched_process_exit";
+
 /// The tracked_inodes filter map name in the tap object.
 const MAP_TRACKED_INODES: &str = "tracked_inodes";
 
 /// The file_events ring map name in the tap object.
 const MAP_FILE_EVENTS: &str = "file_events";
+
+/// The proc_events ring map name in the tap object (night-improve-47
+/// - the post-mortem exit stream).
+const MAP_PROC_EVENTS: &str = "proc_events";
 
 /// The offsets config map name in the tap object.
 const MAP_OFFSETS: &str = "offsets";
@@ -265,11 +283,13 @@ pub fn attach() -> Result<String, String> {
                 .unwrap_or_else(|e| format!("counter unreadable ({e})"));
             Ok(format!(
                 "tap attached: tracepoints sched/sched_process_exec + \
-                 sock/inet_sock_set_state, kprobes vfs_open + vfs_write + \
+                 sock/inet_sock_set_state + sched/sched_process_exit (the post-mortem \
+                 exit tap), kprobes vfs_open + vfs_write + \
                  {writev_symbol} (the vectorized-write tap, verified from this \
                  host's BTF), offsets verified from this host's BTF, counter live; \
                  events since attach: {count}\npins: {PIN_DIR} (tap, tap_link, stats, \
-                 sock_tap, sock_tap_link, sock_events, open_tap, open_tap_link, \
+                 sock_tap, sock_tap_link, sock_events, exit_tap, exit_tap_link, \
+                 proc_events, open_tap, open_tap_link, \
                  write_tap, write_tap_link, writev_tap, writev_tap_link, \
                  tracked_inodes, file_events, offsets)"
             ))
@@ -278,7 +298,7 @@ pub fn attach() -> Result<String, String> {
     }
 }
 
-/// The plant step: load all five programs, attach each to its
+/// The plant step: load all six programs, attach each to its
 /// point, pin programs + links + maps. Any error names itself; the
 /// caller's fail() protocol cleans up everything the attempt
 /// planted - never a half-attached tap.
@@ -314,6 +334,14 @@ fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
         PIN_PROG_WRITEV,
         PIN_LINK_WRITEV,
     )?;
+    plant_tracepoint(
+        bpf,
+        EXIT_PROGRAM,
+        EXIT_TRACEPOINT_CATEGORY,
+        EXIT_TRACEPOINT_EVENT,
+        PIN_PROG_EXIT,
+        PIN_LINK_EXIT,
+    )?;
     bpf.take_map(MAP_STATS)
         .ok_or_else(|| format!("the tap object carries no '{MAP_STATS}' map"))?
         .pin(PIN_MAP_STATS)
@@ -322,6 +350,10 @@ fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
         .ok_or_else(|| format!("the tap object carries no '{MAP_SOCK_EVENTS}' map"))?
         .pin(PIN_MAP_SOCK_EVENTS)
         .map_err(|e| format!("the map pin {PIN_MAP_SOCK_EVENTS} failed: {e}"))?;
+    bpf.take_map(MAP_PROC_EVENTS)
+        .ok_or_else(|| format!("the tap object carries no '{MAP_PROC_EVENTS}' map"))?
+        .pin(PIN_MAP_PROC_EVENTS)
+        .map_err(|e| format!("the map pin {PIN_MAP_PROC_EVENTS} failed: {e}"))?;
     bpf.take_map(MAP_TRACKED_INODES)
         .ok_or_else(|| format!("the tap object carries no '{MAP_TRACKED_INODES}' map"))?
         .pin(PIN_MAP_TRACKED_INODES)

@@ -12,8 +12,8 @@
 
 use super::*;
 use crate::ebpf::events::{
-    AF_INET, AF_INET6, IPPROTO_TCP, IPPROTO_UDP, SOCK_EVENT_BYTES, SockEvent, TCP_CLOSE,
-    TCP_LISTEN, is_port_surface_event,
+    AF_INET, AF_INET6, IPPROTO_TCP, IPPROTO_UDP, PROCEXIT_EVENT_BYTES, ProcExitEvent,
+    SOCK_EVENT_BYTES, SockEvent, TCP_CLOSE, TCP_LISTEN, is_port_surface_event,
 };
 use std::mem::offset_of;
 
@@ -223,6 +223,46 @@ fn drain_on_a_clean_host_reads_nothing() {
         };
         assert!(
             err.contains("sock_events"),
+            "the error names the pin: {err}"
+        );
+    }
+}
+
+// ── The post-mortem exit record (night-improve-47) ────────────────
+
+#[test]
+fn proc_exit_event_is_exactly_32_bytes() {
+    // The ring record size: the kernel side's output() call and the
+    // host side's length check both carry this number - the same
+    // pin the sock record carries, for the same reason.
+    assert_eq!(PROCEXIT_EVENT_BYTES, 32);
+    assert_eq!(std::mem::size_of::<ProcExitEvent>(), 32);
+    assert_eq!(std::mem::align_of::<ProcExitEvent>(), 8);
+}
+
+#[test]
+fn proc_exit_event_offsets_are_pinned() {
+    // repr(C) natural alignment: the u64 first, the pid, the
+    // explicit pad, the comm array last - every byte written by the
+    // tap constructor (the 5.15-verifier lesson, the SockEvent
+    // discipline).
+    assert_eq!(offset_of!(ProcExitEvent, timestamp_ns), 0);
+    assert_eq!(offset_of!(ProcExitEvent, pid), 8);
+    assert_eq!(offset_of!(ProcExitEvent, _pad), 12);
+    assert_eq!(offset_of!(ProcExitEvent, comm), 16);
+}
+
+#[test]
+fn proc_exit_drain_on_a_clean_host_names_the_pin() {
+    // The post-mortem pump's clean-host refusal, mirroring the sock
+    // reader's: an absent pin is a diagnosis that names itself.
+    if !std::path::Path::new(PIN_MAP_PROC_EVENTS).exists() {
+        let err = match drain_proc_exits() {
+            Err(err) => err,
+            Ok(_) => panic!("absent pin must not drain"),
+        };
+        assert!(
+            err.contains("proc_events"),
             "the error names the pin: {err}"
         );
     }
