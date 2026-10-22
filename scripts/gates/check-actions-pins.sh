@@ -196,10 +196,34 @@ latest_major() {
 		# extract every v-tag token regardless of shape, then take the
 		# highest. Only the name field can match - a URL carries its
 		# version behind a slash, never behind a quote.
-		tag="$(curl -fsS -m 15 -H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
+		# The read names its own transport failures too (the residual
+		# the landing commit's hook run exposed: a quota-limited /tags
+		# read - 403, the unauthenticated IP quota - was reported as
+		# "no upstream release or semver tags", a fake no-versions
+		# verdict, the exact lie the header promises never to tell).
+		# Quota and unreachable are skips of their own here as well,
+		# the same split the releases/latest read applies; only a read
+		# that SUCCEEDED and still found no v-tag reports the
+		# human-decision skip.
+		local tags_body=""
+		if ! tags_body="$(curl -fsS -m 15 -H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
 			"${auth[@]}" \
-			"https://api.github.com/repos/${slug}/tags?per_page=100" 2>/dev/null |
-			grep -oE '"v[0-9]+(\.[0-9]+)*"' | tr -d '"' | sort -V | tail -1 || true)"
+			"https://api.github.com/repos/${slug}/tags?per_page=100" 2>/dev/null)"; then
+			local tags_code
+			tags_code="$(curl -sS -o /dev/null -m 15 "${auth[@]}" -w '%{http_code}' \
+				-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
+				"https://api.github.com/repos/${slug}/tags?per_page=100" 2>/dev/null || true)"
+			if [[ "${tags_code}" == "403" || "${tags_code}" == "429" ]]; then
+				SKIP_REASON="API quota low (HTTP ${tags_code}): skip, retry later or set GITHUB_TOKEN"
+			else
+				SKIP_REASON="API unreachable (HTTP ${tags_code:-000}): skip"
+			fi
+			LATEST_MAJOR["${slug}"]=""
+			LATEST_TAG["${slug}"]=""
+			LATEST_REASON["${slug}"]="${SKIP_REASON}"
+			return 0
+		fi
+		tag="$(grep -oE '"v[0-9]+(\.[0-9]+)*"' <<<"${tags_body}" | tr -d '"' | sort -V | tail -1 || true)"
 	fi
 	if [[ "${tag}" =~ ^v([0-9]+) ]]; then
 		major="${BASH_REMATCH[1]}"
