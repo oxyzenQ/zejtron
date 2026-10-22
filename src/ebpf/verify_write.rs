@@ -69,7 +69,7 @@ fn verify_once(dir: &Path, probe: &Path) -> Result<(), String> {
             Ok(events) => events,
             Err(e) => {
                 let _ = untrack_file(inode, device);
-                return Err(format!("the write verification drain failed: {e}"));
+                return Err(format!("attach refused: the write verification drain failed: {e}"));
             }
         };
         if drained
@@ -82,9 +82,10 @@ fn verify_once(dir: &Path, probe: &Path) -> Result<(), String> {
         if Instant::now() > deadline {
             let _ = untrack_file(inode, device);
             return Err(format!(
-                "the write tap stayed silent for its own verification write \
-                 (inode {inode:#x} tracked, no op={FILE_OP_WRITE} record drained) - \
-                 refusing to attach a tap that cannot record a single write"
+                "attach refused: the write tap stayed silent for its own \
+                 verification write (inode {inode:#x} tracked, no op={FILE_OP_WRITE} \
+                 record drained) - a tap that cannot record a single write must \
+                 not claim to be live"
             ));
         }
         std::thread::sleep(Duration::from_millis(50));

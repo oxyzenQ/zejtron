@@ -114,8 +114,12 @@ surface_doctor() {
 			"doctor --detach idempotence names the clean state"
 	else
 		sm_assert_rc 1 "$rc" "doctor --attach refuses honestly on a host that cannot attach (exit 1)"
-		sm_assert_contains "$SM_SCRATCH/att.err" "attach refused" \
-			"doctor --attach refusal names the reason"
+		if grep -q "attach refused" "$SM_SCRATCH/att.err"; then
+			sm_pass "doctor --attach refusal names the reason"
+		else
+			sm_fail "doctor --attach refusal names the reason" \
+				"the refusal output was: $(head -2 "$SM_SCRATCH/att.err" 2>/dev/null | tr '\n' ';')"
+		fi
 		# --detach is documented idempotent ("unpin everything,
 		# idempotent"): with no tap ever attached in this suite
 		# run, the verified contract is exit 0 and the honest
