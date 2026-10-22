@@ -150,12 +150,19 @@ surface_storm() {
 			# for one controlled write across the whole family, so a
 			# rerouted or cloned write path names itself in one
 			# round instead of hiding behind a bare FAIL.
-			local seen_rows trace_root kallsyms avail counts="" sym tracing_on
+			local seen_rows trace_root kallsyms avail counts="" sym tracing_on census
 			seen_rows="$(grep -h -m6 "\[observed\]" \
 				"$SM_SCRATCH/st-pollA.out" "$SM_SCRATCH/st-pollB.out" 2>/dev/null |
 				tr '\n' ';' || true)"
 			trace_root="/sys/kernel/tracing"
 			[[ -d "$trace_root" ]] || trace_root="/sys/kernel/debug/tracing"
+			# The write tap's drop census (night-improve-58's evidence
+			# round): the probe prints every 1024th drop with its stage
+			# map + a one-time walk-proof into this same trace buffer -
+			# captured BEFORE the ftrace section clears it, so the
+			# storm's own census is the evidence.
+			census="$(grep -h -m6 "\[zjw\]" "$trace_root/trace" 2>/dev/null |
+				tr '\n' ';' || true)"
 			kallsyms="$(grep -E ' [tT] (__x64_sys_write|__x64_sys_writev|__do_sys_write|ksys_write|vfs_write|vfs_writev|new_sync_write|do_iter_write|vfs_iter_write|kernel_write|vfs_open)(\.[a-z0-9_.]+)?$' /proc/kallsyms 2>/dev/null |
 				awk '{print $3}' | sort -u | tr '\n' ';' || true)"
 			avail="$(grep -x -E '(__x64_sys_write|__x64_sys_writev|__do_sys_write|ksys_write|vfs_write|vfs_writev|new_sync_write|do_iter_write|vfs_iter_write|kernel_write|vfs_open)(\.[a-z0-9_.]+)?' \
@@ -179,7 +186,7 @@ surface_storm() {
 				echo >"$trace_root/kprobe_events" 2>/dev/null || true
 			fi
 			sm_fail "storm: the ledger names the writes (wrote rows)" \
-				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; kallsyms family: ${kallsyms:-unavailable}; one controlled write (tracing_on was ${tracing_on:-NA}):${counts:- not probed}; ftrace-available family: ${avail:-unavailable} (tracefs root: $trace_root)"
+				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; write-tap census: ${census:-silent (no drops, no walk proof)}; kallsyms family: ${kallsyms:-unavailable}; one controlled write (tracing_on was ${tracing_on:-NA}):${counts:- not probed}; ftrace-available family: ${avail:-unavailable} (tracefs root: $trace_root)"
 		fi
 		if [[ "$saw_raw" -eq 1 ]]; then
 			sm_pass "storm: the raw lane names op=write records"
