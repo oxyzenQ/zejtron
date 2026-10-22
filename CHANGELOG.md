@@ -709,6 +709,32 @@ v11.0.0
   suite pins, and the lane's guarantee stays what it was -
   hostile bytes in, a named error out, never a panic.
 
+- The supermassive suite grows the realtime storm surface
+  (night-improve-51), the depth contract's realtime leg - the
+  owner's ask that the E2E suite prove the binary under
+  concurrent load, not only at rest. Four churn writers run a
+  fixed six-second window of plain write(2) appends while the
+  poller asks why about the hot files mid-storm: on the tap
+  lane the churn must be [observed] WHILE it happens (the
+  realtime claim, never an after-the-fact reconstruction) with
+  the ledger's wrote rows and the raw lane's op=write records;
+  on the snapshot lane the same load must render the honest
+  mode line with no fake [observed] rows - the no-fabrication
+  law live under concurrency, a stronger seat than the
+  idle-host version; the missing-path error path refuses by
+  name mid-storm; and the surface ends clean by its own hand
+  (the attach it made, the detach that unpins it, the pin
+  directory gone). The suite's README surface list is
+  corrected whole in the same pass: it still counted twelve
+  surfaces, the four symptom rows night-improve-48 landed had
+  never been named in it, and the list now counts the real
+  seventeen. The surface runs inside the kernel-floor and
+  witness micro-VMs by construction (the full low leg is their
+  payload), so the tap lane's realtime claim is proven under
+  KVM as root on the real kernels every push; the snapshot
+  lane is what an unprivileged host sees, pinned the same
+  night on the development box.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's
