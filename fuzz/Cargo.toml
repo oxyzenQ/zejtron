@@ -19,6 +19,13 @@
 # files are std-only and crate-import-free, so the includes compile
 # standalone. The eBPF kernel-side code is deliberately not fuzzed:
 # it runs behind the kernel verifier, not in userspace.
+#
+# The committed seed anchors (night-improve-50, fuzz/seeds/) ride
+# the same tracked-definition law: hand-built BTF blobs the
+# workflow copies into the working corpus before every run, so the
+# fuzzer starts inside the parser's anonymous-descent paths from
+# run one. The corpus the fuzzer grows stays untracked (the
+# fuzz/.gitignore law) - a seed is a contract, a discovery is not.
 
 [package]
 name = "zejtron-fuzz"

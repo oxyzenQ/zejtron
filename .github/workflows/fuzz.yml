@@ -34,6 +34,24 @@
 # the corpus that accumulates between runs via the cache. A found
 # crash is a parser bug: fix the parser to return the named error,
 # never the panic.
+#
+# The committed seed anchors (night-improve-50): fuzz/seeds/ carries
+# hand-built BTF blobs - the 6.18 unnamed-union shape, a two-level
+# anonymous nest, and the direct-member + vfs_writev shape - that
+# the lane copies into the working corpus before every run, so the
+# fuzzer starts inside the anonymous-descent paths (night-improve-49)
+# from run one instead of spending its budget rediscovering a valid
+# BTF header byte by byte. The grown corpus still stays out of git
+# (fuzz/.gitignore); the seeds are the lane's definition, the same
+# law as the targets and the manifests.
+#
+# The weekly deep session (night-improve-50): the same three targets
+# run for 15 minutes each every Monday 07:30 WIB (00:30 UTC) - the
+# owner-lazy insurance the continuous 60s net cannot buy. The corpus
+# cache restores the accumulated corpus under the same restore-keys,
+# so the deep session and the push sessions grow one asset; a
+# scheduled run and a push on the same ref share the concurrency
+# group, the newer run wins (the estate shape).
 
 ---
 name: zejtron - Fuzz
@@ -41,6 +59,9 @@ name: zejtron - Fuzz
 "on":
   push:
   pull_request:
+  schedule:
+    # The weekly deep session: Monday 00:30 UTC = 07:30 WIB.
+    - cron: "30 0 * * 1"
 
 permissions:
   contents: read
@@ -56,9 +77,11 @@ env:
 
 jobs:
   fuzz:
-    name: cargo fuzz ${{ matrix.target }} (60s)
+    # The budget rides the event (the Fuzz step's table): 60s on
+    # push and PR, 900s on the weekly deep session.
+    name: cargo fuzz ${{ matrix.target }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -101,10 +124,34 @@ jobs:
           restore-keys: |
             fuzz-corpus-${{ matrix.target }}-
 
+      # The committed anchors (night-improve-50): copied into the
+      # corpus AFTER the cache restore, so the seeds ride every
+      # session - push or weekly - and land in the cache the run
+      # saves. A target without a seeds directory is named honestly;
+      # the corpus cache still applies.
+      - name: Seed the corpus from the committed anchors
+        run: |
+          if [ -d "fuzz/seeds/${{ matrix.target }}" ]; then
+            mkdir -p "fuzz/corpus/${{ matrix.target }}"
+            cp "fuzz/seeds/${{ matrix.target }}"/* "fuzz/corpus/${{ matrix.target }}"/
+            echo "seeded $(find "fuzz/seeds/${{ matrix.target }}" -type f | wc -l) committed anchor(s) into the corpus"
+          else
+            echo "no committed anchors for ${{ matrix.target }} - the corpus cache still applies"
+          fi
+
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
 
       - name: Fuzz
         run: |
+          # The budget table: 60s on every push and pull request (the
+          # regression net), 900s on the weekly deep session (the
+          # corpus keeps growing between runs either way).
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            BUDGET=900
+          else
+            BUDGET=60
+          fi
+          echo "fuzz budget: ${BUDGET}s (event: ${{ github.event_name }})"
           cargo fuzz run ${{ matrix.target }} \
-            -- -max_total_time=60 -rss_limit_mb=4096 -timeout=25
+            -- -max_total_time="${BUDGET}" -rss_limit_mb=4096 -timeout=25

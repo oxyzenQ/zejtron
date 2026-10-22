@@ -4,7 +4,12 @@
 # the workflow cache, and a crash found there is reproduced from the
 # CI artifact, not from a committed blob. The targets, the manifests,
 # and the lockfile ARE tracked: the lane's definition travels with
-# the repo.
+# the repo. The committed seed anchors (night-improve-50,
+# fuzz/seeds/README.md) ride the same tracked-definition law: a
+# seed names a shape the parser must hold, a grown corpus entry is
+# a discovery, and only the first kind belongs in a commit - the
+# copy step in .github/workflows/fuzz.yml is the one bridge
+# between them.
 corpus/
 coverage/
 artifacts/
