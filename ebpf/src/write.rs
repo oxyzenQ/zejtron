@@ -79,11 +79,12 @@ const NR_WRITE: i64 = 1;
 // and friends, night-improve-57's four slots) - the same map the
 // kprobes read; no new slots, no BTF growth.
 
-// The drop census (night-improve-58's evidence instrument, kept
-// for the third generation's landing round): every drop names its
-// stage, every 1024th drop prints to tracefs, the first completed
-// walk prints its proof - the storm post-mortem reads the buffer
-// directly. Stage map: 1 offsets, 2 not-a-write (never censused -
+// The drop census (night-improve-58's evidence instrument, KEPT
+// PERMANENTLY: it turned two silent-anchor generations into
+// named stages and it rides every future report the same way):
+// every drop names its stage, every 1024th drop prints to tracefs
+// (the flood gate), the first completed walk prints its proof -
+// the storm post-mortem reads the buffer directly. Stage map: 1 offsets, 2 not-a-write (never censused -
 // the id check returns first), 3 files, 4 fdt, 5 max_fds, 6
 // fd>=max, 7 fd-array, 8 file, 9 inode, 10 ino, 11 mnt, 12 sb,
 // 13 s_dev, 14 filter-miss.
