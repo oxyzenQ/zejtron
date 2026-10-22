@@ -683,6 +683,32 @@ v11.0.0
   with synthetic samples - the report is the contract, not
   the host (417 tests, +49).
 
+- The fuzz lane grows seed anchors and a weekly deep session
+  (night-improve-50): fuzz/seeds/ carries three hand-built BTF
+  blobs - the kernel 6.18 unnamed-union shape night-improve-49
+  taught the member walk to descend, a two-level anonymous nest
+  that pins the qualifier resolution and the offset
+  accumulation, and the direct-member layout carrying a
+  verifiable vfs_writev so both pure entry points the harness
+  drives are anchored - and the fuzz workflow copies them into
+  the working corpus after every cache restore, so a 60-second
+  run starts inside the anonymous-descent paths instead of
+  spending its budget rediscovering a valid BTF header byte by
+  byte. The seeds are the lane's definition and travel with the
+  repo (the same law as the targets and the manifests, and the
+  fuzz/.gitignore comment now says which side each artifact
+  belongs to); the corpus the fuzzer grows between runs stays
+  out of git as before. The same workflow now also runs a
+  weekly deep session every Monday 07:30 WIB - 15 minutes per
+  target instead of 60 seconds, both sessions sharing the one
+  corpus cache, the budget the only difference (the low/best
+  leg law the supermassive suite already carries) - the
+  owner-lazy insurance the continuous regression net cannot
+  buy. No parser byte changed: the seeds are data, verified
+  against an independent walk of the same shapes the unit
+  suite pins, and the lane's guarantee stays what it was -
+  hostile bytes in, a named error out, never a panic.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

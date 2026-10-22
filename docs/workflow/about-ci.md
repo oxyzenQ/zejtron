@@ -56,6 +56,30 @@ The three targets:
 - `proc_parser` - the /proc and /etc raw parsers (`src/system/mod.rs`): the cmdline byte grammar plus the passwd, status, and cgroup string grammars behind the same UTF-8 gate the real readers sit in.
 - `sanitize_display` - the terminal-safety neutralizer, asserted on every input: no control character survives into a rendered row (the CWE-150 gate), and honest data comes back byte-identical.
 
+The lane's corpus starts from committed seed anchors
+(night-improve-50, `fuzz/seeds/`): hand-built BTF blobs - the
+kernel 6.18 unnamed-union shape, a two-level anonymous nest, and
+the direct-member layout carrying a verifiable `vfs_writev` - that
+the workflow copies into the working corpus after every cache
+restore. A coverage-guided fuzzer starting from an empty corpus
+must first rediscover a valid BTF header byte by byte before it
+can touch the anonymous-descent paths night-improve-49 added; the
+seeds put the first input inside those paths from run one, so the
+60-second budget buys depth where the parser actually walks
+today. The seeds are the lane's definition and travel with the
+repo (the same law as the targets and the manifests); the corpus
+the fuzzer grows between runs stays out of git (the `fuzz/`
+gitignore), reproduced from the CI artifact when a crash needs
+one.
+
+The weekly deep session rides the same lane: every Monday 07:30
+WIB (00:30 UTC) the three targets run for 15 minutes each instead
+of 60 seconds - the owner-lazy insurance the continuous net
+cannot buy. Both sessions share the corpus cache, so the deep
+session and the per-push sessions grow one asset; the budget is
+the only difference, exactly the low/best leg law the supermassive
+suite already carries.
+
 The lane rides nightly Rust - the fuzzer's standard toolchain - with the main crate's stable pin untouched: the override is env-scoped to the fuzz lane's cargo invocations, the other lanes never see it. The corpus is cached between runs, so the fuzzer keeps growing where the last one stopped; a crash fails CI with the crashing input in the log, and the fix is a parser that returns the named error. The eBPF kernel-side code is deliberately not fuzzed: it runs behind the kernel verifier, not in userspace.
 
 ## Dependency Maintenance
