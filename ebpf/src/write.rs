@@ -92,8 +92,16 @@ pub fn write_tap(ctx: ProbeContext) -> u32 {
         if fd >= max_fds {
             return 0;
         }
-        let fd_base = fdt.wrapping_add(o[OFF_SLOT_FDT_FD as usize] as usize);
-        let Some(file) = read_ptr_at(fd_base, u64::from(fd) * 8).filter(|f| *f != 0) else {
+        // fdtable->fd is the array POINTER, not the array: dereference
+        // it first, then index - two hops, not one. (The first landing
+        // read one hop - bytes inside the fdtable struct itself - and
+        // dropped every event; the storm post-mortem's ftrace control
+        // caught it live: the stub fired while the BPF stayed silent.)
+        let Some(fd_array) = read_ptr_at(fdt, o[OFF_SLOT_FDT_FD as usize]) else { return 0 };
+        if fd_array == 0 {
+            return 0;
+        }
+        let Some(file) = read_ptr_at(fd_array, u64::from(fd) * 8).filter(|f| *f != 0) else {
             return 0;
         };
 
