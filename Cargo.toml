@@ -71,7 +71,6 @@ include = [
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",
-    "README.md",
     "LICENSE",
     "TRADEMARK.md",
     "CHANGELOG.md",
