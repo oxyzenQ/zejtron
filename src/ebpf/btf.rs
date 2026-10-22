@@ -19,6 +19,18 @@
 //! honest alternative to a guess. BTF presence is already a fact the
 //! doctor's \[eBPF] section reports; a 5.15+ distro kernel ships it.
 //!
+//! night-improve-49: the member lookups learned the anonymous union.
+//! The 6.18 kernel line (Al Viro's constification, merged as the
+//! pull-f_path tag) wraps struct file's f_path in an unnamed union
+//! carrying `const struct path f_path` beside a writable
+//! `struct path __f_path`, so the direct-member walk found nothing
+//! and every 6.18+ host refused at attach. The walk now descends
+//! anonymous struct/union members, and only those (`file->f_path`
+//! never names a named nested aggregate's field), accumulating bit
+//! offsets across the levels. The refusal doctrine is unchanged:
+//! a member still unfound after the descent is still the named
+//! error, never a guess.
+//!
 //! The parser is deliberately minimal: a BTF header check, a type
 //! walk, six struct lookups by name, eight member lookups by name.
 //! Pure std, no unsafe - it reads a file and slices bytes. The walk
@@ -155,8 +167,9 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
     ])
 }
 
-/// One member's byte offset inside a located struct. A bitfield
-/// member (a bit offset that is not byte-aligned) is refused by
+/// One member's byte offset inside a located struct, direct or
+/// through any anonymous aggregate the struct embeds. A bitfield
+/// result (a bit offset that is not byte-aligned) is refused by
 /// name: no struct in the set carries one, and a straddled read
 /// would be a guess.
 fn member_offset(
@@ -165,18 +178,15 @@ fn member_offset(
     sname: &str,
     mname: &str,
 ) -> Result<u64, String> {
-    let members = ctx.members_of(entry);
-    for (name, bit_offset) in members {
-        if name == mname {
-            if bit_offset % 8 != 0 {
-                return Err(format!(
-                    "struct {sname} member {mname} is a bitfield (bit {bit_offset}) - refusing"
-                ));
-            }
-            return Ok(u64::from(bit_offset / 8));
-        }
+    let Some(bit_offset) = ctx.find_member(entry, mname, 0, 8) else {
+        return Err(format!("struct {sname} has no member {mname} in BTF"));
+    };
+    if bit_offset % 8 != 0 {
+        return Err(format!(
+            "struct {sname} member {mname} is a bitfield (bit {bit_offset}) - refusing"
+        ));
     }
-    Err(format!("struct {sname} has no member {mname} in BTF"))
+    Ok(u64::from(bit_offset / 8))
 }
 
 /// The walked BTF file: the type records and the string section,
@@ -189,7 +199,9 @@ struct BtfFile<'a> {
     strings_len: usize,
 }
 
-/// One located STRUCT record: its position and member count.
+/// One located STRUCT or UNION record: its member-list position
+/// and member count - the anonymous-descent walk rides the same
+/// pair for both aggregate kinds.
 #[derive(Clone, Copy)]
 struct StructEntry {
     members_pos: usize,
@@ -450,24 +462,94 @@ impl<'a> BtfFile<'a> {
         ))
     }
 
-    /// The struct's members as (name, bit offset) pairs.
-    fn members_of(&self, entry: StructEntry) -> Vec<(&'a str, u32)> {
+    /// The aggregate's members as (name, type id, bit offset)
+    /// triples - the type id is what the anonymous-aggregate
+    /// descent follows, and a name that reads empty is BTF's
+    /// anonymous-member marker.
+    fn members_of(&self, entry: StructEntry) -> Vec<(&'a str, u32, u32)> {
         let mut out = Vec::with_capacity(entry.vlen);
         for i in 0..entry.vlen {
             let m_pos = entry.members_pos + i * 12;
-            let Some(m_name_off) = self.data.get(m_pos..m_pos + 4) else {
+            let Some(m) = self.data.get(m_pos..m_pos + 12) else {
                 break;
             };
-            let m_name_off =
-                u32::from_le_bytes([m_name_off[0], m_name_off[1], m_name_off[2], m_name_off[3]]);
-            let Some(bits) = self.data.get(m_pos + 8..m_pos + 12) else {
-                break;
-            };
-            let bit_offset = u32::from_le_bytes([bits[0], bits[1], bits[2], bits[3]]);
+            let m_name_off = u32::from_le_bytes([m[0], m[1], m[2], m[3]]);
+            let m_type = u32::from_le_bytes([m[4], m[5], m[6], m[7]]);
+            let bit_offset = u32::from_le_bytes([m[8], m[9], m[10], m[11]]);
             let name = self.name(m_name_off).unwrap_or("");
-            out.push((name, bit_offset));
+            out.push((name, m_type, bit_offset));
         }
         out
+    }
+
+    /// One member's bit offset anywhere in the aggregate tree rooted
+    /// at `entry`, C-correct: `file->f_path` names a direct member
+    /// or a member of an anonymous struct/union the aggregate embeds,
+    /// never a named nested aggregate's field (which is a different
+    /// expression, `file->inner.field`). Kernel 6.18 wraps struct
+    /// file's f_path in exactly such an unnamed union, so the
+    /// direct-member walk found nothing on every 6.18+ host and the
+    /// descent restores the reach. The depth budget only bounds a
+    /// malformed blob's type graph - no kernel struct nests
+    /// anonymous aggregates eight levels deep.
+    fn find_member(
+        &self,
+        entry: StructEntry,
+        want: &str,
+        base_bits: u32,
+        depth: u8,
+    ) -> Option<u32> {
+        if depth == 0 {
+            return None;
+        }
+        for (name, type_id, bit_offset) in self.members_of(entry) {
+            // The anonymous member: its fields ride the inner
+            // aggregate's own member list, at this member's base. A
+            // sum that overflows belongs to a malformed blob and
+            // only skips the member.
+            let Some(absolute) = base_bits.checked_add(bit_offset) else {
+                continue;
+            };
+            if name == want {
+                return Some(absolute);
+            }
+            if name.is_empty()
+                && let Some(nested) = self.aggregate_of(type_id)
+                && let Some(found) = self.find_member(nested, want, absolute, depth - 1)
+            {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    /// The aggregate a member's type points at, through any
+    /// const/volatile/restrict/typedef chain wrapping it - the only
+    /// shape an anonymous member can be walked into. Everything
+    /// else stays skipped: a pointer or a scalar member hides no
+    /// field the host's own naming can reach.
+    fn aggregate_of(&self, type_id: u32) -> Option<StructEntry> {
+        let mut id = type_id;
+        for _ in 0..8 {
+            let pos = self.record_pos(id)?;
+            let info = u32_at(self.data, pos + 4);
+            let kind = (info >> 24) & 0x1F;
+            let target = u32_at(self.data, pos + 8);
+            match kind {
+                // STRUCT / UNION: the shape that can be entered.
+                4 | 5 => {
+                    let vlen = (info & 0xFFFF) as usize;
+                    return Some(StructEntry {
+                        members_pos: pos + 12,
+                        vlen,
+                    });
+                }
+                // TYPEDEF / VOLATILE / CONST / RESTRICT / TYPE_TAG.
+                8 | 9 | 10 | 11 | 18 => id = target,
+                _ => return None,
+            }
+        }
+        None
     }
 }
 
@@ -497,3 +579,7 @@ fn u32_at(data: &[u8], off: usize) -> u32 {
 #[cfg(test)]
 #[path = "../../test/ebpf/btf_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../test/ebpf/btf_flatten_tests.rs"]
+mod flatten_tests;

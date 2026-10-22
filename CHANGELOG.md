@@ -1159,6 +1159,35 @@ v11.0.0
   the lane could never reach before. FAIL stays reserved for the
   broken-procfs shape (not one net file readable); the OK and WARN
   message shapes are unchanged (night-weekly-maintenance-1).
+- Attach refused on every kernel of the 6.18 line, observed live
+  on the owner's own host (probed: 6.18.55-2-cachyos-lts): the BTF
+  offsets parser looked for struct file's members among the
+  struct's direct members only, and 6.18 wraps `f_path` inside an
+  unnamed union (`const struct path f_path` beside a writable
+  `struct path __f_path`, Al Viro's constification merged for the
+  6.18 line), so the lookup answered "struct file has no member
+  f_path in BTF" and the tap refused to plant - the refusal
+  doctrine working exactly as designed against a kernel layout
+  the parser had not been taught (night-improve-49, the
+  anonymous-union descent). The member walk now descends
+  anonymous struct/union members, and only those - `file->f_path`
+  names a direct member or a member of an anonymous aggregate in
+  C, never a named nested aggregate's field - resolving through
+  const/volatile/restrict/typedef wrappers and accumulating bit
+  offsets across the levels, so the eight probe offsets still
+  come from THE HOST's own /sys/kernel/btf/vmlinux, never from a
+  compiled-in guess. The refusal keeps both its law and its
+  wording: a member still unfound after the descent is still the
+  named error, and a bitfield found through the descent is still
+  refused on its accumulated offset. The synthetic-blob pins
+  grow the 6.18 shape (a full struct file whose f_path rides the
+  union, parsed end to end through the same eight lookups the
+  attach runs), the two-level offset accumulation through a
+  const-wrapped inner aggregate, the named-aggregate guard, the
+  refusal that survives a descent that finds nothing, and the
+  accumulated bitfield refusal - built on the shared blob table
+  the original pins built, now pub(super) for the flatten twin
+  module (422 tests, +5).
 
 ## History
 

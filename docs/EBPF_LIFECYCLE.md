@@ -83,7 +83,10 @@ The lane's whole life, boot to boot:
    socket-event tap, the `vfs_open`/`vfs_write`/`vfs_writev` file
    taps, and the `sched_process_exit` post-mortem exit tap),
    verifies every struct offset and the vectorized-
-   write symbol against the host's own BTF, attaches each program,
+   write symbol against the host's own BTF - the member lookups
+   descend the anonymous unions 6.18-line kernels wrap their
+   members in, and still refuse by name when a member cannot be
+   found - attaches each program,
    and pins programs, links, and maps under `/sys/fs/bpf/zejtron`.
    The attach prints its summary and exits. Because bpffs is a
    virtual filesystem, the pins do not survive a reboot - the lane

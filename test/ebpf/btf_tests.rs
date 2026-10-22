@@ -15,18 +15,24 @@
 //! end - the verified shape, the absent-symbol fallback, the
 //! reshaped refusal, the wrong-shape refusals, and the live-host
 //! probe.
+//!
+//! night-improve-49 shares the builders with a flatten twin module
+//! (test/ebpf/btf_flatten_tests.rs): the aggregate writers grew
+//! member type ids (`strukt_typed`, the unnamed `union_`, the
+//! `const_` wrapper), and the shared table pieces are pub(super) so
+//! the twin builds its 6.18-shaped blobs from the same source.
 
 use super::*;
 
 // ── The synthetic blob builder ─────────────────────────────────────
 
-struct StrTab {
+pub(super) struct StrTab {
     bytes: Vec<u8>,
     offsets: Vec<u32>,
 }
 
 impl StrTab {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             bytes: vec![0],
             offsets: vec![0],
@@ -41,13 +47,13 @@ impl StrTab {
     }
 }
 
-struct TypeWriter {
+pub(super) struct TypeWriter {
     bytes: Vec<u8>,
     records: u32,
 }
 
 impl TypeWriter {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             bytes: Vec::new(),
             records: 0,
@@ -55,7 +61,7 @@ impl TypeWriter {
     }
     /// The id the NEXT pushed record will carry (BTF ids run from 1
     /// in section order - the contract `record_pos` walks).
-    fn peek_id(&self) -> u32 {
+    pub(super) fn peek_id(&self) -> u32 {
         self.records + 1
     }
     fn push(&mut self, name_off: u32, kind: u32, vlen: usize, size: u32) {
@@ -66,7 +72,7 @@ impl TypeWriter {
         self.records += 1;
     }
     /// Filler INT record (+4 trailing bytes) to exercise the walk.
-    fn int(&mut self, strings: &mut StrTab, name: &str) {
+    pub(super) fn int(&mut self, strings: &mut StrTab, name: &str) {
         let off = strings.add(name);
         self.push(off, 1, 0, 4);
         self.bytes.extend_from_slice(&[0, 0, 0, 0]); // btf_int extra
@@ -76,16 +82,59 @@ impl TypeWriter {
         self.push(0, 3, 0, 8); // "size" reused as the value type id
         self.bytes.extend_from_slice(&[0; 12]); // btf_array
     }
-    /// One STRUCT with members: (name, bit_offset).
-    fn strukt(&mut self, strings: &mut StrTab, name: &str, size: u32, members: &[(&str, u32)]) {
-        let off = strings.add(name);
-        self.push(off, 4, members.len(), size);
-        for (mname, bit) in members {
+    /// The member trailer both aggregate writers append: (name,
+    /// type id, bit offset), twelve bytes each.
+    fn members_trailer(&mut self, strings: &mut StrTab, members: &[(&str, u32, u32)]) {
+        for (mname, mtype, bit) in members {
             let m_off = strings.add(mname);
             self.bytes.extend_from_slice(&m_off.to_le_bytes());
-            self.bytes.extend_from_slice(&1u32.to_le_bytes()); // member type: id 1
+            self.bytes.extend_from_slice(&mtype.to_le_bytes());
             self.bytes.extend_from_slice(&bit.to_le_bytes());
         }
+    }
+
+    /// One STRUCT with members: (name, bit_offset), every member
+    /// type pinned to id 1 - the shape every pre-49 blob carried.
+    pub(super) fn strukt(
+        &mut self,
+        strings: &mut StrTab,
+        name: &str,
+        size: u32,
+        members: &[(&str, u32)],
+    ) {
+        let typed: Vec<(&str, u32, u32)> = members
+            .iter()
+            .map(|(mname, bit)| (*mname, 1, *bit))
+            .collect();
+        self.strukt_typed(strings, name, size, &typed);
+    }
+
+    /// One STRUCT with typed members: (name, type id, bit_offset)
+    /// - the writer the 6.18-shaped blobs ride.
+    pub(super) fn strukt_typed(
+        &mut self,
+        strings: &mut StrTab,
+        name: &str,
+        size: u32,
+        members: &[(&str, u32, u32)],
+    ) {
+        let off = strings.add(name);
+        self.push(off, 4, members.len(), size);
+        self.members_trailer(strings, members);
+    }
+
+    /// One unnamed UNION record with typed members (kind 5): the
+    /// record's own name rides offset 0 - the empty string - the
+    /// same way a real anonymous aggregate's BTF record carries it.
+    pub(super) fn union_(&mut self, strings: &mut StrTab, size: u32, members: &[(&str, u32, u32)]) {
+        self.push(0, 5, members.len(), size);
+        self.members_trailer(strings, members);
+    }
+
+    /// One CONST record wrapping `target` - the wrapper the 6.18
+    /// f_path member's own type carries.
+    pub(super) fn const_(&mut self, target: u32) {
+        self.push(0, 10, 0, target);
     }
     /// One PTR record (no trailing bytes); the pointee rides the
     /// size/type field. Returns the PTR's id.
@@ -116,7 +165,7 @@ impl TypeWriter {
     }
 }
 
-fn build_btf(types: TypeWriter, strings: StrTab) -> Vec<u8> {
+pub(super) fn build_btf(types: TypeWriter, strings: StrTab) -> Vec<u8> {
     let mut out = Vec::new();
     // btf_header: magic u16, version u8, flags u8, hdr_len u32,
     // type_off u32, type_len u32, str_off u32, str_len u32.
