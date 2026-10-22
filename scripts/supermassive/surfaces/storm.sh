@@ -140,14 +140,40 @@ surface_storm() {
 		if [[ "$saw_wrote" -eq 1 ]]; then
 			sm_pass "storm: the ledger names the writes (wrote rows)"
 		else
+			# The post-mortem (the named-never-swallowed law): a tap
+			# whose write lane is silent on a whole kernel generation
+			# must name ITSELF. The failure detail carries the rows
+			# the renders actually did see, and - where tracefs is
+			# writable (root inside the witness VMs) - the ftrace
+			# probe counts for one controlled write, so a kernel that
+			# rerouted its write path says so in the log instead of
+			# hiding behind a bare FAIL.
+			local seen_rows trace_root wcount="NA" wvcount="NA"
+			seen_rows="$(grep -h -m6 "\[observed\]" \
+				"$SM_SCRATCH/st-pollA.out" "$SM_SCRATCH/st-pollB.out" 2>/dev/null |
+				tr '\n' ';' || true)"
+			trace_root="/sys/kernel/tracing"
+			[[ -d "$trace_root" ]] || trace_root="/sys/kernel/debug/tracing"
+			if [[ -d "$trace_root" && -w "$trace_root/kprobe_events" ]] &&
+				echo 'p:zjw vfs_write' >>"$trace_root/kprobe_events" 2>/dev/null &&
+				echo 'p:zjwv vfs_writev' >>"$trace_root/kprobe_events" 2>/dev/null &&
+				[[ -d "$trace_root/events/kprobes/zjw" ]]; then
+				echo 1 >"$trace_root/events/kprobes/zjw/enable" 2>/dev/null || true
+				echo 1 >"$trace_root/events/kprobes/zjwv/enable" 2>/dev/null || true
+				: >"$trace_root/trace" 2>/dev/null || true
+				printf 'zejtron-storm-postmortem\n' >>"$hot1"
+				wcount="$(grep -c 'zjw:' "$trace_root/trace" 2>/dev/null || true)"
+				wvcount="$(grep -c 'zjwv:' "$trace_root/trace" 2>/dev/null || true)"
+				echo >"$trace_root/kprobe_events" 2>/dev/null || true
+			fi
 			sm_fail "storm: the ledger names the writes (wrote rows)" \
-				"no 'wrote' row in either mid-storm render"
+				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; ftrace on one controlled write: vfs_write=${wcount} vfs_writev=${wvcount} (tracefs root: $trace_root)"
 		fi
 		if [[ "$saw_raw" -eq 1 ]]; then
 			sm_pass "storm: the raw lane names op=write records"
 		else
 			sm_fail "storm: the raw lane names op=write records" \
-				"no 'op=write' record in either mid-storm render"
+				"no op=write record in either mid-storm render (post-mortem above)"
 		fi
 		# The surface ends clean by its own hand: the detach that
 		# unpins the tap it attached, then the pin directory gone.

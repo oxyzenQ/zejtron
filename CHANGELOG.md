@@ -798,6 +798,34 @@ v11.0.0
   still verifies vfs_writev. The same bytes the witness boots
   in CI.
 
+- The 7.2 moving-latest witness's first-boot findings, fixed and
+  instrumented (night-improve-54): the kernel-witnesses lane's
+  new cachyos leg booted linux-cachyos 7.2.7-1 under KVM on the
+  best envelope and proved the whole estate green on the newest
+  line - BTF readable, the bpf syscall answering, the binary
+  running, the anonymous-descent offsets verified, the attach
+  lifecycle live - with exactly three red rows, all honest.
+  Two of the three: the doctor's structural determinism pinned
+  the pids row's process count, which moves between two
+  adjacent runs on 7.2 (kernel threads appear and vanish) - the
+  row is now in the volatile-field table where its class
+  always belonged, pinned by a new selftest fixture. The
+  third, an honest stay: the storm surface's wrote-rows check
+  found the plain-write tap silent on the whole 7.x generation
+  (the open and writev lanes observed live, the write lane
+  produced zero events for the same churn that the 5.15 floor
+  and 6.8 GA witnesses fully record). The upstream 7.2 source
+  shows ksys_write still calling vfs_write and the kernel's own
+  BTF confirms every offset the probe walks, so the surface now
+  carries the post-mortem the named-never-swallowed law
+  demands: on that failure the detail prints the [observed]
+  rows the renders actually saw, plus ftrace probe counts for
+  one controlled write (vfs_write and vfs_writev, via tracefs
+  where root) - the next witnesses run names the exact
+  mechanism, and the lane stays honestly red until the write
+  lane sees the 7.x generation. The selftest grows the fixture
+  for the volatile-table rule.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

@@ -99,6 +99,19 @@ else
 		"normalized gauge fixtures differ"
 fi
 
+# 3b. The visible-process gauge (the 7.2 witness's find, night-improve-54):
+# kernel threads appear and vanish between two adjacent doctor runs on
+# the newest kernel lines - the pids row's count is a moving gauge.
+printf '  pids:            OK    113 processes visible\n' >"$SM_SCRATCH/vp1"
+printf '  pids:            OK    114 processes visible\n' >"$SM_SCRATCH/vp2"
+sm_normalize "$SM_SCRATCH/vp1" "$SM_SCRATCH/vp1.norm"
+sm_normalize "$SM_SCRATCH/vp2" "$SM_SCRATCH/vp2.norm"
+if cmp -s "$SM_SCRATCH/vp1.norm" "$SM_SCRATCH/vp2.norm"; then
+	sm_pass "selftest: normalizer absorbs the visible-process gauge"
+else
+	sm_fail "selftest: normalizer absorbs the visible-process gauge" "normalized fixtures differ"
+fi
+
 # 4. The escape detector: a file with CSI is caught, clean text is not.
 printf 'plain line\n' >"$SM_SCRATCH/clean"
 printf 'colored \033[38;2;255;90;90mred\033[0m line\n' >"$SM_SCRATCH/dirty"
