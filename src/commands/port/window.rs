@@ -109,13 +109,13 @@ pub fn window_label(window: Duration) -> String {
 /// The refusal line: the explicit event request this run cannot
 /// serve. One shape for every reason (featureless binary, no root,
 /// chain not attached) - the sentence names them all, and the
-/// doctor's \[eBPF\] section names the exact one.
+/// doctor's \[eBPF\] section names the exact one. The sentence's
+/// single source lives in the evidence renderer
+/// (crate::evidence::render::unavailability_line); this is the
+/// Duration-taking facade port's callers speak, so the two
+/// surfaces cannot drift apart again.
 pub fn unavailability_line(window: Duration) -> String {
-    format!(
-        "Changes in the last {}: unavailable (this binary/run cannot capture \
-         events - see zejtron doctor [eBPF])",
-        window_label(window)
-    )
+    crate::evidence::render::unavailability_line(&window_label(window))
 }
 
 // ── The output assembly (lane-independent signature) ───────────────

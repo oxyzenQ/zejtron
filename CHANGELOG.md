@@ -574,6 +574,22 @@ v11.0.0
   cargo's pre-release rule keeps it opt-in until the stable bump
   makes the default install lane the frozen one.
 - Every surface zejtron prints now carries a consistent color scheme: green for primary content (section headers, field labels, verb names, the strongest provenance tags), grey for secondary content (mode lines, hints, timestamps, the weaker provenance tags, examples), white for the values. The scheme degrades honestly through truecolor, 256, 16, and plain text; piped output carries zero escape bytes and NO_COLOR is honored everywhere. All twelve render paths were audited — the audit is in the commit body, not implied.
+- The unavailability sentence now has exactly one source. The
+  Evidence Ledger renderer and port's window printed the same
+  refusal line from two hand-maintained copies
+  (src/evidence/render.rs and src/commands/port/window.rs - the
+  duplication was itself the documented contract, a cross-reference
+  each copy pointed at the other); a one-character drift in either
+  copy would have desynchronized the two surfaces' honesty with no
+  gate to catch it. The sentence's single source now lives in the
+  evidence renderer (pub unavailability_line), the layering
+  unchanged: evidence still stands alone below the commands, and
+  port's window delegates down through its Duration-taking facade,
+  the shape its callers and tests already speak. Zero behavior
+  change, proven the honest way before landing: the full unit
+  suite (347 tests) runs green on the identical bytes, including
+  the window suite's refusal-line pins and the renderer suite's
+  unavailability pin, with rustfmt and clippy clean.
 
 ### Added
 

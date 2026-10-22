@@ -45,20 +45,23 @@
 //! - The Changes subsection renders under the state rows: its rows
 //!   when there are any, `(no events in the window)` when the window
 //!   came back empty, and the named unavailability line (the same
-//!   sentence port's window prints - one grammar, two surfaces, the
-//!   duplication named) when no event lane could serve at all. An
-//!   empty window and an absent lane are different truths.
+//!   sentence port's window prints - one grammar, one source, two
+//!   surfaces: this module owns the sentence, port speaks it from
+//!   here) when no event lane could serve at all. An empty window
+//!   and an absent lane are different truths.
 //! - Unaccounted is always present; empty renders `(none observed)`.
 //! - Verdict is always present, exactly two lines.
 
 use super::EvidenceReport;
 
-/// The unavailability line, the port surface's own sentence (the
-/// phase-2 grammar): one grammar, two surfaces. Duplicated by hand
-/// rather than imported - the evidence module stands alone below the
-/// commands, and port's output is locked; the cross-reference is the
-/// contract (src/commands/port/window.rs:unavailability_line).
-fn unavailability_line(window_label: &str) -> String {
+/// The unavailability line, the one source of the sentence (the
+/// phase-2 grammar): the evidence renderer prints it here, and
+/// port's window speaks it from this same function - one grammar,
+/// one source, two surfaces. The layering is unchanged: the
+/// evidence module still stands alone below the commands (nothing
+/// here imports a command); port delegates down, so the sentence
+/// can no longer drift between the two surfaces that print it.
+pub fn unavailability_line(window_label: &str) -> String {
     format!(
         "Changes in the last {window_label}: unavailable (this binary/run cannot capture \
          events - see zejtron doctor [eBPF])"
