@@ -67,7 +67,7 @@ surface file carries where a lane applies:
   declarations on every host, whatever state they report
   (night-improve-43 grows the estate): the section's full row
   estate (Kernel, BTF, Lockdown, Caps, Probes, Pins) must render
-  its keys on every host; the Probes row must carry the four tap
+  its keys on every host; the Probes row must carry the five probe
   names in planting order (the binary's contract, not host state);
   and the kernel-floor agreement check reads
   /proc/sys/kernel/osrelease on the harness side and holds the

@@ -31,8 +31,8 @@ blake3 = "4da1e1c28bd2ae611c54aab7338cd01eb7a2d5b0a8149ff2c6dbd31da1bf65bb"
 size = 7328
 
 [contract]
-# The four attach targets the loader plants (src/ebpf/loader.rs),
-# documented for the registry consumer; a tap-set change rewrites
+# The five attach targets the loader plants (src/ebpf/loader.rs),
+# documented for the registry consumer; a probe-set change rewrites
 # this list in the same commit that changes the ebpf/ tree.
-attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "vfs_write"]
+attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "vfs_write", "vfs_writev"]
 version = "80.0.0-alpha.2"

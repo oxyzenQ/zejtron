@@ -255,29 +255,29 @@ cargo install --path .
 
 ### eBPF
 
-The `ebpf` cargo feature is the default: every default build — and
-the alpha install from the registry — embeds a pure-Rust tap. No kernel program
-loads until you attach (see below), nothing pins before that, and the
-featureless build stays available through `--no-default-features`.
+The eBPF event lane ships in every binary — there is no feature
+toggle: every build — and the alpha install from the registry —
+embeds a pure-Rust eBPF object. No program loads until you attach
+(see below) and nothing pins before that.
 
 ```sh
 ./scripts/dev/bootstrap-ebpf.sh        # once per machine, for the
                                         # source-built lane: the dated
                                         # nightly pin + bpf-linker 0.11.1
 cargo build --release                  # a git checkout source-builds
-                                        # the tap under the dated pin
+                                        # the object under the dated pin
 ```
 
-The feature cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
-clang, no libbpf) into four taps — the `sched_process_exec` counter,
-the `inet_sock_set_state` socket-event stream, and the
-`vfs_open`/`vfs_write` file taps — and embeds the object into the
-host binary. The nightly
+The build cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
+clang, no libbpf) into five programs — the `sched_process_exec`
+counter, the `inet_sock_set_state` socket-event stream, and the
+`vfs_open`/`vfs_write`/`vfs_writev` file probes — and embeds the
+object into the host binary. The nightly
 toolchain and bpf-linker are build-time prerequisites only — the
 installed binary needs neither, and at runtime it needs no eBPF
 support beyond a capable host: kernel 5.15+, lockdown inactive, and
 `CAP_BPF` + `CAP_PERFMON` in the effective set for attach. Attach
-also verifies every struct offset the file taps walk against the
+also verifies every struct offset the file probes walk against the
 host's own vmlinux BTF and refuses - by naming the missing struct -
 on a kernel whose BTF omits one.
 
@@ -285,17 +285,18 @@ on a kernel whose BTF omits one.
 every build, and the verbs live on the doctor:
 
 ```sh
-sudo zejtron doctor --attach   # plant the tap (pins under /sys/fs/bpf/zejtron/)
+sudo zejtron doctor --attach   # plant the probes (pins under /sys/fs/bpf/zejtron/)
 sudo zejtron doctor --detach   # unpin everything, idempotent
 ```
 
-After `--attach` the process may exit: the pinned link keeps the tap
-alive and the pinned map keeps the counter. `doctor` reads the event
-count back through the pin — the read side needs no capabilities.
-A featureless binary refuses both verbs by name and exits non-zero;
-never a fake success.
+After `--attach` the process may exit: the pinned links keep the
+programs attached and the pinned maps keep the data. `doctor` reads
+the event count back through the pin — the read side needs no
+capabilities. Every binary carries both verbs; a host that cannot
+attach gets the named refusal, a non-zero exit, and nothing left
+behind — never a fake success.
 
-With the feature built in and the chain attached, `port` now shows
+With the object embedded and the chain attached, `port` now shows
 what is listening (snapshot) and what entered or left LISTEN
 recently (event window), with the PID that made the change
 (`--since`, `--events-only`, `--snapshot-only`). The window collects
@@ -403,11 +404,12 @@ same stamp.
   target machine), and a git checkout source-builds it under the
   dated pin at build time only. There is no snapshot-only build; the
   doctor names the lane in every binary.
-- `port`'s event window requires the ebpf feature, root (or
-  `CAP_BPF`+`CAP_PERFMON`), BTF, and a kernel >= 5.15. Without any of
+- `port`'s event window requires the eBPF event lane (unconditional
+  in every binary), root (or `CAP_BPF`+`CAP_PERFMON`), BTF, and a
+  kernel >= 5.15. Without any of
   those, `port` prints snapshot-only and names the missing piece.
 - The `holds`/`touch`/`why` event windows ride the same requirements:
-  the ebpf feature, root (or `CAP_BPF`+`CAP_PERFMON`), BTF, and a
+  the eBPF event lane, root (or `CAP_BPF`+`CAP_PERFMON`), BTF, and a
   kernel >= 5.15. Without them the three surfaces fall back to
   journalctl (audit.log first) when it is available, or to
   snapshot-only with an honest unaccounted block naming the missing
