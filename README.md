@@ -469,11 +469,14 @@ same stamp.
   window. The log lane is `[inferred]` however strong an audit record
   reads - the tag is the truth about the source.
 - The live file taps record what crossed them: write(2) via the
-  `__x64_sys_write` kprobe (the write(2) syscall entry itself —
-  night-improve-57: the newest -O3 distro builds, cachyos 7.x,
-  inline `vfs_write` into the stub, so the old anchor stays
-  attachable and never executes; the moving-latest witness found
-  the silent anchor live), and the vectorized paths — `writev(2)`,
+  `raw_syscalls/sys_enter` tracepoint (night-improve-59, the third
+  anchor: the vfs_write kprobe went dead on the -O3 distro builds
+  that inline it into the syscall stub, and the stub kprobe itself
+  proved a silent anchor under this loader — so the tap moved to
+  the tracepoint machinery the sock/exec/exit taps already ride
+  across the whole floor span, and attach now verifies its own
+  recorded write before declaring the tap live: a silent anchor
+  refuses the attach), and the vectorized paths — `writev(2)`,
   `pwritev(2)`, `pwritev2(2)` — via the `vfs_writev` kprobe
   (night-improve-42; the tap's symbol and its first-argument shape
   are verified from the host's own BTF at attach, `do_iter_write`

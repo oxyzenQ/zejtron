@@ -535,7 +535,7 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
         let inferred = report.changes.rows.len() - observed;
         if observed > 0 {
             lines.push(format!(
-                "  {observed} {} event rows: vfs_open + write-syscall kprobes -> \
+                "  {observed} {} event rows: vfs_open kprobe + the write tap (raw_syscalls/sys_enter) -> \
                  tracked_inodes filter -> file_events ring; CLOCK_MONOTONIC stamps \
                  rendered via /proc/uptime + wall offset",
                 observed_tag

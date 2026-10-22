@@ -62,8 +62,8 @@ pub const PIN_PROG_OPEN: &str = "/sys/fs/bpf/zejtron/open_tap";
 /// Link pin - the file-open tap's attachment.
 pub const PIN_LINK_OPEN: &str = "/sys/fs/bpf/zejtron/open_tap_link";
 
-/// Program pin - the file-write tap (night-improve-57: anchored at
-/// the write(2) syscall entry, __x64_sys_write).
+/// Program pin - the file-write tap (night-improve-59: the
+/// raw_syscalls/sys_enter tracepoint, self-verified at attach).
 pub const PIN_PROG_WRITE: &str = "/sys/fs/bpf/zejtron/write_tap";
 
 /// Link pin - the file-write tap's attachment.
@@ -427,6 +427,7 @@ pub mod loader;
 pub mod readback;
 pub mod ringbuf;
 pub mod tracked;
+pub mod verify_write;
 
 /// The verb surface: the loader's attach/detach, the doctor's and
 /// the verbs' single truth.

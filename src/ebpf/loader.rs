@@ -114,15 +114,23 @@ const OPEN_SYMBOL: &str = "vfs_open";
 /// The file-write program's name.
 const WRITE_PROGRAM: &str = "write_tap";
 
-/// The kernel symbol the write tap attaches to (night-improve-57,
-/// the second generation): the write(2) syscall entry itself. The
-/// first generation anchored at vfs_write, which the newest -O3
-/// distro builds (cachyos 7.x, found live by the moving-latest
-/// witness) inline into this stub - the vfs_write entry stays
-/// attachable and never executes there. The stub exists across the
-/// whole floor span (4.17 on), so one anchor covers the range; the
-/// probe resolves the fd register through the fd-walk offsets.
-const WRITE_SYMBOL: &str = "__x64_sys_write";
+/// The write tap's tracepoint category (night-improve-59, the
+/// third generation): raw_syscalls - the syscall tracepoint, the
+/// one mechanism with zero observed failures across the whole
+/// estate (the sock, exec, and exit taps already ride it from the
+/// 5.15 floor through the 7.2 line). The first generation anchored
+/// at the vfs_write kprobe (dead on the -O3 distro builds that
+/// inline it into the syscall stub); the second at the stub kprobe
+/// itself (attachable, pinned, absolutely silent - the drop census
+/// proved the program never ran while ftrace fired at the same
+/// name and the same raw kallsyms address). The third generation
+/// filters the sys_enter record to write(2) by the syscall id and
+/// walks the fd from the record's args[0] through the BTF-verified
+/// fd-table hops - and the attach verifies its own recorded write
+/// before declaring success (verify_write), so the silent-anchor
+/// class cannot survive attach.
+const WRITE_TRACEPOINT_CATEGORY: &str = "raw_syscalls";
+const WRITE_TRACEPOINT_EVENT: &str = "sys_enter";
 
 /// The vectorized-write program's name (night-improve-42) - the ELF
 /// symbol in ebpf/src/main.rs. The ATTACH symbol is not a constant:
@@ -280,6 +288,20 @@ pub fn attach() -> Result<String, String> {
             if let Err(e) = write_offsets(&offsets) {
                 return Err(fail(e));
             }
+            // 6.6. The write tap's own verification (night-improve-59):
+            //     record-verify or refuse. The offsets law and the
+            //     writev symbol law verify the PARSE; this verifies
+            //     the RECORD - a scratch file is tracked, one write
+            //     is pushed through the tap, and the drained ring
+            //     must carry the scratch's own (inode, device, op).
+            //     A silent anchor - the failure class that took the
+            //     vfs_write kprobe on the -O3 distro builds and the
+            //     stub kprobe everywhere - cannot survive this
+            //     door: the attach refuses and the fail protocol
+            //     takes the pins down.
+            if let Err(e) = super::verify_write::verify_write_tap() {
+                return Err(fail(e));
+            }
             // 7. The fresh counter read: the verification battery's
             //    N=0 shape. A freshly attached counter reads zero
             //    (the kernel zeroes new maps); the readback proves
@@ -291,10 +313,10 @@ pub fn attach() -> Result<String, String> {
             Ok(format!(
                 "tap attached: tracepoints sched/sched_process_exec + \
                  sock/inet_sock_set_state + sched/sched_process_exit (the post-mortem \
-                 exit tap), kprobes vfs_open + __x64_sys_write (the write tap at \
-                 the syscall entry) + {writev_symbol} (the vectorized-write tap, \
-                 verified from this host's BTF), offsets verified from this host's \
-                 BTF, counter live; \
+                 exit tap) + raw_syscalls/sys_enter (the write tap, verified by its \
+                 own recorded write), kprobes vfs_open + {writev_symbol} \
+                 (the vectorized-write tap, verified from this host's BTF), offsets \
+                 verified from this host's BTF, counter live; \
                  events since attach: {count}\npins: {PIN_DIR} (tap, tap_link, stats, \
                  sock_tap, sock_tap_link, sock_events, exit_tap, exit_tap_link, \
                  proc_events, open_tap, open_tap_link, \
@@ -328,10 +350,11 @@ fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
         PIN_LINK_SOCK,
     )?;
     plant_kprobe(bpf, OPEN_PROGRAM, OPEN_SYMBOL, PIN_PROG_OPEN, PIN_LINK_OPEN)?;
-    plant_kprobe(
+    plant_tracepoint(
         bpf,
         WRITE_PROGRAM,
-        WRITE_SYMBOL,
+        WRITE_TRACEPOINT_CATEGORY,
+        WRITE_TRACEPOINT_EVENT,
         PIN_PROG_WRITE,
         PIN_LINK_WRITE,
     )?;
