@@ -104,6 +104,25 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Bounded retry (the release lane's gh_api shape): three attempts,
+# five seconds apart. The rustup dist CDN and the crates.io index
+# answer transient 5xx to a burst of parallel installs - four CI
+# release legs race the same endpoints on every tag push, and a cold
+# runner has no second attempt without this. Only idempotent
+# installations belong here.
+with_retry() {
+	local attempt status
+	for attempt in 1 2 3; do
+		if "$@"; then
+			return 0
+		fi
+		status=$?
+		warn "attempt ${attempt} failed (exit ${status}) - retrying in 5s"
+		sleep 5
+	done
+	return 1
+}
+
 # ── Resolve the dated nightly pin from the crate's own file ────────────────
 [[ -f "${TOOLCHAIN_FILE}" ]] || die "ebpf/rust-toolchain.toml not found (${TOOLCHAIN_FILE}) — run from inside the zejtron repo."
 command -v rustup >/dev/null 2>&1 || die "rustup is not installed — get it from https://rustup.rs first (this script drives it)."
@@ -275,7 +294,7 @@ PYEOF
 
 install_b3sum() {
 	ok "installing b3sum ${B3SUM_VERSION} (cargo install, --locked)..."
-	cargo install b3sum --version "${B3SUM_VERSION}" --locked ||
+	with_retry cargo install b3sum --version "${B3SUM_VERSION}" --locked ||
 		die "cargo install b3sum failed - install it manually: cargo install b3sum --version ${B3SUM_VERSION} --locked"
 	command -v b3sum >/dev/null 2>&1 ||
 		die "b3sum installed but not found on PATH - make sure ${HOME}/.cargo/bin is on PATH"
@@ -300,11 +319,11 @@ CHANGED=false
 
 if [[ "${TOOLCHAIN_OK}" != true ]]; then
 	ok "installing nightly ${EBPF_TOOLCHAIN} (minimal profile, rust-src + rustfmt)..."
-	rustup toolchain install "${EBPF_TOOLCHAIN}" --profile minimal --component rust-src --component rustfmt
+	with_retry rustup toolchain install "${EBPF_TOOLCHAIN}" --profile minimal --component rust-src --component rustfmt
 	CHANGED=true
 elif [[ "${COMPONENTS_OK}" != true ]]; then
 	ok "adding missing components to ${EBPF_TOOLCHAIN}..."
-	rustup component add rust-src rustfmt --toolchain "${EBPF_TOOLCHAIN}"
+	with_retry rustup component add rust-src rustfmt --toolchain "${EBPF_TOOLCHAIN}"
 	CHANGED=true
 fi
 
