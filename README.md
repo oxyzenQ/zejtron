@@ -266,8 +266,9 @@ embeds a pure-Rust eBPF object. No program loads until you attach
 ./scripts/dev/bootstrap-ebpf.sh        # once per machine, for the
                                         # source-built lane: the dated
                                         # nightly pin + bpf-linker 0.11.1
-cargo build --release                  # a git checkout source-builds
-                                        # the object under the dated pin
+cargo pro-linux-amd64-v3-gnu           # the pro lane source-builds the
+                                        # object + the release v3 binary
+                                        # (target/pro-linux-amd64-v3-gnu/)
 ```
 
 The build cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no

@@ -735,6 +735,32 @@ v11.0.0
   lane is what an unprivileged host sees, pinned the same
   night on the development box.
 
+- The from-source build law lands in CI: every lane that builds
+  the binary to exercise it now rides the pro aliases, never a
+  bare `cargo build --release` (night-improve-52, the owner's
+  ask - build from source means the pro lane, and the binary
+  the tests run is the binary the release ships). The supermassive
+  E2E legs (low-spec MSRV and best-spec stable) build through
+  `cargo pro-linux-amd64-v3-gnu`; the kernel-floor micro-VM packs
+  the same v3 gnu payload into its jammy initramfs; the kernel
+  witnesses build their static payload through
+  `cargo pro-linux-amd64-v3-musl` - the release page's amd64-v3
+  static shape, linked through rust-lld (the pinned toolchain's
+  own linker, the .cargo/config.toml contract), so the witnesses
+  and the supermassive musl legs install no musl-tools package
+  any more; the supermassive musl legs run their CLI battery
+  against the leg's own v3 static binary. The parity gate
+  (scripts/gates/check-release-parity.sh) already binds every
+  alias's -C tokens to the release matrix's rustflags verbatim,
+  so the lanes prove the exact shapes the release page ships.
+  The README's eBPF build example carries the pro lane spelling
+  now, and about-ci.md names the law in the three lane sections
+  it touches. Both alias shapes were built and exercised live
+  on the development box the same night: the v3 gnu binary ran
+  the realtime storm surface 23/23, and the v3 musl binary
+  reported its shape on -V - both lanes' CI verdicts prove the
+  rest on every push.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

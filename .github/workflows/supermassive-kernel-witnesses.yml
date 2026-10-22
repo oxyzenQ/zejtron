@@ -49,8 +49,15 @@
 # passed. The lane therefore builds and rides the STATIC musl
 # shape - userland-free, the same shape the twin's own TCG probe
 # prefers and the same-night live proofs rode (276/276, 280/280,
-# 280/280). The floor lane keeps the gnu shape: ITS userland is the
-# ubuntu:24.04 container, the exact glibc the runner builds with.
+# 280/280). Since night-improve-52 the payload is built through the
+# pro-linux-amd64-v3-musl alias - the release page's amd64-v3
+# static shape, never a bare `cargo build --release --target` (the
+# owner's from-source law, the parity gate binding the alias's -C
+# tokens to the release matrix's rustflags verbatim); the alias
+# links through rust-lld, the linker the pinned toolchain ships, so
+# the lane needs no musl-tools package (the .cargo/config.toml
+# contract). The floor lane keeps the gnu alias against its own
+# ubuntu:24.04 userland.
 #
 # Trigger discipline: every push (no path filter, no branch filter
 # - the owner's unfiltered-CI posture), plus workflow_dispatch as
@@ -164,14 +171,13 @@ jobs:
         with:
           prefix-key: supermassive-kernel-witnesses
 
-      # The payload: the static musl shape, exactly as the release
-      # lane's musl legs provision it (musl-tools, the same install
-      # the release matrix carries).
-      - name: Build the static musl binary
-        run: |
-          sudo apt-get -o Acquire::Retries=5 update -qq
-          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends musl-tools
-          cargo build --release --locked --target x86_64-unknown-linux-musl
+      # The payload: the static amd64-v3 musl shape, built through
+      # the pro alias - the release page's v3 static binary, the
+      # same -C tokens the parity gate binds to the release matrix.
+      # rust-lld carries the link, so no musl-tools install rides
+      # this lane any more (the .cargo/config.toml contract).
+      - name: Build the static pro-v3 musl binary
+        run: cargo pro-linux-amd64-v3-musl --locked
 
       # The lane itself: the operator's own instrument, under KVM, in
       # report mode, riding the static payload. The twin resolves the
@@ -182,7 +188,7 @@ jobs:
         run: |
           bash scripts/sandbox/zejtron-sandbox.sh \
             --kernel "${{ matrix.suite }}" \
-            --binary "$PWD/target/x86_64-unknown-linux-musl/release/zejtron" \
+            --binary "$PWD/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron" \
             --battery \
             --timeout 900
 

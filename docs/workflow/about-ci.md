@@ -208,11 +208,18 @@ does not run: `{MSRV 1.98.1, stable} x {gnu, musl}` - four legs, each
 verifying its shape end to end. The gnu legs run the full gate
 (`./scripts/build.sh check-all -q`) on their own toolchain, so the
 pinned MSRV floor is proven on itself instead of assumed from a
-stable-lane pass. The musl legs build the static release shape
-(musl-tools, exactly as the release matrix provisions it) and then run
-the CLI battery against the leg's own binary via `ZEJTRON_BIN_PATH` -
-closing the honest gap where the shipped musl binary had never
-executed the runtime battery. Triggers: every
+stable-lane pass. The musl legs build the static pro-v3 shape
+through the `cargo pro-linux-amd64-v3-musl` alias - the release
+page's amd64-v3 static binary, never a bare `cargo build --release
+--target` (the owner's from-source law, night-improve-52; the
+parity gate `scripts/gates/check-release-parity.sh` binds the
+alias's -C tokens to the release matrix's rustflags verbatim) -
+and then run the CLI battery against the leg's own binary via
+`ZEJTRON_BIN_PATH`, closing the honest gap where the shipped musl
+binary had never executed the runtime battery. The alias links
+through rust-lld (the pinned toolchain's own linker, the
+`.cargo/config.toml` contract), so the musl legs install no
+musl-tools package any more. Triggers: every
 push - no path filter, no branch filter (the owner's unfiltered-CI
 simplification retired the estate-wide spelling; the filter's sync
 tax across every workflow cost more than the runner minutes it saved)
@@ -231,10 +238,14 @@ REAL compiled binary through `scripts/supermassive/` (that suite's
 README is the contract's home). Two legs run the IDENTICAL check
 depth - the low-spec leg on the MSRV floor (60s wall budget) and
 the best-spec leg on the stable frontier (300s wall budget); the
-budget buys headroom, never depth. Triggers: every push (no path
-filter, no branch filter - the owner's unfiltered-CI simplification),
-plus `workflow_dispatch`; no `pull_request` trigger (the fast lane
-owns PRs).
+budget buys headroom, never depth. Both legs build the binary
+through the `cargo pro-linux-amd64-v3-gnu` alias - the release
+page's amd64-v3 shape, never a bare `cargo build --release` (the
+owner's from-source law, night-improve-52): the depth suite
+exercises the exact shape the release ships. Triggers: every push
+(no path filter, no branch filter - the owner's unfiltered-CI
+simplification), plus `workflow_dispatch`; no `pull_request`
+trigger (the fast lane owns PRs).
 
 ## Supermassive Container E2E (the container lane)
 
@@ -313,10 +324,13 @@ cannot drift from the operator's tool: they are one code path.
 The witness cache (the suite's GA kernel deb, the base tarball,
 the iproute2 closure) rides `actions/cache` keyed by the
 packer's hash; the initramfs itself is rebuilt every run. The
-payload is the STATIC musl shape - the twin's userland is the
+payload is the STATIC pro-v3 musl shape, built through the
+`cargo pro-linux-amd64-v3-musl` alias (night-improve-52: the
+release page's amd64-v3 static binary, rust-lld carrying the link
+so no musl-tools rides the lane) - the twin's userland is the
 ubuntu:22.04 base (glibc 2.35) and a glibc-2.39 runner build
 refuses to execute there (the lane's first run found exactly
-that); the floor lane keeps the gnu shape against its own
+that); the floor lane keeps the gnu alias against its own
 ubuntu:24.04 userland. The
 one CI-only proof this lane owns: the privileged attach
 lifecycle in the success direction on 6.8 GA under KVM (BTF

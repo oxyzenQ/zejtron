@@ -137,12 +137,6 @@ jobs:
         with:
           prefix-key: supermassive-${{ matrix.toolchain }}-${{ matrix.targets }}
 
-      - name: Install musl cross toolchain
-        if: matrix.targets != ''
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q musl-tools
-
       # check-all's spell lane (the same pinned codespell
       # gate-keepers.yml installs); the gnu legs are the check-all
       # legs, the musl legs build + battery without it.
@@ -154,14 +148,23 @@ jobs:
         if: matrix.targets == ''
         run: ./scripts/build.sh check-all -q
 
-      - name: Build the musl release shape
+      # The static musl shape is built through the pro alias - the
+      # release page's amd64-v3 static binary, never a bare
+      # `cargo build --release --target` (the owner's from-source
+      # law, night-improve-52; the parity gate binds the -C tokens
+      # to the release matrix). rust-lld carries the link (the
+      # pinned toolchain's own linker, the .cargo/config.toml
+      # contract), so no musl-tools install rides this lane any
+      # more - the dtolnay action's `targets:` input installs the
+      # musl std and the alias carries the rest.
+      - name: Build the static pro-v3 musl shape
         if: matrix.targets != ''
-        run: cargo build --release --locked --target "${{ matrix.targets }}"
+        run: cargo pro-linux-amd64-v3-musl --locked
 
       - name: CLI battery on the leg's own binary
         if: matrix.targets != ''
         env:
-          ZEJTRON_BIN_PATH: target/${{ matrix.targets }}/release/zejtron
+          ZEJTRON_BIN_PATH: target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron
         run: ./scripts/build.sh battery
 
       - name: Leg verdict
