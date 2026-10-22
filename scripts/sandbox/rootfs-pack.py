@@ -52,8 +52,8 @@ directory deletes the dynamic linker from the image).
 Usage (the bash entrypoint scripts/sandbox/zejtron-sandbox.sh owns
 the orchestration; these subcommands are its legs):
   python3 scripts/sandbox/rootfs-pack.py kernel --suite SUITE --cache DIR
-      (SUITE = floor, the jammy GA 5.15.0 floor kernel; or a witness
-      name - focal, jammy, noble - that suite's GA release-day kernel)
+      (SUITE = floor, the jammy GA 5.15.0 floor kernel; a GA witness name
+      - focal, jammy, noble; or cachyos, the moving-latest witness)
   python3 scripts/sandbox/rootfs-pack.py initrd --cache DIR --repo DIR \
       --binary PATH --init PATH [--payload PATH] [--lane floor|arbitrary]
   python3 scripts/sandbox/rootfs-pack.py self-test
@@ -117,6 +117,17 @@ SUITE_TABLE = {
         "version_prefix": "6.8.0",
         "out": "vmlinuz-noble",
     },
+    # The moving-latest witness (night-improve-53): the owner's own
+    # distro line, unpinned - the resolver takes the repo's CURRENT
+    # flagship package; the .ver sidecar decides cache reuse.
+    "cachyos": {
+        "kind": "archpkg",
+        "repo_index": "https://mirror.cachyos.org/repo/x86_64/cachyos/",
+        "pkg_re": re.compile(
+            r'href="(?P<pkg>linux-cachyos-(?P<ver>[0-9][0-9a-zA-Z._-]*?)-x86_64\.pkg\.tar\.zst)"'
+        ),
+        "out": "vmlinuz-cachyos",
+    },
 }
 
 
@@ -127,7 +138,9 @@ ROOT_PACKAGES = ["iproute2"]
 
 
 def http_get(url, timeout=120):
-    with urllib.request.urlopen(url, timeout=timeout) as r:
+    # The UA matters: the cachyos CDN refuses the bare `Python-urllib`.
+    req = urllib.request.Request(url, headers={"User-Agent": "zejtron-sandbox/1.0 (+zejtron kernel-witness)"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
 
 
@@ -473,6 +486,8 @@ def fetch_suite_kernel(cache, suite):
     prefix is the identity guard: an index that stops carrying the
     suite's GA image fails loudly instead of booting a different
     kernel under the suite's name."""
+    if SUITE_TABLE[suite].get("kind") == "archpkg":
+        return fetch_arch_pkg_kernel(cache, suite)
     entry = SUITE_TABLE[suite]
     out = os.path.join(cache, entry["out"])
     if os.path.exists(out):
@@ -513,6 +528,71 @@ def fetch_suite_kernel(cache, suite):
             fh.write(tar.extractfile(member).read())
     os.chmod(out, 0o644)
     say(f"kernel: {out} ({os.path.getsize(out) // 1024} KiB)")
+    return out
+
+
+def _intact_zst(path):
+    """The zstd frame magic gates the cached arch package (the
+    ar-magic twin): a truncated leftover gets re-fetched."""
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(4) == b"\x28\xb5\x2f\xfd"
+    except OSError:
+        return False
+
+
+def _pkg_ver_key(ver):
+    """Numeric-aware compare ("7.2.11-1" > "7.2.7-1" digit-wise; non-numeric parts after numbers)."""
+    return tuple((0, int(p)) if p.isdigit() else (1, p) for p in re.split(r"[.\-]", ver))
+
+
+def fetch_arch_pkg_kernel(cache, suite):
+    """The moving-latest witness (night-improve-53): the repo index is
+    consulted on EVERY call - the .ver sidecar beside the cached
+    vmlinuz names its version, a moved repo re-resolves, so the
+    witness can never boot a stale "latest" (the frozen GA pockets
+    keep the ubuntu entries' existence shortcut)."""
+    entry = SUITE_TABLE[suite]
+    out = os.path.join(cache, entry["out"])
+    ver_file = out + ".ver"
+    listing = http_get_text(entry["repo_index"], timeout=120)
+    cands = [(m.group("ver"), m.group("pkg")) for m in entry["pkg_re"].finditer(listing)]
+    if not cands:
+        raise SystemExit(
+            f"no linux-cachyos package in {entry['repo_index']} - the repo moved; "
+            "the witness refuses to boot a different kernel under the suite's name"
+        )
+    ver, pkg = max(cands, key=lambda c: _pkg_ver_key(c[0]))
+    if os.path.exists(out) and os.path.exists(ver_file):
+        with open(ver_file, "r", encoding="utf-8") as fh:
+            if fh.read().strip() == ver:
+                say(f"{suite} kernel: {out} ({ver}, still the repo's newest)")
+                return out
+    pkg_path = os.path.join(cache, pkg)
+    if not _intact_zst(pkg_path):
+        say(f"downloading {pkg} ({ver}, the {suite} repo's current kernel)...")
+        download_atomic(entry["repo_index"] + pkg, pkg_path, timeout=900)
+    with open(pkg_path, "rb") as fh:
+        data = _zstd_decompress(fh.read())
+    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+        # The arch kernel-package layout law: the vmlinuz rides at
+        # usr/lib/modules/<version>/vmlinuz - exactly one (the /boot
+        # symlinks are installed by the distro's hooks, not shipped).
+        hits = [
+            m for m in tar.getmembers()
+            if m.name.startswith("usr/lib/modules/") and m.name.endswith("/vmlinuz")
+        ]
+        if len(hits) != 1:
+            raise SystemExit(f"expected one usr/lib/modules/*/vmlinuz, found {len(hits)}")
+        payload = tar.extractfile(hits[0]).read()
+    tmp = out + ".part"
+    with open(tmp, "wb") as fh:
+        fh.write(payload)
+    os.replace(tmp, out)
+    os.chmod(out, 0o644)
+    with open(ver_file, "w", encoding="utf-8") as fh:
+        fh.write(ver)
+    say(f"kernel: {out} ({os.path.getsize(out) // 1024} KiB, {ver})")
     return out
 
 
@@ -649,8 +729,9 @@ def parse_newc_for_test(data):
 
 def self_test():
     """Unit-verify the pure pieces: the ar reader, the dependency
-    resolver, the floor-kernel regex, the newc writer, and the atomic
-    cache discipline (a tree with a file, a dir, a symlink, and a
+    resolver, the floor-kernel regex, the moving-latest witness
+    regex and version key, the newc writer, and the atomic cache
+    discipline (a tree with a file, a dir, a symlink, and a
     synthesized device node parses back with the exact fields).
     Network reachability is NOT asserted - the entrypoint reports it
     as a preflight note instead."""
@@ -741,12 +822,47 @@ def self_test():
     )
     check(
         "the suite table is complete and shaped",
-        set(SUITE_TABLE) == {"floor", "focal", "jammy", "noble"}
+        set(SUITE_TABLE) == {"floor", "focal", "jammy", "noble", "cachyos"}
         and SUITE_TABLE["floor"]["pocket"] == "jammy"
         and SUITE_TABLE["jammy"]["pocket"] == "jammy"
-        and len({e["out"] for e in SUITE_TABLE.values()}) == 4,
+        and len({e["out"] for e in SUITE_TABLE.values()}) == 5,
         "floor and jammy share the pocket; each suite owns its vmlinuz cache file",
     )
+
+    # the moving-latest witness (night-improve-53): the cachyos regex
+    # pins the flagship package alone (variants, headers twins, and
+    # signatures never match); the version key compares numerically.
+    cachyos = SUITE_TABLE["cachyos"]
+    flagship = cachyos["pkg_re"].search('href="linux-cachyos-7.2.7-1-x86_64.pkg.tar.zst"')
+    check(
+        "cachyos regex matches the flagship package",
+        bool(flagship) and flagship.group("ver") == "7.2.7-1",
+    )
+    check(
+        "cachyos regex rejects variant flavors, twins, and sigs",
+        not any(
+            cachyos["pkg_re"].search(line)
+            for line in (
+                'href="linux-cachyos-7.2.7-1-x86_64.pkg.tar.zst.sig"',
+                'href="linux-cachyos-bore-7.2.7-1-x86_64.pkg.tar.zst"',
+                'href="linux-cachyos-headers-7.2.7-1-x86_64.pkg.tar.zst"',
+                'href="linux-cachyos-bmq-7.0.11-1-x86_64.pkg.tar.zst"',
+            )
+        ),
+    )
+    check(
+        "the arch version key compares numerically",
+        _pkg_ver_key("7.2.11-1") > _pkg_ver_key("7.2.7-1")
+        and _pkg_ver_key("7.2.7-2") > _pkg_ver_key("7.2.7-1"),
+    )
+    with tempfile.TemporaryDirectory() as td:
+        zst = os.path.join(td, "pkg.tar.zst")
+        with open(zst, "wb") as fh:
+            fh.write(b"\x28\xb5\x2f\xfd")
+        check(
+            "zstd magic gates the arch package cache",
+            _intact_zst(zst) is True and _intact_zst(zst + ".missing") is False,
+        )
 
     # newc: pack entries, parse them back, verify every field.
     buf = io.BytesIO()
@@ -851,7 +967,9 @@ def main():
         "--suite",
         choices=sorted(SUITE_TABLE),
         default="floor",
-        help="floor = the jammy GA 5.15.0 kernel; a witness name (focal, jammy, noble) resolves that suite's GA kernel",
+        help="floor = the jammy GA 5.15.0 kernel; a GA witness name (focal, "
+        "jammy, noble) resolves that suite's GA kernel; cachyos resolves "
+        "the repo's current flagship kernel (the moving-latest witness)",
     )
     k.add_argument("--cache", required=True)
     i = sub.add_parser("initrd", help="build the gzipped newc initramfs")

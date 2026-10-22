@@ -313,8 +313,17 @@ unfiltered-CI simplification), plus `workflow_dispatch`; no
 
 `zejtron - Supermassive Kernel Witnesses` boots the GA kernels on
 either side of the floor line - focal 5.4.0-26 (below), jammy
-5.15.0-25 (at, report mode), noble 6.8.0-31 (above) - in KVM
-micro-VMs and runs the FULL supermassive low leg inside each, in
+5.15.0-25 (at, report mode), noble 6.8.0-31 (above) - plus the
+moving-latest witness, the cachyos leg (night-improve-53): the
+owner's own distro line, unpinned - the packer resolves the repo's
+CURRENT flagship kernel (linux-cachyos, the newest line the repo
+ships) and re-checks the repo index on every call through the .ver
+sidecar, so the witness can never boot a stale "latest". The GA
+legs ride the low envelope (the low-spec leg's math); the
+moving-latest leg rides the BEST envelope - every core / three
+quarters of the runner's RAM - the newest-software half of the
+low/best span the suite's own leg vocabulary carries. All four
+witnesses run the FULL supermassive low leg inside each, in
 report mode: the init reports the floor direction instead of
 gating the identity, and the payload's exit code is the verdict.
 The lane runs the OPERATOR'S OWN INSTRUMENT

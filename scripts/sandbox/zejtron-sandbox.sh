@@ -35,7 +35,13 @@
 # direction), jammy is the floor kernel ridden on the report lane,
 # and noble is the above-floor witness (6.8 GA, BTF readable: the
 # attach lifecycle in the success direction on a second kernel
-# generation).
+# generation). The cachyos preset (night-improve-53) is the
+# moving-latest witness - the owner's own distro line, unpinned:
+# the packer resolves the repo's CURRENT flagship kernel
+# (linux-cachyos, the newest line the repo ships) and re-checks the
+# repo index on every call, so the witness can never boot a stale
+# "latest"; it rides the best envelope, the newest kernel at every
+# core the host has.
 #
 # Usage:
 #   scripts/sandbox/zejtron-sandbox.sh --battery      # the supermassive low leg, root, in the VM
@@ -44,18 +50,22 @@
 #   scripts/sandbox/zejtron-sandbox.sh --self-test    # rootless preflight + packer self-test
 #
 # Options:
-#   --kernel floor|focal|jammy|noble|PATH
+#   --kernel floor|focal|jammy|noble|cachyos|PATH
 #                           floor = the jammy GA 5.15.0 kernel on
 #                           the strict identity lane (the default,
-#                           the lane's point). A witness name
+#                           the lane's point). A GA witness name
 #                           (focal, jammy, noble) resolves that
 #                           Ubuntu suite's GA kernel from the LIVE
-#                           archive's main pocket; PATH is any local
-#                           vmlinuz. Both ride the report lane: the
-#                           init reports the floor direction instead
-#                           of gating the identity, the suite adapts
-#                           by its own capability computation, and
-#                           the payload's exit code is the verdict
+#                           archive's main pocket; cachyos resolves
+#                           the repo's CURRENT flagship kernel (the
+#                           moving-latest witness, re-checked on
+#                           every call); PATH is any local
+#                           vmlinuz. The witness names and PATH
+#                           ride the report lane: the init reports
+#                           the floor direction instead of gating the
+#                           identity, the suite adapts by its own
+#                           capability computation, and the payload's
+#                           exit code is the verdict
 #   --binary PATH           the zejtron payload binary (default: the
 #                           newest repo build — every cargo alias
 #                           output is a candidate; without /dev/kvm
@@ -310,7 +320,7 @@ floor)
 	VMLINUZ="$(python3 "${SCRIPT_DIR}/rootfs-pack.py" kernel --suite floor --cache "${CACHE}")" ||
 		die "kernel resolution failed"
 	;;
-focal | jammy | noble)
+focal | jammy | noble | cachyos)
 	VMLINUZ="$(python3 "${SCRIPT_DIR}/rootfs-pack.py" kernel --suite "${KERNEL}" --cache "${CACHE}")" ||
 		die "kernel resolution failed"
 	LANE="arbitrary"

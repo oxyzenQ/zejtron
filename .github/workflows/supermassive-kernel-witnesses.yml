@@ -23,7 +23,21 @@
 #   * noble 6.8.0-31 GA - ABOVE the floor: BTF readable, so the
 #     privileged attach lifecycle runs in the SUCCESS direction on
 #     a second kernel generation - the direction the ordinary CI
-#     legs can only compute, never exercise.
+#     legs can only compute, never exercise;
+#
+#   * cachyos - the MOVING-LATEST witness (night-improve-53, the
+#     owner's ask that the best-spec leg ride the latest kernel):
+#     the owner's own distro line, unpinned - the packer resolves the
+#     repo's CURRENT flagship kernel (linux-cachyos, the newest line
+#     the repo ships) and re-checks the repo index on every call, so
+#     the witness can never boot a stale "latest". This leg rides
+#     the BEST envelope (every core / three quarters RAM) against
+#     the newest kernel - the newest-software half of the low/best
+#     span, where the GA legs carry the oldest-software half. The
+#     repo package ships its vmlinuz at usr/lib/modules/<version>/
+#     vmlinuz (the arch layout law, no /boot entry in the package)
+#     and the packer's named User-Agent rides the repo's CDN, which
+#     refuses the bare python-urllib agent.
 #
 # One implementation, two seats: the lane runs the OPERATOR'S OWN
 # INSTRUMENT - scripts/sandbox/zejtron-sandbox.sh --kernel SUITE
@@ -91,10 +105,16 @@ jobs:
         include:
           - suite: focal
             title: kernel witness - focal GA 5.4.0 (below the floor, report mode)
+            envelope: low
           - suite: jammy
             title: kernel witness - jammy GA 5.15.0 (at the floor, report mode)
+            envelope: low
           - suite: noble
             title: kernel witness - noble GA 6.8.0 (above the floor, report mode)
+            envelope: low
+          - suite: cachyos
+            title: kernel witness - cachyos current (the latest line, best envelope)
+            envelope: best
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
@@ -138,10 +158,13 @@ jobs:
           sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86
 
       # The warm witness cache: the suite's GA kernel deb + vmlinuz,
+      # the cachyos repo's current flagship package + its .ver sidecar,
       # the jammy index, the ubuntu-base tarball, the iproute2 closure.
-      # Keyed by the packer's hash - a table change re-resolves. The
-      # initrd.gz riding the same path is rebuilt every run anyway
-      # (the packer always repacks; the image embeds THIS checkout).
+      # Keyed by the packer's hash - a table change re-resolves; a
+      # moved cachyos repo re-resolves through the packer's own .ver
+      # check regardless of this cache. The initrd.gz riding the same
+      # path is rebuilt every run anyway (the packer always repacks;
+      # the image embeds THIS checkout).
       - name: Restore the witness cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
         with:
@@ -181,13 +204,18 @@ jobs:
 
       # The lane itself: the operator's own instrument, under KVM, in
       # report mode, riding the static payload. The twin resolves the
-      # suite's GA kernel, packs the initramfs, boots, runs the FULL
-      # low leg, and its exit code IS the verdict (it greps the
-      # SANDBOX-VERDICT sentinel itself).
+      # suite's GA kernel (or the cachyos repo's current flagship),
+      # packs the initramfs, boots, runs the FULL low leg, and its
+      # exit code IS the verdict (it greps the SANDBOX-VERDICT
+      # sentinel itself). The envelope rides the matrix: the GA
+      # legs on the low envelope (the low-spec leg's math), the
+      # moving-latest leg on the best envelope - the newest kernel
+      # at every core the host has.
       - name: Run the witness (the local twin, report mode)
         run: |
           bash scripts/sandbox/zejtron-sandbox.sh \
             --kernel "${{ matrix.suite }}" \
+            --envelope "${{ matrix.envelope }}" \
             --binary "$PWD/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron" \
             --battery \
             --timeout 900
