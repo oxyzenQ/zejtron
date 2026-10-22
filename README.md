@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 <p align="center">
-  <img src="assets/zejtron-v2.png" alt="zejtron logo" width="260">
+  <img src="assets/zejtron-original-logo-2026.png" alt="zejtron logo" width="260">
 </p>
 
 <h1 align="center">zejtron</h1>

@@ -19,11 +19,24 @@
 # bytes a registry-install build embeds.
 
 schema = 2
+<<<<<<< HEAD
 generated = "2026-10-22T07:25:05Z"
+||||||| parent of 75d2744 (chore: update zejtron logo)
+generated = "2026-10-22T05:51:46Z"
+=======
+generated = "2026-10-22T07:41:34Z"
+>>>>>>> 75d2744 (chore: update zejtron logo)
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
 ebpf_tree_blake3 = "2d7f6ef3d9a5aae0ee923449268d1dbe523d380db901bc8cc071cc6ed2fca27e"
+<<<<<<< HEAD
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
+||||||| parent of 75d2744 (chore: update zejtron logo)
+ebpf_tree_blake3 = "f0eab46a7cecb3fbd4857bc53bdb84bfc725ff144dc5a9802ab2383ea03876f2"
+built_by = "rezky_nightky <130107241+oxyzenQ@users.noreply.github.com>"
+=======
+built_by = "rezky_nightky <130107241+oxyzenQ@users.noreply.github.com>"
+>>>>>>> 75d2744 (chore: update zejtron logo)
 
 [[object]]
 name = "zejtron-ebpf"
