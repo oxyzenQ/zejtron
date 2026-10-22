@@ -9,8 +9,8 @@
 # docs-only or workflow-only change never skips the gates that
 # police it.
 #
-# Checks performed by gate-keepers.sh (16 sections: the pre-commit
-# self-install seat plus 15 numbered gates):
+# Checks performed by gate-keepers.sh (17 sections: the pre-commit
+# self-install seat plus 16 numbered gates):
 #    0. Pre-commit hook self-install
 #    1. Shell quad (bash -n, shellcheck, shfmt, source resolution)
 #    2. yamllint       3. actionlint      4. TOML syntax
@@ -19,6 +19,7 @@
 #   11. language      12. scripts LOC   13. version anti-patterns
 #   14. release parity (alias == matrix rustflags)
 #   15. family name case (zylaxion lowercase law)
+#   16. prebuilt pin parity (the --check verdict, fail-closed)
 #
 # Every tool below is installed and pinned - a check that silently
 # skips because its tool is missing is a check that does not exist.
@@ -92,7 +93,20 @@ jobs:
           codespell --version
           actionlint --version
 
-      # The wholesale run: all 16 sections in one shot - exit code 0
+      - name: Install b3sum (pinned 1.8.7)
+        run: |
+          B3SUM_VERSION="1.8.7"
+          curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+            -o /tmp/b3sum \
+            "https://github.com/BLAKE3-team/BLAKE3/releases/download/${B3SUM_VERSION}/b3sum_linux_x64_bin"
+          # The sha256 pin (night-total-lts-2): the bytes are the pin,
+          # the same contract as shellcheck, shfmt, and actionlint.
+          B3SUM_SHA="5519d827b4ac438e2492e0b99e19484fa5191d34fc20b0174ebe41d3dbf9eca1"
+          echo "${B3SUM_SHA}  /tmp/b3sum" | sha256sum -c -
+          sudo install -m755 /tmp/b3sum /usr/local/bin/b3sum
+          b3sum --version
+
+      # The wholesale run: all 17 sections in one shot - exit code 0
       # or the push is blocked.
       - name: Run gate-keepers.sh (wholesale)
         run: bash scripts/gate-keepers.sh

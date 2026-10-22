@@ -111,9 +111,11 @@ for wf in .github/workflows/*.yml; do
 done
 
 # ── 4. The eBPF tool pin constants ──
-# BPF_LINKER_VERSION lives in three sites, B3SUM_VERSION in two; the
-# in-file comments demand lockstep bumps, so the lockstep is enforced
-# here instead of trusted (night-total-lts-2).
+# BPF_LINKER_VERSION lives in three sites, B3SUM_VERSION in three
+# (bootstrap-ebpf.sh, regenerate-ebpf-prebuilt.sh, and the
+# Gate-keepers workflow's b3sum install step); the in-file comments
+# demand lockstep bumps, so the lockstep is enforced here instead of
+# trusted (night-total-lts-2).
 check_pin() {
 	local name="$1"
 	shift
@@ -134,7 +136,7 @@ check_pin() {
 	done
 }
 check_pin "BPF_LINKER_VERSION" build/ebpf.rs scripts/dev/bootstrap-ebpf.sh scripts/dev/regenerate-ebpf-prebuilt.sh
-check_pin "B3SUM_VERSION" scripts/dev/bootstrap-ebpf.sh scripts/dev/regenerate-ebpf-prebuilt.sh
+check_pin "B3SUM_VERSION" scripts/dev/bootstrap-ebpf.sh scripts/dev/regenerate-ebpf-prebuilt.sh .github/workflows/gate-keepers.yml
 
 echo ""
 if [ "$FAILED" -gt 0 ]; then
