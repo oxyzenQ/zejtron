@@ -20,6 +20,18 @@ It installs stable Rust with `rustfmt` and `clippy`, installs `codespell`, resto
 ./scripts/build.sh
 ```
 
+## Fuzz (the reliability lane)
+
+The `zejtron - Fuzz` workflow runs on every push and every pull request - the same blind posture as the fast lane. It is the continuous proof behind the parser claim: three `cargo-fuzz` targets, one per critical input surface, each driven with libFuzzer for a bounded 60 seconds per run. The harnesses path-include the parser sources (see `fuzz/Cargo.toml`) instead of adding a library target to the bin-only crate - the fuzzer compiles the same bytes the binary ships, so a guarantee the lane proves is a guarantee the binary carries.
+
+The three targets:
+
+- `btf_parser` - the BTF parser (`src/ebpf/btf.rs`) driven through `parse_btf_offsets` and `verify_writev_symbol_in`: hostile bytes in, a named error out, never a panic.
+- `proc_parser` - the /proc and /etc raw parsers (`src/system/mod.rs`): the cmdline byte grammar plus the passwd, status, and cgroup string grammars behind the same UTF-8 gate the real readers sit in.
+- `sanitize_display` - the terminal-safety neutralizer, asserted on every input: no control character survives into a rendered row (the CWE-150 gate), and honest data comes back byte-identical.
+
+The lane rides nightly Rust - the fuzzer's standard toolchain - with the main crate's stable pin untouched: the override is env-scoped to the fuzz lane's cargo invocations, the other lanes never see it. The corpus is cached between runs, so the fuzzer keeps growing where the last one stopped; a crash fails CI with the crashing input in the log, and the fix is a parser that returns the named error. The eBPF kernel-side code is deliberately not fuzzed: it runs behind the kernel verifier, not in userspace.
+
 ## Dependency Maintenance
 
 The `zejtron - Dependency Maintenance` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update`, executes `./scripts/build.sh`, and commits the refreshed `Cargo.lock` directly back to the default branch only after validation passes.

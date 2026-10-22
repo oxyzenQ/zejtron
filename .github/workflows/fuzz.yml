@@ -1,0 +1,110 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# The fuzz lane (night-improve-43): continuous proof that zejtron's
+# three critical input-parsing surfaces cannot be broken into a panic.
+# Zejtron reads bytes from the kernel (/sys/kernel/btf/vmlinux) and
+# from /proc - bytes a malicious or corrupted host controls - and the
+# reliability claim is only honest if it is tested against hostile
+# input, not just the happy path. One cargo-fuzz target per surface:
+#
+# - btf_parser:       the BTF parser (src/ebpf/btf.rs), the host's own
+#                     vmlinux driven through parse_btf_offsets and
+#                     verify_writev_symbol_in;
+# - proc_parser:      the /proc and /etc raw parsers
+#                     (src/system/mod.rs) - the cmdline byte grammar
+#                     plus the passwd/status/cgroup string grammars;
+# - sanitize_display: the terminal-safety neutralizer, asserted to let
+#                     no control character survive (the CWE-150 gate)
+#                     and to leave honest data byte-identical.
+#
+# The harnesses path-include the parser sources (see fuzz/Cargo.toml):
+# the fuzzer compiles the same bytes the binary ships, so a guarantee
+# the lane proves is a guarantee the binary carries. The eBPF
+# kernel-side code is deliberately not fuzzed - it runs behind the
+# kernel verifier, not in userspace.
+#
+# Nightly is the fuzzer's standard toolchain (cargo-fuzz builds the
+# harness with the libFuzzer runtime); the main crate's stable pin in
+# rust-toolchain.toml is untouched - the env-var override below is
+# scoped to this lane's cargo invocations, including the nested ones
+# cargo-fuzz spawns. Each target runs for a bounded 60 seconds per
+# push: the lane's job is the regression net (a crash fails CI with
+# the input in the log), not exhaustive coverage - depth comes from
+# the corpus that accumulates between runs via the cache. A found
+# crash is a parser bug: fix the parser to return the named error,
+# never the panic.
+
+---
+name: zejtron - Fuzz
+
+"on":
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# One run per ref: a new push supersedes the previous run's verdict
+# (the sibling's concurrency shape, every workflow in the estate).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  fuzz:
+    name: cargo fuzz ${{ matrix.target }} (60s)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [btf_parser, proc_parser, sanitize_display]
+    env:
+      # The fuzzer's toolchain, set by environment rather than by
+      # `+nightly` on the command line: cargo-fuzz re-invokes cargo
+      # internally, and this is the one override rustup honors through
+      # every nested invocation - the repo-root rust-toolchain.toml
+      # (the stable pin the main crate's lanes ride) cannot leak into
+      # the fuzz build.
+      RUSTUP_TOOLCHAIN: nightly
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04  # @nightly, SHA pin
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          # Only the fuzz workspace rides this lane's cache: the
+          # harnesses path-include the parser sources, so the root
+          # crate (its dependencies, its build script) is never built
+          # here at all.
+          workspaces: fuzz
+
+      - name: Restore the fuzz corpus cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          # The run id keys a fresh save per run; the restore keys
+          # pull the latest accumulated corpus from any prior run, so
+          # the fuzzer keeps growing where the last one stopped.
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-${{ matrix.target }}-
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+
+      - name: Fuzz
+        run: |
+          cargo fuzz run ${{ matrix.target }} \
+            -- -max_total_time=60 -rss_limit_mb=4096 -timeout=25
