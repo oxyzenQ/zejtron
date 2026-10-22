@@ -282,7 +282,10 @@ support beyond a capable host: kernel 5.15+, lockdown inactive, and
 `CAP_BPF` + `CAP_PERFMON` in the effective set for attach. Attach
 also verifies every struct offset the file probes walk against the
 host's own vmlinux BTF and refuses - by naming the missing struct -
-on a kernel whose BTF omits one.
+on a kernel whose BTF omits one. The member lookups know the
+anonymous unions modern kernels wrap their members in (6.18's
+struct file carries its f_path inside one), and the refusal stands
+unchanged when a member cannot be found even through the descent.
 
 `zejtron doctor` reports the lane honestly in its [eBPF] section in
 every build, and the verbs live on the doctor:
