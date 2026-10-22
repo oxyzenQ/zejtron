@@ -684,7 +684,8 @@ Built and maintained by **rezky_nightky (oxyzenQ)** —
 
 ---
 
-© 2026 rezky_nightky (oxyzenQ). All rights reserved.
+© 2026 rezky_nightky (oxyzenQ). All rights reserved. zejtron and the
+zejtron logo are trademarks of rezky_nightky (oxyzenQ).
 
 <p align="center">
   <em>built with curiosity</em>
