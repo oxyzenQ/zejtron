@@ -826,6 +826,26 @@ v11.0.0
   lane sees the 7.x generation. The selftest grows the fixture
   for the volatile-table rule.
 
+- The write lane's 7.x silence, round two: the evidence named
+  itself (night-improve-55). The first post-mortem proved the
+  renders saw opens only (rows of "opened bash [observed]",
+  zero write rows) and that a controlled write on the cachyos
+  7.2.7 build crosses NEITHER vfs_write NOR vfs_writev
+  (ftrace: both probes counted zero while the file verifiably
+  changed) - which contradicts the upstream 7.2 source
+  (ksys_write calls vfs_write), so the build's own symbol
+  census is the next fact. The storm's post-mortem grows into
+  the write family scan: the failure detail now carries the
+  kallsyms census of the whole write family with compiler
+  clones included, the ftrace-available list, and probe counts
+  for one controlled write across ksys_write, vfs_write,
+  vfs_writev, new_sync_write, do_iter_write, vfs_iter_write,
+  and kernel_write - so a rerouted OR COMPILER-CLONED write
+  path (a GCC -O3 constprop/isra twin that steals the
+  same-translation-unit call is the standing suspect on a
+  distro that builds its kernels at -O3) names itself in the
+  next witnesses run, one round, no guessing.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's
