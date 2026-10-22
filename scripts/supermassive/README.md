@@ -11,9 +11,11 @@ and zylaxion's supermassive suites): not a gimmick — the proof.
 
 ## What "end to end depth" means here
 
-For every one of the twelve surfaces (path, recent, port, proc,
-holds, touch, why, net, doctor, `doctor --symptom ram`, `-h/--help`,
-`-V/--version`):
+For every one of the seventeen surfaces (path, recent, port, proc,
+holds, touch, why, net, doctor, `doctor --symptom ram`,
+`doctor --symptom cpu`, `doctor --symptom disk`,
+`doctor --symptom network`, `doctor --symptom gpu`, `-h/--help`,
+`-V/--version`, and the realtime storm):
 
 1. **Real invocation.** The actual compiled binary, called by the
    suite. Assertions pin exit codes, not just "it ran".
@@ -140,6 +142,23 @@ software emulation otherwise). This entry replaces the stale
 (night-total-lts-2): the container lane runs unprivileged docker
 and never attached - the claim documented a leg that did not
 exist until the micro-VM lane built one.
+
+The realtime storm surface (night-improve-51) is the depth
+contract's realtime leg - the owner's ask that the E2E suite prove
+the binary under concurrent load, not only at rest. Four churn
+writers run a fixed six-second window of plain write(2) appends
+while the poller asks `why` about the hot files mid-storm: on the
+tap lane (the kernel-floor and witness micro-VMs, the owner's
+laptop) the churn must be [observed] WHILE it happens - the
+realtime claim, with the ledger's `wrote` rows and the raw lane's
+op=write records - and on the snapshot lane the same load must
+render the honest mode line with no fake [observed] rows, the
+no-fabrication law live under concurrency, a stronger seat than
+the idle-host version. The missing-path error path refuses by
+name mid-storm, and the surface ends clean by its own
+attach/detach hand (the tap it attached, the detach that unpins
+it, the pin directory gone - the lifecycle the doctor surface
+pins, re-proven under load).
 
 The local twin grew the arbitrary-kernel lane for the same
 reason: `--kernel PATH` boots any vmlinuz the operator chooses,
