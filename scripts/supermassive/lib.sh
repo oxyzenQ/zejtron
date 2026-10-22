@@ -213,9 +213,14 @@ sm_assert_no_escapes() {
 #                surface's human-byte rows, its bare pkts gauges
 #                (rx=/tx=) and error/drop gauges (errors=/drops=) -
 #                plus memory/pressure gauges that move on their own,
-#                and the delta symptoms' window tick gauges (the
+#                the delta symptoms' window tick gauges (the
 #                "(delta N ticks)" shapes - the scheduler's own
-#                moving counters, different every window)
+#                moving counters, different every window), and the
+#                doctor's visible-process count (the pids row's
+#                "N processes visible" gauge - kernel threads
+#                appear and vanish between two adjacent doctor runs
+#                on the newest kernel lines; found live by the 7.2
+#                moving-latest witness, night-improve-54)
 sm_normalize() {
 	local in_file="$1" out_file="$2"
 	sed -E \
@@ -235,6 +240,7 @@ sm_normalize() {
 		-e 's/(rx|tx)=[0-9]+/\1=<COUNTER>/g' \
 		-e 's/(errors|drops)=[0-9]+/\1=<COUNTER>/g' \
 		-e 's/[0-9]+(\.[0-9]+)?%/<COUNTER>/g' \
+		-e 's/[0-9]+ processes visible/<COUNTER> processes visible/g' \
 		-e 's/\(delta [0-9]+ ticks/(delta <COUNTER> ticks/g' \
 		"$in_file" >"$out_file"
 }

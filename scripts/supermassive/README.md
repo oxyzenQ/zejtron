@@ -158,7 +158,16 @@ the idle-host version. The missing-path error path refuses by
 name mid-storm, and the surface ends clean by its own
 attach/detach hand (the tap it attached, the detach that unpins
 it, the pin directory gone - the lifecycle the doctor surface
-pins, re-proven under load).
+pins, re-proven under load). When the tap lane's write rows are
+absent on a whole kernel generation (the 7.2 moving-latest
+witness found exactly this on its first boot: the open and
+writev lanes observed, the plain-write lane silent), the
+failure carries its own post-mortem - the [observed] rows the
+renders actually saw, plus the ftrace probe counts for one
+controlled write where tracefs is writable (root inside the
+witness VMs) - so a rerouted write path names the generation it
+went silent on, never a bare FAIL (the named-never-swallowed
+law).
 
 The local twin grew the arbitrary-kernel lane for the same
 reason: `--kernel PATH` boots any vmlinuz the operator chooses,
