@@ -761,6 +761,43 @@ v11.0.0
   reported its shape on -V - both lanes' CI verdicts prove the
   rest on every push.
 
+- The moving-latest witness lands: the kernel-witnesses lane
+  boots the cachyos repo's CURRENT flagship kernel - the
+  owner's own distro line, the newest kernel zejtron is asked
+  to prove itself on - on the best envelope, every push
+  (night-improve-53, the owner's ask that the best-specs leg
+  ride the latest kernel). The packer's suite table grows the
+  cachyos preset: a new arch-package resolution family beside
+  the frozen-GA deb family - the repo index is consulted on
+  EVERY call (the .ver sidecar beside the cached vmlinuz names
+  the version it was extracted from; a moved repo re-resolves,
+  so the witness can never boot a stale "latest"), the flagship
+  package alone matches (variant flavors, headers twins, and
+  signatures never do), the version compares numerically
+  ("7.2.11" sorts above "7.2.7", not string-wise), the cached
+  package is zstd-frame-magic-gated (the ar-magic twin), and
+  the vmlinuz extracts from the arch layout law the package
+  actually ships (usr/lib/modules/<version>/vmlinuz - no /boot
+  entry; the distro's install hooks create those). The twin's
+  --kernel grammar grows the name, the workflow matrix grows
+  the fourth leg with the best envelope (every core / three
+  quarters RAM against the newest line - the newest-software
+  half of the suite's low/best span, where the GA legs carry
+  the oldest-software half), and the packer's HTTP fetch
+  carries a named User-Agent because the repo's CDN refuses
+  the bare python-urllib agent. Proven live on the development
+  box end to end: the index resolved linux-cachyos 7.2.7-1,
+  the 167 MiB package downloaded and extracted, the vmlinuz
+  landed in the cache, the second call rode the .ver reuse
+  path - and the kernel's own BTF, pulled from the extracted
+  vmlinuz, parsed green through the anonymous-union descent
+  night-improve-49 landed: on the 7.2.7-1 bytes f_path sits at
+  byte 64 - moved deep into struct file behind f_inode at 32,
+  inside the unnamed union, exactly the drift a compiled-in
+  guess would have read silently blind - and the writev lane
+  still verifies vfs_writev. The same bytes the witness boots
+  in CI.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

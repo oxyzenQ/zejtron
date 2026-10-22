@@ -184,6 +184,20 @@ jammy 5.15.0-25 at the floor - 280/280, the success direction,
 attach lifecycle in the success direction on a second kernel
 generation, 19s.
 
+The cachyos preset (night-improve-53) is the moving-latest
+witness - the owner's own distro line, unpinned: the packer
+resolves the repo's CURRENT flagship kernel (linux-cachyos,
+resolved live at 7.2.7-1) and re-checks the repo index on every
+call through the .ver sidecar, so the witness can never boot a
+stale "latest"; it rides the best envelope (every core / three
+quarters RAM), the newest-software half of the suite's low/best
+span. The boot proof rides CI (the witnesses lane boots it under
+KVM on the best envelope); the resolution itself is proven live
+on the development box - the fetch through the repo's CDN (the
+named User-Agent the bare python-urllib agent needs), the
+arch-layout extraction (usr/lib/modules/<version>/vmlinuz - the
+package ships no /boot entry), and the cache-reuse path.
+
 ## The exit code
 
 - `0` = every check passed or skipped WITH its named reason, and the
