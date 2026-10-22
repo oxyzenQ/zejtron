@@ -601,6 +601,88 @@ v11.0.0
   doctrine document, the ebpf crate description, and the
   supermassive doctor surface carry the six-program estate.
 
+- The symptom lane is now a family of five: `cpu`, `disk`,
+  `network`, and `gpu` are implemented answers, and `slow` is the
+  one honest deferral left (night-improve-48, the symptom
+  expansion). The flag does not change - `--symptom SYMPTOM`,
+  one flag on the doctor, the surface count stays nine - and the
+  vocabulary it speaks is now six names: `ram`, `cpu`, `disk`,
+  `network`, `gpu`, and `slow`. Three of the new lanes ride a
+  shared delta engine (src/commands/doctor/delta.rs): read the
+  kernel's tables, sleep exactly 1.0 seconds, read them again,
+  print, exit - the wait IS the measurement, once per run, never
+  a loop, a delta snapshot and not a monitor. The engine owns
+  what the three surfaces need identically: the /proc/stat
+  aggregate parser (the eight floor-kernel fields, the
+  later-appended guest fields read past, not double-counted),
+  the /proc/<pid>/stat parser (the comm taken whole between the
+  outermost parens so a process named "yes R" parses, sanitized
+  at the parse boundary under the zero-escape law; the state
+  letter; the utime+stime tick pair), the /proc/<pid>/io parser
+  (read_bytes/write_bytes, the block-backed pair - NOT
+  rchar/wchar, which count cache hits and terminal writes), and
+  the sampling-gap constant stated once. The cpu lane prints
+  tick-RATIO percentages (pid tick delta over total tick delta -
+  honest on every USER_HZ, no clock-frequency guess), a ranked
+  top-consumer table, and the Load/stuck section htop cannot
+  give without being left running: the D-state processes by pid
+  and name at the second sample, plus the stuck signature
+  verdict - the 1-minute load above the core count while the
+  CPU is quiet below 20% busy is named as processes waiting on
+  I/O, a fact the user verifies, never an instruction. The disk
+  lane rides the block-backed byte pair per process and the
+  iowait share of the window's ticks, counts every permission
+  refusal (another user's /proc/<pid>/io is root-or-owner only)
+  into the Unaccounted block, and its --raw drill-down re-reads
+  the top processes' io files verbatim at render time. The
+  network lane reads /proc/net/dev twice for per-interface
+  byte/packet deltas, censuses /proc/net/tcp and tcp6 for the
+  two stall signatures (TIME_WAIT and CLOSE_WAIT), and walks the
+  fd tables for the socket-holder census - with the 1024
+  TIME_WAIT boundary named in the verdict as the port-exhaustion
+  risk, a named number, not a mood. The gpu lane takes no delta
+  at all - the question is who holds the device open, and
+  /proc/<pid>/fd answers it at the instant of the command: the
+  fd link-target classifier names the DRI cards, the render
+  nodes, and the NVIDIA character devices; the AMD/amdgpu VRAM
+  pair renders from sysfs when the driver exports it; and the
+  proprietary NVIDIA marker is named [unaccounted] - the VRAM
+  truth lives behind nvidia-smi, an external tool zejtron does
+  not run, so the card's memory is never guessed ("No active
+  GPU processes observed." is the spec's own honest empty
+  scene). All four lanes drain the post-mortem exit ring
+  night-improve-47 planted when the tap is attached - a
+  2-second overlay slice (wide enough to cover their own
+  1.0-second window plus the drain's skew; ram keeps its five),
+  so a process that died inside the sampling window is named
+  [observed] beside the numbers it can no longer explain - and
+  the not-attached shape is the spec's own sentence: "processes
+  that started and exited within the window: not attributed
+  (zejtron samples, it does not watch)". The mode-line and
+  sampling-boundary builders live in the engine, one source for
+  four surfaces, so the ledgers cannot drift; the exit drain
+  itself is parameterized now (ram asks for five seconds, the
+  delta lanes for two, the window label riding beside the number
+  so header and boundary text cannot drift apart). The deferral
+  arm is the honest one, not a stub: `slow` prints the
+  implemented list quoted from the dispatch's own source and
+  exits 0 - the umbrella needs the per-lane reports to compose
+  first. Every lane names its permission refusals in its
+  Unaccounted block, the CLI help and the pro-mode help carry
+  the six-name grammar, and the supermassive suite grows four
+  surface rows (the doctor-ram precedent: success shape, --raw
+  drill-down, structural determinism, the color tri-test) plus
+  the six-name grammar pin, with the volatile-field table
+  growing the two genuinely-moving gauge shapes the delta
+  reports render (the window tick deltas, the 1-minute load
+  gauge) and the spell-check vocabulary growing the renderD
+  device-node name (the AMD render node is a kernel name, not
+  a typo for "rendered"). The tests pin the parsers, the
+  delta tables, the boundary counters, the six mode lines, the
+  three sampling-boundary truths, and every render shape
+  with synthetic samples - the report is the contract, not
+  the host (417 tests, +49).
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

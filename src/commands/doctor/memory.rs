@@ -50,8 +50,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-mod exits;
-mod ledger;
+pub(crate) mod exits;
+pub(crate) mod ledger;
 
 pub(crate) use exits::ExitLane;
 
@@ -150,7 +150,11 @@ pub(crate) struct MemorySample {
 
 // ── The /proc walkers ───────────────────────────────────────────────
 
-fn pid_dirs(proc_root: &Path) -> Vec<u32> {
+/// The numeric /proc pid directory listing, ascending - the one
+/// walker every symptom lane samples from (night-improve-48 makes
+/// it shared: the delta symptoms speak it from here, one source
+/// for the whole doctor).
+pub(crate) fn pid_dirs(proc_root: &Path) -> Vec<u32> {
     let mut pids = Vec::new();
     let Ok(entries) = fs::read_dir(proc_root) else {
         return pids;
@@ -514,7 +518,7 @@ pub(crate) fn collect() -> MemorySample {
     collect_tmpfs(&mut sample);
     collect_fds(&pids, &mut sample);
     collect_slab(&mut sample);
-    sample.exit_lane = exits::collect();
+    sample.exit_lane = exits::collect_window(exits::EXIT_WINDOW_SECS);
     sample
 }
 

@@ -30,6 +30,12 @@ use crate::ebpf::{self, events::ProcExitEvent};
 /// facts on the host.
 pub(crate) const EXIT_WINDOW_SECS: u64 = 5;
 
+/// The post-mortem window's compact label - the render header's own
+/// token, kept beside the number so the two cannot drift apart
+/// (night-improve-48 parameterizes the renderer: the delta symptoms
+/// pass their own pair, ram passes this one).
+pub(crate) const EXIT_WINDOW_LABEL: &str = "5s";
+
 /// One rendered exit row's facts: the record's pid and comm, and
 /// the monotonic stamp the ledger renders as a time of day.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,13 +88,13 @@ pub(crate) fn comm_string(bytes: &[u8; 16]) -> String {
 /// are bpf_ktime_get_ns stamps and "now" is /proc/uptime, the same
 /// pair the port window uses (one source since night-improve-47:
 /// the civil clock module owns both companions).
-pub(crate) fn collect() -> ExitLane {
+pub(crate) fn collect_window(window_secs: u64) -> ExitLane {
     if !ebpf::all_pins_present() {
         return ExitLane::NotAttached;
     }
     match ebpf::ringbuf::drain_proc_exits() {
         Err(e) => ExitLane::DrainFailed(e),
-        Ok(events) => ExitLane::Drained(window_rows(events)),
+        Ok(events) => ExitLane::Drained(window_rows(events, window_secs)),
     }
 }
 
@@ -98,9 +104,12 @@ pub(crate) fn collect() -> ExitLane {
 /// the window's freshest slice. An unreadable clock keeps the
 /// drained records rather than guessing a cutoff - the ring is
 /// bounded and the section header names the window either way.
-fn window_rows(events: Vec<ProcExitEvent>) -> Vec<ExitRow> {
+/// night-improve-48 grows the parameter: ram asks for its five
+/// seconds, the delta symptoms ask for two (the window the spec
+/// names for the sampling-blind overlay).
+fn window_rows(events: Vec<ProcExitEvent>, window_secs: u64) -> Vec<ExitRow> {
     let cutoff_ns = crate::info::clock::monotonic_now_ns()
-        .map(|now| now.saturating_sub(EXIT_WINDOW_SECS * 1_000_000_000));
+        .map(|now| now.saturating_sub(window_secs * 1_000_000_000));
     let mut rows: Vec<ExitRow> = events
         .into_iter()
         .filter(|event| match cutoff_ns {
@@ -126,13 +135,16 @@ fn window_rows(events: Vec<ProcExitEvent>) -> Vec<ExitRow> {
 /// time rides grey (a timestamp), the pid and comm stay unwrapped
 /// (the values), and the [observed] tag rides green (the kernel
 /// itself recorded the exit as it happened - the strongest tier a
-/// report can carry). The row cap is the ledger's own TOP_N.
-pub(crate) fn render_section(lane: &ExitLane, lines: &mut Vec<String>) {
+/// report can carry). The row cap is the ledger's own TOP_N; the
+/// window label is the caller's contract (night-improve-48 - ram
+/// passes its own pair, the delta symptoms pass theirs).
+pub(crate) fn render_section(lane: &ExitLane, lines: &mut Vec<String>, window_label: &str) {
+    let header = format!("Recently exited (eBPF, last {window_label}):");
     let rows = match lane {
         ExitLane::NotAttached => return,
         ExitLane::Drained(rows) => rows,
         ExitLane::DrainFailed(e) => {
-            lines.push(crate::output::ok_out("Recently exited (eBPF, last 5s):"));
+            lines.push(crate::output::ok_out(&header));
             lines.push(format!(
                 "  {}",
                 crate::output::grey_out(&format!(
@@ -143,7 +155,7 @@ pub(crate) fn render_section(lane: &ExitLane, lines: &mut Vec<String>) {
             return;
         }
     };
-    lines.push(crate::output::ok_out("Recently exited (eBPF, last 5s):"));
+    lines.push(crate::output::ok_out(&header));
     if rows.is_empty() {
         // The empty-window line rides grey (the "no events" class):
         // the lane RAN and the window is a finding.

@@ -113,8 +113,13 @@ fn collect_checks(git_hash: &str) -> Vec<CheckResult> {
 }
 
 mod checks;
+mod cpu;
+mod delta;
+mod disk;
 mod ebpf;
+mod gpu;
 mod memory;
+mod network;
 mod symptom;
 
 use checks::{

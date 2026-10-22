@@ -97,7 +97,7 @@ const GROUPS: &[(&str, &[Row])] = &[
             ),
             (
                 "--symptom SYMPTOM",
-                "Analyze a symptom instead of the readiness check (ram | slow | disk | network)",
+                "Analyze a symptom instead of the readiness check (ram | cpu | disk | network | gpu | slow)",
             ),
             (
                 "--raw",
