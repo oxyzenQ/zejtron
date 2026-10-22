@@ -68,6 +68,19 @@
 #        section 7 - every tracked file and path scanned, nothing
 #        excluded; a mixed-case form of either name fails the gate)
 #
+#   16.  Prebuilt pin parity (scripts/dev/regenerate-ebpf-prebuilt.sh
+#        --check, the push-time CI seat of the commit gate's prebuilt
+#        verdict: the ebpf/ tree pin, the staged object's blake3 and
+#        size, the toolchain pin, and the version mirror must all
+#        agree on the pushed tree. The build-time arm auto-heals a
+#        stale lane for every local cargo build - right for the
+#        developer, wrong as the only CI mirror, because a heal
+#        inside the runner leaves the pushed lane stale and the run
+#        green; this section turns that state red. Skips with a
+#        warning when b3sum is absent (the wholesale contract); the
+#        Gate-keepers CI lane installs the pinned tool, so the seat
+#        never sleeps in CI)
+#
 # Pre-commit hook: the first wholesale run on a clone self-installs
 # .githooks/pre-commit (git config core.hooksPath=.githooks - repo-
 # local, never --global), so every future commit on that clone
@@ -443,6 +456,28 @@ if python3 scripts/gates/check-name-case.py; then
 	pass "15. name case"
 else
 	fail "15. name case"
+fi
+
+# ── 16. Prebuilt pin parity ────────────────────────────────────────────────
+header "16. Prebuilt pin parity (ebpf-prebuilt vs the ebpf/ tree)"
+# The push-time seat of the commit gate's prebuilt verdict. The
+# build-time arm (build/ebpf.rs) auto-heals a stale lane for every
+# local cargo build, which is right for the developer but wrong as
+# the only CI mirror: a heal inside the runner leaves the pushed
+# manifest stale and the run green. The one writer's read-only
+# --check verdict is fail-closed here, so a stale tree pin, a
+# tampered staged object, or a broken version mirror turns the push
+# red instead of silently self-repairing on the runner. A
+# present-but-wrong-version b3sum fails through the script's own
+# version probe - a finding, not a skip.
+if command -v b3sum >/dev/null 2>&1; then
+	if bash scripts/dev/regenerate-ebpf-prebuilt.sh --check; then
+		pass "16. prebuilt pin parity"
+	else
+		fail "16. prebuilt pin parity"
+	fi
+else
+	warn_skip "16. prebuilt pin parity (b3sum not installed)"
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────

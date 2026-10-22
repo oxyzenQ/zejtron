@@ -412,6 +412,33 @@ v11.0.0
   a single-line change to the canonical line and the TAG line — not
   a grep across ten places. The boring part of boring-and-serious.
 
+- The prebuilt lane's fail-closed verdict now has a push-time CI
+  seat. gate-keepers.sh grows section 16: on every push the
+  Gate-keepers lane runs regenerate-ebpf-prebuilt.sh --check - the
+  same read-only verdict the commit-time hook runs - so a stale tree
+  pin, a tampered staged object, or a broken version mirror turns
+  the push red. The gap was real: the build-time arm (build/ebpf.rs's
+  auto-heal) repairs a stale lane for every local cargo build, which
+  is right for the developer but wrong as the only CI mirror - a
+  heal inside the runner leaves the pushed manifest stale and the
+  run green, so a lane that missed its regeneration (or an object
+  tampered with after it) sailed through every existing workflow
+  unnoticed; the manifest even parsed as valid TOML while carrying
+  rebase conflict markers, because no CI seat ever recomputed the
+  pins. The verdict needs the pinned digest tool, so the
+  Gate-keepers workflow now installs b3sum 1.8.7 from the official
+  BLAKE3 release under the bytes-are-the-pin contract (sha256-pinned
+  like shellcheck, shfmt, and actionlint), and the version constant
+  rides check-rust-version-sync.sh's B3SUM lockstep check beside
+  bootstrap-ebpf.sh and the regenerator - the workflow cannot drift
+  from the scripts' pin. Tamper-verified before landing, the honest
+  way: a one-byte flip in the staged object, a source edit under
+  ebpf/ without regeneration, and a version-mirror drift each fail
+  the verdict with the broken pin named in the error, and the
+  restored tree passes clean. Locally the section skips with a
+  warning when b3sum is absent (the wholesale contract); in CI the
+  tool is always installed, so the seat never sleeps.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

@@ -20,6 +20,28 @@ It installs stable Rust with `rustfmt` and `clippy`, installs `codespell`, resto
 ./scripts/build.sh
 ```
 
+## Gate-keepers (the wholesale gate)
+
+The `zejtron - Gate-keepers` workflow runs `scripts/gate-keepers.sh`
+wholesale on every push and every pull request - the same blind posture
+as the fast lane - with every tool it probes installed and pinned
+(version plus sha256, the bytes-are-the-pin contract), because a check
+that silently skips behind a missing tool is a check that does not
+exist. The 17 sections cover the shell quad, the workflow linters, TOML
+syntax, the repo-discipline gates (headers, permissions, emoji,
+language, the LOC caps), and the pin-sync guards. Section 16 is the
+push-time seat of the prebuilt verdict: the one writer's read-only
+`--check` verdict (`scripts/dev/regenerate-ebpf-prebuilt.sh`) runs
+fail-closed in CI, so the
+ebpf/ tree pin, the staged object's blake3 and size, the toolchain pin,
+and the version mirror must all agree on the pushed tree. The
+commit-time hook enforces the same verdict on every commit of a wired
+clone (the first wholesale run self-installs `core.hooksPath=.githooks`),
+and the build-time arm (`build/ebpf.rs`) auto-heals a stale lane for
+every local cargo build - but a heal inside a CI runner would leave the
+pushed manifest stale and the run green, which is exactly the gap
+section 16 closes: what the developer heals locally, CI verifies.
+
 ## Fuzz (the reliability lane)
 
 The `zejtron - Fuzz` workflow runs on every push and every pull request - the same blind posture as the fast lane. It is the continuous proof behind the parser claim: three `cargo-fuzz` targets, one per critical input surface, each driven with libFuzzer for a bounded 60 seconds per run. The harnesses path-include the parser sources (see `fuzz/Cargo.toml`) instead of adding a library target to the bin-only crate - the fuzzer compiles the same bytes the binary ships, so a guarantee the lane proves is a guarantee the binary carries.
