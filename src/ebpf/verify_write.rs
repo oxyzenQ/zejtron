@@ -69,7 +69,9 @@ fn verify_once(dir: &Path, probe: &Path) -> Result<(), String> {
             Ok(events) => events,
             Err(e) => {
                 let _ = untrack_file(inode, device);
-                return Err(format!("attach refused: the write verification drain failed: {e}"));
+                return Err(format!(
+                    "attach refused: the write verification drain failed: {e}"
+                ));
             }
         };
         if drained
