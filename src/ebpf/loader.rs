@@ -114,8 +114,15 @@ const OPEN_SYMBOL: &str = "vfs_open";
 /// The file-write program's name.
 const WRITE_PROGRAM: &str = "write_tap";
 
-/// The kernel symbol the write tap attaches to.
-const WRITE_SYMBOL: &str = "vfs_write";
+/// The kernel symbol the write tap attaches to (night-improve-57,
+/// the second generation): the write(2) syscall entry itself. The
+/// first generation anchored at vfs_write, which the newest -O3
+/// distro builds (cachyos 7.x, found live by the moving-latest
+/// witness) inline into this stub - the vfs_write entry stays
+/// attachable and never executes there. The stub exists across the
+/// whole floor span (4.17 on), so one anchor covers the range; the
+/// probe resolves the fd register through the fd-walk offsets.
+const WRITE_SYMBOL: &str = "__x64_sys_write";
 
 /// The vectorized-write program's name (night-improve-42) - the ELF
 /// symbol in ebpf/src/main.rs. The ATTACH symbol is not a constant:
@@ -284,9 +291,10 @@ pub fn attach() -> Result<String, String> {
             Ok(format!(
                 "tap attached: tracepoints sched/sched_process_exec + \
                  sock/inet_sock_set_state + sched/sched_process_exit (the post-mortem \
-                 exit tap), kprobes vfs_open + vfs_write + \
-                 {writev_symbol} (the vectorized-write tap, verified from this \
-                 host's BTF), offsets verified from this host's BTF, counter live; \
+                 exit tap), kprobes vfs_open + __x64_sys_write (the write tap at \
+                 the syscall entry) + {writev_symbol} (the vectorized-write tap, \
+                 verified from this host's BTF), offsets verified from this host's \
+                 BTF, counter live; \
                  events since attach: {count}\npins: {PIN_DIR} (tap, tap_link, stats, \
                  sock_tap, sock_tap_link, sock_events, exit_tap, exit_tap_link, \
                  proc_events, open_tap, open_tap_link, \

@@ -138,8 +138,9 @@ pub fn is_port_surface_event(family: u16, protocol: u8, oldstate: u8, newstate: 
 /// on the queried inode's path).
 pub const FILE_OP_OPEN: u8 = 1;
 
-/// `op` for FileEvent: a file was written (the vfs_write kprobe fired
-/// on the queried inode's file).
+/// `op` for FileEvent: a file was written (the syscall-anchored
+/// write tap fired on the queried inode's file - night-improve-57:
+/// the write(2) entry itself, not the inlinable interior).
 pub const FILE_OP_WRITE: u8 = 2;
 
 /// `op` for FileEvent: a file was unlinked. DEFINED but not produced
@@ -235,8 +236,10 @@ pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
 // `offsets` Array<u64> map at attach time, parsed from the host's
 // own /sys/kernel/btf/vmlinux (src/ebpf/btf.rs). The programs read
 // their offsets from the map; the slot indices below are the
-// contract between the host writer and the BPF readers. Fixed at
-// eight so the map never renumbers.
+// contract between the host writer and the BPF readers. The eight
+// file-walk slots are frozen; night-improve-57 appends the four
+// fd-walk slots at 8..11 (the syscall-stub write tap), so the
+// legacy indices never renumber.
 
 /// `offsets[0]`: struct dentry, member d_inode.
 pub const OFF_SLOT_DENTRY_D_INODE: u32 = 0;
@@ -254,19 +257,36 @@ pub const OFF_SLOT_SUPER_BLOCK_S_DEV: u32 = 5;
 pub const OFF_SLOT_PATH_MNT: u32 = 6;
 /// `offsets[7]`: struct path, member dentry.
 pub const OFF_SLOT_PATH_DENTRY: u32 = 7;
+/// `offsets[8]`: struct task_struct, member files (night-improve-57,
+/// the syscall-stub write tap's fd-to-file walk).
+#[allow(dead_code)]
+pub const OFF_SLOT_TASK_FILES: u32 = 8;
+/// `offsets[9]`: struct files_struct, member fdt.
+#[allow(dead_code)]
+pub const OFF_SLOT_FILES_FDT: u32 = 9;
+/// `offsets[10]`: struct fdtable, member max_fds (the index bound
+/// read BEFORE the fd array is dereferenced).
+#[allow(dead_code)]
+pub const OFF_SLOT_FDT_MAX_FDS: u32 = 10;
+/// `offsets[11]`: struct fdtable, member fd (the pointer array;
+/// the probe indexes it by the syscall's fd).
+#[allow(dead_code)]
+pub const OFF_SLOT_FDT_FD: u32 = 11;
 
 /// The number of slots the offsets map carries (the map's
 /// max_entries on the BPF side, the write count on the host side).
-/// Eight: the file-walk slots. The map was never renumbered - the
-/// five process-stream slots night-improve-4 appended (8..13) are
-/// gone with the lifecycle stream (night-improve-34), and the file
-/// slots keep their indices.
+/// Twelve: the eight frozen file-walk slots plus the four fd-walk
+/// slots night-improve-57 appends (the syscall-stub write tap). The
+/// file slots were never renumbered - the five process-stream slots
+/// night-improve-4 appended (8..13) are gone with the lifecycle
+/// stream (night-improve-34), and the fd-walk slots reuse the free
+/// tail.
 ///
 /// BPF-side-only by design (the BPF crate sizes the offsets Array
 /// with it; the host writes the slots by OFF_SLOT_* index and never
 /// needs the count); the scoped allow names the split.
 #[allow(dead_code)]
-pub const OFF_SLOTS: u32 = 8;
+pub const OFF_SLOTS: u32 = 12;
 
 // ─────────────────────────────────────────────────────────────────────
 // night-improve-47, the process-exit record (the post-mortem doctor

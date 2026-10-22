@@ -101,11 +101,12 @@ fn device_token_from_stat_matches_a_real_stat_call() {
 }
 
 #[test]
-fn offsets_slots_are_indices_zero_through_seven() {
-    // The eight file-walk slots never renumbered. The five
+fn offsets_slots_are_frozen_then_appended() {
+    // The eight file-walk slots never renumbered (the five
     // process-stream slots night-improve-4 appended are gone with
-    // `proc --live` (night-improve-34); the file slots keep their
-    // indices and the map stays sized at eight.
+    // `proc --live`, night-improve-34); night-improve-57 appends the
+    // four fd-walk slots at 8..11 for the syscall-stub write tap,
+    // and the map is sized at twelve.
     assert_eq!(OFF_SLOT_DENTRY_D_INODE, 0);
     assert_eq!(OFF_SLOT_INODE_I_INO, 1);
     assert_eq!(OFF_SLOT_FILE_F_PATH, 2);
@@ -114,5 +115,9 @@ fn offsets_slots_are_indices_zero_through_seven() {
     assert_eq!(OFF_SLOT_SUPER_BLOCK_S_DEV, 5);
     assert_eq!(OFF_SLOT_PATH_MNT, 6);
     assert_eq!(OFF_SLOT_PATH_DENTRY, 7);
-    assert_eq!(OFF_SLOTS, 8);
+    assert_eq!(OFF_SLOT_TASK_FILES, 8);
+    assert_eq!(OFF_SLOT_FILES_FDT, 9);
+    assert_eq!(OFF_SLOT_FDT_MAX_FDS, 10);
+    assert_eq!(OFF_SLOT_FDT_FD, 11);
+    assert_eq!(OFF_SLOTS, 12);
 }

@@ -62,8 +62,8 @@ pub const PIN_PROG_OPEN: &str = "/sys/fs/bpf/zejtron/open_tap";
 /// Link pin - the file-open tap's attachment.
 pub const PIN_LINK_OPEN: &str = "/sys/fs/bpf/zejtron/open_tap_link";
 
-/// Program pin - the file-write tap (night-improve-3's kprobe on
-/// vfs_write).
+/// Program pin - the file-write tap (night-improve-57: anchored at
+/// the write(2) syscall entry, __x64_sys_write).
 pub const PIN_PROG_WRITE: &str = "/sys/fs/bpf/zejtron/write_tap";
 
 /// Link pin - the file-write tap's attachment.

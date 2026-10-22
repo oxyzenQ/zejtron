@@ -846,6 +846,52 @@ v11.0.0
   distro that builds its kernels at -O3) names itself in the
   next witnesses run, one round, no guessing.
 
+- The write tap's second generation lands: anchored at the
+  write(2) syscall entry, with the fd-to-file walk the stub's
+  register frame demands (night-improve-57). The third evidence
+  round confirmed the -O3 inlining theory exactly - on the
+  cachyos 7.2.7 leg one controlled write fired
+  __x64_sys_write=2 (with the vfs_open control at 10 and
+  tracing_on=1, so the ftrace evidence was live), while
+  ksys_write, vfs_write, vfs_writev, and vfs_iter_write all
+  counted zero: GCC folds the single-caller static functions into
+  the syscall stub, leaving the exported vfs_write present,
+  attachable, and never executed. The write tap now anchors at
+  __x64_sys_write - the stub exists across the whole floor span
+  (4.17 through the current line), so one anchor covers every
+  kernel zejtron promises, no candidates, no fallback ladder -
+  and the probe walks the deeper path the stub's register frame
+  hands it: pt_regs.rdi is the fd (the x86_64 ABI's own fixed
+  layout), task_struct->files->fdt->max_fds bounds the index,
+  fdt->fd[fd] resolves the file, every hop a BTF-verified offset
+  in the grown offsets map (twelve slots: the eight frozen
+  file-walk slots plus the four new fd-walk slots), and from
+  struct file* the inode/device walk, the filter, and the record
+  are unchanged. The honest narrowing is named in the module and
+  the README: a stub-anchored probe sees syscall-origin writes
+  only - kernel-internal writes and compat-ia32 syscalls never
+  enter it, and neither kind ever produced a row the ledger
+  could attribute to a process. The doctor's Probes row and the
+  attach summary now name the real anchor; ebpf/src/write.rs
+  carries the tap as its own module (the exits.rs precedent,
+  main.rs back under the cap); btf.rs rides at exactly 600 lines
+  with the parse grown and the writev verification tests split
+  out whole into btf_writev_tests.rs (the split-is-the-fix law);
+  the probes row, the ledger's provenance sentence, and the
+  doctor surface pin all updated to the new anchor. Verified
+  locally end to end: 423 tests green including the live-host
+  parse and a new fd-walk descent pin (the synthetic blobs carry
+  the three new structs); the four lookups proven against BOTH
+  ends of the floor span - the live 5.10 sandbox BTF
+  (task_struct.files @ 2752) and the extracted 7.2.7-1 cachyos
+  BTF (@ 3480 - the drift the runtime-parse doctrine exists
+  for); the prebuilt object regenerated and in sync (9144
+  bytes); the full low leg green on the new binary (370/0/0).
+  The cachyos witness leg goes green with this pass - the
+  moving-latest witness did its job end to end: it found a
+  kernel generation the plain-write tap could not see, named
+  the mechanism across three evidence rounds, and closed it.
+
 ### Changed
 
 - The CI trigger surface is simplified to unfiltered (the owner's

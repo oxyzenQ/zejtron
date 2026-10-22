@@ -165,7 +165,7 @@ fn the_trace_ladder_names_each_class_present() {
     assert!(section.contains("1 [measured] holder rows: /proc/<pid>/fd + /proc/<pid>/maps"));
     assert!(section.contains("1 [measured] enrichment rows: /proc/<pid>/cgroup"));
     assert!(section.contains("1 [measured] metadata rows: stat(2)"));
-    assert!(section.contains("2 [observed] event rows: vfs_open/vfs_write kprobe"));
+    assert!(section.contains("2 [observed] event rows: vfs_open + write-syscall kprobes"));
     assert!(section.contains("1 [inferred] event rows: audit.log SYSCALL+PATH records"));
     assert!(section.contains("Unaccounted and the verdict: composed from the rows above"));
 }

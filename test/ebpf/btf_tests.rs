@@ -138,24 +138,24 @@ impl TypeWriter {
     }
     /// One PTR record (no trailing bytes); the pointee rides the
     /// size/type field. Returns the PTR's id.
-    fn ptr(&mut self, pointee: u32) -> u32 {
+    pub(super) fn ptr(&mut self, pointee: u32) -> u32 {
         let id = self.peek_id();
         self.push(0, 2, 0, pointee);
         id
     }
     /// One TYPEDEF record; the target rides the size/type field.
-    fn typedef(&mut self, strings: &mut StrTab, name: &str, target: u32) {
+    pub(super) fn typedef(&mut self, strings: &mut StrTab, name: &str, target: u32) {
         let off = strings.add(name);
         self.push(off, 8, 0, target);
     }
     /// One FUNC record (static linkage) whose proto is `proto`.
-    fn func(&mut self, strings: &mut StrTab, name: &str, proto: u32) {
+    pub(super) fn func(&mut self, strings: &mut StrTab, name: &str, proto: u32) {
         let off = strings.add(name);
         self.push(off, 12, 0, proto);
     }
     /// One FUNC_PROTO record: the return type plus (name, type id)
     /// params, each an 8-byte trailer pair.
-    fn func_proto(&mut self, strings: &mut StrTab, ret: u32, params: &[(&str, u32)]) {
+    pub(super) fn func_proto(&mut self, strings: &mut StrTab, ret: u32, params: &[(&str, u32)]) {
         self.push(0, 13, params.len(), ret);
         for (pname, ptype) in params {
             let p_off = strings.add(pname);
@@ -220,7 +220,18 @@ fn sample_blob() -> Vec<u8> {
         &[("s_list", 0), ("s_dev", 16 * 8)],
     );
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    fd_walk_structs(&mut w, &mut s);
     build_btf(w, s)
+}
+
+/// The three fd-walk structs every parse-ready blob carries since
+/// night-improve-57 - the syscall-stub write tap's lookups
+/// (task_struct.files, files_struct.fdt, fdtable.max_fds,
+/// fdtable.fd). Synthetic offsets, stable across the blobs.
+fn fd_walk_structs(w: &mut TypeWriter, s: &mut StrTab) {
+    w.strukt(s, "task_struct", 4096, &[("files", 16 * 8)]);
+    w.strukt(s, "files_struct", 512, &[("fdt", 0)]);
+    w.strukt(s, "fdtable", 32, &[("max_fds", 0), ("fd", 8 * 8)]);
 }
 
 // ── The pins ────────────────────────────────────────────────────
@@ -240,6 +251,10 @@ fn the_reference_probe_offsets_parse_end_to_end() {
             16, // super_block.s_dev
             0,  // path.mnt
             8,  // path.dentry
+            16, // task_struct.files (night-improve-57)
+            0,  // files_struct.fdt
+            0,  // fdtable.max_fds
+            8,  // fdtable.fd
         ]
     );
 }
@@ -269,6 +284,7 @@ fn a_missing_struct_is_refused_by_name() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    fd_walk_structs(&mut w, &mut s);
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert_eq!(err, "struct inode not found in BTF");
@@ -292,6 +308,7 @@ fn a_missing_member_is_refused_by_name() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    fd_walk_structs(&mut w, &mut s);
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert_eq!(err, "struct inode has no member i_ino in BTF");
@@ -315,6 +332,7 @@ fn a_bitfield_member_is_refused_not_straddled() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    fd_walk_structs(&mut w, &mut s);
     let blob = build_btf(w, s);
     let err = parse_btf_offsets(&blob).unwrap_err();
     assert!(err.contains("bitfield"), "got: {err}");
@@ -401,179 +419,40 @@ fn the_live_host_parses_when_btf_exists() {
     }
 }
 
-// ── The writev-lane symbol verification pins (night-improve-42) ──
+// ── The fd-walk pins (night-improve-57) ──────────────────────────
 
-/// A blob carrying the minimal writev-lane shape: an INT return type,
-/// a struct to point at, and FUNC + FUNC_PROTO pairs wired by the
-/// caller. The id arithmetic rides the writer's own counter - the
-/// same sequential-id contract record_pos walks.
-fn writev_blobs() -> (Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
+#[test]
+fn the_fd_walk_lookups_descend_anonymous_aggregates() {
+    // The syscall-stub write tap's four lookups ride the same
+    // anonymous-descent walk as the file slots (night-improve-49):
+    // task_struct's files pointer behind an unnamed union whose
+    // member sits at a nonzero base - the offsets accumulate
+    // across the level, the refusal stands when a lookup is still
+    // unfound.
     let mut w = TypeWriter::new();
     let mut s = StrTab::new();
-    w.int(&mut s, "int"); // type id 1 - the return type
-    w.strukt(&mut s, "file", 256, &[("f_inode", 32 * 8)]); // id 2
-    w.strukt(&mut s, "inode", 656, &[("i_ino", 64 * 8)]); // id 3
-    let file_ptr = w.ptr(2); // id 4: PTR -> struct file
-    // Blob 1: vfs_writev(file*, ...) - the verified primary.
-    let proto = w.peek_id();
-    w.func_proto(&mut s, 1, &[("file", file_ptr), ("vec", 0), ("vlen", 1)]);
-    w.func(&mut s, "vfs_writev", proto);
-    let primary = build_btf(w, s);
-
-    // Blob 2: no vfs_writev; do_iter_write(file*, ...) - the
-    // verified fallback.
-    let mut w = TypeWriter::new();
-    let mut s = StrTab::new();
-    w.int(&mut s, "int");
-    w.strukt(&mut s, "file", 256, &[("f_inode", 32 * 8)]);
-    let file_ptr = w.ptr(2);
-    let proto = w.peek_id();
-    w.func_proto(&mut s, 1, &[("file", file_ptr), ("iter", 0)]);
-    w.func(&mut s, "do_iter_write", proto);
-    let fallback = build_btf(w, s);
-
-    // Blob 3: vfs_writev PRESENT but reshaped - arg0 points at
-    // struct inode, not struct file (the loud moment: the name
-    // exists, the contract moved).
-    let mut w = TypeWriter::new();
-    let mut s = StrTab::new();
-    w.int(&mut s, "int");
-    w.strukt(&mut s, "file", 256, &[("f_inode", 32 * 8)]);
+    w.int(&mut s, "unsigned int"); // id 1
+    let files_id = w.peek_id();
+    w.strukt(&mut s, "files_struct", 512, &[("fdt", 0)]); // id 2
+    let union_id = w.peek_id();
+    w.union_(&mut s, 16, &[("files", files_id, 32)]); // id 3: the pointer at bit 32
+    w.strukt_typed(&mut s, "task_struct", 4096, &[("", union_id, 0)]); // id 4
+    w.strukt(&mut s, "fdtable", 32, &[("max_fds", 0), ("fd", 8 * 8)]); // id 5
+    w.strukt(&mut s, "dentry", 208, &[("d_inode", 48 * 8)]);
     w.strukt(&mut s, "inode", 656, &[("i_ino", 64 * 8)]);
-    let inode_ptr = w.ptr(3);
-    let proto = w.peek_id();
-    w.func_proto(&mut s, 1, &[("inode", inode_ptr)]);
-    w.func(&mut s, "vfs_writev", proto);
-    let reshaped = build_btf(w, s);
-
-    // Blob 4: neither symbol under any name.
-    let mut w = TypeWriter::new();
-    let mut s = StrTab::new();
-    w.int(&mut s, "int");
-    w.strukt(&mut s, "file", 256, &[("f_inode", 32 * 8)]);
-    let file_ptr = w.ptr(2);
-    let proto = w.peek_id();
-    w.func_proto(&mut s, 1, &[("file", file_ptr)]);
-    w.func(&mut s, "vfs_read", proto);
-    let neither = build_btf(w, s);
-
-    (primary, fallback, reshaped, neither)
-}
-
-#[test]
-fn vfs_writev_verifies_as_the_primary_symbol() {
-    let (primary, _, _, _) = writev_blobs();
-    assert_eq!(
-        verify_writev_symbol_in(&primary).expect("the primary verifies"),
-        "vfs_writev"
+    w.strukt(
+        &mut s,
+        "file",
+        256,
+        &[("f_path", 16 * 8), ("f_inode", 32 * 8)],
     );
-}
-
-#[test]
-fn do_iter_write_verifies_as_the_fallback_when_the_primary_is_absent() {
-    let (_, fallback, _, _) = writev_blobs();
-    assert_eq!(
-        verify_writev_symbol_in(&fallback).expect("the fallback verifies"),
-        "do_iter_write"
-    );
-}
-
-#[test]
-fn a_reshaped_primary_refuses_instead_of_falling_through() {
-    let (_, _, reshaped, _) = writev_blobs();
-    let err = verify_writev_symbol_in(&reshaped).unwrap_err();
-    // The loud moment: the symbol exists but its shape moved - never
-    // a silent fallthrough to the fallback.
-    assert!(err.contains("struct inode, not struct file"), "got: {err}");
-    assert!(err.contains("shape moved"), "got: {err}");
-}
-
-#[test]
-fn neither_symbol_refuses_by_name() {
-    let (_, _, _, neither) = writev_blobs();
-    let err = verify_writev_symbol_in(&neither).unwrap_err();
-    assert!(err.contains("no BTF FUNC record"), "got: {err}");
-    assert!(err.contains("vfs_writev or do_iter_write"), "got: {err}");
-}
-
-#[test]
-fn wrong_arg0_shapes_are_refused_by_name() {
-    // By value: arg0 IS the struct, not a pointer to it.
-    let mut w = TypeWriter::new();
-    let mut s = StrTab::new();
-    w.int(&mut s, "int"); // id 1
-    w.strukt(&mut s, "file", 256, &[("f_inode", 32 * 8)]); // id 2
-    let proto = w.peek_id();
-    w.func_proto(&mut s, 1, &[("file", 2)]);
-    w.func(&mut s, "vfs_writev", proto);
-    let err = verify_writev_symbol_in(&build_btf(w, s)).unwrap_err();
-    assert!(err.contains("by value"), "got: {err}");
-
-    // Pointer to a pointer: not the file contract either.
-    let mut w = TypeWriter::new();
-    let mut s = StrTab::new();
-    w.int(&mut s, "int"); // id 1
-    w.strukt(&mut s, "file", 256, &[("f_inode", 32 * 8)]); // id 2
-    let ptr = w.ptr(2); // id 3
-    let ptr_ptr = w.ptr(ptr); // id 4: PTR -> PTR -> struct file
-    let proto = w.peek_id();
-    w.func_proto(&mut s, 1, &[("file", ptr_ptr)]);
-    w.func(&mut s, "vfs_writev", proto);
-    let err = verify_writev_symbol_in(&build_btf(w, s)).unwrap_err();
-    assert!(err.contains("pointer to a pointer"), "got: {err}");
-}
-
-#[test]
-fn a_typedef_chain_still_resolves_to_struct_file() {
-    // PTR -> TYPEDEF("file_t") -> struct file: the qualifier/typedef
-    // arm, resolved and accepted.
-    let mut w = TypeWriter::new();
-    let mut s = StrTab::new();
-    w.int(&mut s, "int"); // id 1
-    w.strukt(&mut s, "file", 256, &[("f_inode", 32 * 8)]); // id 2
-    let typedef_id = w.peek_id();
-    w.typedef(&mut s, "file_t", 2); // id 3
-    let ptr = w.ptr(typedef_id); // id 4
-    let proto = w.peek_id();
-    w.func_proto(&mut s, 1, &[("file", ptr)]);
-    w.func(&mut s, "vfs_writev", proto);
-    assert_eq!(
-        verify_writev_symbol_in(&build_btf(w, s)).expect("the typedef chain verifies"),
-        "vfs_writev"
-    );
-}
-
-#[test]
-fn the_live_host_verifies_the_writev_symbol_or_refuses_by_name() {
-    // The live-host twin of the offsets probe (skip when the host
-    // ships no BTF). Two honest outcomes on a host that ships
-    // vmlinux BTF: the verification names the verified symbol (any
-    // kernel 5.10 through the current 6.x line carries vfs_writev or
-    // do_iter_write under this exact shape - verified against the
-    // reference probe), or a future refactor refuses by naming the
-    // piece it could not vouch for - the same attach-time honesty
-    // the offsets contract rides.
-    if !std::path::Path::new("/sys/kernel/btf/vmlinux").exists() {
-        return;
-    }
-    match verify_writev_symbol() {
-        Ok(symbol) => {
-            assert!(
-                symbol == "vfs_writev" || symbol == "do_iter_write",
-                "the verified symbol is one of the two candidates: {symbol}"
-            );
-            // The verification is deterministic: a second walk over
-            // the same vmlinux lands on the same symbol.
-            let again = verify_writev_symbol().expect("the second verification succeeds");
-            assert_eq!(symbol, again, "the verification must be deterministic");
-        }
-        Err(err) => {
-            assert!(
-                err.contains("not struct file")
-                    || err.contains("no BTF FUNC record")
-                    || err.contains("cannot read"),
-                "a BTF-present host refuses by naming the unverified piece: {err}"
-            );
-        }
-    }
+    w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
+    w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
+    w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    let blob = build_btf(w, s);
+    let offsets = parse_btf_offsets(&blob).expect("the blob parses");
+    assert_eq!(offsets[8], 4, "task_struct.files through the unnamed union");
+    assert_eq!(offsets[9], 0, "files_struct.fdt stays direct");
+    assert_eq!(offsets[10], 0, "fdtable.max_fds stays direct");
+    assert_eq!(offsets[11], 8, "fdtable.fd stays direct");
 }

@@ -25,22 +25,22 @@
 //! carrying `const struct path f_path` beside a writable
 //! `struct path __f_path`, so the direct-member walk found nothing
 //! and every 6.18+ host refused at attach. The walk now descends
-//! anonymous struct/union members, and only those (`file->f_path`
-//! never names a named nested aggregate's field), accumulating bit
-//! offsets across the levels. The refusal doctrine is unchanged:
-//! a member still unfound after the descent is still the named
-//! error, never a guess.
+//! anonymous struct/union members, and only those, accumulating bit
+//! offsets across the levels; a member still unfound after the
+//! descent is still the named error, never a guess.
 //!
 //! The parser is deliberately minimal: a BTF header check, a type
-//! walk, six struct lookups by name, eight member lookups by name.
-//! Pure std, no unsafe - it reads a file and slices bytes. The walk
-//! mirrors the reference dump this pass was designed against
-//! (scripts-side probe, kernel 5.10.134: struct file f_path@16
-//! f_inode@32; struct path mnt@0 dentry@8; struct vfsmount mnt_sb@8;
-//! struct super_block s_dev@16; struct dentry d_inode@48; struct
-//! inode i_ino@64) - but the parser trusts nothing: it returns
-//! whatever THE HOST says, and every lookup failure is an error that
-//! names the missing piece.
+//! walk, nine struct lookups, twelve member lookups. Pure std, no
+//! unsafe - it reads a file, trusts nothing, returns what THE HOST
+//! says, and names every lookup failure.
+//!
+//! night-improve-57: the plain-write tap moved to the syscall entry
+//! (__x64_sys_write) - the newest -O3 distro builds inline vfs_write
+//! into the stub (found dead on cachyos 7.2 by the moving-latest
+//! witness) - so the parse grows the four fd-walk slots
+//! (task_struct.files, files_struct.fdt, fdtable.max_fds,
+//! fdtable.fd) turning the syscall's fd register back into the
+//! struct file* the walk reads.
 
 /// The BTF magic, as a little-endian u16 over the file's first two
 /// bytes (0x9F 0xEB in the file).
@@ -52,12 +52,11 @@ const BTF_HEADER_BYTES: usize = 24;
 /// The offsets the probes read, slot-aligned to the events.rs
 /// OFF_SLOT_* indices: [dentry.d_inode, inode.i_ino, file.f_path,
 /// file.f_inode, vfsmount.mnt_sb, super_block.s_dev, path.mnt,
-/// path.dentry], every value a byte offset. Eight file-walk slots.
-/// (night-improve-34: the five process-stream slots - the fork/exit
-/// tracepoint contexts and the task_struct pair the ppid walk rode -
-/// went with the lifecycle stream surface; the file slots keep their
-/// indices.)
-pub type ProbeOffsets = [u64; 8];
+/// path.dentry], every value a byte offset - the eight frozen
+/// file-walk slots - plus the four fd-walk slots night-improve-57
+/// appends for the syscall-stub write tap: [task_struct.files,
+/// files_struct.fdt, fdtable.max_fds, fdtable.fd].
+pub type ProbeOffsets = [u64; 12];
 
 /// Parse the host's own /sys/kernel/btf/vmlinux. Every error names
 /// its stage; nothing is guessed, ever.
@@ -154,6 +153,15 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
     let path = ctx
         .find_struct("path")
         .ok_or_else(|| "struct path not found in BTF".to_owned())?;
+    let task = ctx
+        .find_struct("task_struct")
+        .ok_or_else(|| "struct task_struct not found in BTF".to_owned())?;
+    let files = ctx
+        .find_struct("files_struct")
+        .ok_or_else(|| "struct files_struct not found in BTF".to_owned())?;
+    let fdtable = ctx
+        .find_struct("fdtable")
+        .ok_or_else(|| "struct fdtable not found in BTF".to_owned())?;
 
     Ok([
         member_offset(&ctx, dentry, "dentry", "d_inode")?,
@@ -164,6 +172,10 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
         member_offset(&ctx, super_block, "super_block", "s_dev")?,
         member_offset(&ctx, path, "path", "mnt")?,
         member_offset(&ctx, path, "path", "dentry")?,
+        member_offset(&ctx, task, "task_struct", "files")?,
+        member_offset(&ctx, files, "files_struct", "fdt")?,
+        member_offset(&ctx, fdtable, "fdtable", "max_fds")?,
+        member_offset(&ctx, fdtable, "fdtable", "fd")?,
     ])
 }
 
@@ -583,3 +595,6 @@ mod tests;
 #[cfg(test)]
 #[path = "../../test/ebpf/btf_flatten_tests.rs"]
 mod flatten_tests;
+#[cfg(test)]
+#[path = "../../test/ebpf/btf_writev_tests.rs"]
+mod writev_tests;

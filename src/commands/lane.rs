@@ -75,9 +75,9 @@ pub fn device_token_from_stat(st_dev: u64) -> u64 {
 /// Which class of live events this surface reports.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OpFilter {
-    /// vfs_open events only (holds).
+    /// Open events only (holds).
     Opens,
-    /// vfs_write events only (touch).
+    /// Write events only (touch).
     Writes,
     /// Both (why).
     Both,
