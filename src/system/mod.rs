@@ -173,8 +173,19 @@ pub fn sanitize_display(input: &str) -> String {
 /// callers should fall back to the `Name` field from `/proc/<pid>/status`.
 pub fn read_cmdline(proc_root: &Path, pid: u32) -> Option<String> {
     let path = proc_root.join(pid.to_string()).join("cmdline");
-    let bytes = fs::read(&path).ok()?;
-    // Kernel threads have empty cmdline.
+    parse_cmdline_bytes(&fs::read(&path).ok()?)
+}
+
+/// The pure parser behind [`read_cmdline`]: raw `/proc/<pid>/cmdline`
+/// bytes in, argv tokens out. Split on NUL, NUL-separated (not
+/// newline); an empty byte stream means the process is a kernel
+/// thread and the caller falls back to the `Name` field from
+/// `/proc/<pid>/status`. Separated from the filesystem read so the
+/// fuzz lane drives the exact byte grammar the kernel serves
+/// (night-improve-43): hostile bytes, non-UTF-8 argv, NUL edge cases,
+/// all of it lands here first - and the composed result exits through
+/// [`sanitize_display`] like every other hostile-sourced string.
+pub fn parse_cmdline_bytes(bytes: &[u8]) -> Option<String> {
     if bytes.is_empty() {
         return None;
     }

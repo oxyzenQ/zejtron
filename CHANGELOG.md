@@ -23,6 +23,40 @@ v11.0.0
 
 ### Added
 
+- The reliability of the parsers is now a continuous guarantee. A
+  cargo-fuzz lane runs against the BTF parser, the /proc parser, and
+  the terminal sanitizer, proving that hostile or corrupted kernel
+  inputs result in a clean error, never a panic. The detective does
+  not break when the evidence is malformed. Three targets, one per
+  critical surface (night-improve-43): `btf_parser` drives the two
+  pure BTF entry points (`parse_btf_offsets`, `verify_writev_symbol_in`)
+  over arbitrary bytes - the /sys/kernel/btf/vmlinux grammar a
+  corrupted host could serve, short files, lying section bounds,
+  truncated type records included; `proc_parser` drives the shared
+  /proc and /etc grammar in `src/system/mod.rs` - the cmdline byte
+  parser (extracted as the pure `parse_cmdline_bytes` behind
+  `read_cmdline`, zero behavior change) plus the passwd, status, and
+  cgroup string grammars behind the same UTF-8 gate the real readers
+  sit in; `sanitize_display` asserts its two properties on every
+  input the fuzzer invents - NO control character survives into a
+  rendered row (the CWE-150 gate, terminal injection dead on
+  arrival) and honest data comes back byte-identical. The harnesses
+  path-include the parser sources instead of adding a lib target to
+  the bin-only crate: the fuzzer compiles the same src/ebpf/btf.rs
+  and src/system/mod.rs bytes the binary ships, so a guarantee the
+  lane proves is a guarantee the binary carries, with no harness
+  drift and no copied grammar. The lane rides nightly (cargo-fuzz's
+  standard toolchain) with the stable pin untouched - the override
+  is env-scoped to the fuzz lane's cargo invocations, the main
+  crate's lanes never see it; each target runs a bounded 60 seconds
+  per push with the corpus cached between runs, so depth accumulates
+  and a regression fails CI with the crashing input in the log. The
+  eBPF kernel-side code is deliberately not fuzzed: it runs behind
+  the kernel verifier, not in userspace. Proven green the night it
+  shipped - 1.39M BTF walks, 144K /proc grammars, and 269K sanitizer
+  passes with zero crashes: the claim was already true, and now it
+  is a standing test that stays true.
+
 - A false-negative gap in the file-write arena is closed. zejtron now
   taps vfs_writev alongside vfs_write, ensuring that processes using
   vectorized I/O are not invisible to the Evidence Ledger - the

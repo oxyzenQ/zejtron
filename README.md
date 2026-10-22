@@ -559,9 +559,12 @@ them.
 
 The suite is the contract: 205 tests green at every landing, plus the
 CLI battery run against the built binary per supermassive leg (MSRV
-and stable, gnu and musl), the miri UB lane, and the container end-to-end
-leg. CI blocks the merge on every one of them — a green pipeline has
-run the battery, not just compiled the code.
+and stable, gnu and musl), the miri UB lane, the cargo-fuzz lane
+(three hostile-input targets - the BTF parser, the /proc parsers, and
+the terminal sanitizer - 60 seconds each per push, crash means red),
+and the container end-to-end leg. CI blocks the merge on every one of
+them — a green pipeline has run the battery, not just compiled the
+code.
 
 ## Release Verification
 

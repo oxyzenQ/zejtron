@@ -1,0 +1,58 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The fuzz lane's workspace (night-improve-43). A separate cargo
+# workspace on purpose: the fuzzer's dependency graph (libfuzzer-sys
+# and its bundled runtime) never touches the main crate's Cargo.lock,
+# and the main crate's stable/MSRV lanes never see the fuzzer's
+# nightly-only needs. The two never build together - the root manifest
+# is a single package, this directory is its own workspace root, and
+# .github/workflows/fuzz.yml is the only automation that enters here.
+#
+# The crate under test is NOT a path dependency: zejtron is a bin-only
+# crate (no lib target), and inventing one for the fuzzer's sake would
+# reshape the main build the whole CI estate vets. Instead each target
+# path-includes the exact parser source it protects - the harness
+# compiles the same src/ebpf/btf.rs and src/system/mod.rs bytes the
+# binary ships, so a guarantee the lane proves is a guarantee the
+# binary carries, with no harness drift and no copied grammar. Both
+# files are std-only and crate-import-free, so the includes compile
+# standalone. The eBPF kernel-side code is deliberately not fuzzed:
+# it runs behind the kernel verifier, not in userspace.
+
+[package]
+name = "zejtron-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+# The marker cargo-fuzz itself demands (it refuses to drive a
+# manifest without it - the guard against fuzzing the wrong crate).
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[[bin]]
+name = "btf_parser"
+path = "fuzz_targets/btf_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "proc_parser"
+path = "fuzz_targets/proc_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sanitize_display"
+path = "fuzz_targets/sanitize_display.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
