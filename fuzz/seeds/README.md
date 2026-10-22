@@ -28,17 +28,21 @@ carry those same shapes into the fuzz lane's own budget.
   struct file's f_path rides an unnamed union (a const-wrapped
   struct path beside its writable `__f_path` twin), the exact
   layout Al Viro's constification landed on the 6.18 line. The
-  eight-offset parse must answer
-  `[48, 64, 0, 16, 8, 16, 0, 8]` - the union descent finding
-  f_path, f_inode still direct.
+  twelve-offset parse must answer
+  `[48, 64, 0, 16, 8, 16, 0, 8, 16, 0, 0, 8]` - the union descent
+  finding f_path, f_inode still direct, the fd-walk trio
+  (night-improve-57) parsed after the frozen eight.
 - `file-f-path-two-level-anon-nest.bin` - a two-level anonymous
   nest (unnamed union into a const-wrapped unnamed struct, both
   at nonzero bases), the accumulation math pinned: f_path lands
   at byte 96 (64 + 32 + 0), so the depth-8 descent, the qualifier
-  resolution, and the offset summing all ride the fuzzed path.
+  resolution, and the offset summing all ride the fuzzed path;
+  the fd-walk trio rides behind (16, 0, 0, 8).
 - `direct-members-plus-vfs-writev.bin` - the pre-6.18 direct-member
   layout carrying a verifiable `vfs_writev(file*, ...)` FUNC
-  record: the parse answers `[48, 64, 16, 32, 8, 16, 0, 8]` and
+  record (the file struct's id is load-bearing for the arg0 walk,
+  so the fd-walk trio rides after the writev records): the parse
+  answers `[48, 64, 16, 32, 8, 16, 0, 8, 16, 0, 0, 8]` and
   the writev walk resolves arg0 through the pointer to struct
   file - the one anchor that exercises BOTH pure entry points
   the harness drives.
