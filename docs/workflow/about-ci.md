@@ -27,7 +27,7 @@ wholesale on every push and every pull request - the same blind posture
 as the fast lane - with every tool it probes installed and pinned
 (version plus sha256, the bytes-are-the-pin contract), because a check
 that silently skips behind a missing tool is a check that does not
-exist. The 17 sections cover the shell quad, the workflow linters, TOML
+exist. The 18 sections cover the shell quad, the workflow linters, TOML
 syntax, the repo-discipline gates (headers, permissions, emoji,
 language, the LOC caps), and the pin-sync guards. Section 16 is the
 push-time seat of the prebuilt verdict: the one writer's read-only
@@ -41,6 +41,10 @@ and the build-time arm (`build/ebpf.rs`) auto-heals a stale lane for
 every local cargo build - but a heal inside a CI runner would leave the
 pushed manifest stale and the run green, which is exactly the gap
 section 16 closes: what the developer heals locally, CI verifies.
+Section 17 gives the actions-pin sweep its strict seat - the one place
+where the network is always there and the `GITHUB_TOKEN` is native, so
+the freshness verdict upstream actually returns turns the push red (see
+Actions-Pin Health below).
 
 ## Fuzz (the reliability lane)
 
@@ -143,7 +147,7 @@ git push origin v80.0.0-alpha.2
 
 The workflows' `uses:` pins are kept fresh by a contributor-carried
 gate (the sibling project's actions-pin contract, one engine for all
-three seats):
+four seats):
 
 ```sh
 ./scripts/gates/check-actions-pins.sh            # report only
@@ -156,11 +160,16 @@ heals tag pins sitting behind the upstream major in place. Branch pins
 (the `dtolnay/rust-toolchain@stable` shape) and SHA pins are reported
 as skips for a human decision, never healed by a guess.
 
-Three seats, one engine. The automatic seat is the pre-commit hook:
+Four seats, one engine. The automatic seat is the pre-commit hook:
 `check-commit-gate.sh` delegates to the engine on every commit of a
 wired clone (gate-keepers self-installs `core.hooksPath=.githooks`),
 advisory - it reports and never blocks, because pin freshness is a
-remote fact and a commit must not hinge on one. The offline full gate
+remote fact and a commit must not hinge on one. The binding seat is the
+Gate-keepers CI lane: section 17 runs the sweep with `--strict` and the
+runner's `GITHUB_TOKEN`, so the verdict upstream actually returns turns
+the push red - the one seat where the remote fact is always reachable,
+and the only red it can produce (every skip reason stays a skip there
+too). The offline full gate
 (`scripts/build.sh check-all`) carries no seat at all: a check that
 needs the network has no place in a check that must stay fast. The
 on-demand seats are the report and the maintainer heal: `--apply`

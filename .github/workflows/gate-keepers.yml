@@ -9,8 +9,8 @@
 # docs-only or workflow-only change never skips the gates that
 # police it.
 #
-# Checks performed by gate-keepers.sh (17 sections: the pre-commit
-# self-install seat plus 16 numbered gates):
+# Checks performed by gate-keepers.sh (18 sections: the pre-commit
+# self-install seat plus 17 numbered gates):
 #    0. Pre-commit hook self-install
 #    1. Shell quad (bash -n, shellcheck, shfmt, source resolution)
 #    2. yamllint       3. actionlint      4. TOML syntax
@@ -20,6 +20,8 @@
 #   14. release parity (alias == matrix rustflags)
 #   15. family name case (zylaxion lowercase law)
 #   16. prebuilt pin parity (the --check verdict, fail-closed)
+#   17. actions-pin freshness (the --strict sweep, fail-closed on
+#       a KNOWN-stale tag pin; every skip reason stays a skip)
 #
 # Every tool below is installed and pinned - a check that silently
 # skips because its tool is missing is a check that does not exist.
@@ -106,7 +108,12 @@ jobs:
           sudo install -m755 /tmp/b3sum /usr/local/bin/b3sum
           b3sum --version
 
-      # The wholesale run: all 17 sections in one shot - exit code 0
+      # The wholesale run: all 18 sections in one shot - exit code 0
       # or the push is blocked.
       - name: Run gate-keepers.sh (wholesale)
         run: bash scripts/gate-keepers.sh
+        env:
+          # Section 17's strict actions-pin verdict needs the API quota
+          # the runner's own token carries (read-only; the sweep sends it
+          # as a Bearer header and never writes it anywhere).
+          GITHUB_TOKEN: ${{ github.token }}
