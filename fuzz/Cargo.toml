@@ -13,11 +13,15 @@
 # crate (no lib target), and inventing one for the fuzzer's sake would
 # reshape the main build the whole CI estate vets. Instead each target
 # path-includes the exact parser source it protects - the harness
-# compiles the same src/ebpf/btf.rs and src/system/mod.rs bytes the
-# binary ships, so a guarantee the lane proves is a guarantee the
-# binary carries, with no harness drift and no copied grammar. Both
-# files are std-only and crate-import-free, so the includes compile
-# standalone. The eBPF kernel-side code is deliberately not fuzzed:
+# compiles the same src/ebpf/btf.rs, src/ebpf/btf_writev.rs and
+# src/system/ bytes the binary ships, so a guarantee the lane proves
+# is a guarantee the binary carries, with no harness drift and no
+# copied grammar. Every included file is std-only and crate-import-
+# free - the writev verifier reaches its sibling parser through
+# `super`, never through the crate - so the includes compile
+# standalone, and scripts/gates/check-fuzz-includes.sh (gate 18)
+# holds the law locally. The eBPF kernel-side code is deliberately
+# not fuzzed:
 # it runs behind the kernel verifier, not in userspace.
 #
 # The committed seed anchors (night-improve-50, fuzz/seeds/) ride
