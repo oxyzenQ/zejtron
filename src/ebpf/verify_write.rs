@@ -37,7 +37,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use super::events::FILE_OP_WRITE;
-use super::readback::read_write_census;
+use super::readback::{read_fd_walk_offsets, read_write_census};
 use super::ringbuf::drain_file_events;
 use super::tracked::{track_file, untrack_file};
 use crate::commands::lane::device_token_from_stat;
@@ -116,15 +116,26 @@ fn verify_once(dir: &Path, probe: &Path) -> Result<(), String> {
                         .to_owned()
                 }
                 Ok(census) => match census.furthest {
-                    Some((stage, count)) => format!(
-                        "{} drop(s), {} completed walk(s), furthest drop at stage {}: \
-                         {} ({} drop(s) there)",
-                        census.drops,
-                        census.walked,
-                        stage,
-                        stage_meaning(stage),
-                        count
-                    ),
+                    Some((stage, count)) => {
+                        // The planted numbers beside the hop: the
+                        // fd-walk offsets the map actually held at
+                        // refusal time - a zero slot (the
+                        // night-hunter-3 plant bug) is visible in the
+                        // message itself, never guessed at.
+                        let planted = read_fd_walk_offsets()
+                            .map(|o| format!("{o:?}"))
+                            .unwrap_or_else(|e| format!("unreadable: {e}"));
+                        format!(
+                            "{} drop(s), {} completed walk(s), furthest drop at stage {}: \
+                             {} ({} drop(s) there); planted fd-walk offsets \
+                             [files, fdt, max_fds, fd]: {planted}",
+                            census.drops,
+                            census.walked,
+                            stage,
+                            stage_meaning(stage),
+                            count
+                        )
+                    }
                     None => format!(
                         "{} drop(s), {} completed walk(s), but no per-stage count \
                          survived - the stage counters were wiped mid-verify",

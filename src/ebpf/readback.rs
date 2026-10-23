@@ -26,7 +26,10 @@ use std::time::SystemTime;
 
 use aya::maps::{Array, Map, MapData};
 
-use super::PIN_MAP_STATS;
+use super::events::{
+    OFF_SLOT_FDT_FD, OFF_SLOT_FDT_MAX_FDS, OFF_SLOT_FILES_FDT, OFF_SLOT_TASK_FILES,
+};
+use super::{PIN_MAP_OFFSETS, PIN_MAP_STATS};
 
 /// The stats slots this module reads. The index contract with the
 /// kernel side (ebpf/src/main.rs's STATS_EVENTS, STATS_ZJW_DROPS,
@@ -106,6 +109,34 @@ pub fn read_write_census() -> Result<WriteCensus, String> {
         walked,
         furthest: furthest_stage(&counts),
     })
+}
+
+/// The four fd-walk offsets exactly as the pinned offsets map holds
+/// them right now (slots 8..11, the OFF_SLOT_* contract in
+/// events.rs): the planted facts a failed write verification echoes
+/// beside its census, so a slot the map never carried (the
+/// night-hunter-3 plant bug: the fd-walk slots were never written)
+/// is visible in the refusal itself, never guessed at. The same
+/// `MapData::from_pin` lane as every readback - a pinned map opens
+/// by path, no capability needed. Order: [files, fdt, max_fds, fd],
+/// the walk order the probe rides.
+pub fn read_fd_walk_offsets() -> Result<[u64; 4], String> {
+    let map_data = MapData::from_pin(PIN_MAP_OFFSETS)
+        .map_err(|e| format!("pinned offsets map {PIN_MAP_OFFSETS}: {e}"))?;
+    let map = Map::Array(map_data);
+    let offsets: Array<_, u64> = Array::try_from(&map)
+        .map_err(|e| format!("the pinned offsets map is not an array map: {e}"))?;
+    let slot = |index: u32| -> Result<u64, String> {
+        offsets
+            .get(&index, 0)
+            .map_err(|e| format!("offsets[{index}] read failed: {e}"))
+    };
+    Ok([
+        slot(OFF_SLOT_TASK_FILES)?,
+        slot(OFF_SLOT_FILES_FDT)?,
+        slot(OFF_SLOT_FDT_MAX_FDS)?,
+        slot(OFF_SLOT_FDT_FD)?,
+    ])
 }
 
 /// The attach moment: the stats pin's mtime (creation time - a pin is

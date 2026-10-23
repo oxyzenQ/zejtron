@@ -62,11 +62,6 @@ use super::{
     probe_kernel,
 };
 
-use super::events::{
-    OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH, OFF_SLOT_INODE_I_INO,
-    OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_VFSMOUNT_MNT_SB,
-};
-
 /// The embedded pure-Rust probe object (night-improve-1): the aya-ebpf
 /// ELF staged into OUT_DIR by build.rs. It rides inside the
 /// AlignedElf wrapper (the NIGHT-hunt-30 lesson - see embedded.rs)
@@ -413,18 +408,19 @@ fn write_offsets(offsets: &btf::ProbeOffsets) -> Result<(), String> {
     let mut owned = Map::Array(map_data);
     let mut map: Array<_, u64> = Array::try_from(&mut owned)
         .map_err(|e| format!("the pinned offsets map is not an array: {e}"))?;
-    let writes: [(u32, u64); 8] = [
-        (OFF_SLOT_DENTRY_D_INODE, offsets[0]),
-        (OFF_SLOT_INODE_I_INO, offsets[1]),
-        (OFF_SLOT_FILE_F_PATH, offsets[2]),
-        (OFF_SLOT_FILE_F_INODE, offsets[3]),
-        (OFF_SLOT_VFSMOUNT_MNT_SB, offsets[4]),
-        (OFF_SLOT_SUPER_BLOCK_S_DEV, offsets[5]),
-        (OFF_SLOT_PATH_MNT, offsets[6]),
-        (OFF_SLOT_PATH_DENTRY, offsets[7]),
-    ];
-    for (slot, value) in writes {
-        map.set(slot, value, 0)
+    // The write list IS the parsed array, slot = index: the contract
+    // between btf.rs (the values, built in slot order) and events.rs
+    // (the OFF_SLOT_* indices) is slot-alignment itself, so this loop
+    // structurally cannot lag it. The night-hunter-3 lesson lives
+    // here: night-improve-57 grew the contract by the four fd-walk
+    // slots (8..11) but this writer kept an explicit eight-pair
+    // table - the map stayed zero on the fd-walk slots, the probe
+    // read task_struct+0 as its "files" pointer, and the census
+    // blamed stage 4 on any host the probe was planted on, whatever
+    // its kernel. A value the map cannot hold fails right here, by
+    // slot, never silently.
+    for (slot, value) in offsets.iter().enumerate() {
+        map.set(slot as u32, *value, 0)
             .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
     }
     Ok(())

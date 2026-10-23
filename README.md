@@ -287,6 +287,13 @@ on a kernel whose BTF omits one. The member lookups know the
 anonymous unions modern kernels wrap their members in (6.18's
 struct file carries its f_path inside one), and the refusal stands
 unchanged when a member cannot be found even through the descent.
+The fd-walk offsets the write probe reads (task_struct.files,
+files_struct.fdt, fdtable.max_fds, fdtable.fd) ride the same law:
+parsed from the host's BTF at attach and written into the offsets
+map whole, slot = index. If the write probe's self-verification
+still refuses, the refusal echoes the planted fd-walk offsets
+beside the drop census, so a starved slot is visible in the
+message itself.
 
 `zejtron doctor` reports the lane honestly in its [eBPF] section in
 every build, and the verbs live on the doctor:
