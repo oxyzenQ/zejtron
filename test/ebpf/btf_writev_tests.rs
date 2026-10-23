@@ -9,7 +9,10 @@
 //! module.
 
 use super::tests::{StrTab, TypeWriter, build_btf};
-use super::*;
+// The verified functions moved to btf_writev.rs (night-hunter-4's
+// pure move at the 600 LOC cap); the pins follow the function, the
+// wiring stays in the btf module's tests tree.
+use crate::ebpf::btf_writev::{verify_writev_symbol, verify_writev_symbol_in};
 
 // ── The writev-lane symbol verification pins (night-improve-42) ──
 

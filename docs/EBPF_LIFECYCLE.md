@@ -212,3 +212,43 @@ PID are metadata; a packet's payload is not. The camera records
 what happened and who did it - the "who", the "what", and the
 "when" - and leaves the "what exactly" to the operator, on
 purpose.
+
+## 6. Troubleshooting with the diagnostic trace
+
+Every surface above can be watched while it works. The global
+`-v` / `--verbose` flag arms the diagnostic trace lane: one-line
+`[tag]` messages on stderr, never stdout - the Evidence Ledger and
+every JSON/report surface stay byte-clean on a pipe, so
+`zejtron why /etc/passwd -v > out.txt 2> err.txt` leaves `out.txt`
+holding only the ledger and `err.txt` holding the engine's trace.
+
+Three tags, one per subsystem:
+
+- **`[engine]`** - the loader and attach chain: the probed kernel
+  facts, the embedded object load, each program attach and map
+  pin, the offsets write, and the write probe's self-verification
+  (a failed verification names the exact census stage drop - the
+  furthest fd-walk hop that lost events).
+- **`[btf]`** - the struct-offset parser: every member the host's
+  own `/sys/kernel/btf/vmlinux` vouched for, with its resolved
+  byte offset (`resolved struct file -> f_path at offset 128`
+  shape), and the writev attach symbol verdict.
+- **`[lane]`** - the snapshot/live decision every command makes:
+  `live eBPF window selected (attached)`,
+  `snapshot only (eBPF not attached)`,
+  `journal fallback selected`.
+
+The two troubleshooting surfaces pair with it:
+
+```sh
+zejtron doctor --attach -v   # the full attach sequence, step by step
+zejtron why /etc/passwd -v   # which lane answered, and why
+```
+
+The logs are factual and boring by law - one line per fact, no
+emojis, no hype - because the trace exists to be read during an
+incident, not to be admired. When the attach refuses or the write
+probe fails its self-verification, the `[engine]` trace carries the
+census verdict (the furthest-drop stage), which is the first thing
+to quote in a bug report; the doctor's `[eBPF]` section remains the
+complete host read.

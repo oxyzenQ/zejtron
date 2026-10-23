@@ -419,11 +419,16 @@ pub mod embedded;
 pub mod events;
 
 pub mod btf;
+/// The planting half of the loader (night-hunter-4's pure move at
+/// the 600 LOC cap): the probe-object names and the per-program
+/// plant chain the loader's attach orchestrates.
+mod btf_writev;
 pub mod fileprobe;
 /// The loader (attach/detach), the counter readback, the two ring
 /// readers, the BTF offsets parser, the filter-map writer, and the
 /// file-window capture.
 pub mod loader;
+mod plant;
 pub mod readback;
 pub mod ringbuf;
 pub mod tracked;

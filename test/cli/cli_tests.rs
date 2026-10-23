@@ -232,3 +232,32 @@ fn parses_proc_filters_and_no_pid() {
         other => panic!("unexpected command: {other:?}"),
     }
 }
+
+/// The diagnostic trace flag (night-hunter-4): global, so it parses
+/// before OR after the subcommand, and the default is off.
+#[test]
+fn parses_verbose_global_position() {
+    let after = Cli::try_parse_from(["zejtron", "why", "/etc/passwd", "-v"]).unwrap();
+    assert!(after.verbose, "-v must parse after the subcommand");
+
+    let before = Cli::try_parse_from(["zejtron", "-v", "why", "/etc/passwd"]).unwrap();
+    assert!(before.verbose, "-v must parse before the subcommand");
+
+    let long = Cli::try_parse_from(["zejtron", "doctor", "--verbose"]).unwrap();
+    assert!(long.verbose, "--verbose must parse like -v");
+
+    let off = Cli::try_parse_from(["zejtron", "why", "/etc/passwd"]).unwrap();
+    assert!(!off.verbose, "the diagnostic lane must default to off");
+}
+
+/// The help surfaces disclose the diagnostic flag: clap's Options
+/// block (via the global -h render) and the Pro mode global group.
+#[test]
+fn help_discloses_verbose() {
+    let help = help_command().render_help().to_string();
+    assert!(help.contains("--verbose"), "help must disclose --verbose");
+    assert!(
+        help.contains("-v, --verbose"),
+        "Pro mode must spell the -v, --verbose grammar"
+    );
+}

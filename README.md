@@ -435,11 +435,26 @@ zejtron doctor --symptom gpu
 # Version + build report; the upstream release check (refuses sudo)
 zejtron -V
 zejtron --check-update
+
+# The diagnostic trace: engine logs on stderr, the report on stdout.
+# -v names the lane each command rode, every BTF offset the host
+# vouched for, and each attach step (pipe-safe: stdout stays clean)
+zejtron why /etc/passwd -v
+zejtron doctor --attach -v
 ```
 
 `-V` and `--version` print complete version, build, build-time (UTC),
 license, and source metadata. The doctor's BUILD block carries the
 same stamp.
+
+`-v` / `--verbose` is the diagnostic trace lane (global flag): it
+prints `[engine]` / `[btf]` / `[lane]` one-liners to stderr while the
+Evidence Ledger, JSON, and every report stay byte-clean on stdout -
+`zejtron why /etc/passwd -v > out.txt 2> err.txt` puts only the
+ledger in `out.txt`. The attach chain, the BTF offset resolutions,
+and each command's snapshot/live lane decision are the traced facts;
+`docs/EBPF_LIFECYCLE.md` (section 6) is the troubleshooting
+reference.
 
 ## Limitations (honest)
 

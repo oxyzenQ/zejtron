@@ -66,65 +66,6 @@ pub fn parse_probe_offsets() -> Result<ProbeOffsets, String> {
     parse_btf_offsets(&data)
 }
 
-// ── The writev-lane symbol verification (night-improve-42) ──────
-//
-// The same law the offsets parse rides, extended from member
-// offsets to argument positions: the kprobe's attach point and its
-// first argument shape are read from the host's own BTF at attach
-// time, never compiled in. A kprobe at a symbol whose arg0 is not
-// the expected pointer reads garbage SILENTLY - the loud refusal is
-// the only honest alternative.
-
-/// The writev-lane attach symbols, in preference order: vfs_writev
-/// is the direct analog of the write probe (writev(2), pwritev(2), and
-/// pwritev2(2) all funnel through it, 5.15 through the current 6.x
-/// line); do_iter_write is the convergence one layer deeper, the
-/// verified fallback for a host whose BTF omits the former (inlined
-/// away or refactored). Both carry the same arg0 contract: a
-/// pointer to struct file.
-const WRITEV_SYMBOLS: [&str; 2] = ["vfs_writev", "do_iter_write"];
-
-/// Verify the writev probe's attach point from the host's own BTF:
-/// return the symbol whose FUNC prototype the host vouches for
-/// (first argument a pointer to struct file), or an error naming
-/// exactly what could not be verified. The refusal, not a guess,
-/// is the point.
-pub fn verify_writev_symbol() -> Result<&'static str, String> {
-    let data = std::fs::read("/sys/kernel/btf/vmlinux")
-        .map_err(|e| format!("cannot read /sys/kernel/btf/vmlinux: {e}"))?;
-    verify_writev_symbol_in(&data)
-}
-
-/// The pure verifier: given the raw BTF file bytes, return the
-/// verified symbol. Separated from [`verify_writev_symbol`] so the
-/// tests can drive it with synthetic blobs end to end. Preference
-/// order: the first symbol whose FUNC record the host carries wins;
-/// a symbol PRESENT with a different first-argument shape is a hard
-/// refusal (the name exists but the contract moved - the loud
-/// moment, never a silent fallthrough); an ABSENT symbol falls
-/// through to the next candidate.
-pub fn verify_writev_symbol_in(data: &[u8]) -> Result<&'static str, String> {
-    let ctx = BtfFile::new(data)?;
-    for symbol in WRITEV_SYMBOLS {
-        let Some(func) = ctx.find_func(symbol) else {
-            continue;
-        };
-        let struct_name = ctx.func_arg0_struct(func, symbol)?;
-        if struct_name == "file" {
-            return Ok(symbol);
-        }
-        return Err(format!(
-            "{symbol}'s first argument is struct {struct_name}, not struct file - the \
-             symbol exists but its shape moved; refusing rather than guessing"
-        ));
-    }
-    Err(format!(
-        "no BTF FUNC record for {} - this kernel does not carry the \
-         vectorized-write path under a verifiable name",
-        WRITEV_SYMBOLS.join(" or ")
-    ))
-}
-
 /// The pure parser: given the raw BTF file bytes, return the eight
 /// offsets. Separated from [`parse_probe_offsets`] so the tests can
 /// drive it with synthetic blobs end to end. The six struct lookups
@@ -198,12 +139,20 @@ fn member_offset(
             "struct {sname} member {mname} is a bitfield (bit {bit_offset}) - refusing"
         ));
     }
-    Ok(u64::from(bit_offset / 8))
+    let offset = u64::from(bit_offset / 8);
+    // The diagnostic trace (night-hunter-4): one line per resolved
+    // member, the attach-time answer to "which offset did the host's
+    // BTF actually vouch for".
+    crate::output::verbose::vlog!(
+        "btf",
+        "resolved struct {sname} -> {mname} at offset {offset}"
+    );
+    Ok(offset)
 }
 
 /// The walked BTF file: the type records and the string section,
 /// sliced and bounds-checked once.
-struct BtfFile<'a> {
+pub(crate) struct BtfFile<'a> {
     data: &'a [u8],
     types_base: usize,
     types_len: usize,
@@ -223,12 +172,12 @@ struct StructEntry {
 /// One located FUNC record (night-improve-42): its header position -
 /// the FUNC_PROTO type id rides in the size/type field at pos+8.
 #[derive(Clone, Copy)]
-struct FuncEntry {
+pub(crate) struct FuncEntry {
     pos: usize,
 }
 
 impl<'a> BtfFile<'a> {
-    fn new(data: &'a [u8]) -> Result<Self, String> {
+    pub(crate) fn new(data: &'a [u8]) -> Result<Self, String> {
         if data.len() < BTF_HEADER_BYTES {
             return Err(format!("BTF too short for a header: {} bytes", data.len()));
         }
@@ -333,7 +282,7 @@ impl<'a> BtfFile<'a> {
     /// [`Self::find_struct`]. The FUNC record's vlen is the linkage
     /// (static/global/extern), not a count; the payload is zero
     /// bytes either way.
-    fn find_func(&self, want: &str) -> Option<FuncEntry> {
+    pub(crate) fn find_func(&self, want: &str) -> Option<FuncEntry> {
         let mut pos = self.types_base;
         let end = self.types_base + self.types_len;
         while pos + 12 <= end {
@@ -389,7 +338,7 @@ impl<'a> BtfFile<'a> {
     /// chains. Every refusal names its stage; a pointer to a pointer
     /// or a by-value struct is refused as loudly as an absent proto -
     /// each is a different wrong answer at the same attach point.
-    fn func_arg0_struct(&self, func: FuncEntry, fname: &str) -> Result<String, String> {
+    pub(crate) fn func_arg0_struct(&self, func: FuncEntry, fname: &str) -> Result<String, String> {
         let proto_id = u32_at(self.data, func.pos + 8);
         let Some(proto_pos) = self.record_pos(proto_id) else {
             return Err(format!(

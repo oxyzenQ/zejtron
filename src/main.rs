@@ -22,6 +22,11 @@ fn main() {
         Err(e) => cli::ux::exit_clap_error(e),
     };
 
+    // The diagnostic trace lane (night-hunter-4): armed once, from
+    // the global flag, before any surface runs. The -v logs ride
+    // stderr only; the Evidence Ledger's stdout stays pipe-clean.
+    output::verbose::init(cli.verbose);
+
     if cli.version {
         info::print_version_report();
         return;

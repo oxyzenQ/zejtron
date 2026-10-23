@@ -36,6 +36,11 @@ mod capability;
 pub(crate) use capability::{
     ColorCapability, capability, disable_color, mono_overridden, stdout_capability,
 };
+
+// The diagnostic trace lane (night-hunter-4): the -v one-liners on
+// stderr. Public within the crate - every subsystem's trace rides
+// the one macro this module owns.
+pub mod verbose;
 // The pure ladder-as-data classifier is the output tests' probe; the
 // production caches consume it inside the capability module.
 #[cfg(test)]
