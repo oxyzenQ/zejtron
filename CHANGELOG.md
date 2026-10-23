@@ -892,6 +892,31 @@ v11.0.0
   kernel generation the plain-write tap could not see, named
   the mechanism across three evidence rounds, and closed it.
 
+### Fixed
+
+- The write probe's fd-walk offsets reach the kernel now
+  (night-hunter-3): `write_offsets` carried an explicit eight-pair
+  table from the pre-fd-walk era, so slots 8..11 (task_struct.files,
+  files_struct.fdt, fdtable.max_fds, fdtable.fd) were never written
+  into the pinned offsets map - the map stayed zero there, the probe
+  read task_struct+0 as its "files" pointer, and the kernel-side
+  census correctly blamed stage 4 ("files->fdt unreadable or null")
+  on every host the probe was planted on, whatever its kernel. The
+  writer now rides the whole parsed array (slot = index, the
+  slot-alignment contract between btf.rs and events.rs), so a slot
+  that joins the contract but not the writer is structurally
+  impossible; an array value the map cannot hold still fails loudly,
+  by slot. The BTF parser and the BPF walk are untouched (the census
+  instrument had pointed at the plant, not at a kernel-layout
+  shift), the probe object is byte-identical (the prebuilt lane
+  stays in parity, verified by the --check verdict), and the failed
+  verification's refusal now echoes the planted fd-walk offsets
+  beside the census - a zero slot is visible in the message, never
+  guessed at. Found by the night-hunter-2 census itself on the
+  owner's CachyOS host, the first host to exercise the walk end to
+  end; a lockstep pin on the slot contract keeps the next contract
+  growth from repeating it.
+
 ### Changed
 
 - `doctor --detach` is now the sledgehammer: after unpinning

@@ -68,3 +68,22 @@ fn furthest_stage_picks_the_highest_nonzero_hop() {
     only_last[13] = 2; // stage 14
     assert_eq!(furthest_stage(&only_last), Some((14, 2)));
 }
+
+#[test]
+fn fd_walk_slots_are_the_offsets_map_contract() {
+    // night-hunter-3's lesson, pinned: the fd-walk slots the write
+    // probe reads sit exactly at 8..11 of the offsets map, and the
+    // parsed array's element count IS the map's slot count - the
+    // map writer rides the whole array (slot = index), so a contract
+    // that grows on one side only fails this pin or the map write,
+    // never a host's walk (the plant bug starved slots 8..11 and the
+    // census blamed stage 4 on every host).
+    assert_eq!(OFF_SLOT_TASK_FILES, 8);
+    assert_eq!(OFF_SLOT_FILES_FDT, 9);
+    assert_eq!(OFF_SLOT_FDT_MAX_FDS, 10);
+    assert_eq!(OFF_SLOT_FDT_FD, 11);
+    assert_eq!(
+        std::mem::size_of::<crate::ebpf::btf::ProbeOffsets>() / std::mem::size_of::<u64>(),
+        crate::ebpf::events::OFF_SLOTS as usize
+    );
+}

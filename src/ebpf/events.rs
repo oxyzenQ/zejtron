@@ -239,23 +239,34 @@ pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
 // contract between the host writer and the BPF readers. The eight
 // file-walk slots are frozen; night-improve-57 appends the four
 // fd-walk slots at 8..11 (the syscall-stub write probe), so the
-// legacy indices never renumber.
+// legacy indices never renumber. The host writer rides the parsed
+// array whole (slot = index, the night-hunter-3 lesson), so the
+// host crate no longer names the eight file-walk constants - the
+// readers below are BPF-side, and the allows name that split.
 
 /// `offsets[0]`: struct dentry, member d_inode.
+#[allow(dead_code)]
 pub const OFF_SLOT_DENTRY_D_INODE: u32 = 0;
 /// `offsets[1]`: struct inode, member i_ino.
+#[allow(dead_code)]
 pub const OFF_SLOT_INODE_I_INO: u32 = 1;
 /// `offsets[2]`: struct file, member f_path.
+#[allow(dead_code)]
 pub const OFF_SLOT_FILE_F_PATH: u32 = 2;
 /// `offsets[3]`: struct file, member f_inode.
+#[allow(dead_code)]
 pub const OFF_SLOT_FILE_F_INODE: u32 = 3;
 /// `offsets[4]`: struct vfsmount, member mnt_sb.
+#[allow(dead_code)]
 pub const OFF_SLOT_VFSMOUNT_MNT_SB: u32 = 4;
 /// `offsets[5]`: struct super_block, member s_dev.
+#[allow(dead_code)]
 pub const OFF_SLOT_SUPER_BLOCK_S_DEV: u32 = 5;
 /// `offsets[6]`: struct path, member mnt.
+#[allow(dead_code)]
 pub const OFF_SLOT_PATH_MNT: u32 = 6;
 /// `offsets[7]`: struct path, member dentry.
+#[allow(dead_code)]
 pub const OFF_SLOT_PATH_DENTRY: u32 = 7;
 /// `offsets[8]`: struct task_struct, member files (night-improve-57,
 /// the syscall-stub write probe's fd-to-file walk).
