@@ -64,11 +64,11 @@ good faith — pick the tier that honestly matches your situation; nobody
 audits you, but misrepresenting revenue to underpay is a breach of the
 license terms.
 
-| Tier                | Price          | Target                                                       |
-| ------------------- | -------------- | ------------------------------------------------------------ |
-| Personal            | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
-| Individual Business | $2,199/year    | Solo business use, freelancers, small operations             |
-| Company             | $9,199/year    | Companies, SaaS, enterprise OR any redistribution rights     |
+| Tier              | Price          | Target                                                          |
+| ----------------- | -------------- | --------------------------------------------------------------- |
+| Personal          | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions      |
+| Solo Dev Business | $1,899/year    | Solo devs, freelancers, revenue under $100K/year                |
+| Company           | $35,999/year   | Enterprise, revenue over $10M/year, OR any redistribution rights |
 
 Notes:
 
@@ -76,6 +76,18 @@ Notes:
   individual, whichever applies), not your zejtron-specific revenue.
 - **Multi-year discount** (owner discretion): 20% off a 2-year term,
   30% off a 3-year term.
+- **2026-10-24 price move** (night-badass-1, effective from the
+  first release tag after that date): the paid ladder re-pegs to two
+  rungs — Individual Business $2,199/year becomes
+  **Solo Dev Business $1,899/year** (solo devs, freelancers, revenue
+  under $100K/year), and Company moves from $9,199 to
+  **$35,999/year** (enterprise, revenue over $10M/year, or any
+  redistribution rights); Personal stays free (GPL-3.0). The
+  rationale is the owner's, unchanged: the tool's value increases
+  year by year, and the paid rungs ride the value ladder the owner
+  sets — it will keep rising as the
+  work compounds. Grandfathering unchanged: buyers who paid before
+  the move keep the price they paid, for the term they bought.
 - **2026-10-18 price move** (night-improve-17, effective from the
   first release tag after that date): the paid ladder re-pegs to two
   rungs — Individual $99/year and Business $5,199/year merge into

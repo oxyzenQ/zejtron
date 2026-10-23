@@ -23,11 +23,11 @@ that is exactly what it is for. See
 Tiers follow your use, with your total annual revenue as the honest
 self-declaration input:
 
-| Your use                                           | Tier                              |
-| -------------------------------------------------- | --------------------------------- |
-| No commercial use (hobby/personal)                 | Personal (free, GPL-3.0)          |
-| Solo business use (freelancers, small operations)  | Individual Business ($2,199/year) |
-| Company use, SaaS, or any redistribution           | Company ($9,199/year)             |
+| Your use                                           | Tier                               |
+| -------------------------------------------------- | ---------------------------------- |
+| No commercial use (hobby/personal)                 | Personal (free, GPL-3.0)           |
+| Solo devs, freelancers (revenue under $100K/year)  | Solo Dev Business ($1,899/year)    |
+| Enterprise (revenue over $10M/year), SaaS, or any redistribution | Company ($35,999/year) |
 
 Redistribution under your own terms is the Company tier regardless of
 revenue — it is the only tier that carries redistribution rights.
