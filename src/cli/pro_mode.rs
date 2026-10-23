@@ -90,10 +90,13 @@ const GROUPS: &[(&str, &[Row])] = &[
     (
         "doctor:",
         &[
-            ("--attach", "Attach the eBPF tap (the privileged one-shot)"),
+            (
+                "--attach",
+                "Attach the eBPF probe (the privileged one-shot)",
+            ),
             (
                 "--detach",
-                "Detach the eBPF tap (unpin everything, idempotent)",
+                "Detach the eBPF probe (unpin everything, idempotent)",
             ),
             (
                 "--symptom SYMPTOM",

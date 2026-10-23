@@ -219,13 +219,13 @@ pub enum Commands {
         #[arg(
             long,
             conflicts_with = "symptom",
-            help = "Attach the eBPF tap (the privileged one-shot)"
+            help = "Attach the eBPF probe (the privileged one-shot)"
         )]
         attach: bool,
         #[arg(
             long,
             conflicts_with = "attach",
-            help = "Detach the eBPF tap (unpin everything, idempotent)"
+            help = "Detach the eBPF probe (unpin everything, idempotent)"
         )]
         detach: bool,
         #[arg(

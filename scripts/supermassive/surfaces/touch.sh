@@ -75,7 +75,7 @@ surface_touch() {
 		sm_assert_not_contains "$SM_SCRATCH/lane.out" "\\[observed\\]" \
 			"lane honesty: snapshot mode renders no fake [observed] rows"
 	else
-		sm_pass "lane honesty: snapshot mode renders no fake [observed] rows (tap lane active)"
+		sm_pass "lane honesty: snapshot mode renders no fake [observed] rows (probe lane active)"
 	fi
 
 	# The writev proof (night-improve-42), the touch half: the same
@@ -88,7 +88,7 @@ surface_touch() {
 	# the honest label.
 	if command -v perl >/dev/null 2>&1 &&
 		"$SM_DEFAULT_BIN" doctor --attach >"$SM_SCRATCH/wv-attach.out" 2>"$SM_SCRATCH/wv-attach.err"; then
-		sm_pass "writev proof: the tap attaches on this host"
+		sm_pass "writev proof: the probe attaches on this host"
 		local wv_file="$SM_SCRATCH/writev-proof.txt"
 		local wv_touch_pid wv_writer wv_rc wv_pid
 		: >"$wv_file"
@@ -140,7 +140,7 @@ surface_touch() {
 		fi
 		kill "$wv_writer" 2>/dev/null || true
 		wait "$wv_writer" 2>/dev/null || true
-		# The surface ends clean: the tap it attached, it detaches.
+		# The surface ends clean: the probe it attached, it detaches.
 		sm_run "$SM_SCRATCH/wv-detach.out" "$SM_SCRATCH/wv-detach.err" rc 20 -- \
 			"$SM_DEFAULT_BIN" doctor --detach
 		sm_assert_rc 0 "$rc" "writev proof: doctor --detach returns the host to clean"

@@ -19,7 +19,7 @@
 //! - the /proc/<pid>/io parser (the block-backed byte pair);
 //! - the sampling gap itself - `SAMPLE_WINDOW`, stated once;
 //! - the eBPF exits overlay glue the spec grants the delta symptoms:
-//!   when the tap is attached, the last two seconds of recorded
+//!   when the probe is attached, the last two seconds of recorded
 //!   exits name the processes that died inside the sampling window,
 //!   [observed]; the shared mode-line and sampling-boundary
 //!   builders keep the three ledgers from drifting apart.
@@ -40,7 +40,7 @@ use super::memory::exits::ExitLane;
 /// and it happens once per run, never in a loop.
 pub(crate) const SAMPLE_WINDOW: Duration = Duration::from_secs(1);
 
-/// The overlay window: when the tap is attached, the delta symptoms
+/// The overlay window: when the probe is attached, the delta symptoms
 /// drain the eBPF exit ring for the last two seconds - wide enough
 /// to cover the sampling window plus the drain's own skew, narrow
 /// enough that every [observed] row is one of the freshest facts on
@@ -230,7 +230,7 @@ pub(crate) fn sample_gap() {
 }
 
 /// The exits overlay for a delta symptom: the spec's grant - when
-/// the tap is attached, drain the eBPF exit ring for the last two
+/// the probe is attached, drain the eBPF exit ring for the last two
 /// seconds and name the processes that died inside the sampling
 /// window, [observed]. Not attached is the honest [unaccounted]
 /// boundary the builders below phrase.

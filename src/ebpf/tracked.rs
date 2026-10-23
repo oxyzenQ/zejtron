@@ -37,7 +37,7 @@ pub fn track_file(inode: u64, device: u64) -> Result<(), String> {
     let map_data = MapData::from_pin(PIN_MAP_TRACKED_INODES).map_err(|e| {
         format!(
             "cannot track inode {inode:#x}: pinned tracked_inodes map \
-             {PIN_MAP_TRACKED_INODES}: {e} (is the tap attached? see zejtron doctor [eBPF])"
+             {PIN_MAP_TRACKED_INODES}: {e} (is the probes attached? see zejtron doctor [eBPF])"
         )
     })?;
     let mut owned = Map::HashMap(map_data);
@@ -54,7 +54,7 @@ pub fn untrack_file(inode: u64, device: u64) -> Result<(), String> {
     let map_data = MapData::from_pin(PIN_MAP_TRACKED_INODES).map_err(|e| {
         format!(
             "cannot untrack inode {inode:#x}: pinned tracked_inodes map \
-             {PIN_MAP_TRACKED_INODES}: {e} (is the tap attached? see zejtron doctor [eBPF])"
+             {PIN_MAP_TRACKED_INODES}: {e} (is the probes attached? see zejtron doctor [eBPF])"
         )
     })?;
     let mut owned = Map::HashMap(map_data);

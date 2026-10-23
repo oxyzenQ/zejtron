@@ -63,7 +63,7 @@ surface file carries where a lane applies:
 
 - holds / touch / why: the Mode line must declare the lane that
   actually ran, and while the snapshot lane is active the render
-  must NOT carry fake `[observed]` rows (that tag belongs to the tap
+  must NOT carry fake `[observed]` rows (that tag belongs to the probe
   lane only).
 - doctor: the `[eBPF]` section must render its Feature and Lane
   declarations on every host, whatever state they report
@@ -84,7 +84,7 @@ surface file carries where a lane applies:
   directions too: the refusal contract on incapable hosts, and on
   a host the harness proves capable (floor met + BTF readable +
   CAP_BPF/CAP_PERFMON in the effective set) the success contract
-  (the tap names itself, the idempotent second attach, the real
+  (the probe names itself, the idempotent second attach, the real
   detach unpin, the pin directory gone) - a success on a host the
   harness reads as incapable is a loud failure, the binary
   attached where its own preflight must refuse.
@@ -94,7 +94,7 @@ surface file carries where a lane applies:
 
 These checks are live on every host: on an unprivileged or
 old-kernel runner they pin the honest unavailability rendering; on a
-privileged 5.15+ host they pin the tap lane's declaration.
+privileged 5.15+ host they pin the probe lane's declaration.
 
 ## Run it
 
@@ -148,7 +148,7 @@ contract's realtime leg - the owner's ask that the E2E suite prove
 the binary under concurrent load, not only at rest. Four churn
 writers run a fixed six-second window of plain write(2) appends
 while the poller asks `why` about the hot files mid-storm: on the
-tap lane (the kernel-floor and witness micro-VMs, the owner's
+probe lane (the kernel-floor and witness micro-VMs, the owner's
 laptop) the churn must be [observed] WHILE it happens - the
 realtime claim, with the ledger's `wrote` rows and the raw lane's
 op=write records - and on the snapshot lane the same load must
@@ -156,9 +156,9 @@ render the honest mode line with no fake [observed] rows, the
 no-fabrication law live under concurrency, a stronger seat than
 the idle-host version. The missing-path error path refuses by
 name mid-storm, and the surface ends clean by its own
-attach/detach hand (the tap it attached, the detach that unpins
+attach/detach hand (the probe it attached, the detach that unpins
 it, the pin directory gone - the lifecycle the doctor surface
-pins, re-proven under load). When the tap lane's write rows are
+pins, re-proven under load). When the probe lane's write rows are
 absent on a whole kernel generation (the 7.2 moving-latest
 witness found exactly this on its first boot: the open and
 writev lanes observed, the plain-write lane silent - and ftrace

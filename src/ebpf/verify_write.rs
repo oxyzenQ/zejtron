@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 //
-//! The write tap's attach-time self-verification (night-improve-59):
+//! The write probe's attach-time self-verification (night-improve-59):
 //! the last door the silent-anchor class can never pass.
 //!
-//! The night this pass closed had three write-tap generations: the
+//! The night this pass closed had three write-probe generations: the
 //! vfs_write kprobe (dead on the -O3 distro builds that inline it
 //! into the syscall stub), the stub kprobe (attachable, pinned, and
 //! absolutely silent - the drop census proved the program never
@@ -18,11 +18,11 @@
 //!
 //! This module extends the doctrine to record-verify: after the
 //! whole estate is planted, attach tracks a scratch file, pushes one
-//! write through the tap, drains the ring, and demands the scratch's
+//! write through the probe, drains the ring, and demands the scratch's
 //! own (inode, device, op) back. Found: attach proceeds. Not found:
 //! the attach REFUSES - loudly, with the scratch's facts in the
 //! message - and the pins come down (the caller detaches first), so
-//! a tap that cannot record one byte can never claim to be live.
+//! a probe that cannot record one byte can never claim to be live.
 //!
 //! The scratch rides a process-named temp directory and is removed
 //! unconditionally; the tracked key is untracked on both legs of
@@ -41,8 +41,8 @@ use super::ringbuf::drain_file_events;
 use super::tracked::{track_file, untrack_file};
 use crate::commands::lane::device_token_from_stat;
 
-/// Demand one recorded write through the freshly planted tap.
-pub fn verify_write_tap() -> Result<(), String> {
+/// Demand one recorded write through the freshly planted probe.
+pub fn verify_write_probe() -> Result<(), String> {
     let dir = std::env::temp_dir().join(format!("zejtron-verify-write-{}", std::process::id()));
     let probe = dir.join("probe");
     let result = verify_once(&dir, &probe);
@@ -84,9 +84,9 @@ fn verify_once(dir: &Path, probe: &Path) -> Result<(), String> {
         if Instant::now() > deadline {
             let _ = untrack_file(inode, device);
             return Err(format!(
-                "attach refused: the write tap stayed silent for its own \
+                "attach refused: the write probe stayed silent for its own \
                  verification write (inode {inode:#x} tracked, no op={FILE_OP_WRITE} \
-                 record drained) - a tap that cannot record a single write must \
+                 record drained) - a probe that cannot record a single write must \
                  not claim to be live"
             ));
         }
@@ -94,7 +94,7 @@ fn verify_once(dir: &Path, probe: &Path) -> Result<(), String> {
     }
 }
 
-/// One plain append through the tap - write(2), the syscall the
+/// One plain append through the probe - write(2), the syscall the
 /// sys_enter anchor rides.
 fn push_write(probe: &Path) -> Result<(), String> {
     let mut file = fs::OpenOptions::new()

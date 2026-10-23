@@ -5,7 +5,7 @@
 //! the eBPF half of `doctor --symptom ram`. The /proc snapshot in
 //! the parent module cannot see a process that exited even a second
 //! before the read - its memory is unaccounted by physics, not by
-//! policy. When the tap is attached, the kernel-side exit tap
+//! policy. When the probe is attached, the kernel-side exit probe
 //! (ebpf/src/exits.rs) has been recording every process exit into
 //! the proc_events ring; this module drains that ring once, keeps
 //! the last EXIT_WINDOW_SECS seconds, and hands the rows to the
@@ -16,7 +16,7 @@
 //! The lane states are three, and the ledger names each: not
 //! attached (no drain - the Unaccounted block says what is
 //! invisible), drained (the exits the window holds, possibly none -
-//! an empty window is a finding), and drain-failed (the tap is
+//! an empty window is a finding), and drain-failed (the probe is
 //! attached but the ring would not open - the error rides the
 //! report verbatim, never a silent empty section).
 
@@ -48,13 +48,13 @@ pub(crate) struct ExitRow {
 /// The exit lane's state, the three truths the ledger renders.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ExitLane {
-    /// No attached tap: no drain is possible or honest - the
+    /// No attached probe: no drain is possible or honest - the
     /// Unaccounted block names what stays invisible.
     NotAttached,
     /// The drain succeeded: the exits inside the window, possibly
     /// none (an empty window is a finding, not a missing section).
     Drained(Vec<ExitRow>),
-    /// The tap is attached but the ring would not open: the error
+    /// The probe is attached but the ring would not open: the error
     /// text rides the report verbatim.
     DrainFailed(String),
 }
@@ -127,7 +127,7 @@ fn window_rows(events: Vec<ProcExitEvent>, window_secs: u64) -> Vec<ExitRow> {
 }
 
 /// The exit section's render, seated between the slab section and
-/// the Unaccounted block. Rendered only when the tap is attached -
+/// the Unaccounted block. Rendered only when the probe is attached -
 /// the not-attached truth rides the mode line and the Unaccounted
 /// block (spec law: the absent lane is named where the boundary is
 /// named). Rows are the doctrine's own shape:

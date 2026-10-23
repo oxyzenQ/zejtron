@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 //
-//! Aligned embedding of the eBPF tap object (night-improve-1, the
+//! Aligned embedding of the eBPF probe object (night-improve-1, the
 //! zelynic NIGHT-hunt-30 lesson carried over from the zylaxion
 //! lineage).
 //!

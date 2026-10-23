@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 # The pure-Rust eBPF crate (night-improve-1, the zelynic/zylaxion
-# lineage discipline): ONE binary, the no-op tap.
+# lineage discipline): ONE binary, the no-op probe.
 #
 # zejtron-ebpf — a passive kernel-side counter on the
 # sched_process_exec tracepoint. Phase 1 proves the chain and nothing
@@ -33,7 +33,7 @@ edition = "2024"
 publish = false
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/zejtron"
-description = "Pure-Rust eBPF probes for zejtron (a sched_process_exec counter, an inet_sock_set_state socket-event stream, a sched_process_exit post-mortem exit tap, vfs_open/vfs_write/vfs_writev file probes), cross-compiled with aya-ebpf and embedded by the userspace loader."
+description = "Pure-Rust eBPF probes for zejtron (a sched_process_exec counter, an inet_sock_set_state socket-event stream, a sched_process_exit post-mortem exit probe, vfs_open/vfs_write/vfs_writev file probes), cross-compiled with aya-ebpf and embedded by the userspace loader."
 
 [dependencies]
 aya-ebpf = "0.2.1"

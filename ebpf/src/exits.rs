@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// zejtron eBPF tap, the post-mortem exit program (night-improve-47).
+// zejtron eBPF probe, the post-mortem exit program (night-improve-47).
 // A dedicated module under the 600-LOC no-mercy cap: the sixth
 // program lives beside the five in main.rs - same crate, same
 // single-sourced record contract, same license law.
@@ -13,7 +13,7 @@
 // live stream, but a post-mortem record. A process that allocated
 // RAM and exited three seconds before `doctor --symptom ram` runs
 // is invisible to every /proc read - the symptom's Unaccounted
-// block has named that hole since night-improve-34. This tap
+// block has named that hole since night-improve-34. This probe
 // records the exit itself (the pid and the process's own name, at
 // the moment it happened) into a bounded ring, and the doctor
 // drains the last five seconds on demand. The Lazy Camera contract
@@ -30,7 +30,7 @@
 // process, and the leader's comm IS the process name /proc would
 // have shown. No other filter exists, by design: every process
 // exit is potentially the one the doctor is asked about, exits are
-// rare next to the open traffic the file taps filter, and the
+// rare next to the open traffic the file probes filter, and the
 // ring's own rolling window is the bound.
 
 use aya_ebpf::{
@@ -58,7 +58,7 @@ const _: () = assert!(PROCEXIT_EVENT_BYTES == 32);
 #[map(name = "proc_events")]
 static proc_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
 
-/// The post-mortem exit tap: record the process exit (leader-only)
+/// The post-mortem exit probe: record the process exit (leader-only)
 /// with its comm - the fact no /proc read can recover a second
 /// later. Every helper call except `bpf_ktime_get_ns` (the raw
 /// binding) is an aya-ebpf safe wrapper; the one unsafe block is

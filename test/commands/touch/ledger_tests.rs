@@ -125,14 +125,14 @@ fn the_supports_line_names_the_facts_and_the_window() {
 #[test]
 fn the_cannot_line_names_the_write_gaps_per_lane() {
     // Live: the vectorized path is covered since night-improve-42;
-    // the cannot line names what still crosses neither write tap.
+    // the cannot line names what still crosses neither write probe.
     let parts = lane_parts_empty();
     let live = cannot_line(&{
         let mut p = lane_parts_empty();
         p.mode = crate::evidence::Mode::Live;
         p
     });
-    assert!(live.contains("crossed neither write tap"));
+    assert!(live.contains("crossed neither write probe"));
     assert!(live.contains("mmap'd writes"));
     assert!(live.contains("io_uring/AIO"));
     assert!(live.contains("splice-class copies"));

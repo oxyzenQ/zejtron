@@ -894,6 +894,19 @@ v11.0.0
 
 ### Changed
 
+- The instrumentation noun changes from "tap" to "probe" everywhere
+  it names the eBPF instruments: the CLI output ("probes attached",
+  "probes detached"), the loader and BPF identifiers (PROBE_ELF,
+  open_probe, write_probe, writev_probe, the sock/exit pairs), the
+  fileprobe module, the pin namespace (/sys/fs/bpf/zejtron/tap* is
+  now /sys/fs/bpf/zejtron/probe*), the test names, and the docs.
+  The old noun carried a wiretapping connotation the read-only
+  evidence ledger never asked for; the new one is the kernel's own
+  word for the same attach targets (kprobe, tracepoint). Zero
+  behavior change: the same six attach targets, the same maps, the
+  same records - the prebuilt lane is regenerated in the same
+  commit.
+
 - The CI trigger surface is simplified to unfiltered (the owner's
   cost-maintenance call): the estate-wide path spelling and the
   branch law are retired whole - every push (any branch, any tag)

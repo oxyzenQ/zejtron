@@ -20,8 +20,8 @@ fn section_shape_pins_every_row() {
         "live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))",
         "Lazy Camera (Kernel: recording | CLI: asleep)",
         "sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter",
-        "/sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, open_tap_link, write_tap_link, \
-tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, file_events, offsets)",
+        "/sys/fs/bpf/zejtron (present: probe_link, sock_probe_link, open_probe_link, write_probe_link, \
+probe, sock_probe, open_probe, write_probe, stats, sock_events, tracked_inodes, file_events, offsets)",
     );
     assert_eq!(
         section,
@@ -34,8 +34,8 @@ tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, file_eve
          Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))\n  \
          Mode:        Lazy Camera (Kernel: recording | CLI: asleep)\n  \
          Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter\n  \
-         Pins:        /sys/fs/bpf/zejtron (present: tap_link, sock_tap_link, open_tap_link, \
-write_tap_link, tap, sock_tap, open_tap, write_tap, stats, sock_events, tracked_inodes, \
+         Pins:        /sys/fs/bpf/zejtron (present: probe_link, sock_probe_link, open_probe_link, \
+write_probe_link, probe, sock_probe, open_probe, write_probe, stats, sock_events, tracked_inodes, \
 file_events, offsets)"
     );
 }
@@ -124,18 +124,18 @@ fn pins_row_lists_every_pin_in_planting_order() {
     assert_eq!(
         names,
         vec![
-            "tap_link",
-            "sock_tap_link",
-            "open_tap_link",
-            "write_tap_link",
-            "writev_tap_link",
-            "exit_tap_link",
-            "tap",
-            "sock_tap",
-            "open_tap",
-            "write_tap",
-            "writev_tap",
-            "exit_tap",
+            "probe_link",
+            "sock_probe_link",
+            "open_probe_link",
+            "write_probe_link",
+            "writev_probe_link",
+            "exit_probe_link",
+            "probe",
+            "sock_probe",
+            "open_probe",
+            "write_probe",
+            "writev_probe",
+            "exit_probe",
             "stats",
             "sock_events",
             "proc_events",

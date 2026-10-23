@@ -86,7 +86,7 @@ surface_holds() {
 	# lane declaration itself: the Mode line names the lane that ran,
 	# and while the snapshot lane is active the render must NOT fake
 	# kernel-observed rows (the ladder's [observed] tag belongs to the
-	# tap lane only).
+	# probe lane only).
 	sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- "$SM_DEFAULT_BIN" holds "$file"
 	sm_assert_rc 0 "$rc" "lane honesty: holds renders its mode"
 	sm_assert_contains "$SM_SCRATCH/lane.out" "Mode:" "lane honesty: holds declares its lane"
@@ -94,6 +94,6 @@ surface_holds() {
 		sm_assert_not_contains "$SM_SCRATCH/lane.out" "\\[observed\\]" \
 			"lane honesty: snapshot mode renders no fake [observed] rows"
 	else
-		sm_pass "lane honesty: snapshot mode renders no fake [observed] rows (tap lane active)"
+		sm_pass "lane honesty: snapshot mode renders no fake [observed] rows (probe lane active)"
 	fi
 }

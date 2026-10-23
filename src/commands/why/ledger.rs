@@ -424,7 +424,7 @@ fn path_cannot_line(
     match mode {
         Mode::Live => segs.push(
             "changes older than the window (the log lane was not consulted in live mode); \
-             writes that crossed neither write tap - mmap'd writes, async kiocb writes \
+             writes that crossed neither write probe - mmap'd writes, async kiocb writes \
              (io_uring/AIO), splice-class copies"
                 .to_owned(),
         ),
@@ -535,7 +535,7 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
         let inferred = report.changes.rows.len() - observed;
         if observed > 0 {
             lines.push(format!(
-                "  {observed} {} event rows: vfs_open kprobe + the write tap (raw_syscalls/sys_enter) -> \
+                "  {observed} {} event rows: vfs_open kprobe + the write probe (raw_syscalls/sys_enter) -> \
                  tracked_inodes filter -> file_events ring; CLOCK_MONOTONIC stamps \
                  rendered via /proc/uptime + wall offset",
                 observed_tag

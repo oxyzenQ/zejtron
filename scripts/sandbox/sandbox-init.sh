@@ -19,7 +19,7 @@
 # GA floor kernel (5.15.0-*, the exact documented minimum — a wrong
 # kernel booted under the floor lane's name fails HERE, before any
 # payload spends its budget), BTF must be readable (the floor kernel
-# ships it; the tap lane's offsets verification reads it), and the
+# ships it; the probe lane's offsets verification reads it), and the
 # binary must run and answer the doctor's bpf syscall probe on THIS
 # kernel: bring-up is a GATE - any failed probe ends the VM before
 # the payload. The ARBITRARY lane (the entrypoint's --kernel PATH,
@@ -107,11 +107,11 @@ if [ "$LANE" = "arbitrary" ]; then
 fi
 
 # Everything the zejtron battery needs (PID 1 owns it all): tmpfs
-# scratch (the suite's run dirs), bpffs (the tap lane's pin surface,
+# scratch (the suite's run dirs), bpffs (the probe lane's pin surface,
 # /sys/fs/bpf/zejtron), devpts (the pty-shaped color probes),
-# loopback (the traffic the tap lane can observe), and the tracing
+# loopback (the traffic the probe lane can observe), and the tracing
 # substrate a real distro host mounts for its tracing tools:
-# debugfs plus tracefs at /sys/kernel/tracing - the tap lane's
+# debugfs plus tracefs at /sys/kernel/tracing - the probe lane's
 # tracepoint attach reads <tracefs>/events (aya probes
 # /sys/kernel/tracing then /sys/kernel/debug/tracing), and the
 # jammy GA kernel creates the /sys/kernel/tracing directory but
@@ -169,7 +169,7 @@ else
 fi
 
 # The BTF substrate: the floor kernel ships /sys/kernel/btf/vmlinux
-# (CONFIG_DEBUG_INFO_BTF=y, jammy GA), and the tap lane's offsets
+# (CONFIG_DEBUG_INFO_BTF=y, jammy GA), and the probe lane's offsets
 # verification reads it at attach time — on the floor lane its
 # absence would mean the image or the kernel is not what the lane
 # documents; on the arbitrary lane it is a reported property of the
@@ -184,7 +184,7 @@ fi
 # run taught): the tracepoint attach reads <tracefs>/events, and a
 # bare /sys/kernel/tracing directory without a mount fails it. The
 # mount battery above owns the mount; this probe pins the RESULT -
-# the events tree for the tap's own tracepoints must be readable.
+# the events tree for the probe's own tracepoints must be readable.
 if [ -r /sys/kernel/tracing/events/sched/sched_process_exec/id ]; then
 	note "tracefs (the sched_process_exec tracepoint id is readable)" PASS
 else

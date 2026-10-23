@@ -56,8 +56,8 @@ where the oldest records are overwritten when a ring fills, and a
 failed reservation drops an event without failing the probed
 kernel path. Each ring is also filtered at the source, in the
 kernel, before a single byte of ring traffic is spent: the socket
-tap keeps only port-surface transitions (a busy host's ESTABLISHED
-churn never crosses), and the file taps check the tracked-inodes
+probe keeps only port-surface transitions (a busy host's ESTABLISHED
+churn never crosses), and the file probes check the tracked-inodes
 map so only the one file a command asked about is recorded. The
 camera has a fixed-size film roll; it cannot grow, and it cannot
 be made to persist.
@@ -80,8 +80,8 @@ The lane's whole life, boot to boot:
 1. **Attach, once per boot.** `sudo zejtron doctor --attach` loads
    the embedded pure-Rust object (six programs: the
    `sched_process_exec` counter, the `inet_sock_set_state`
-   socket-event tap, the `vfs_open`/`vfs_write`/`vfs_writev` file
-   taps, and the `sched_process_exit` post-mortem exit tap),
+   socket-event probe, the `vfs_open`/`vfs_write`/`vfs_writev` file
+   probes, and the `sched_process_exit` post-mortem exit probe),
    verifies every struct offset and the vectorized-
    write symbol against the host's own BTF - the member lookups
    descend the anonymous unions 6.18-line kernels wrap their
@@ -122,14 +122,14 @@ The lane's whole life, boot to boot:
 
 4. **Optional detach.** `sudo zejtron doctor --detach` unpins
    everything (links first, so an interrupted cleanup leaves a
-   detached tap, never a half-attached one) and removes the pin
+   detached probe, never a half-attached one) and removes the pin
    directory. The kernel footprint is exactly zero again - the
    same state a host that never attached has.
 
 The doctor's `[eBPF]` section reports the lane's state in every
 run, attached or not: the kernel, BTF, lockdown, and capability
 verdicts, the lane, and the camera's own posture - `Mode: Lazy
-Camera (Kernel: recording | CLI: asleep)` when the tap is
+Camera (Kernel: recording | CLI: asleep)` when the probe is
 attached, `Mode: Lazy Camera (Kernel: not recording | CLI:
 asleep)` when it is not. One probe, one verdict, no drift between
 the doctor and the attach preflight.
@@ -187,7 +187,7 @@ hard way:
   the chapters it asked for. The alternative - a persistent reader
   - is a daemon, and the lane refuses it.
 
-- **The filter discipline.** The file taps record only the file a
+- **The filter discipline.** The file probes record only the file a
   command is asking about, for the duration that command asked -
   the tracked-inodes map is planted at the start of a wait and
   removed at its end. A file nobody queried has no file history

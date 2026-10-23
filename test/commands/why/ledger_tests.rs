@@ -166,7 +166,7 @@ fn the_trace_ladder_names_each_class_present() {
     assert!(section.contains("1 [measured] enrichment rows: /proc/<pid>/cgroup"));
     assert!(section.contains("1 [measured] metadata rows: stat(2)"));
     assert!(section.contains(
-        "2 [observed] event rows: vfs_open kprobe + the write tap (raw_syscalls/sys_enter)"
+        "2 [observed] event rows: vfs_open kprobe + the write probe (raw_syscalls/sys_enter)"
     ));
     assert!(section.contains("1 [inferred] event rows: audit.log SYSCALL+PATH records"));
     assert!(section.contains("Unaccounted and the verdict: composed from the rows above"));
@@ -251,9 +251,9 @@ fn the_cannot_line_names_the_live_and_log_gaps() {
     let live = path_cannot_line(&quiet, Mode::Live, 1, 1);
     assert!(live.contains("the log lane was not consulted in live mode"));
     // night-improve-42: writev is no longer the named gap - the
-    // taps now cover it; the cannot line names what still crosses
-    // neither write tap.
-    assert!(live.contains("crossed neither write tap"));
+    // probes now cover it; the cannot line names what still crosses
+    // neither write probe.
+    assert!(live.contains("crossed neither write probe"));
     assert!(live.contains("mmap'd writes"));
     assert!(live.contains("io_uring/AIO"));
     assert!(live.contains("splice-class copies"));

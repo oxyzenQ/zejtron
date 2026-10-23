@@ -5,7 +5,7 @@
 //! surface. The snapshot (\[measured] - the stat(2) facts: type, size,
 //! owner, perms, inode, the three timestamps) wrapped in the Ledger
 //! format, plus the write window (\[observed] writes from the
-//! syscall-anchored write tap when the kernel lane is live, \[inferred]
+//! syscall-anchored write probe when the kernel lane is live, \[inferred]
 //! from the log lane when it is not, the named unavailability when
 //! neither exists).
 //!
@@ -233,7 +233,7 @@ fn cannot_line(parts: &lane::LaneParts) -> String {
     let mut segs: Vec<String> = Vec::new();
     match parts.mode {
         crate::evidence::Mode::Live => segs.push(
-            "writes that crossed neither write tap - mmap'd writes, async kiocb writes \
+            "writes that crossed neither write probe - mmap'd writes, async kiocb writes \
              (io_uring/AIO), splice-class copies - and anything older than the window \
              (the log lane was not consulted in live mode)"
                 .to_owned(),
