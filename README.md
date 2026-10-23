@@ -747,16 +747,20 @@ under your own terms). Full details, payment instructions, and the
 verification process live in
 [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md); the short version:
 
-| Tier                | Price          | Target                                                   |
-| ------------------- | -------------- | -------------------------------------------------------- |
-| Personal            | Free (GPL-3.0) | Hobby, personal, non-commercial, contributions           |
-| Individual Business | $2,199/year    | Solo business use, freelancers, small operations         |
-| Company             | $9,199/year    | Companies, SaaS, enterprise, or any redistribution rights |
+| Tier               | Price          | Target                                                     |
+| ------------------ | -------------- | ---------------------------------------------------------- |
+| Personal           | Free (GPL-3.0) | Hobby, personal, non-commercial, contributions             |
+| Solo Dev Business  | $1,899/year    | Solo devs, freelancers, revenue under $100K/year           |
+| Company            | $35,999/year   | Enterprise, revenue over $10M/year, or any redistribution  |
 
 The paid rungs follow the value upward: the tool's value increases
 year by year — the price tracks the value and keeps rising as the
 work compounds. Buyers who paid before a move are
 grandfathered at the price they bought, for the term they bought.
+The tier's revenue anchors are self-declared in good faith: Solo Dev
+Business names solo devs and freelancers under $100K/year; Company
+covers enterprise (over $10M/year) and every use that needs
+redistribution rights.
 
 **Unauthorized use is theft.** Taking this code — stealing it, forking
 it illegally, stripping the license, or building a closed-source
