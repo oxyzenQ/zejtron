@@ -922,7 +922,14 @@ v11.0.0
   A classifier pin walks the errno shapes (EPERM and EACCES deny,
   ENOENT and map-op denials stay hard) and the degraded step's
   ledger shape is pinned (the standard entry grammar, the mode
-  stays whatever the log lane found).
+  stays whatever the log lane found). The CI's unprivileged runners
+  then taught the classifier one more truth, now on the record:
+  with unprivileged bpf disabled the syscall refuses with EPERM
+  before the filesystem lookup, so a pin-absent unprivileged host
+  carries the same marker - the tracked refusal pin accepts the
+  union the host selects between (the marker on an unprivileged
+  host, the attach-step text on a privileged one), production
+  unaffected either way (the ladder's existence gate runs first).
 - The Pro mode section is exhaustive against the clap tree
   (night-hunter-5): the owner's manual QC found port's --since,
   --events-only, and --snapshot-only missing from `zejtron -h`'s

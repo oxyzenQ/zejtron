@@ -17,19 +17,27 @@ fn a_clean_host_refuses_by_naming_the_pin_and_the_attach_step() {
     if std::path::Path::new(PIN_MAP_TRACKED_INODES).exists() {
         return;
     }
+    // Two legal refusals, the host's own call (night-hunter-5): an
+    // unprivileged host refuses the bpf(2) call itself with EPERM
+    // BEFORE the filesystem lookup (unprivileged bpf disabled) - the
+    // ladder's degrade-marker shape; a privileged host with a missing
+    // pin walks to ENOENT - the attach-step shape. Both name the pin;
+    // the assertion accepts the union the host selects between, never
+    // a shape the host cannot promise.
     let err = track_file(0x1234, 0x800002).unwrap_err();
     assert!(err.contains(PIN_MAP_TRACKED_INODES), "names the pin: {err}");
     assert!(
-        err.contains("is the probes attached"),
-        "names the step: {err}"
+        err.starts_with(crate::ebpf::PIN_ACCESS_DENIED)
+            || (err.contains("is the probes attached") && err.contains("doctor")),
+        "names the boundary (the degrade marker or the attach step): {err}"
     );
-    assert!(err.contains("doctor"), "points at the doctor: {err}");
 
     let err = untrack_file(0x1234, 0x800002).unwrap_err();
     assert!(err.contains(PIN_MAP_TRACKED_INODES));
     assert!(
-        err.contains("cannot untrack"),
-        "the untrack text names its verb: {err}"
+        err.starts_with(crate::ebpf::PIN_ACCESS_DENIED)
+            || (err.contains("cannot untrack") && err.contains("is the probes attached")),
+        "the untrack refusal names its verb or carries the marker: {err}"
     );
 }
 

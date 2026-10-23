@@ -166,6 +166,12 @@ pub const PIN_ACCESS_DENIED: &str = "pin access denied (requires root)";
 /// syscall itself. Map operations after a successful open (insert,
 /// remove, drain) are mid-command deaths and stay hard errors - the
 /// chain did not refuse this caller, it failed under the command.
+/// Note the syscall can refuse before the filesystem lookup: an
+/// unprivileged host with unprivileged bpf disabled answers
+/// BPF_OBJ_GET with EPERM whether the pin exists or not (the CI
+/// runners taught the classifier this shape), so a pin-absent
+/// unprivileged host degrades too - the same honest note, the same
+/// snapshot lane.
 pub fn pin_access_denied(e: &aya::maps::MapError) -> bool {
     matches!(
         e,
