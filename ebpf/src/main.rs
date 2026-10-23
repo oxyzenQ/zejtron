@@ -211,7 +211,7 @@ const _: () = assert!(FILE_EVENT_BYTES == 40);
 pub const STATS_EVENTS: u32 = 0;
 /// stats[1]: the write probe's drop census - one increment per walk
 /// that dropped at any stage (night-hunter-2: the census moves from
-/// BPF-local statics into the stats map so a silent verification
+/// program-local static atomics into the stats map so a silent verification
 /// names its stage instead of staying mute).
 pub const STATS_ZJW_DROPS: u32 = 1;
 /// stats[2]: the write probe's completed-walk count (a walk that
