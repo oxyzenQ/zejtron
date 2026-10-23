@@ -97,3 +97,45 @@ fn log_actor_prefers_the_process_and_appends_the_user() {
     let no_process = info(None, "root");
     assert_eq!(log_actor(&no_process), "root");
 }
+
+#[test]
+fn the_pin_denial_fallback_names_the_window_in_unaccounted() {
+    // night-hunter-5: the degraded step's note rides the standard
+    // entry grammar ("1 event window (...)"), names the root
+    // boundary, and the mode stays whatever the log lane found - the
+    // ledger's shape is untouched by the degradation.
+    let dir = std::env::temp_dir().join("zejtron-lane-fallback-pin");
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("probe.txt");
+    std::fs::write(&path, b"probe").unwrap();
+    let users = std::collections::HashMap::new();
+    let query = LaneQuery {
+        display_path: &path,
+        lookup_path: &path,
+        users: &users,
+        inode: 1,
+        device: 1,
+    };
+    let parts = snapshot_fallback(&query, Duration::from_secs(1));
+    let reasons: Vec<&str> = parts.unaccounted.iter().map(|e| e.reason.as_str()).collect();
+    assert!(
+        reasons
+            .iter()
+            .any(|r| r.contains("unavailable without root")),
+        "the note must name the root boundary: {reasons:?}"
+    );
+    assert!(
+        reasons
+            .iter()
+            .any(|r| r.contains("falling back to snapshot mode")),
+        "the note must name the fallback: {reasons:?}"
+    );
+    assert!(
+        matches!(
+            parts.mode,
+            crate::evidence::Mode::SnapshotJournal | crate::evidence::Mode::SnapshotNoLane
+        ),
+        "the degrade stays a snapshot mode: {:?}",
+        parts.mode
+    );
+}

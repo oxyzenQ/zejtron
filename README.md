@@ -652,6 +652,10 @@ them.
 
 ## Documentation
 
+- [docs/USAGE.md](docs/USAGE.md) — the usage playbook: the
+  investigation scenarios (RAM ghosts, config watchers, port hunts,
+  deleted-but-held disk), the exact commands, and how to read the
+  Evidence Ledger
 - [docs/BRANDING.md](docs/BRANDING.md) — the brand and color system,
   the zylaxion lowercase law
 - [docs/RULES.md](docs/RULES.md) — the engineering rules

@@ -196,3 +196,31 @@ fn pin_constants_carry_the_removal_order() {
         );
     }
 }
+
+#[test]
+fn the_pin_denial_classifier_answers_only_the_open_refusal() {
+    // night-hunter-5: EPERM and EACCES at BPF_OBJ_GET are the one
+    // unavailability the ladder steps down from - a non-root caller
+    // against pins a root attach session planted. Everything else is
+    // not this shape: another errno at the same syscall is a real
+    // fault (ENOENT under a raced detach), and a permission denial
+    // at a map operation after a successful open is a mid-command
+    // death, never a lane switch.
+    let denied = |call: &'static str, errno: i32| {
+        aya::maps::MapError::SyscallError(aya::sys::SyscallError {
+            call,
+            io_error: std::io::Error::from_raw_os_error(errno),
+        })
+    };
+    // EPERM (1) and EACCES (13) both render as PermissionDenied.
+    assert!(pin_access_denied(&denied("BPF_OBJ_GET", 1)));
+    assert!(pin_access_denied(&denied("BPF_OBJ_GET", 13)));
+    // ENOENT (2) at the open: the pin vanished under us - hard error.
+    assert!(!pin_access_denied(&denied("BPF_OBJ_GET", 2)));
+    // A map op denial after the open: mid-command death, hard error.
+    assert!(!pin_access_denied(&denied("BPF_MAP_UPDATE_ELEM", 1)));
+    // A non-syscall MapError shape: hard error.
+    assert!(!pin_access_denied(&aya::maps::MapError::InvalidName {
+        name: "x".to_owned()
+    }));
+}

@@ -119,9 +119,16 @@ pub struct LaneQuery<'a> {
     pub device: u64,
 }
 
-/// Walk the ladder for one window. `Err` only from the live half (a
-/// chain that died mid-command is worth an error, never a silent
-/// lane switch); the log half degrades honestly instead of failing.
+/// Walk the ladder for one window. `Err` only from the live half
+/// when the chain died mid-command (a chain that failed under the
+/// command is worth an error, never a silent lane switch); the log
+/// half degrades honestly instead of failing. The one pre-flight
+/// exception (night-hunter-5): the pins exist but this caller may
+/// not open them (EPERM/EACCES at BPF_OBJ_GET - a non-root run
+/// against a root attach session). That is an unavailability, not a
+/// death: the ladder steps down to the snapshot lane, and the
+/// Unaccounted block names the event window this caller could not
+/// have.
 pub fn collect(
     query: &LaneQuery<'_>,
     window: Duration,
@@ -132,11 +139,36 @@ pub fn collect(
             // The diagnostic trace (night-hunter-4): which lane the
             // ledger rode, on stderr only.
             crate::output::verbose::vlog!("lane", "live eBPF window selected (attached)");
-            return collect_live(query, window, filter);
+            return match collect_live(query, window, filter) {
+                Ok(parts) => Ok(parts),
+                Err(err) if err.starts_with(crate::ebpf::PIN_ACCESS_DENIED) => {
+                    crate::output::verbose::vlog!(
+                        "lane",
+                        "pin access denied (requires root) - snapshot fallback"
+                    );
+                    Ok(snapshot_fallback(query, window))
+                }
+                Err(err) => Err(err),
+            };
         }
     }
     crate::output::verbose::vlog!("lane", "snapshot only (eBPF not attached)");
     Ok(collect_log(query, window))
+}
+
+/// The degraded step (night-hunter-5): the snapshot/log lane's parts
+/// with the Unaccounted block naming the event window the caller
+/// could not have. The ledger's grammar is untouched - the note
+/// rides the standard entry shape ("1 event window (...)"), the mode
+/// stays whatever the log lane found.
+fn snapshot_fallback(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
+    let mut parts = collect_log(query, window);
+    parts.unaccounted.push(UnaccountedEntry::new(
+        1,
+        "event window",
+        "unavailable without root - falling back to snapshot mode",
+    ));
+    parts
 }
 
 // ── The live half (feature builds only) ─────────────────────────────

@@ -56,7 +56,18 @@ pub const ROLLING_CAP: usize = 4096;
 /// previous one stopped (that is why a run shows the events since
 /// the previous drain, or since attach for the first).
 pub fn open_ring(pin: &str, label: &str) -> Result<RingBuf<MapData>, String> {
-    let map_data = MapData::from_pin(pin).map_err(|e| format!("pinned {label} map {pin}: {e}"))?;
+    let map_data = MapData::from_pin(pin).map_err(|e| {
+        let base = format!("pinned {label} map {pin}: {e}");
+        if super::pin_access_denied(&e) {
+            // The ladder's degrade marker (night-hunter-5): the same
+            // classification the tracked_inodes writer carries - a
+            // permission refusal at the open is an unavailability,
+            // not a command death.
+            format!("{}: {base}", super::PIN_ACCESS_DENIED)
+        } else {
+            base
+        }
+    })?;
     RingBuf::try_from(Map::RingBuf(map_data))
         .map_err(|e| format!("the pinned {label} map is not a ring buffer: {e}"))
 }
