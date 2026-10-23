@@ -894,6 +894,23 @@ v11.0.0
 
 ### Changed
 
+- The write probe's drop census is userspace-readable
+  (night-hunter-2): the counters moved from BPF-local statics into
+  the stats map - the drop and walk totals plus one counter per
+  census stage (each stage owning its own slot, exact and
+  race-free; a fetch_max high-water mark was tried first and
+  retired: LLVM's BPF backend cannot lower atomicumax, bpf-linker
+  aborts with "Cannot select: AtomicLoadUMax") - so the attach-time
+  self-verification that refuses a silent probe now prints the
+  exact hop the walk died at ("furthest drop at stage 8: fd[fd]
+  unreadable or null (1 drop(s) there)") instead of a mute refusal
+  - or the honest "no census activity at all" when the anchor
+  itself never fired. The walk itself gains explicit null filters
+  on the task->files and files->fdt hops; the two-hop fdtable read
+  (fdt->fd dereferenced, then fd[fd] indexed) was already correct
+  and stays. The stats map grows from one to seventeen slots in the
+  same commit (the prebuilt lane is regenerated with it).
+
 - The instrumentation noun changes from "tap" to "probe" everywhere
   it names the eBPF instruments: the CLI output ("probes attached",
   "probes detached"), the loader and BPF identifiers (PROBE_ELF,
