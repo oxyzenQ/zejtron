@@ -91,6 +91,42 @@ in `deny.toml`; the lockfile is committed so `cargo install zejtron
 --locked` reproduces the exact graph the release lane vetted. See
 [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md).
 
+### The Dependency & Wrapper Doctrine
+
+Two structural decisions define the tool's footprint. Both are
+audited facts about this tree, not aspirations.
+
+**Peak lean dependency.** The runtime graph is exactly three crates:
+`clap` (the CLI), `regex-lite` (the pattern engine), and `aya` (the
+eBPF loader). There is no `serde`, no `tokio`, no `libbpf` — and no
+`chrono`, which was replaced by Howard Hinnant's `civil_from_days`
+running on `std::time` and is banned in `deny.toml`. The JSON output
+lane (`--print-json`) hand-writes its serializer for the same
+reason: the enterprise feature costs zero crates. The comparison set
+is the mature heavyweight tools: `sysdig` carries libbpf and Lua,
+`bpftrace` carries LLVM and BCC; zejtron carries three small crates
+and a committed lockfile.
+
+**Native kernel reader, not a wrapper.** The nine surfaces — `path`,
+`recent`, `port`, `proc`, `holds`, `touch`, `why`, `net`, `doctor` —
+read `/proc` and `/sys` directly. No surface drives `ss`, `lsof`, or
+`ps` as a subprocess: delete all three from the system and every
+zejtron surface still answers, byte for byte. The complete
+external-binary census (`grep -rn "Command::new" src/`) is short,
+and every entry is an optional lane that degrades honestly when the
+binary is absent:
+
+- `curl` — `--check-update` only, the one network surface.
+- `journalctl` — the optional journal fallback lane behind
+  `holds`/`touch`/`why`; the audit evidence itself is a direct read
+  of `/var/log/audit/audit.log`, no binary.
+- `dpkg`, `rpm`, `apk` — optional package-ownership lookups in
+  `path` on the distros that ship them; the Arch pacman database is
+  read directly from `/var/lib/pacman`, no pacman binary.
+- `uname` and the per-tool readiness probes in `doctor` —
+  availability checks that report their findings, never gate a
+  surface.
+
 ### Origin projects (consolidated)
 
 zejtron is the consolidation of two earlier projects — pidnest and
@@ -168,9 +204,11 @@ daemon, and the docs do not pretend otherwise.
 - rust 1.98.1 (the pinned toolchain in `rust-toolchain.toml`; older
   rustc versions do not build zejtron) for the from-source and
   on-my-machine lanes
-- Optional: `journalctl` (touch/why journal evidence); an Arch
-  pacman database at `/var/lib/pacman` (package-ownership rows in
-  `path` — read directly, no pacman binary invoked)
+- Optional: `journalctl` (the holds/touch/why journal fallback
+  lane); an Arch pacman database at `/var/lib/pacman`
+  (package-ownership rows in `path` — read directly, no pacman
+  binary invoked); `dpkg`/`rpm`/`apk` for the same rows on
+  Debian/RHEL/Alpine hosts
 
 ### Install on my machine (fast setup)
 
@@ -471,11 +509,15 @@ reference.
   surfaces (`path`, `recent`, `port`, `proc`, `holds`, `touch`,
   `why`, `net`, `doctor`) read `/proc` and `/sys` directly. The only
   external commands that can still add evidence are the optional
-  `auditctl`/`journalctl` and `pacman` sources named in this list.
+  `journalctl` fallback and the `dpkg`/`rpm`/`apk` ownership lookups
+  named in this list (see The Dependency & Wrapper Doctrine above).
 - Audit and journal evidence in `touch`/`why` is best-effort — it
-  depends on `auditctl`/`journalctl` availability and retention.
-- `path` package ownership requires `pacman` (Arch); other distros
-  show the file facts only.
+  depends on `/var/log/audit/audit.log` readability, `journalctl`
+  availability, and log retention.
+- `path` package ownership reads the Arch pacman database directly
+  (no pacman binary); on Debian/RHEL/Alpine hosts it consults
+  `dpkg`, `rpm`, or `apk` when installed. Without any of them, the
+  surface shows the file facts only.
 - Inside a container, zejtron sees the container's own `/proc` — the
   host's processes, sockets, and services are not visible unless the
   container was started with `--pid=host` and `/proc` is mounted to
