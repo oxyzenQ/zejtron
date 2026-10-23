@@ -17,18 +17,21 @@
 # surface.
 #
 # Why a separate lane from supermassive.yml: that lane owns the
-# toolchain-span x libc-shape cross (the MSRV/stable frontier
-# crossed with gnu/musl); this lane owns the per-surface end-to-end
+# toolchain-span x shape cross (the MSRV/stable frontier
+# crossed with the host and musl-static shapes); this lane owns the per-surface end-to-end
 # depth (success + error + determinism + color tri-tests per
 # surface). Two contracts, two lanes - neither reduces the other,
 # and the existing lane's name and matrix stay untouched.
 #
-# Build shape: each leg builds the pro-linux-amd64-v3-gnu alias -
+# Build shape: each leg builds the pro-linux-amd64-v3-musl alias -
 # the release page's amd64-v3 shape, never a bare `cargo build
 # --release` (the owner's from-source law: the binary the depth
 # suite exercises is the binary the release ships, and the parity
 # gate scripts/gates/check-release-parity.sh binds the alias's -C
-# tokens to the release matrix's rustflags verbatim). The ebpf
+# tokens to the release matrix's rustflags verbatim). The alias
+# links through rust-lld, the linker the pinned toolchain ships, so
+# the lane needs no musl-tools package - only the musl rust-std
+# target the toolchain step installs. The ebpf
 # support is the binary's unconditional law (there is no dormant
 # build, by owner law: Cargo.toml's night-weekly-maintenance-1
 # made aya a plain dependency and no build flag can produce a
@@ -88,6 +91,7 @@ jobs:
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
           toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
 
       - name: Restore the eBPF build prerequisites cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
@@ -109,12 +113,12 @@ jobs:
           prefix-key: supermassive-e2e-low
 
       - name: Build the pro-v3 binary (the release amd64-v3 shape)
-        run: cargo pro-linux-amd64-v3-gnu --locked
+        run: cargo pro-linux-amd64-v3-musl --locked
 
       - name: Run the low leg (60s wall budget, full depth)
         run: |
           ./scripts/supermassive/legs/low.sh \
-            --bin target/pro-linux-amd64-v3-gnu/zejtron
+            --bin target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron
 
       - name: Leg verdict
         if: always()
@@ -124,7 +128,7 @@ jobs:
           {
             echo "| leg | toolchain | shape | verdict |"
             echo "|-----|-----------|-------|---------|"
-            echo "| supermassive e2e - low specs | 1.98.1 (MSRV) | pro-v3-gnu (ebpf always-on) | ${LEG_STATUS} |"
+            echo "| supermassive e2e - low specs | 1.98.1 (MSRV) | pro-v3-musl (ebpf always-on) | ${LEG_STATUS} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   supermassive-best:
@@ -146,6 +150,7 @@ jobs:
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
           toolchain: stable
+          targets: x86_64-unknown-linux-musl
 
       - name: Restore the eBPF build prerequisites cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
@@ -167,12 +172,12 @@ jobs:
           prefix-key: supermassive-e2e-best
 
       - name: Build the pro-v3 binary (the release amd64-v3 shape)
-        run: cargo pro-linux-amd64-v3-gnu --locked
+        run: cargo pro-linux-amd64-v3-musl --locked
 
       - name: Run the best leg (300s wall budget, full depth)
         run: |
           ./scripts/supermassive/legs/best.sh \
-            --bin target/pro-linux-amd64-v3-gnu/zejtron
+            --bin target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron
 
       - name: Leg verdict
         if: always()
@@ -182,5 +187,5 @@ jobs:
           {
             echo "| leg | toolchain | shape | verdict |"
             echo "|-----|-----------|-------|---------|"
-            echo "| supermassive e2e - best specs | stable | pro-v3-gnu (ebpf always-on) | ${LEG_STATUS} |"
+            echo "| supermassive e2e - best specs | stable | pro-v3-musl (ebpf always-on) | ${LEG_STATUS} |"
           } >> "$GITHUB_STEP_SUMMARY"

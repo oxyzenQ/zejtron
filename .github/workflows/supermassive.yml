@@ -9,12 +9,12 @@
 #
 # The contract: every build shape the repo ships is verified end to
 # end - the pinned MSRV floor and the stable frontier, each crossed
-# with the glibc-dynamic and the musl-static release shapes - and
+# with the host runner lane and the musl-static release shape - and
 # every leg runs the SAME canonical CLI battery, not a compile-and-
-# shrug. The gap this lane closes honestly: release.yml builds both
-# libc shapes but the runtime battery (scripts/build.sh's smoke and
-# error-path sweep) has only ever executed against the host gnu
-# shape; the musl binary shipped to the release page never ran it.
+# shrug. The gap this lane closes honestly: release.yml builds the
+# release shapes but the runtime battery (scripts/build.sh's smoke
+# and error-path sweep) must run against the exact binary the release
+# page ships, not only against the host build.
 # Here the battery runs per leg with ZEJTRON_BIN_PATH pointed at the
 # leg's own binary, so "it compiles" is never the whole claim.
 #
@@ -85,13 +85,13 @@ jobs:
         # spec), best specs is the stable frontier (the moving
         # frontier at full optimization). The sibling's resource
         # envelopes size a VM boot; this lane's honest physics are
-        # the toolchain span crossed with the libc shapes, so the
+        # the toolchain span crossed with the shape lanes, so the
         # envelope IS the span. Each leg reports its own verdict.
         include:
-          - title: supermassive test - low specs (gnu)
+          - title: supermassive test - low specs (host)
             toolchain: "1.98.1"
             targets: ""
-          - title: supermassive test - best specs (gnu)
+          - title: supermassive test - best specs (host)
             toolchain: stable
             targets: ""
           - title: supermassive test - low specs (musl)
@@ -115,7 +115,7 @@ jobs:
           components: ${{ matrix.targets == '' && 'rustfmt, clippy' || '' }}
 
       # The ebpf feature is the default (night-improve-5): every leg
-      # (gnu and musl) source-builds the kernel object host-side, so
+      # (host and musl) source-builds the kernel object host-side, so
       # each leg installs the prerequisites (the zylaxion CI
       # precedent).
       - name: Restore the eBPF build prerequisites cache
@@ -138,13 +138,13 @@ jobs:
           prefix-key: supermassive-${{ matrix.toolchain }}-${{ matrix.targets }}
 
       # check-all's spell lane (the same pinned codespell
-      # gate-keepers.yml installs); the gnu legs are the check-all
+      # gate-keepers.yml installs); the host legs are the check-all
       # legs, the musl legs build + battery without it.
       - name: Install codespell (the check-all gate's spell lane)
         if: matrix.targets == ''
         run: python3 -m pip install --user codespell==2.4.3
 
-      - name: Full gate (gnu leg)
+      - name: Full gate (host leg)
         if: matrix.targets == ''
         run: ./scripts/build.sh check-all -q
 
@@ -172,7 +172,7 @@ jobs:
         env:
           LEG_TITLE: ${{ matrix.title }}
           LEG_TOOLCHAIN: ${{ matrix.toolchain }}
-          LEG_SHAPE: ${{ matrix.targets || 'gnu (host)' }}
+          LEG_SHAPE: ${{ matrix.targets || 'host' }}
           LEG_STATUS: ${{ job.status }}
         run: |
           {

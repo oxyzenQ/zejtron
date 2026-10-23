@@ -95,8 +95,7 @@ Maintenance workflow commits use:
 
 Release builds run for tags matching `v*`. The workflow builds:
 
-- `x86_64-unknown-linux-gnu`
-- `x86_64-unknown-linux-musl`
+- `x86_64-unknown-linux-musl` (the only shape; fully static)
 
 Release archives use a flat layout:
 
@@ -108,10 +107,10 @@ Example release asset flow:
 
 ```sh
 TAG=v80.0.0-beta.1
-cargo build --release --locked --target x86_64-unknown-linux-gnu
+cargo build --release --locked --target x86_64-unknown-linux-musl
 ```
 
-The release workflow uploads `zejtron-${TAG}-linux-amd64-{v3,v4}-{gnu,musl}.tar.gz` (the four-leg matrix) and matching checksum files.
+The release workflow uploads `zejtron-${TAG}-linux-amd64-{v3,v4}-musl.tar.gz` (the two-leg matrix, both fully static) and matching checksum files.
 
 ## crates.io (the registry lane)
 
@@ -204,8 +203,8 @@ convention) lifts the unauthenticated API quota.
 ## Supermassive (the heavy lane)
 
 `zejtron - Supermassive` is the wide cross the fast lane deliberately
-does not run: `{MSRV 1.98.1, stable} x {gnu, musl}` - four legs, each
-verifying its shape end to end. The gnu legs run the full gate
+does not run: `{MSRV 1.98.1, stable} x {host, musl}` - four legs, each
+verifying its shape end to end. The host legs run the full gate
 (`./scripts/build.sh check-all -q`) on their own toolchain, so the
 pinned MSRV floor is proven on itself instead of assumed from a
 stable-lane pass. The musl legs build the static pro-v3 shape
@@ -239,7 +238,7 @@ README is the contract's home). Two legs run the IDENTICAL check
 depth - the low-spec leg on the MSRV floor (60s wall budget) and
 the best-spec leg on the stable frontier (300s wall budget); the
 budget buys headroom, never depth. Both legs build the binary
-through the `cargo pro-linux-amd64-v3-gnu` alias - the release
+through the `cargo pro-linux-amd64-v3-musl` alias - the release
 page's amd64-v3 shape, never a bare `cargo build --release` (the
 owner's from-source law, night-improve-52): the depth suite
 exercises the exact shape the release ships. Triggers: every push
@@ -339,8 +338,8 @@ release page's amd64-v3 static binary, rust-lld carrying the link
 so no musl-tools rides the lane) - the twin's userland is the
 ubuntu:22.04 base (glibc 2.35) and a glibc-2.39 runner build
 refuses to execute there (the lane's first run found exactly
-that); the floor lane keeps the gnu alias against its own
-ubuntu:24.04 userland. The
+that); the floor lane rides the same static shape (night-badass-1,
+the GNU purge: every lane is musl). The
 one CI-only proof this lane owns: the privileged attach
 lifecycle in the success direction on 6.8 GA under KVM (BTF
 readable above the floor), and the below-floor refusal direction

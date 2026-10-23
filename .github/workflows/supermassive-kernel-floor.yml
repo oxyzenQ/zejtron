@@ -36,13 +36,16 @@
 # boot shape, rootless-packed, KVM when /dev/kvm is writable, TCG
 # otherwise) - the owner's local instrument for the same floor.
 #
-# Build shape: the lane builds the pro-linux-amd64-v3-gnu alias -
+# Build shape: the lane builds the pro-linux-amd64-v3-musl alias -
 # the release page's amd64-v3 shape, the same shape the e2e legs
 # build (the owner's from-source law: the payload the micro-VM
 # exercises is the binary the release ships; the parity gate
 # scripts/gates/check-release-parity.sh binds the alias's -C
-# tokens to the release matrix's rustflags verbatim) - then packs
-# it into a RAM-resident initramfs (no disk, no modules - the
+# tokens to the release matrix's rustflags verbatim). The alias
+# links through rust-lld, the linker the pinned toolchain ships, so
+# the lane needs no musl-tools package - only the musl rust-std
+# target the toolchain step below adds. The static payload then
+# packs into a RAM-resident initramfs (no disk, no modules - the
 # suite is loopback-only and every filesystem it needs is =y in
 # the Ubuntu generic kernel).
 #
@@ -135,6 +138,13 @@ jobs:
           sudo apt-get -o Acquire::Retries=5 update -qq &&
           sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
 
+      # The release lane's own shape: the alias builds for the musl
+      # triple, so the pinned toolchain needs its rust-std target
+      # (rust-lld carries the link - no musl-tools package, the
+      # .cargo/config.toml contract).
+      - name: Add the musl rust-std target
+        run: rustup target add x86_64-unknown-linux-musl --toolchain 1.98.1
+
       # The e2e lane's bring-up shape (the payload must be the
       # ebpf-enabled release binary - there is no dormant build by
       # owner law): the pinned MSRV toolchain, the eBPF build
@@ -159,7 +169,7 @@ jobs:
           prefix-key: supermassive-kernel-floor
 
       - name: Build the pro-v3 binary (the release amd64-v3 shape)
-        run: cargo pro-linux-amd64-v3-gnu --locked
+        run: cargo pro-linux-amd64-v3-musl --locked
 
       # The floor kernel: the jammy GA release-day image (5.15.0-25),
       # resolved from the LIVE archive's jammy main pocket - the GA
@@ -228,7 +238,7 @@ jobs:
           tar -xf rootfs.tar -C rootfs
           mkdir -p rootfs/opt/zejtron
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/zejtron
-          cp "$GITHUB_WORKSPACE/target/pro-linux-amd64-v3-gnu/zejtron" rootfs/opt/zejtron/zejtron
+          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron" rootfs/opt/zejtron/zejtron
           chmod 755 rootfs/opt/zejtron/zejtron
           mkdir -p rootfs/opt/zejtron/.sandbox
           cat > rootfs/opt/zejtron/.sandbox/payload.sh <<'EOF'

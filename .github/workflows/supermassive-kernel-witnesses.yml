@@ -70,8 +70,8 @@
 # tokens to the release matrix's rustflags verbatim); the alias
 # links through rust-lld, the linker the pinned toolchain ships, so
 # the lane needs no musl-tools package (the .cargo/config.toml
-# contract). The floor lane keeps the gnu alias against its own
-# ubuntu:24.04 userland.
+# contract). The floor lane rides the same static shape
+# (night-badass-1, the GNU purge: every lane is musl).
 #
 # Trigger discipline: every push (no path filter, no branch filter
 # - the owner's unfiltered-CI posture), plus workflow_dispatch as
