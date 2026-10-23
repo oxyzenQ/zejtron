@@ -16,7 +16,13 @@ surface_path() {
 	local rc
 
 	# Success path: the binary the battery already trusts (path sh).
-	sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- "$SM_DEFAULT_BIN" path sh
+	# Budget 20, not the 5s sibling guard: the path report walks the
+	# whole PATH estate (and the process table behind the duplicates
+	# section), and on a contended runner the first, cold invocation
+	# measured past the 5s guard (the e2e best leg landed exit 124
+	# while the warm determinism and tri-test runs seconds later
+	# passed). The budget is a hang guard, never a perf contract.
+	sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 20 -- "$SM_DEFAULT_BIN" path sh
 	sm_assert_rc 0 "$rc" "path sh exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "path sh renders content"
 	sm_assert_contains "$SM_SCRATCH/ok.out" "active:" "path sh names the active resolution"
@@ -26,7 +32,7 @@ surface_path() {
 	# honest contract (verified against the binary): this is a REPORT,
 	# not a failure - exit 0, the miss named on stdout, so scripts can
 	# tell a miss from a crash.
-	sm_run "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" rc 5 -- \
+	sm_run "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" rc 20 -- \
 		"$SM_DEFAULT_BIN" path "definitely-not-a-command-3f9a"
 	sm_assert_rc 0 "$rc" "path <missing> reports honestly with exit 0"
 	sm_assert_contains "$SM_SCRATCH/miss.out" "command not found in PATH" \
@@ -40,10 +46,11 @@ surface_path() {
 
 	# Determinism: PATH state is stable within a run; the report must
 	# be byte-stable modulo the volatile-field table.
-	sm_deterministic "path sh determinism" 5 -- "$SM_DEFAULT_BIN" path sh
+	sm_deterministic "path sh determinism" 20 -- "$SM_DEFAULT_BIN" path sh
 
-	# The color tri-test on the success invocation.
-	sm_color_tritest "path sh" 5 -- "$SM_DEFAULT_BIN" path sh
+	# The color tri-test on the success invocation (the same 20s
+	# budget as above: three full path reports under one guard).
+	sm_color_tritest "path sh" 20 -- "$SM_DEFAULT_BIN" path sh
 
 	sm_flag_used "path <command>"
 }
