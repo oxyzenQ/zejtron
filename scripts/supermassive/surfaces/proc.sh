@@ -59,14 +59,47 @@ surface_proc() {
 
 	# --no-color is the documented per-verb opt-out: its output must
 	# be byte-equal to the plain piped run (which is already plain).
+	# The plain frame is captured FRESH, back to back with the flag
+	# run: the --depth capture above spans several process spawns,
+	# and on a live host the --me family moves between ANY two
+	# renders (the cachyos witness landed that race: a 388/389 leg
+	# with this one stale-pair compare red). The ladder stays
+	# airtight: byte-equal on a quiet host passes the strict claim;
+	# a mismatch on a host that also mangles plain-vs-plain rides
+	# the stable skeleton (the same depth the structural determinism
+	# check already claims for this live surface - the color
+	# tri-test below answers the color question with fresh captures
+	# either way); a mismatch on a quiet host is a real --no-color
+	# regression and fails loud.
 	sm_run "$SM_SCRATCH/nocolor.out" "$SM_SCRATCH/nocolor.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" proc --me --no-color --depth 1
 	sm_assert_rc 0 "$rc" "proc --no-color exits 0"
-	if cmp -s "$SM_SCRATCH/depth.out" "$SM_SCRATCH/nocolor.out"; then
+	sm_run "$SM_SCRATCH/ncplain1.out" "$SM_SCRATCH/ncplain1.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" proc --me --depth 1
+	sm_assert_rc 0 "$rc" "proc --no-color fresh plain frame exits 0"
+	if cmp -s "$SM_SCRATCH/ncplain1.out" "$SM_SCRATCH/nocolor.out"; then
 		sm_pass "proc --no-color matches the plain piped render byte for byte"
 	else
-		sm_fail "proc --no-color matches the plain piped render byte for byte" \
-			"--no-color output differs from the piped render"
+		sm_run "$SM_SCRATCH/ncplain2.out" "$SM_SCRATCH/ncplain2.err" rc 5 -- \
+			"$SM_DEFAULT_BIN" proc --me --depth 1
+		if cmp -s "$SM_SCRATCH/ncplain1.out" "$SM_SCRATCH/ncplain2.out"; then
+			sm_fail "proc --no-color matches the plain piped render byte for byte" \
+				"--no-color output differs from the piped render on a quiet host"
+		else
+			sm_normalize "$SM_SCRATCH/ncplain1.out" "$SM_SCRATCH/ncplain1.norm"
+			sm_normalize "$SM_SCRATCH/nocolor.out" "$SM_SCRATCH/nocolor.norm"
+			grep -E '^([A-Za-z]|\[|━|[[:space:]]+[^[:space:]]+:)' \
+				"$SM_SCRATCH/ncplain1.norm" >"$SM_SCRATCH/ncplain1.skel" || true
+			grep -E '^([A-Za-z]|\[|━|[[:space:]]+[^[:space:]]+:)' \
+				"$SM_SCRATCH/nocolor.norm" >"$SM_SCRATCH/nocolor.skel" || true
+			if cmp -s "$SM_SCRATCH/ncplain1.skel" "$SM_SCRATCH/nocolor.skel" &&
+				[[ -s "$SM_SCRATCH/ncplain1.skel" ]]; then
+				sm_pass "proc --no-color matches the plain piped render (stable skeleton, live host)"
+			else
+				sm_fail "proc --no-color matches the plain piped render byte for byte" \
+					"--no-color output differs from the piped render beyond the stable skeleton"
+			fi
+		fi
 	fi
 	sm_flag_used "proc --no-color"
 
