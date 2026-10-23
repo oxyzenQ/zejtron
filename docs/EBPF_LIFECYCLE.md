@@ -252,3 +252,47 @@ probe fails its self-verification, the `[engine]` trace carries the
 census verdict (the furthest-drop stage), which is the first thing
 to quote in a bug report; the doctor's `[eBPF]` section remains the
 complete host read.
+
+## 7. The One Object Law
+
+The embedded kernel probe is one object, and it is the same object
+no matter which host built it. The eBPF crate cross-compiles to
+`bpfel-unknown-none` - BPF bytecode, not x86 machine code - so the
+host's microarchitecture has no vote in the output: a build on an
+x86-64-v3 machine, a v4 machine, or an aarch64 machine stages the
+same bytes. At attach time the running kernel's JIT translates the
+bytecode into the native CPU's instructions; the object itself
+never carries a host CPU flavor. The lane a binary rode is stamped
+into it at compile time (`ZEJTRON_EBPF_LANE`), and the shipped
+object's identity is pinned in `ebpf-prebuilt/manifest.toml`
+(blake3 + size), verified again by the registry lane before the
+bytes are embedded.
+
+Two guards make that law mechanical rather than aspirational
+(both live in `build/ebpf.rs`, and the one-writer script
+`scripts/dev/regenerate-ebpf-prebuilt.sh` applies the same pair):
+
+- **The poison strip.** Any inherited `RUSTFLAGS` /
+  `CARGO_ENCODED_RUSTFLAGS` tokens naming a host `target-cpu`, a
+  host `linker=`, or `link-self-contained` are dropped before the
+  nested build sees them. A `-Ctarget-cpu=x86-64-v3` exported in a
+  developer's shell cannot leak into the object. Everything else
+  survives verbatim, so CI's `RUSTFLAGS="-D warnings"` contract
+  keeps covering the eBPF crate.
+- **The BPF ISA pin.** The strip is followed by one deliberate
+  append, `-Ctarget-cpu=v3`. The host aliases' flags are
+  target-scoped (`target.x86_64-unknown-linux-musl.rustflags`), so
+  they cannot apply to a `bpfel-unknown-none` build in the first
+  place; the strip closes the env route, and this append closes the
+  codegen requirement: the level that emits the BPF_ATOMIC RMW
+  instructions the SMP-safe stats counter compiles to, well inside
+  the verified 5.15 kernel floor.
+
+The spelling collision deserves a plain sentence, because it reads
+like a bug and is not: `x86-64-v3` (a host CPU flavor, stripped as
+poison) and `v3` (the BPF ISA level, applied on purpose) are two
+different flags that share a suffix. Removing the second would not
+make the object "more universal" - it would remove the atomics the
+counter needs and break the build. The One Object Law holds
+precisely because the first never survives the strip and the second
+is always applied.

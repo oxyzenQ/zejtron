@@ -9,6 +9,9 @@
 //! the standing contract is the standalone runner:
 //!   rustc --edition 2021 --test build.rs -o /tmp/zejtron-build-test && /tmp/zejtron-build-test
 
+use std::ffi::OsStr;
+use std::process::Command;
+
 use super::*;
 
 /// Build a minimal ET_REL EM_BPF little-endian ELF64 in memory:
@@ -167,4 +170,32 @@ fn rustflags_poison_strip_drops_host_tokens_only() {
     assert_eq!(strip_host_poison("-D warnings", ' '), None);
     // Empty string is nothing to strip.
     assert_eq!(strip_host_poison("", ' '), None);
+    // The x86-64 microarch levels are the poison spellings this gate
+    // exists for: a host v3/v4 alias flag must never reach the bpfel
+    // build (the naming-collision case - see force_bpf_v3_rustflags).
+    assert_eq!(
+        strip_host_poison("-Ctarget-cpu=x86-64-v3 -Ctarget-feature=+crt-static", ' ').as_deref(),
+        Some("-Ctarget-feature=+crt-static")
+    );
+    assert_eq!(
+        strip_host_poison("-Ctarget-cpu=x86-64-v4 -D warnings", ' ').as_deref(),
+        Some("-D warnings")
+    );
+}
+
+#[test]
+fn bpf_v3_force_appends_the_bpf_isa_level() {
+    // The forced flag is spelled exactly -Ctarget-cpu=v3: the BPF ISA
+    // level, not the stripped host microarch spelling. A surviving
+    // clean flag rides along; nothing else is added or dropped.
+    std::env::set_var("RUSTFLAGS", "-D warnings");
+    std::env::remove_var("CARGO_ENCODED_RUSTFLAGS");
+    let mut cmd = Command::new("true");
+    force_bpf_v3_rustflags(&mut cmd);
+    let got = cmd
+        .get_envs()
+        .find(|(k, _)| *k == OsStr::new("RUSTFLAGS"))
+        .map(|(_, v)| v.unwrap().to_string_lossy().into_owned());
+    assert_eq!(got.as_deref(), Some("-D warnings -Ctarget-cpu=v3"));
+    std::env::remove_var("RUSTFLAGS");
 }

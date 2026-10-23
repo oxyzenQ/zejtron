@@ -33,7 +33,9 @@
 // prerequisite preflight (fail before compile time with the
 // one-command fix) and the RUSTFLAGS poison strip plus the v3 force
 // (env rustflags shadow config; host-CPU flags are poison for
-// bpfel). The self-heal retry is deliberately absent in this pass: a
+// bpfel; the forced v3 is the BPF ISA level, not the host
+// microarch - see force_bpf_v3_rustflags). The self-heal retry is
+// deliberately absent in this pass: a
 // validation failure panics with the exact violation and the
 // one-line remedy (delete ebpf/target and rebuild) - honest and lean
 // beats retry machinery the pass does not need.
@@ -549,7 +551,11 @@ fn strip_host_poison(value: &str, sep: char) -> Option<String> {
 /// Force the v3 BPF codegen level onto the nested build, whatever
 /// survived the poison strip: the LLVM BPF backend selects the
 /// BPF_ATOMIC RMW instructions (the stats counter needs them) only at
-/// cpu v3. A set env variable SHADOWS config rustflags entirely, so
+/// cpu v3. The v3 here is the LLVM BPF ISA extension level (the
+/// atomic-capable BPF bytecode), NOT the x86-64-v3 microarchitecture:
+/// the strip above already dropped every host target-cpu token, and
+/// this re-applies the token with its BPF meaning. A set env variable
+/// SHADOWS config rustflags entirely, so
 /// the flag is appended to whichever rustflags variable survived; with
 /// neither variable set the ebpf/.cargo/config.toml supplies the same
 /// flag.
