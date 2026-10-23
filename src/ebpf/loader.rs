@@ -126,11 +126,35 @@ pub fn attach() -> Result<String, String> {
              No probe is planted"
         )
     })?;
-    vlog!(
-        "engine",
-        "BTF parsed: {} struct offsets verified for the file and fd walks",
-        offsets.len()
-    );
+    // The [btf] trace (night-hunter-4): one line per resolved member,
+    // the attach-time answer to "which offset did the host's BTF
+    // actually vouch for". It rides the boundary, not the parser -
+    // the fuzz harness path-includes btf.rs and compiles it
+    // standalone, so the parser stays crate-import-free (the include
+    // law in fuzz/Cargo.toml). The pair order mirrors btf.rs's
+    // ProbeOffsets slots exactly; a length drift is a bug in this
+    // trace table, caught before a line is printed.
+    const OFF_TRACE: [(&str, &str); 12] = [
+        ("dentry", "d_inode"),
+        ("inode", "i_ino"),
+        ("file", "f_path"),
+        ("file", "f_inode"),
+        ("vfsmount", "mnt_sb"),
+        ("super_block", "s_dev"),
+        ("path", "mnt"),
+        ("path", "dentry"),
+        ("task_struct", "files"),
+        ("files_struct", "fdt"),
+        ("fdtable", "max_fds"),
+        ("fdtable", "fd"),
+    ];
+    debug_assert_eq!(OFF_TRACE.len(), offsets.len());
+    for ((sname, mname), offset) in OFF_TRACE.iter().zip(offsets.iter()) {
+        vlog!(
+            "btf",
+            "resolved struct {sname} -> {mname} at offset {offset}"
+        );
+    }
 
     // 1.6. The writev symbol verification (night-improve-42): the
     //      vectorized-write probe probes a symbol whose first argument
@@ -151,7 +175,7 @@ pub fn attach() -> Result<String, String> {
         )
     })?;
     vlog!(
-        "engine",
+        "btf",
         "writev attach symbol verified from BTF: {writev_symbol} (arg0: struct file)"
     );
 

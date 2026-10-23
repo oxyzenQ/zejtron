@@ -41,6 +41,13 @@
 //! that turn the syscall's fd register back into the struct file*
 //! the walk reads: task_struct.files, files_struct.fdt,
 //! fdtable.max_fds, and fdtable.fd.
+//!
+//! The file is path-included by the fuzz harness
+//! (fuzz/fuzz_targets/btf_parser.rs) and compiled standalone there -
+//! the include law (fuzz/Cargo.toml): pure std, zero `crate::`
+//! references, so the harness always proves the same bytes the
+//! binary ships. The night-hunter-4 diagnostic trace therefore
+//! lives at the attach boundary (src/ebpf/loader.rs), not here.
 
 /// The BTF magic, as a little-endian u16 over the file's first two
 /// bytes (0x9F 0xEB in the file).
@@ -140,13 +147,6 @@ fn member_offset(
         ));
     }
     let offset = u64::from(bit_offset / 8);
-    // The diagnostic trace (night-hunter-4): one line per resolved
-    // member, the attach-time answer to "which offset did the host's
-    // BTF actually vouch for".
-    crate::output::verbose::vlog!(
-        "btf",
-        "resolved struct {sname} -> {mname} at offset {offset}"
-    );
     Ok(offset)
 }
 

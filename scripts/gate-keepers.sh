@@ -512,6 +512,20 @@ else
 	warn_skip "17. actions-pin freshness (curl not installed)"
 fi
 
+# ── 18. Fuzz include law ────────────────────────────────────────────────────
+header "18. fuzz include law (path-included sources stay crate-import-free)"
+# The fuzz harness path-includes the parser sources and compiles them
+# standalone (fuzz/Cargo.toml): one `crate::` path in an included
+# file reds the cargo fuzz CI lane in seconds while every other gate
+# stays green - the exact failure that followed night-hunter-4, when
+# the diagnostic trace moved into btf.rs. This is the local seat of
+# the law the fuzz CI enforces the hard way.
+if bash scripts/gates/check-fuzz-includes.sh; then
+	pass "18. fuzz include law"
+else
+	fail "18. fuzz include law"
+fi
+
 # ── Summary ─────────────────────────────────────────────────────────────────
 echo ""
 echo "======================================================="

@@ -8,10 +8,14 @@
 //! never compiled in. A kprobe at a symbol whose arg0 is not the
 //! expected pointer reads garbage SILENTLY - the loud refusal is the
 //! only honest alternative. The offsets parser itself stays in
-//! [`super::btf`]; the BTF walker ([`BtfFile`]) is shared.
+//! [`super::btf`]; the BTF walker ([`BtfFile`]) is shared. The file
+//! is path-included by the fuzz harness beside its sibling
+//! (fuzz/fuzz_targets/btf_parser.rs), so the include law holds here
+//! too: the sibling reach is `super::`, never `crate::`, and the
+//! night-hunter-4 trace lives at the attach boundary
+//! (src/ebpf/loader.rs).
 
 use super::btf::BtfFile;
-use crate::output::verbose::vlog;
 
 /// The writev-lane attach symbols, in preference order: vfs_writev
 /// is the direct analog of the write probe (writev(2), pwritev(2), and
@@ -49,12 +53,6 @@ pub fn verify_writev_symbol_in(data: &[u8]) -> Result<&'static str, String> {
         };
         let struct_name = ctx.func_arg0_struct(func, symbol)?;
         if struct_name == "file" {
-            // The diagnostic trace (night-hunter-4): the attach point
-            // the host's BTF vouched for, named.
-            vlog!(
-                "btf",
-                "writev attach symbol verified: {symbol} (arg0: struct file)"
-            );
             return Ok(symbol);
         }
         return Err(format!(
