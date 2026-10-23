@@ -53,20 +53,29 @@ note() {
 }
 
 guest_exit() {
-	# The deterministic VM exit, belts in order. (1) qemu's
-	# isa-debug-exit device ends the VM the moment one byte lands on
-	# port 0xf4; /dev/port is the root-writable port-I/O window (seek
-	# = the port number), and the written value 0 makes qemu exit
-	# with status 1 - an rc the entrypoint's boot step accepts as the
-	# guest's deliberate exit. (2) The sysrq poweroff: enabling sysrq
+	# The deterministic VM exit, belts in order. (1) The console
+	# drain: the sentinel lines are the contract, and qemu's
+	# isa-debug-exit device ends the process the moment one byte
+	# lands on port 0xf4 - serial bytes still in flight (the tail of
+	# the SANDBOX-RESULT line, the SANDBOX-VERDICT line itself) die
+	# with it, proven live on the cachyos witness: a green 389/0
+	# suite whose PASS sentinel never reached vm.log. One quiet
+	# second lets the UART FIFO and the host-side pipe run dry before
+	# the exit byte is written. (2) qemu's isa-debug-exit device:
+	# /dev/port is the root-writable port-I/O window (seek = the
+	# port number), and the written value 0 makes qemu exit with
+	# status 1 - an rc the entrypoint's boot step accepts as the
+	# guest's deliberate exit. (3) The sysrq poweroff: enabling sysrq
 	# first is LOAD-BEARING (the jammy kernel's default mask hides
 	# the poweroff bit, and a bare `echo o` silently no-ops - proven
 	# live on the floor kernel: with sysrq enabled, the write reaches
 	# ACPI S5 and the kernel prints "reboot: Power down"; qemu exits
-	# 0, a natural poweroff, also accepted). (3) The sleep loop
+	# 0, a natural poweroff, also accepted). (4) The sleep loop
 	# (never spin the host's budget - the outer timeout owns the last
 	# resort).
 	echo 1 >/proc/sys/kernel/sysrq 2>/dev/null || true
+	sync 2>/dev/null || true
+	sleep 1 2>/dev/null || true
 	printf '\x00' | dd of=/dev/port bs=1 seek=244 count=1 2>/dev/null || true
 	echo o >/proc/sysrq-trigger 2>/dev/null || true
 	while true; do sleep 60; done
