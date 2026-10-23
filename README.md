@@ -234,7 +234,7 @@ containers.
 ```sh
 # The release tag. Every install block below reuses it, so the
 # version lives in one place and a bump is a two-line change.
-TAG=v80.0.0-beta.1
+TAG=v80.0.0
 SHAPE=linux-amd64-v3-musl   # or v4-musl
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
@@ -250,9 +250,14 @@ signature per archive — see
 
 ### Install from crates.io
 
-The first public release is the alpha, and cargo's pre-release rule
-applies: plain `cargo install zejtron` skips pre-releases by design.
-To install the alpha, name it:
+The registry lane ships the stable 80.0.0 - the LTS freeze's own
+version - so the plain install picks it up:
+
+```sh
+cargo install zejtron --locked
+```
+
+To pin an older release instead, name it:
 
 ```sh
 # TAG is set once at the top of this README; cargo wants the
@@ -260,14 +265,12 @@ To install the alpha, name it:
 cargo install zejtron --version "${TAG#v}" --locked
 ```
 
-This alpha install carries the full eBPF binary: the tarball ships
+A registry install carries the full eBPF binary: the crate ships
 the maintainer-built kernel object (`ebpf-prebuilt/`, provenance in
 `ebpf-prebuilt/manifest.toml`), so no nightly toolchain and no
 bpf-linker are needed on the target machine. Building from a git
 checkout instead source-builds the object under the dated nightly pin
-(`./scripts/dev/bootstrap-ebpf.sh` installs the pair). When 80.0.0
-stable lands, `cargo install zejtron --locked` will pick it up
-automatically.
+(`./scripts/dev/bootstrap-ebpf.sh` installs the pair).
 
 There is no feature opt-out: the eBPF support is unconditional by
 owner law (`night-weekly-maintenance-1` — no `[features]` table
@@ -297,7 +300,7 @@ cargo install --path .
 ### eBPF
 
 The eBPF event lane ships in every binary — there is no feature
-toggle: every build — and the alpha install from the registry —
+toggle: every build — and the registry install —
 embeds a pure-Rust eBPF object. No program loads until you attach
 (see below) and nothing pins before that.
 
@@ -534,7 +537,7 @@ reference.
   limit; the tool reports what the namespace shows, and the doctor
   names the visibility it is working with.
 - The eBPF lane ships unconditionally (owner law — there is no
-  feature toggle): the alpha install embeds the maintainer-built
+  feature toggle): the registry install embeds the maintainer-built
   kernel object from the tarball (no nightly, no bpf-linker on the
   target machine), and a git checkout source-builds it under the
   dated pin at build time only. There is no snapshot-only build; the
@@ -684,7 +687,7 @@ internal performance.
 ### Release channels
 
 Stable releases are tagged `vX.Y.Z` from `main`. The release pipeline
-validates the tag, builds the four-leg matrix, and publishes with
+validates the tag, builds the two-leg musl matrix, and publishes with
 checksums; pre-release tags are never marked "latest".
 
 ## Contributing
@@ -716,6 +719,8 @@ them.
   [docs/ROADMAP-current.md](docs/ROADMAP-current.md) — the direction
 - [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) — release
   verification, told once
+- [docs/FREEZE.md](docs/FREEZE.md) — the v80.0.0 LTS freeze
+  declaration
 - [docs/LICENSING_FAQ.md](docs/LICENSING_FAQ.md) — licensing questions
 - [docs/workflow/about-ci.md](docs/workflow/about-ci.md) — the CI estate
 
