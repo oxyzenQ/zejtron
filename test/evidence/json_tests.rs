@@ -10,8 +10,8 @@ use super::*;
 #[test]
 fn escapes_quotes_backslashes_and_control_bytes() {
     let mut out = String::new();
-    write_string(&mut out, "he said \"hi\"\\done\n\t\u{01}e\u{0c}nd");
-    assert_eq!(out, "\"he said \\\"hi\\\"\\\\done\\n\\t\\u0001e\\fnd\"");
+    write_string(&mut out, "he said \"hi\"\\done\n\t\u{01}e\u{0c}z");
+    assert_eq!(out, "\"he said \\\"hi\\\"\\\\done\\n\\t\\u0001e\\fz\"");
 }
 
 #[test]
