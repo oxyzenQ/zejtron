@@ -202,6 +202,50 @@ label the source, never the ambition.
   conformance: the honesty contract is identical, only the
   perception is smaller.
 
+## 5. The JSON surface (`--print-json`)
+
+`holds`, `touch`, and `why` can answer with the same report as one
+line of JSON (`zejtron why /etc/passwd --print-json | jq .`). The
+JSON lane is a second rendering of the SAME report object - not a
+second truth: the fields mirror the text grammar field for field,
+and the byte-determinism law holds (same rows in, same bytes out).
+The serializer is std-only by the dependency law: no serde, no new
+crates.
+
+Field map:
+
+- `ledger_version` - `1`, the specification version this report
+  conforms to.
+- `subject`, `window` - the header and mode line's window label,
+  the same tokens the text block carries.
+- `mode` - the base word: `live`, `snapshot`, or `mixed`.
+- `lane` - the mode line's lane qualifier without the comma
+  (`journal fallback`, `no event lane available`), or `null` for
+  the unqualified lanes (`live`, `mixed`).
+- `measured`, `changes.rows` - arrays of row objects. A row is
+  `{"unix_secs": <seconds | null>, "timestamp_utc": <"YYYY-MM-DD
+  HH:MM:SS (UTC)" | null>, "action": "...", "actor": "...",
+  "provenance": "<tier>"}`. An absent time is JSON `null` in both
+  fields - the machine-native form of the text renderer's
+  `unknown`; the fact stays absent, never guessed. `provenance`
+  is one of the four tier tags, the locked vocabulary.
+- `changes.unavailable` - the absent-lane truth beside the rows:
+  `true` when no event lane could serve, `false` when it ran (an
+  empty window with a present lane is `false` with an empty `rows`
+  array - an empty window is a finding, not an absence).
+- `unaccounted` - always present (empty array when nothing is
+  named); each entry is `{"count": N, "category": "...",
+  "reason": "..."}`.
+- `verdict` - always exactly `{"supports": "...",
+  "cannot_support": "..."}`.
+
+Strings are JSON-escaped: quote and backslash take their
+representations, control bytes are named (`\n`, `\t`, `\u00xx`),
+and UTF-8 passes through verbatim. `why`'s `--trace` and `--raw`
+are text-only drill-downs and the CLI refuses their combination
+with `--print-json` - the JSON line stays byte-clean on stdout,
+always.
+
 ## Conformance checklist
 
 - Every evidence row ends in one of the four tier tags.

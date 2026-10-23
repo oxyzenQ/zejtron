@@ -49,7 +49,7 @@ fn missing_path_error_is_clean() {
 
     let (window, window_label) = crate::commands::lane::resolve_window(None).unwrap();
     assert_eq!(
-        ledger::build_path_report(&missing, window, window_label, false, false)
+        ledger::build_path_report(&missing, window, window_label, false, false, false)
             .unwrap_err()
             .to_string(),
         format!("path not found: {}", missing.display())
@@ -64,7 +64,7 @@ fn broken_symlink_error_is_clean() {
 
     let (window, window_label) = crate::commands::lane::resolve_window(None).unwrap();
     assert_eq!(
-        ledger::build_path_report(&link, window, window_label, false, false)
+        ledger::build_path_report(&link, window, window_label, false, false, false)
             .unwrap_err()
             .to_string(),
         format!("path not found: {}", link.display())
@@ -80,7 +80,8 @@ fn path_with_spaces_works() {
     // Through the ledger (the lane state is environment-dependent;
     // the subject line holds whichever lane served).
     let (window, window_label) = crate::commands::lane::resolve_window(None).unwrap();
-    let output = ledger::build_path_report(&path, window, window_label, false, false).unwrap();
+    let output =
+        ledger::build_path_report(&path, window, window_label, false, false, false).unwrap();
 
     assert!(output.contains(&path.display().to_string()));
 }

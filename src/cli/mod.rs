@@ -192,6 +192,8 @@ pub enum Commands {
             help = "Event window width (s/m/h, default 10s, clamped to [1s, 1h])"
         )]
         since: Option<String>,
+        #[arg(long, help = "Print the Evidence Ledger as JSON (one line, jq-ready)")]
+        print_json: bool,
     },
     #[command(about = "When did this path last change?")]
     Touch {
@@ -203,6 +205,8 @@ pub enum Commands {
             help = "Event window width (s/m/h, default 10s, clamped to [1s, 1h])"
         )]
         since: Option<String>,
+        #[arg(long, help = "Print the Evidence Ledger as JSON (one line, jq-ready)")]
+        print_json: bool,
     },
     #[command(about = "Evidence report for a path or port.")]
     Why {
@@ -224,6 +228,12 @@ pub enum Commands {
         trace: bool,
         #[arg(long, help = "Append the raw kernel events as drained (drill-down)")]
         raw: bool,
+        #[arg(
+            long,
+            conflicts_with_all = ["trace", "raw"],
+            help = "Print the Evidence Ledger as JSON (one line, jq-ready)"
+        )]
+        print_json: bool,
     },
     #[command(about = "Host readiness and symptom analysis.")]
     Doctor {

@@ -445,6 +445,13 @@ zejtron touch /etc/resolv.conf --since 30s
 zejtron why /etc/resolv.conf
 zejtron why /etc/resolv.conf --since 30s --trace --raw
 
+# The same Evidence Ledger as JSON for automation - one line,
+# jq-ready, std-only serializer (no serde in the graph):
+# holds, touch, and why speak it (--print-json excludes --trace/--raw)
+zejtron why /etc/passwd --print-json | jq .
+zejtron holds 53 --print-json | jq '.verdict.supports'
+zejtron touch /etc/resolv.conf --print-json | jq '.changes.rows'
+
 # Network context
 zejtron net
 

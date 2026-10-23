@@ -32,12 +32,17 @@ pub fn run(
     since: Option<&str>,
     trace: bool,
     raw: bool,
+    print_json: bool,
 ) -> Result<(), Box<dyn Error>> {
     let target = parse_target(target)?;
     let (window, window_label) = resolve_window(since).map_err(WhyError)?;
     let output = match target {
-        Target::Port(port) => ledger::build_port_report(port, window, window_label, trace, raw)?,
-        Target::Path(path) => ledger::build_path_report(&path, window, window_label, trace, raw)?,
+        Target::Port(port) => {
+            ledger::build_port_report(port, window, window_label, trace, raw, print_json)?
+        }
+        Target::Path(path) => {
+            ledger::build_path_report(&path, window, window_label, trace, raw, print_json)?
+        }
     };
     println!("{output}");
     Ok(())

@@ -98,17 +98,29 @@ const GROUPS: &[(&str, &[Row])] = &[
     ),
     (
         "holds:",
-        &[(
-            "--since DURATION",
-            "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
-        )],
+        &[
+            (
+                "--since DURATION",
+                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+            ),
+            (
+                "--print-json",
+                "Print the Evidence Ledger as JSON (one line, jq-ready)",
+            ),
+        ],
     ),
     (
         "touch:",
-        &[(
-            "--since DURATION",
-            "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
-        )],
+        &[
+            (
+                "--since DURATION",
+                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+            ),
+            (
+                "--print-json",
+                "Print the Evidence Ledger as JSON (one line, jq-ready)",
+            ),
+        ],
     ),
     (
         "why:",
@@ -124,6 +136,10 @@ const GROUPS: &[(&str, &[Row])] = &[
             (
                 "--raw",
                 "Append the raw kernel events as drained (drill-down)",
+            ),
+            (
+                "--print-json",
+                "Print the Evidence Ledger as JSON (one line, jq-ready; excludes --trace and --raw)",
             ),
         ],
     ),

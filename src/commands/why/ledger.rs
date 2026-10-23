@@ -39,6 +39,7 @@ pub fn build_path_report(
     window_label: String,
     trace: bool,
     raw: bool,
+    print_json: bool,
 ) -> Result<String, super::WhyError> {
     let metadata = fs::metadata(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
@@ -117,7 +118,16 @@ pub fn build_path_report(
             cannot_support: cannot,
         },
     };
-    let mut out = crate::evidence::render::render_report(&report);
+    // The renderer branch: JSON when --print-json (one line, the
+    // json lane's contract), the text ledger otherwise. The trace
+    // and raw sections are text-mode extras - the CLI conflicts
+    // --print-json with them, so the appends below are inert in the
+    // JSON branch and the one line stays byte-clean.
+    let mut out = if print_json {
+        crate::evidence::json::report_json(&report)
+    } else {
+        crate::evidence::render::render_report(&report)
+    };
     if trace {
         out.push_str(&trace_section(&report, meta_rows));
     }
@@ -137,6 +147,7 @@ pub fn build_port_report(
     window_label: String,
     trace: bool,
     raw: bool,
+    print_json: bool,
 ) -> Result<String, super::WhyError> {
     let (holders, stats) =
         holds::scan_port_holders(port).map_err(|e| super::WhyError(e.to_string()))?;
@@ -186,7 +197,11 @@ pub fn build_port_report(
             cannot_support: port_cannot_line(&stats),
         },
     };
-    let mut out = crate::evidence::render::render_report(&report);
+    let mut out = if print_json {
+        crate::evidence::json::report_json(&report)
+    } else {
+        crate::evidence::render::render_report(&report)
+    };
     if trace {
         out.push_str(&trace_section(&report, 0));
     }
