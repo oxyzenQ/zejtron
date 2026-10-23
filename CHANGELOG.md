@@ -24,6 +24,19 @@ v11.0.0
 
 ### Added
 
+- The intentional waits are narrated (night-hunter-6): the Lazy
+  Camera's event windows and sampling gaps - holds/touch/why's live
+  file window, port's socket window, and the doctor delta symptoms'
+  1.0s sample - print a grey countdown to stderr ("[watching for
+  events... 10s]") while they wait and erase it entirely when the
+  report lands, so an open shutter is never mistaken for a hang.
+  Std-only, zero new dependencies, carriage returns and spaces only
+  (no escape-byte clear), gated on stderr's own TTY-ness with
+  NO_COLOR honored: a piped run carries countdown bytes on neither
+  stream, and stdout's Evidence Ledger is byte-identical. The waits
+  stay deadline-anchored - the sampled windows remain exactly the
+  window.
+
 - The usage playbook ships (night-hunter-5): docs/USAGE.md turns the
   manual QC findings into four investigation scenarios - find a RAM
   leak (doctor --symptom ram), catch a process modifying a config

@@ -41,6 +41,9 @@ pub(crate) use capability::{
 // stderr. Public within the crate - every subsystem's trace rides
 // the one macro this module owns.
 pub mod verbose;
+// The waiting indicator (night-hunter-6): the grey countdown the
+// intentional waits narrate on stderr while the shutter is open.
+pub mod spinner;
 // The pure ladder-as-data classifier is the output tests' probe; the
 // production caches consume it inside the capability module.
 #[cfg(test)]
@@ -256,14 +259,24 @@ pub(crate) fn error_bold(msg: &str) -> String {
     }
 }
 
+/// Wrap `msg` in the calm-grey grammar tier for the STDERR lane -
+/// the waiting indicator's seat (night-hunter-6): a narration is
+/// secondary content, dimmer than every ledger byte it annotates.
+/// Plain text when color is off.
+pub(crate) fn grey_err(msg: &str) -> String {
+    wrap_on(msg, Tier::Grammar, capability())
+}
+
 // The stderr lane's affirmative/warning/brand wrappers rode out with
 // night-improve-37's lane corrections: their last users (the doctor
 // verdict rows, the update status word, the version header) speak
 // through stdout and moved to the stdout-lane wrappers below, and a
 // wrapper nobody calls is dead weight under -D warnings. The stderr
-// lane keeps the red pair it uses ([`error`], [`error_bold`]); the
-// green, grey, yellow, and purple seats all live on the stdout lane
-// now, each anchored on the stream its surface speaks through.
+// lane keeps the red pair it uses ([`error`], [`error_bold`]) and,
+// since night-hunter-6, the grammar seat the waiting indicator
+// rides ([`grey_err`]); the green, yellow, and purple seats all live
+// on the stdout lane now, each anchored on the stream its surface
+// speaks through.
 
 // ── The stdout lane's tier wrappers (night-improve-37) ─────────────
 //

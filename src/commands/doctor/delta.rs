@@ -30,7 +30,6 @@
 //! same source.
 
 use std::collections::BTreeMap;
-use std::thread::sleep;
 use std::time::Duration;
 
 use super::memory::exits::ExitLane;
@@ -224,9 +223,12 @@ pub(crate) fn read_pid_sample(pids: &[u32]) -> PidSample {
 
 /// The sampling gap: sleep exactly the window. The only wait in the
 /// lane - the callers call it once between their two reads, and the
-/// spec's law holds: no loop, no second window.
+/// spec's law holds: no loop, no second window (the narration's
+/// wake slices are one window's chunks, deadline-anchored, never a
+/// re-armed window). The wait is narrated (night-hunter-6): the
+/// countdown rides stderr's own lane, the ledger's stdout untouched.
 pub(crate) fn sample_gap() {
-    sleep(SAMPLE_WINDOW);
+    crate::output::spinner::wait(SAMPLE_WINDOW, "sampling");
 }
 
 /// The exits overlay for a delta symptom: the spec's grant - when
