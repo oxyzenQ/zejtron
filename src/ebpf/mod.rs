@@ -152,6 +152,29 @@ pub fn any_pin_present() -> bool {
     ALL_PINS.iter().any(|p| Path::new(p).exists())
 }
 
+/// The canonical marker the pin-open sites prefix on a permission
+/// denial (night-hunter-5): the pins exist - an attach session
+/// planted them - but this caller may not open them (EPERM/EACCES at
+/// BPF_OBJ_GET, the non-root run against a root attach session). The
+/// fallback ladder (commands::lane) classifies on this constant and
+/// steps down to the snapshot lane instead of dying; the wording is
+/// repo-owned, never aya's, so the classification cannot drift with
+/// a dependency bump.
+pub const PIN_ACCESS_DENIED: &str = "pin access denied (requires root)";
+
+/// True when the error is a permission denial at the pin-open
+/// syscall itself. Map operations after a successful open (insert,
+/// remove, drain) are mid-command deaths and stay hard errors - the
+/// chain did not refuse this caller, it failed under the command.
+pub fn pin_access_denied(e: &aya::maps::MapError) -> bool {
+    matches!(
+        e,
+        aya::maps::MapError::SyscallError(se)
+            if se.call == "BPF_OBJ_GET"
+                && se.io_error.kind() == std::io::ErrorKind::PermissionDenied
+    )
+}
+
 // ── The kernel facts probe (std-only, both build lanes) ──────────────
 
 /// The kernel's lockdown verdict, from /sys/kernel/security/lockdown.

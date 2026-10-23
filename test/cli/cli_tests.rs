@@ -261,3 +261,91 @@ fn help_discloses_verbose() {
         "Pro mode must spell the -v, --verbose grammar"
     );
 }
+
+/// The spelling one clap flag renders under: the short form with its
+/// comma when a long form rides beside it, the long form, then the
+/// value names verbatim (Pro mode's value tokens are bare - N,
+/// DURATION - by the section's own convention).
+fn pro_mode_flag_spelling(arg: &clap::Arg) -> Option<String> {
+    if arg.is_positional() || arg.get_id() == "help" {
+        // Positionals are targets, not flags; -h/--help is clap's own
+        // machinery (one help authority, every render carries it).
+        return None;
+    }
+    let mut spelling = String::new();
+    if let Some(short) = arg.get_short() {
+        spelling.push('-');
+        spelling.push(short);
+        if arg.get_long().is_some() {
+            spelling.push_str(", ");
+        }
+    }
+    if let Some(long) = arg.get_long() {
+        spelling.push_str("--");
+        spelling.push_str(long);
+    }
+    // Only the value-taking actions render a value placeholder; the
+    // SetTrue flags keep a phantom derived value name that clap's
+    // help never shows (the -V/--version row is the live case).
+    if matches!(
+        arg.get_action(),
+        clap::ArgAction::Set | clap::ArgAction::Append
+    ) {
+        if let Some(names) = arg.get_value_names() {
+            for name in names {
+                spelling.push(' ');
+                spelling.push_str(name);
+            }
+        }
+    }
+    Some(spelling)
+}
+
+/// The estate is complete against the clap tree itself (night-hunter-5):
+/// every flag argument of every verb, and every top-level flag, is
+/// spelled on the Pro mode surface. The walk is the audit - a flag
+/// added to any verb without its Pro mode row fails here, not in an
+/// operator's terminal (the owner's QC found port's --since,
+/// --events-only, and --snapshot-only missing exactly this way).
+#[test]
+fn pro_mode_covers_every_clap_flag() {
+    let mut cmd = Cli::command();
+    cmd.build();
+    let plain = pro_mode::painted();
+
+    let mut checked = 0usize;
+    // Top-level args first: the globals (-V, -v) and the top-level
+    // --check-update - the "global:" group owns them.
+    for arg in cmd.get_arguments() {
+        if let Some(spelling) = pro_mode_flag_spelling(arg) {
+            assert!(
+                plain.contains(spelling.as_str()),
+                "Pro mode must spell the top-level flag {spelling}"
+            );
+            checked += 1;
+        }
+    }
+    // Then every verb's own args. Global flags propagate into the
+    // subcommands at build time - they were already walked at the top,
+    // so the sub walk skips them (they belong to the one "global:"
+    // group, not to every verb's).
+    for sub in cmd.get_subcommands() {
+        for arg in sub.get_arguments() {
+            if arg.is_global_set() {
+                continue;
+            }
+            if let Some(spelling) = pro_mode_flag_spelling(arg) {
+                assert!(
+                    plain.contains(spelling.as_str()),
+                    "Pro mode must spell {spelling} (the {} verb's own flag)",
+                    sub.get_name()
+                );
+                checked += 1;
+            }
+        }
+    }
+    assert!(
+        checked >= 29,
+        "the walk must have checked the real estate, got {checked}"
+    );
+}

@@ -72,6 +72,18 @@ const GROUPS: &[(&str, &[Row])] = &[
             ("--numeric", "Use numeric addresses and ports"),
             ("--group", "Group repeated rendered socket rows"),
             ("--no-pid", "Hide process IDs in owner lines"),
+            (
+                "--since DURATION",
+                "Event window width (s/m/h, default 60s, clamped to [1s, 1h])",
+            ),
+            (
+                "--events-only",
+                "Show only the event window (no snapshot)",
+            ),
+            (
+                "--snapshot-only",
+                "Show only the snapshot (the phase-1 behavior)",
+            ),
         ],
     ),
     (
@@ -81,10 +93,45 @@ const GROUPS: &[(&str, &[Row])] = &[
             ("--depth N", "Limit rendered tree depth"),
             (
                 "--find PATTERN",
-                "Show process families matching a name substring",
+                "Show process families matching a case-insensitive name substring",
             ),
             ("--no-pid", "Hide pid=<PID> labels"),
             ("--no-color", "Disable ANSI color output"),
+        ],
+    ),
+    (
+        "holds:",
+        &[
+            (
+                "--since DURATION",
+                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+            ),
+        ],
+    ),
+    (
+        "touch:",
+        &[
+            (
+                "--since DURATION",
+                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+            ),
+        ],
+    ),
+    (
+        "why:",
+        &[
+            (
+                "--since DURATION",
+                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+            ),
+            (
+                "--trace",
+                "Append how zejtron knows each row (the explainability ladder)",
+            ),
+            (
+                "--raw",
+                "Append the raw kernel events as drained (drill-down)",
+            ),
         ],
     ),
     (
@@ -114,6 +161,10 @@ const GROUPS: &[(&str, &[Row])] = &[
             (
                 "--check-update",
                 "Alias: --check-updated (same surface, one check)",
+            ),
+            (
+                "-V, --version",
+                "Print complete version and build information",
             ),
             (
                 "-v, --verbose",

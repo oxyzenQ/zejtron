@@ -24,6 +24,16 @@ v11.0.0
 
 ### Added
 
+- The usage playbook ships (night-hunter-5): docs/USAGE.md turns the
+  manual QC findings into four investigation scenarios - find a RAM
+  leak (doctor --symptom ram), catch a process modifying a config
+  file (why + the live lane), track down a missing port (port +
+  holds), and trace a deleted file still consuming disk (touch +
+  holds) - each with the exact commands, the honest root/non-root
+  behavior, and a reading guide for the Evidence Ledger's tiers,
+  mode line, Unaccounted block, and verdict. docs/README.md's map
+  and README.md's documentation list carry the new document.
+
 - The Evidence Ledger is now a formal specification (v1, frozen).
   docs/EVIDENCE-LEDGER.md defines the four provenance tiers, the
   output grammar, and the UTC/deterministic laws. Any tool can now
@@ -895,6 +905,39 @@ v11.0.0
 
 ### Fixed
 
+- A non-root run no longer dies at the pinned map (night-hunter-5):
+  when the pins exist (a root `doctor --attach` session planted
+  them) but the caller may not open them, the first BPF_OBJ_GET
+  failed with a hard error and the whole command died - the one
+  ladder rung that refused to degrade. The pin-open sites now
+  classify the permission denial (EPERM/EACCES at the open syscall,
+  never a map operation after a successful open) under a repo-owned
+  marker, and the fallback ladder (holds, touch, why) steps down to
+  the snapshot lane it already trusted: the report renders with
+  whatever the audit/journal lane recorded, and the Unaccounted
+  block carries the note "1 event window (unavailable without root
+  - falling back to snapshot mode)". A mid-command chain death
+  stays a hard error - the ladder only degrades on an
+  unavailability the caller could never have answered differently.
+  A classifier pin walks the errno shapes (EPERM and EACCES deny,
+  ENOENT and map-op denials stay hard) and the degraded step's
+  ledger shape is pinned (the standard entry grammar, the mode
+  stays whatever the log lane found).
+- The Pro mode section is exhaustive against the clap tree
+  (night-hunter-5): the owner's manual QC found port's --since,
+  --events-only, and --snapshot-only missing from `zejtron -h`'s
+  Pro mode - and the full audit found the same gap wider: holds,
+  touch, and why carried --since, why carried --trace and --raw,
+  and the global -V/--version had no row either. Every flag of
+  every verb is spelled on the one surface now (descriptions
+  verbatim from the CLI structs; the proc --find row re-synced to
+  the struct's current wording), and the completeness is a
+  standing test, not a one-off audit: the pin walks the real clap
+  command tree (top-level args plus every verb's own args,
+  positionals and clap's -h/--help machinery excepted) and fails
+  on any flag without its Pro mode row - a flag added to any verb
+  without its row now fails in the battery, not in an operator's
+  terminal.
 - The write probe's fd-walk offsets reach the kernel now
   (night-hunter-3): `write_offsets` carried an explicit eight-pair
   table from the pre-fd-walk era, so slots 8..11 (task_struct.files,

@@ -35,10 +35,18 @@ use super::events::pack_filter_key;
 pub fn track_file(inode: u64, device: u64) -> Result<(), String> {
     let key = pack_filter_key(inode, device);
     let map_data = MapData::from_pin(PIN_MAP_TRACKED_INODES).map_err(|e| {
-        format!(
-            "cannot track inode {inode:#x}: pinned tracked_inodes map \
-             {PIN_MAP_TRACKED_INODES}: {e} (is the probes attached? see zejtron doctor [eBPF])"
-        )
+        let base = format!("pinned tracked_inodes map {PIN_MAP_TRACKED_INODES}: {e}");
+        if super::pin_access_denied(&e) {
+            // The ladder's degrade marker (night-hunter-5): a
+            // permission refusal at the open is an unavailability the
+            // caller can step down from, not a command death.
+            format!("{}: {base}", super::PIN_ACCESS_DENIED)
+        } else {
+            format!(
+                "cannot track inode {inode:#x}: {base} \
+                 (is the probes attached? see zejtron doctor [eBPF])"
+            )
+        }
     })?;
     let mut owned = Map::HashMap(map_data);
     let mut map: HashMap<_, u64, u8> = HashMap::try_from(&mut owned)
@@ -52,10 +60,17 @@ pub fn track_file(inode: u64, device: u64) -> Result<(), String> {
 pub fn untrack_file(inode: u64, device: u64) -> Result<(), String> {
     let key = pack_filter_key(inode, device);
     let map_data = MapData::from_pin(PIN_MAP_TRACKED_INODES).map_err(|e| {
-        format!(
-            "cannot untrack inode {inode:#x}: pinned tracked_inodes map \
-             {PIN_MAP_TRACKED_INODES}: {e} (is the probes attached? see zejtron doctor [eBPF])"
-        )
+        let base = format!("pinned tracked_inodes map {PIN_MAP_TRACKED_INODES}: {e}");
+        if super::pin_access_denied(&e) {
+            // The ladder's degrade marker (night-hunter-5): the same
+            // classification track_file carries.
+            format!("{}: {base}", super::PIN_ACCESS_DENIED)
+        } else {
+            format!(
+                "cannot untrack inode {inode:#x}: {base} \
+                 (is the probes attached? see zejtron doctor [eBPF])"
+            )
+        }
     })?;
     let mut owned = Map::HashMap(map_data);
     let mut map: HashMap<_, u64, u8> = HashMap::try_from(&mut owned)
