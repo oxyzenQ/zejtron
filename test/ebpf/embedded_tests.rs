@@ -15,7 +15,7 @@ fn aligned_wrapper_guarantees_alignment() {
     // Alignment is a property of the TYPE (#[repr(C, align(8))]), so
     // every instance is 8-aligned by construction - verified here on
     // a locally built wrapper, which is the same construction the
-    // loader's TAP_ELF static rides.
+    // loader's PROBE_ELF static rides.
     let wrapped = AlignedElf::new([0xAA; 24]);
     assert_eq!(misalignment(&wrapped.bytes), None);
     assert_eq!(&wrapped.bytes[..4], &[0xAA; 4]);

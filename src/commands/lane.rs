@@ -5,7 +5,7 @@
 //! ladder lives, shared by holds, touch, and why. The ladder is
 //! exclusive and every step is honest about its source:
 //!
-//! 1. eBPF attached (root, BTF, kernel 5.15+, feature enabled, tap
+//! 1. eBPF attached (root, BTF, kernel 5.15+, feature enabled, probe
 //!    live) - \[observed] rows from the kernel's own records;
 //! 2. eBPF unavailable but the log lane present (audit.log or
 //!    journalctl) - \[inferred] rows from the log, replayed;
@@ -142,16 +142,16 @@ fn collect_live(
     window: Duration,
     filter: OpFilter,
 ) -> Result<LaneParts, String> {
-    let events = crate::ebpf::filetap::capture_file_window(query.inode, query.device, window)?;
+    let events = crate::ebpf::fileprobe::capture_file_window(query.inode, query.device, window)?;
 
     let mut rows: Vec<EvidenceRow> = Vec::new();
     let mut gone_opens: usize = 0;
     let mut gone_writes: usize = 0;
     for event in &events {
         let is_open = event.op == crate::ebpf::events::FILE_OP_OPEN;
-        // Both write paths are writes: the plain write tap (op=2) and
-        // the vectorized writev tap (op=4, night-improve-42). The
-        // filter must never re-open the gap the second tap closed -
+        // Both write paths are writes: the plain write probe (op=2) and
+        // the vectorized writev probe (op=4, night-improve-42). The
+        // filter must never re-open the gap the second probe closed -
         // a Writes-only window that dropped writev rows would be the
         // false negative reborn one layer up.
         let is_write = event.op == crate::ebpf::events::FILE_OP_WRITE
@@ -186,7 +186,7 @@ fn collect_live(
             _ => "wrote",
         };
         rows.push(EvidenceRow::new(
-            crate::ebpf::filetap::event_unix_secs(event),
+            crate::ebpf::fileprobe::event_unix_secs(event),
             action,
             format!("{name} (pid {}, {user})", event.pid),
             Provenance::Observed,

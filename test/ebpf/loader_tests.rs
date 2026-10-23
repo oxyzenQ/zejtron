@@ -12,15 +12,15 @@
 use super::*;
 
 #[test]
-fn tap_elf_is_an_aligned_bpf_object() {
+fn probe_elf_is_an_aligned_bpf_object() {
     // The real embedded object, as it ships inside the binary: ELF
     // magic, and 8-byte aligned (the AlignedElf contract - aya's
     // parser reads ELF64 structures straight out of the buffer).
-    assert!(TAP_ELF.starts_with(&[0x7f, b'E', b'L', b'F']));
+    assert!(PROBE_ELF.starts_with(&[0x7f, b'E', b'L', b'F']));
     assert_eq!(
-        embedded::alignment_violation(TAP_ELF, "zejtron-ebpf"),
+        embedded::alignment_violation(PROBE_ELF, "zejtron-ebpf"),
         None,
-        "the embedded tap must sit 8-byte aligned by construction"
+        "the embedded probe must sit 8-byte aligned by construction"
     );
 }
 
@@ -37,7 +37,7 @@ fn contract_constants_pin_the_attach_point() {
 
 #[test]
 fn contract_constants_pin_the_post_mortem_exit_attach_point() {
-    // night-improve-47's exit tap (ebpf/src/exits.rs) carries its
+    // night-improve-47's exit probe (ebpf/src/exits.rs) carries its
     // own contract, pinned the same way: the program symbol, the
     // tracepoint pair, the ring map. The exit tracepoint exists
     // on every kernel the 5.15 floor allows.

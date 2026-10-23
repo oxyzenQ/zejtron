@@ -6,7 +6,7 @@
 # coreutils).
 #
 # regenerate-ebpf-prebuilt.sh (night-improve-5, refreshed by
-# night-weekly-maintenance-1) — rebuild the kernel tap object and
+# night-weekly-maintenance-1) — rebuild the kernel probe object and
 # refresh ebpf-prebuilt/ after any change under ebpf/.
 # This script is the ONE WRITER of the prebuilt lane; build/ebpf.rs's
 # registry lane only stages what this script wrote (and verifies the
@@ -76,7 +76,7 @@ BUILT_OBJECT="ebpf/target/bpfel-unknown-none/release/${OBJECT_NAME}"
 # lockstep with build/ebpf.rs's BPF_LINKER_VERSION constant.
 BPF_LINKER_VERSION="0.11.1"
 # The six attach targets the loader plants (src/ebpf/loader.rs; the
-# exit tap lives in ebpf/src/exits.rs). The manifest documents the
+# exit probe lives in ebpf/src/exits.rs). The manifest documents the
 # contract; the commit that changes the probe set edits this list in
 # the same commit.
 ATTACH_TARGETS="\"sched_process_exec\", \"inet_sock_set_state\", \"vfs_open\", \"vfs_write\", \"vfs_writev\", \"sched_process_exit\""
@@ -217,7 +217,7 @@ for token in $FLAGS; do
 done
 export RUSTFLAGS="${FILTERED} -Ctarget-cpu=v3"
 
-echo "building the tap object (${PIN}, bpf-linker ${BPF_LINKER_VERSION})..."
+echo "building the probe object (${PIN}, bpf-linker ${BPF_LINKER_VERSION})..."
 (
 	cd ebpf
 	env -u CARGO_ENCODED_RUSTFLAGS -u RUSTC -u RUSTC_WORKSPACE_WRAPPER -u RUSTC_WRAPPER \
@@ -279,7 +279,7 @@ size = ${OBJ_SIZE}
 
 [contract]
 # The six attach targets the loader plants (src/ebpf/loader.rs; the
-# exit tap lives in ebpf/src/exits.rs), documented for the registry
+# exit probe lives in ebpf/src/exits.rs), documented for the registry
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.
 attach_targets = [${ATTACH_TARGETS}]

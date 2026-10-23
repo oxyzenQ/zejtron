@@ -105,7 +105,7 @@ fn offsets_slots_are_frozen_then_appended() {
     // The eight file-walk slots never renumbered (the five
     // process-stream slots night-improve-4 appended are gone with
     // `proc --live`, night-improve-34); night-improve-57 appends the
-    // four fd-walk slots at 8..11 for the syscall-stub write tap,
+    // four fd-walk slots at 8..11 for the syscall-stub write probe,
     // and the map is sized at twelve.
     assert_eq!(OFF_SLOT_DENTRY_D_INODE, 0);
     assert_eq!(OFF_SLOT_INODE_I_INO, 1);

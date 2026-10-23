@@ -102,5 +102,5 @@ pub fn event_unix_secs(event: &FileEvent) -> Option<i64> {
 }
 
 #[cfg(test)]
-#[path = "../../test/ebpf/filetap_tests.rs"]
+#[path = "../../test/ebpf/fileprobe_tests.rs"]
 mod tests;

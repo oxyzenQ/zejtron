@@ -19,7 +19,7 @@
 //! only, no capabilities beyond the invoking user's own), the
 //! delta symptoms sample twice with exactly one 1.0-second sleep
 //! between the reads (the wait IS the measurement - never a loop),
-//! and when the eBPF tap is attached every symptom may drain the
+//! and when the eBPF probe is attached every symptom may drain the
 //! exit ring to name the processes that died inside its window,
 //! [observed]. Every consumer the kernel exposes to this
 //! invocation is named, and whatever cannot be attributed is named

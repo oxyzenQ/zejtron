@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// zejtron eBPF tap, the plain-write program (night-improve-59, the
+// zejtron eBPF probe, the plain-write program (night-improve-59, the
 // third generation - a dedicated module under the 600-LOC no-mercy
 // cap, the exits.rs precedent).
 //
@@ -17,7 +17,7 @@
 // aya-0.14 kprobe-on-syscall-stub quirk this pass does not pretend
 // to explain. The third generation rides the one mechanism with
 // zero observed failures across the whole estate: the tracepoint,
-// the same machinery the sock, exec, and exit taps already use on
+// the same machinery the sock, exec, and exit probes already use on
 // every kernel from the 5.15 floor through the 7.2 line.
 //
 // THE ANCHOR: raw_syscalls/sys_enter - the syscall tracepoint,
@@ -27,22 +27,22 @@
 // fixed layout (stable since the tracepoint landed): the 8-byte
 // trace_entry header, then the syscall id (offset 8), then the six
 // syscall arguments (offset 16 on) - constants here, the same class
-// as the sock tap's verified ctx_offsets. The probe reads the id
+// as the sock probe's verified ctx_offsets. The probe reads the id
 // and returns for everything that is not write(2) (__NR_write = 1
 // on x86_64, the ABI itself); for writes it reads the fd from
 // args[0] and walks the caller's descriptor table -
 // task_struct->files->fdt->max_fds bounds the index, fdt->fd[fd]
 // resolves the file, every hop a BTF-verified offset in the grown
 // offsets map - then the inode/device walk, the kernel-side filter,
-// and the record mirror the open tap exactly.
+// and the record mirror the open probe exactly.
 //
 // THE HONEST NARROWING (named, not hidden): a syscall-entry probe
 // sees syscall-origin writes only. Kernel-internal writes
 // (kernel_write) and compat-ia32 syscalls never enter it, and
 // neither kind ever produced a row the ledger could attribute to a
 // process. And the loader no longer trusts ANY anchor silently:
-// plant_write_tap verifies a recorded write through the tap before
-// attach declares success (src/ebpf/verify_write.rs) - a tap that
+// plant_write_probe verifies a recorded write through the probe before
+// attach declares success (src/ebpf/verify_write.rs) - a probe that
 // cannot record one byte refuses the whole attach, the same
 // doctrine the offsets and the writev symbol already carried,
 // extended from parse-verify to record-verify. The silent-anchor
@@ -65,7 +65,7 @@ use crate::events::{
 };
 
 // The sys_enter record layout - the trace-event ABI's own fixed
-// prefix (the sock tap's ctx_offsets class: stable since the
+// prefix (the sock probe's ctx_offsets class: stable since the
 // tracepoint landed, asserted here as plain constants).
 /// The syscall id, right after the 8-byte trace_entry header
 /// (type, flags, preempt_count, pid - the record's fixed prefix).
@@ -98,14 +98,14 @@ unsafe fn zjw_drop(stage: u64, fd: u64) {
     }
 }
 
-/// The write tap, third generation (night-improve-59): the
+/// The write probe, third generation (night-improve-59): the
 /// raw_syscalls/sys_enter tracepoint, filtered to write(2) by the
 /// syscall id, walking the fd from the record's args[0] through the
 /// BTF-verified fd-table hops to the struct file*, then mirroring
-/// the open tap's walk, filter, and record. The module doc carries
+/// the open probe's walk, filter, and record. The module doc carries
 /// the full story.
 #[tracepoint(category = "raw_syscalls", name = "sys_enter")]
-pub fn write_tap(ctx: TracePointContext) -> u32 {
+pub fn write_probe(ctx: TracePointContext) -> u32 {
     // The id check first: sys_enter fires for EVERY syscall, so the
     // non-write traffic leaves after one comparison.
     let id: i64 = match unsafe { ctx.read_at::<i64>(SYS_ENTER_ID) } {

@@ -19,20 +19,20 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-10-22T21:20:37Z"
+generated = "2026-10-23T06:05:12Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "f293bd2c47d811a7b0f45ea16f9031f189b7854818d7d3c53a3cafa1e7db1e2e"
+ebpf_tree_blake3 = "08165822f9e192e3d4e98c89e1ef4e9c21b90ca857acb04205034f9c75d7d575"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "34a66fe85e04701f6552e077aad432772780a2300b0ef0ae306c54b20712cb10"
-size = 11784
+blake3 = "5174ea212047854dd3737bf0c68bbfde41e077d5e907fc4c8debff8ff2c9f575"
+size = 11792
 
 [contract]
 # The six attach targets the loader plants (src/ebpf/loader.rs; the
-# exit tap lives in ebpf/src/exits.rs), documented for the registry
+# exit probe lives in ebpf/src/exits.rs), documented for the registry
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.
 attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "vfs_write", "vfs_writev", "sched_process_exit"]

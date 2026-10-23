@@ -55,7 +55,7 @@ pub const AF_INET6: u16 = 10;
 /// newstate 20, _pad 21, sport 22, dport 24, _pad2 26..27,
 /// pid 28; total 32 bytes. The pads are EXPLICIT fields, the
 /// FileEvent discipline: the ring record's every byte is written
-/// by the tap constructor, because the 5.15 verifier (the
+/// by the probe constructor, because the 5.15 verifier (the
 /// documented kernel floor, proven live by the kernel-floor
 /// micro-VM lane) rejects an `output` read whose stack bytes were
 /// never initialized - "invalid indirect read from stack" - while
@@ -139,7 +139,7 @@ pub fn is_port_surface_event(family: u16, protocol: u8, oldstate: u8, newstate: 
 pub const FILE_OP_OPEN: u8 = 1;
 
 /// `op` for FileEvent: a file was written (the syscall-anchored
-/// write tap fired on the queried inode's file - night-improve-57:
+/// write probe fired on the queried inode's file - night-improve-57:
 /// the write(2) entry itself, not the inlinable interior).
 pub const FILE_OP_WRITE: u8 = 2;
 
@@ -238,7 +238,7 @@ pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
 // their offsets from the map; the slot indices below are the
 // contract between the host writer and the BPF readers. The eight
 // file-walk slots are frozen; night-improve-57 appends the four
-// fd-walk slots at 8..11 (the syscall-stub write tap), so the
+// fd-walk slots at 8..11 (the syscall-stub write probe), so the
 // legacy indices never renumber.
 
 /// `offsets[0]`: struct dentry, member d_inode.
@@ -258,7 +258,7 @@ pub const OFF_SLOT_PATH_MNT: u32 = 6;
 /// `offsets[7]`: struct path, member dentry.
 pub const OFF_SLOT_PATH_DENTRY: u32 = 7;
 /// `offsets[8]`: struct task_struct, member files (night-improve-57,
-/// the syscall-stub write tap's fd-to-file walk).
+/// the syscall-stub write probe's fd-to-file walk).
 #[allow(dead_code)]
 pub const OFF_SLOT_TASK_FILES: u32 = 8;
 /// `offsets[9]`: struct files_struct, member fdt.
@@ -276,7 +276,7 @@ pub const OFF_SLOT_FDT_FD: u32 = 11;
 /// The number of slots the offsets map carries (the map's
 /// max_entries on the BPF side, the write count on the host side).
 /// Twelve: the eight frozen file-walk slots plus the four fd-walk
-/// slots night-improve-57 appends (the syscall-stub write tap). The
+/// slots night-improve-57 appends (the syscall-stub write probe). The
 /// file slots were never renumbered - the five process-stream slots
 /// night-improve-4 appended (8..13) are gone with the lifecycle
 /// stream (night-improve-34), and the fd-walk slots reuse the free
@@ -304,12 +304,12 @@ pub const OFF_SLOTS: u32 = 12;
 /// Offsets (repr(C), natural alignment, pinned by test):
 /// timestamp_ns 0, pid 8, _pad 12, comm 16..32; total 32 bytes.
 /// The pads are EXPLICIT fields, the SockEvent discipline: the ring
-/// record's every byte is written by the tap constructor, because
+/// record's every byte is written by the probe constructor, because
 /// the 5.15 verifier (the documented kernel floor) rejects an
 /// `output` read whose stack bytes were never initialized.
 ///
 /// `pid` is the tgid half of bpf_get_current_pid_tgid - the process
-/// (thread group), not the exiting thread: the tap's leader-only
+/// (thread group), not the exiting thread: the probe's leader-only
 /// filter (ebpf/src/exits.rs) keeps one record per process exit, so
 /// the pid IS the process identity and the comm IS the leader's
 /// name, exactly the pair a /proc read would have named before the

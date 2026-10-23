@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 //
-//! The tap loader - attach and detach (night-improve-1, the
+//! The probe loader - attach and detach (night-improve-1, the
 //! zylaxion orchestration lineage; night-improve-2 grows the chain
 //! to two tracepoints and a ring buffer; night-improve-3 grows it
 //! to four programs and five maps, and teaches attach to verify the
@@ -11,28 +11,28 @@
 //! with the lifecycle stream surface's removal, and the offsets
 //! contract shrinks to the eight file-walk slots; night-improve-42
 //! grows it to five programs and the same five maps - the writev
-//! tap, whose attach symbol is verified from the host's own BTF
+//! probe, whose attach symbol is verified from the host's own BTF
 //! before anything is planted, the argument-position sibling of
 //! the offsets law; night-improve-47 grows it to six programs and
-//! six maps - the post-mortem exit tap (ebpf/src/exits.rs) and its
+//! six maps - the post-mortem exit probe (ebpf/src/exits.rs) and its
 //! proc_events ring, the drain the doctor's ram symptom reads).
 //!
 //! This is the privileged one-shot. `doctor --attach` loads the
-//! embedded tap object, loads ALL SIX programs (phase 1's
+//! embedded probe object, loads ALL SIX programs (phase 1's
 //! sched/sched_process_exec counter, phase 2's
-//! sock/inet_sock_set_state socket-event tap, phase 3's
-//! vfs_open/vfs_write file taps, night-improve-42's vfs_writev
-//! vectorized-write tap, night-improve-47's
-//! sched/sched_process_exit post-mortem exit tap), attaches each,
+//! sock/inet_sock_set_state socket-event probe, phase 3's
+//! vfs_open/vfs_write file probes, night-improve-42's vfs_writev
+//! vectorized-write probe, night-improve-47's
+//! sched/sched_process_exit post-mortem exit probe), attaches each,
 //! and pins
 //! EVERYTHING to bpffs - programs, links, maps - then writes the
 //! BTF-parsed struct offsets into the `offsets` map, and the
-//! process may exit, because the pinned links keep the taps alive
+//! process may exit, because the pinned links keep the probes alive
 //! and the pinned maps keep the counters, the rings, the filter
 //! map, and the offsets alive. After `attach` returns, nothing of
 //! zejtron is resident in userspace. `doctor --detach` unpins
 //! everything; the link pins go first so an interrupted cleanup
-//! leaves a DETACHED tap, never a half-attached one.
+//! leaves a DETACHED probe, never a half-attached one.
 //!
 //! Idempotence and self-heal (the zylaxion contract): a complete pin
 //! set is already-attached (a success shape - running attach twice is
@@ -67,15 +67,15 @@ use super::events::{
     OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_VFSMOUNT_MNT_SB,
 };
 
-/// The embedded pure-Rust tap object (night-improve-1): the aya-ebpf
+/// The embedded pure-Rust probe object (night-improve-1): the aya-ebpf
 /// ELF staged into OUT_DIR by build.rs. It rides inside the
 /// AlignedElf wrapper (the NIGHT-hunt-30 lesson - see embedded.rs)
 /// so aya's ELF parser reads 8-aligned bytes whatever the linker
 /// decided.
-static TAP_ELF: &[u8] =
+static PROBE_ELF: &[u8] =
     &embedded::AlignedElf::new(*include_bytes!(concat!(env!("OUT_DIR"), "/zejtron-ebpf.o"))).bytes;
 
-/// The program name in the tap object (the ELF symbol - the fn name
+/// The program name in the probe object (the ELF symbol - the fn name
 /// in ebpf/src/main.rs) - phase 1's exec counter.
 const PROGRAM: &str = "sched_process_exec";
 
@@ -86,38 +86,38 @@ const TRACEPOINT_CATEGORY: &str = "sched";
 /// The tracepoint event name.
 const TRACEPOINT_EVENT: &str = "sched_process_exec";
 
-/// The stats map name in the tap object (the \#\[map\] name in
+/// The stats map name in the probe object (the \#\[map\] name in
 /// ebpf/src/main.rs - the userspace mirror of the same contract).
 const MAP_STATS: &str = "stats";
 
 /// The socket-state program's name (night-improve-2) - phase 2's
-/// inet_sock_set_state tap.
+/// inet_sock_set_state probe.
 const SOCK_PROGRAM: &str = "inet_sock_set_state";
 
 /// The socket-state tracepoint's category and event.
 const SOCK_TRACEPOINT_CATEGORY: &str = "sock";
 const SOCK_TRACEPOINT_EVENT: &str = "inet_sock_set_state";
 
-/// The sock_events ring map name in the tap object.
+/// The sock_events ring map name in the probe object.
 const MAP_SOCK_EVENTS: &str = "sock_events";
 
 /// The file-open program's name (the ELF symbol - the fn name in
 /// ebpf/src/main.rs). The ATTACH symbol is a separate constant -
 /// the program is role-named, the symbol is kernel-named, and the
 /// two meet only here (night-improve-3).
-const OPEN_PROGRAM: &str = "open_tap";
+const OPEN_PROGRAM: &str = "open_probe";
 
-/// The kernel symbol the open tap attaches to (entry probe, offset
+/// The kernel symbol the open probe attaches to (entry probe, offset
 /// 0).
 const OPEN_SYMBOL: &str = "vfs_open";
 
 /// The file-write program's name.
-const WRITE_PROGRAM: &str = "write_tap";
+const WRITE_PROGRAM: &str = "write_probe";
 
-/// The write tap's tracepoint category (night-improve-59, the
+/// The write probe's tracepoint category (night-improve-59, the
 /// third generation): raw_syscalls - the syscall tracepoint, the
 /// one mechanism with zero observed failures across the whole
-/// estate (the sock, exec, and exit taps already ride it from the
+/// estate (the sock, exec, and exit probes already ride it from the
 /// 5.15 floor through the 7.2 line). The first generation anchored
 /// at the vfs_write kprobe (dead on the -O3 distro builds that
 /// inline it into the syscall stub); the second at the stub kprobe
@@ -139,7 +139,7 @@ const WRITE_TRACEPOINT_EVENT: &str = "sys_enter";
 /// argument-position sibling of the offsets law - a symbol whose
 /// first argument the host cannot vouch for is a guess, and a
 /// guessed argument position reads garbage silently.
-const WRITEV_PROGRAM: &str = "writev_tap";
+const WRITEV_PROGRAM: &str = "writev_probe";
 
 /// The post-mortem exit program's name (night-improve-47) - the ELF
 /// symbol in ebpf/src/exits.rs, the program whose records name the
@@ -150,20 +150,20 @@ const EXIT_PROGRAM: &str = "sched_process_exit";
 const EXIT_TRACEPOINT_CATEGORY: &str = "sched";
 const EXIT_TRACEPOINT_EVENT: &str = "sched_process_exit";
 
-/// The tracked_inodes filter map name in the tap object.
+/// The tracked_inodes filter map name in the probe object.
 const MAP_TRACKED_INODES: &str = "tracked_inodes";
 
-/// The file_events ring map name in the tap object.
+/// The file_events ring map name in the probe object.
 const MAP_FILE_EVENTS: &str = "file_events";
 
-/// The proc_events ring map name in the tap object (night-improve-47
+/// The proc_events ring map name in the probe object (night-improve-47
 /// - the post-mortem exit stream).
 const MAP_PROC_EVENTS: &str = "proc_events";
 
-/// The offsets config map name in the tap object.
+/// The offsets config map name in the probe object.
 const MAP_OFFSETS: &str = "offsets";
 
-/// Attach the tap: the privileged one-shot.
+/// Attach the probe: the privileged one-shot.
 ///
 /// Returns a human-readable summary the doctor prints verbatim; every
 /// failure is an error string that names its reason, and no failure
@@ -191,7 +191,7 @@ pub fn attach() -> Result<String, String> {
                 .map(|n| format!("N={n}"))
                 .unwrap_or_else(|e| format!("counter unreadable ({e})"));
             return Ok(format!(
-                "tap is already attached - nothing to do (all pins present; \
+                "probe is already attached - nothing to do (all pins present; \
                  doctor --detach removes it); events since attach: {count}"
             ));
         }
@@ -210,15 +210,15 @@ pub fn attach() -> Result<String, String> {
     let offsets = btf::parse_probe_offsets().map_err(|e| {
         format!(
             "attach refused: cannot verify the struct offsets from BTF \
-             ({e}). The file taps read kernel structs at offsets taken \
+             ({e}). The file probes read kernel structs at offsets taken \
              from /sys/kernel/btf/vmlinux - a build without BTF cannot \
              verify them, and a guessed offset goes blind silently. \
-             No tap is planted"
+             No probe is planted"
         )
     })?;
 
     // 1.6. The writev symbol verification (night-improve-42): the
-    //      vectorized-write tap probes a symbol whose first argument
+    //      vectorized-write probe probes a symbol whose first argument
     //      must be a pointer to struct file. The symbol and its
     //      argument shape are read from the same host BTF, before
     //      anything is planted - the argument-position sibling of
@@ -227,11 +227,11 @@ pub fn attach() -> Result<String, String> {
     //      refuses here, by name, with zero pins touched.
     let writev_symbol = btf::verify_writev_symbol().map_err(|e| {
         format!(
-            "attach refused: cannot verify the vectorized-write tap's attach \
-             point from BTF ({e}). The writev tap probes vfs_writev (fallback \
+            "attach refused: cannot verify the vectorized-write probe's attach \
+             point from BTF ({e}). The writev probe probes vfs_writev (fallback \
              do_iter_write) at its first argument, and the host's BTF must \
              vouch for that argument being a pointer to struct file - a \
-             guessed argument position reads garbage silently. No tap is \
+             guessed argument position reads garbage silently. No probe is \
              planted"
         )
     })?;
@@ -267,7 +267,7 @@ pub fn attach() -> Result<String, String> {
     // 4. The alignment preflight (the AlignedElf contract):
     //    structurally impossible now, kept so a regression diagnoses
     //    in one line.
-    if let Some(violation) = embedded::alignment_violation(TAP_ELF, "zejtron-ebpf") {
+    if let Some(violation) = embedded::alignment_violation(PROBE_ELF, "zejtron-ebpf") {
         return Err(violation);
     }
 
@@ -275,7 +275,7 @@ pub fn attach() -> Result<String, String> {
     //    to its point, pin everything. Any failure past this point
     //    must clean the pins it planted - the fail() protocol.
     let mut bpf =
-        Ebpf::load(TAP_ELF).map_err(|e| fail(format!("the tap object failed to load: {e}")))?;
+        Ebpf::load(PROBE_ELF).map_err(|e| fail(format!("the probe object failed to load: {e}")))?;
 
     let attach_result = plant(&mut bpf, writev_symbol);
     match attach_result {
@@ -283,23 +283,23 @@ pub fn attach() -> Result<String, String> {
             // 6.5. Write the BTF-parsed offsets through the pin - the
             //     last planted piece, and the one the whole file lane
             //     rides on. A failure here cleans everything (the
-            //     fail protocol); a tap whose offsets cannot be
-            //     written is a tap that must not stay planted.
+            //     fail protocol); a probe whose offsets cannot be
+            //     written is a probe that must not stay planted.
             if let Err(e) = write_offsets(&offsets) {
                 return Err(fail(e));
             }
-            // 6.6. The write tap's own verification (night-improve-59):
+            // 6.6. The write probe's own verification (night-improve-59):
             //     record-verify or refuse. The offsets law and the
             //     writev symbol law verify the PARSE; this verifies
             //     the RECORD - a scratch file is tracked, one write
-            //     is pushed through the tap, and the drained ring
+            //     is pushed through the probe, and the drained ring
             //     must carry the scratch's own (inode, device, op).
             //     A silent anchor - the failure class that took the
             //     vfs_write kprobe on the -O3 distro builds and the
             //     stub kprobe everywhere - cannot survive this
             //     door: the attach refuses and the fail protocol
             //     takes the pins down.
-            if let Err(e) = super::verify_write::verify_write_tap() {
+            if let Err(e) = super::verify_write::verify_write_probe() {
                 return Err(fail(e));
             }
             // 7. The fresh counter read: the verification battery's
@@ -311,16 +311,16 @@ pub fn attach() -> Result<String, String> {
                 .map(|n| format!("N={n}"))
                 .unwrap_or_else(|e| format!("counter unreadable ({e})"));
             Ok(format!(
-                "tap attached: tracepoints sched/sched_process_exec + \
+                "probes attached: tracepoints sched/sched_process_exec + \
                  sock/inet_sock_set_state + sched/sched_process_exit (the post-mortem \
-                 exit tap) + raw_syscalls/sys_enter (the write tap, verified by its \
+                 exit probe) + raw_syscalls/sys_enter (the write probe, verified by its \
                  own recorded write), kprobes vfs_open + {writev_symbol} \
-                 (the vectorized-write tap, verified from this host's BTF), offsets \
+                 (the vectorized-write probe, verified from this host's BTF), offsets \
                  verified from this host's BTF, counter live; \
-                 events since attach: {count}\npins: {PIN_DIR} (tap, tap_link, stats, \
-                 sock_tap, sock_tap_link, sock_events, exit_tap, exit_tap_link, \
-                 proc_events, open_tap, open_tap_link, \
-                 write_tap, write_tap_link, writev_tap, writev_tap_link, \
+                 events since attach: {count}\npins: {PIN_DIR} (probe, probe_link, stats, \
+                 sock_probe, sock_probe_link, sock_events, exit_probe, exit_probe_link, \
+                 proc_events, open_probe, open_probe_link, \
+                 write_probe, write_probe_link, writev_probe, writev_probe_link, \
                  tracked_inodes, file_events, offsets)"
             ))
         }
@@ -331,7 +331,7 @@ pub fn attach() -> Result<String, String> {
 /// The plant step: load all six programs, attach each to its
 /// point, pin programs + links + maps. Any error names itself; the
 /// caller's fail() protocol cleans up everything the attempt
-/// planted - never a half-attached tap.
+/// planted - never a half-attached probe.
 fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
     plant_tracepoint(
         bpf,
@@ -374,27 +374,27 @@ fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
         PIN_LINK_EXIT,
     )?;
     bpf.take_map(MAP_STATS)
-        .ok_or_else(|| format!("the tap object carries no '{MAP_STATS}' map"))?
+        .ok_or_else(|| format!("the probe object carries no '{MAP_STATS}' map"))?
         .pin(PIN_MAP_STATS)
         .map_err(|e| format!("the map pin {PIN_MAP_STATS} failed: {e}"))?;
     bpf.take_map(MAP_SOCK_EVENTS)
-        .ok_or_else(|| format!("the tap object carries no '{MAP_SOCK_EVENTS}' map"))?
+        .ok_or_else(|| format!("the probe object carries no '{MAP_SOCK_EVENTS}' map"))?
         .pin(PIN_MAP_SOCK_EVENTS)
         .map_err(|e| format!("the map pin {PIN_MAP_SOCK_EVENTS} failed: {e}"))?;
     bpf.take_map(MAP_PROC_EVENTS)
-        .ok_or_else(|| format!("the tap object carries no '{MAP_PROC_EVENTS}' map"))?
+        .ok_or_else(|| format!("the probe object carries no '{MAP_PROC_EVENTS}' map"))?
         .pin(PIN_MAP_PROC_EVENTS)
         .map_err(|e| format!("the map pin {PIN_MAP_PROC_EVENTS} failed: {e}"))?;
     bpf.take_map(MAP_TRACKED_INODES)
-        .ok_or_else(|| format!("the tap object carries no '{MAP_TRACKED_INODES}' map"))?
+        .ok_or_else(|| format!("the probe object carries no '{MAP_TRACKED_INODES}' map"))?
         .pin(PIN_MAP_TRACKED_INODES)
         .map_err(|e| format!("the map pin {PIN_MAP_TRACKED_INODES} failed: {e}"))?;
     bpf.take_map(MAP_FILE_EVENTS)
-        .ok_or_else(|| format!("the tap object carries no '{MAP_FILE_EVENTS}' map"))?
+        .ok_or_else(|| format!("the probe object carries no '{MAP_FILE_EVENTS}' map"))?
         .pin(PIN_MAP_FILE_EVENTS)
         .map_err(|e| format!("the map pin {PIN_MAP_FILE_EVENTS} failed: {e}"))?;
     bpf.take_map(MAP_OFFSETS)
-        .ok_or_else(|| format!("the tap object carries no '{MAP_OFFSETS}' map"))?
+        .ok_or_else(|| format!("the probe object carries no '{MAP_OFFSETS}' map"))?
         .pin(PIN_MAP_OFFSETS)
         .map_err(|e| format!("the map pin {PIN_MAP_OFFSETS} failed: {e}"))?;
     Ok(())
@@ -444,7 +444,7 @@ fn plant_kprobe(
 ) -> Result<(), String> {
     let program: &mut KProbe = bpf
         .program_mut(program_name)
-        .ok_or_else(|| format!("the tap object carries no '{program_name}' program"))?
+        .ok_or_else(|| format!("the probe object carries no '{program_name}' program"))?
         .try_into()
         .map_err(|e| format!("'{program_name}' is not a kprobe program: {e}"))?;
     program
@@ -469,7 +469,7 @@ fn plant_kprobe(
 }
 
 /// Plant ONE tracepoint program: load, attach, pin the link first
-/// (the pin is what keeps the tap alive after this process exits),
+/// (the pin is what keeps the probe alive after this process exits),
 /// then the program. aya 0.14's chain: take_link hands the link over
 /// from the program's registry (dropping the wrapper would detach
 /// it), the TracePointLink converts into its FdLink backing (a
@@ -477,7 +477,7 @@ fn plant_kprobe(
 /// link into a PinnedLink - which, unlike the wrapper, has NO
 /// detach-on-drop: once pinned, the link stays attached for exactly
 /// as long as the pin file exists. Unlinking the pin (detach's
-/// clear_pins) is what detaches the tap.
+/// clear_pins) is what detaches the probe.
 fn plant_tracepoint(
     bpf: &mut Ebpf,
     program_name: &str,
@@ -488,7 +488,7 @@ fn plant_tracepoint(
 ) -> Result<(), String> {
     let program: &mut TracePoint = bpf
         .program_mut(program_name)
-        .ok_or_else(|| format!("the tap object carries no '{program_name}' program"))?
+        .ok_or_else(|| format!("the probe object carries no '{program_name}' program"))?
         .try_into()
         .map_err(|e| format!("'{program_name}' is not a tracepoint program: {e}"))?;
     program
@@ -526,7 +526,7 @@ fn fail(error: String) -> String {
 }
 
 /// Unpin everything (best-effort, idempotent). Link first - an
-/// interrupted cleanup leaves a DETACHED tap. Returns the number of
+/// interrupted cleanup leaves a DETACHED probe. Returns the number of
 /// pins actually removed.
 fn clear_pins() -> usize {
     super::ALL_PINS
@@ -535,7 +535,7 @@ fn clear_pins() -> usize {
         .count()
 }
 
-/// Detach the tap: unpin everything, idempotent. If no pins exist,
+/// Detach the probe: unpin everything, idempotent. If no pins exist,
 /// the honest "nothing to detach" (exit 0 through the doctor's Ok).
 pub fn detach() -> Result<String, String> {
     if !any_pin_present() && !Path::new(PIN_DIR).exists() {
@@ -557,7 +557,7 @@ pub fn detach() -> Result<String, String> {
         }
     }
     Ok(format!(
-        "tap detached: unpinned {removed} pin(s); {PIN_DIR} is gone"
+        "probes detached: unpinned {removed} pin(s); {PIN_DIR} is gone"
     ))
 }
 

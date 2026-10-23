@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! filetap pins (night-improve-3): the window selection (full
+//! fileprobe pins (night-improve-3): the window selection (full
 //! identity match, defense in depth against key aliasing), the sort
 //! order, the clock helpers' honest degradations. The live capture
-//! itself needs an attached tap on a >= 5.15 host - the sandbox is
+//! itself needs an attached probe on a >= 5.15 host - the sandbox is
 // below the floor, so the capture is verified by the shape pins and
-//! the owner host's live leg. Wired from src/ebpf/filetap.rs.
+//! the owner host's live leg. Wired from src/ebpf/fileprobe.rs.
 
 use super::*;
 use crate::ebpf::events::{FILE_OP_OPEN, FILE_OP_WRITE};

@@ -11,7 +11,7 @@
 # Depth: four concurrent churn writers run a fixed six-second
 # window of plain write(2) appends (the same writes real tools
 # make — no perl, no syscall tricks) while the poller asks `why`
-# about the hot files mid-storm. The tap lane must show the churn
+# about the hot files mid-storm. The probe lane must show the churn
 # [observed] WHILE it happens (the realtime claim, never an
 # after-the-fact reconstruction), with the ledger's `wrote` rows
 # and the raw lane's op=write records; the snapshot lane must
@@ -40,21 +40,21 @@ surface_storm() {
 
 	# The lane probe: the attach attempt itself (the doctor's own
 	# preflight, the why surface's writev-proof precedent). rc 0 =
-	# the tap lane; anything else = the snapshot lane, and the
+	# the probe lane; anything else = the snapshot lane, and the
 	# refusal direction stays the doctor surface's own contract.
 	sm_run "$SM_SCRATCH/st-attach.out" "$SM_SCRATCH/st-attach.err" rc 20 -- \
 		"$SM_DEFAULT_BIN" doctor --attach
-	local tap_lane=0
+	local probe_lane=0
 	if [[ "$rc" -eq 0 ]]; then
-		tap_lane=1
-		sm_pass "storm: the tap attaches on this host (the tap lane runs)"
+		probe_lane=1
+		sm_pass "storm: the probe attaches on this host (the probe lane runs)"
 	else
 		sm_pass "storm: the snapshot lane runs the storm honestly (attach refused)"
 	fi
 
 	# One churn writer: plain appends into its own file for a
 	# fixed window, its op count landing in a sidecar file. The
-	# write tap's own lane (the write(2) syscall entry) — four of these run
+	# write probe's own lane (the write(2) syscall entry) — four of these run
 	# concurrently for the storm's whole window.
 	storm_writer() {
 		local dir="$1" id="$2" secs="$3" count=0
@@ -113,7 +113,7 @@ surface_storm() {
 
 	# The lane-conditional verdicts, asserted on the mid-storm
 	# renders themselves.
-	if [[ "$tap_lane" -eq 1 ]]; then
+	if [[ "$probe_lane" -eq 1 ]]; then
 		local saw_observed=0
 		for poll in st-pollA st-pollB; do
 			sm_assert_contains "$SM_SCRATCH/$poll.out" "Mode: live" \
@@ -140,7 +140,7 @@ surface_storm() {
 		if [[ "$saw_wrote" -eq 1 ]]; then
 			sm_pass "storm: the ledger names the writes (wrote rows)"
 		else
-			# The post-mortem (the named-never-swallowed law): a tap
+			# The post-mortem (the named-never-swallowed law): a probe
 			# whose write lane is silent on a whole kernel generation
 			# must name ITSELF. The failure detail carries the rows
 			# the renders actually did see, and - where tracefs is
@@ -156,7 +156,7 @@ surface_storm() {
 				tr '\n' ';' || true)"
 			trace_root="/sys/kernel/tracing"
 			[[ -d "$trace_root" ]] || trace_root="/sys/kernel/debug/tracing"
-			# The write tap's drop census (night-improve-58's evidence
+			# The write probe's drop census (night-improve-58's evidence
 			# round): the probe prints every 1024th drop with its stage
 			# map + a one-time walk-proof into this same trace buffer -
 			# captured BEFORE the ftrace section clears it, so the
@@ -230,7 +230,7 @@ surface_storm() {
 				echo >"$trace_root/kprobe_events" 2>/dev/null || true
 			fi
 			sm_fail "storm: the ledger names the writes (wrote rows)" \
-				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; write-tap census: ${census:-silent (no drops, no walk proof)}; three live writes census: ${zj_live:-silent}; raw-address probe at 0x${zj_addr:-none}: ${zj_raw}; kallsyms rows: ${zj_kallsyms:-unavailable}; planted pins: ${zj_pins:-absent}; kallsyms family: ${kallsyms:-unavailable}; one controlled write (tracing_on was ${tracing_on:-NA}):${counts:- not probed}; ftrace-available family: ${avail:-unavailable} (tracefs root: $trace_root)"
+				"no wrote row in either mid-storm render; observed rows: ${seen_rows:-none}; write-probe census: ${census:-silent (no drops, no walk proof)}; three live writes census: ${zj_live:-silent}; raw-address probe at 0x${zj_addr:-none}: ${zj_raw}; kallsyms rows: ${zj_kallsyms:-unavailable}; planted pins: ${zj_pins:-absent}; kallsyms family: ${kallsyms:-unavailable}; one controlled write (tracing_on was ${tracing_on:-NA}):${counts:- not probed}; ftrace-available family: ${avail:-unavailable} (tracefs root: $trace_root)"
 		fi
 		if [[ "$saw_raw" -eq 1 ]]; then
 			sm_pass "storm: the raw lane names op=write records"
@@ -239,7 +239,7 @@ surface_storm() {
 				"no op=write record in either mid-storm render (post-mortem above)"
 		fi
 		# The surface ends clean by its own hand: the detach that
-		# unpins the tap it attached, then the pin directory gone.
+		# unpins the probe it attached, then the pin directory gone.
 		sm_run "$SM_SCRATCH/st-detach.out" "$SM_SCRATCH/st-detach.err" rc 20 -- \
 			"$SM_DEFAULT_BIN" doctor --detach
 		sm_assert_rc 0 "$rc" "storm: doctor --detach ends the storm clean (exit 0)"

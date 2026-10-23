@@ -164,7 +164,7 @@ fn lane_verdict_names_the_missing_caps_once() {
 
 #[test]
 fn pin_constants_carry_the_removal_order() {
-    // Link first (unlinking the link detaches the tap), program and
+    // Link first (unlinking the link detaches the probe), program and
     // map last - ALL_PINS is the removal order, not a set.
     assert_eq!(ALL_PINS[0], PIN_LINK);
     assert_eq!(ALL_PINS[1], PIN_LINK_SOCK);

@@ -6,7 +6,7 @@
 //! lane's actor formatting, the device token decode every build
 //! carries (the host half of the cross-encoding proof). The lane
 //! walk itself is environment-dependent (journalctl, audit.log, a
-//! live tap); its pieces are pinned, its outputs are pinned by the
+//! live probe); its pieces are pinned, its outputs are pinned by the
 //! ledger tests. Wired from src/commands/lane.rs.
 
 use super::*;

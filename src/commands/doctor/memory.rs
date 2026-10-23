@@ -6,7 +6,7 @@
 //! kernel's own tables, with no capabilities beyond what the
 //! invoking user already has. night-improve-47 adds the one eBPF
 //! read the symptom can make without becoming a monitor: when the
-//! tap is attached, the post-mortem exit lane (exits.rs) drains
+//! probe is attached, the post-mortem exit lane (exits.rs) drains
 //! the last five seconds of process exits from the pinned
 //! proc_events ring - the fact no /proc read can recover, named
 //! [observed] in its own section. Every read is a metadata read -
@@ -33,7 +33,7 @@
 //! 7. the residual - used minus the kernel-level buckets minus the
 //!    readable PSS sum - named unaccounted.
 //!
-//! And when the tap is attached, the post-mortem exit lane
+//! And when the probe is attached, the post-mortem exit lane
 //! (exits.rs) rides along - not an attribution bucket but a
 //! named-fact section: the processes that exited inside the last
 //! five seconds, named [observed], to qualify the residual's

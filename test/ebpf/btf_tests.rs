@@ -225,7 +225,7 @@ fn sample_blob() -> Vec<u8> {
 }
 
 /// The three fd-walk structs every parse-ready blob carries since
-/// night-improve-57 - the syscall-stub write tap's lookups
+/// night-improve-57 - the syscall-stub write probe's lookups
 /// (task_struct.files, files_struct.fdt, fdtable.max_fds,
 /// fdtable.fd). Synthetic offsets, stable across the blobs.
 fn fd_walk_structs(w: &mut TypeWriter, s: &mut StrTab) {
@@ -423,7 +423,7 @@ fn the_live_host_parses_when_btf_exists() {
 
 #[test]
 fn the_fd_walk_lookups_descend_anonymous_aggregates() {
-    // The syscall-stub write tap's four lookups ride the same
+    // The syscall-stub write probe's four lookups ride the same
     // anonymous-descent walk as the file slots (night-improve-49):
     // task_struct's files pointer behind an unnamed union whose
     // member sits at a nonzero base - the offsets accumulate

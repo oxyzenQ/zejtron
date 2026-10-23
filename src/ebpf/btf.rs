@@ -12,7 +12,7 @@
 //! @64 - the "textbook" order would say @16, and other
 //! versions/configs put it elsewhere again. A hardcoded offset that
 //! is wrong on some host does not fail loudly; it reads the wrong
-//! field SILENTLY, and the tap goes blind without anyone knowing.
+//! field SILENTLY, and the probe goes blind without anyone knowing.
 //! Parsing the host's BTF - the kernel's own description of its
 //! structs - is the one source that cannot drift from the kernel it
 //! describes; refusing to attach when it cannot be parsed is the
@@ -33,10 +33,10 @@
 //! unsafe - it reads a file, trusts nothing, returns what THE HOST
 //! says, and names every lookup failure.
 //!
-//! night-improve-57: the plain-write tap left vfs_write behind
+//! night-improve-57: the plain-write probe left vfs_write behind
 //! (the newest -O3 distro builds inline it out of the executed
 //! path; found dead on cachyos 7.2 by the moving-latest witness;
-//! the tap now rides the raw_syscalls/sys_enter tracepoint,
+//! the probe now rides the raw_syscalls/sys_enter tracepoint,
 //! night-improve-59), so the parse grows the four fd-walk slots
 //! that turn the syscall's fd register back into the struct file*
 //! the walk reads: task_struct.files, files_struct.fdt,
@@ -54,7 +54,7 @@ const BTF_HEADER_BYTES: usize = 24;
 /// file.f_inode, vfsmount.mnt_sb, super_block.s_dev, path.mnt,
 /// path.dentry], every value a byte offset - the eight frozen
 /// file-walk slots - plus the four fd-walk slots night-improve-57
-/// appends for the syscall-stub write tap: [task_struct.files,
+/// appends for the syscall-stub write probe: [task_struct.files,
 /// files_struct.fdt, fdtable.max_fds, fdtable.fd].
 pub type ProbeOffsets = [u64; 12];
 
@@ -76,7 +76,7 @@ pub fn parse_probe_offsets() -> Result<ProbeOffsets, String> {
 // the only honest alternative.
 
 /// The writev-lane attach symbols, in preference order: vfs_writev
-/// is the direct analog of the write tap (writev(2), pwritev(2), and
+/// is the direct analog of the write probe (writev(2), pwritev(2), and
 /// pwritev2(2) all funnel through it, 5.15 through the current 6.x
 /// line); do_iter_write is the convergence one layer deeper, the
 /// verified fallback for a host whose BTF omits the former (inlined
@@ -84,7 +84,7 @@ pub fn parse_probe_offsets() -> Result<ProbeOffsets, String> {
 /// pointer to struct file.
 const WRITEV_SYMBOLS: [&str; 2] = ["vfs_writev", "do_iter_write"];
 
-/// Verify the writev tap's attach point from the host's own BTF:
+/// Verify the writev probe's attach point from the host's own BTF:
 /// return the symbol whose FUNC prototype the host vouches for
 /// (first argument a pointer to struct file), or an error naming
 /// exactly what could not be verified. The refusal, not a guess,
@@ -128,7 +128,7 @@ pub fn verify_writev_symbol_in(data: &[u8]) -> Result<&'static str, String> {
 /// The pure parser: given the raw BTF file bytes, return the eight
 /// offsets. Separated from [`parse_probe_offsets`] so the tests can
 /// drive it with synthetic blobs end to end. The six struct lookups
-/// cover the file walks only: the exec tap reads no context fields
+/// cover the file walks only: the exec probe reads no context fields
 /// (its counter rides helpers alone) and the lifecycle tracepoints
 /// are gone with the lifecycle stream (night-improve-34), so no
 /// tracepoint context and no task_struct offset is verified or

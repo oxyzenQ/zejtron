@@ -275,7 +275,7 @@ The build cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
 clang, no libbpf) into six programs — the `sched_process_exec`
 counter, the `inet_sock_set_state` socket-event stream, the
 `vfs_open`/`vfs_write`/`vfs_writev` file probes, and the
-`sched_process_exit` post-mortem tap — and embeds the
+`sched_process_exit` post-mortem probe — and embeds the
 object into the host binary. The nightly
 toolchain and bpf-linker are build-time prerequisites only — the
 installed binary needs neither, and at runtime it needs no eBPF
@@ -318,14 +318,14 @@ Without eBPF, `port` is the snapshot-only tool it was.
 `proc` is the process snapshot tree and stays one: zejtron does not
 stream process lifecycles. The lifecycle stream surface was removed
 (night-improve-34); night-improve-47 brought the exit half back as a
-post-mortem record, not a stream — the `sched_process_exit` tap
+post-mortem record, not a stream — the `sched_process_exit` probe
 records every process exit into a bounded kernel ring (leader-only:
 one record per process, carrying the pid and the process's own
 name), and `doctor --symptom ram` drains the last 5 seconds of it
-when the tap is attached, naming the recently-exited `[observed]`.
+when the probe is attached, naming the recently-exited `[observed]`.
 The night-improve-48 symptoms read the same ring at a narrower
 window: `cpu`, `disk`, `network`, and `gpu` drain a 2-second exit
-overlay when the tap is attached, so a process that died inside
+overlay when the probe is attached, so a process that died inside
 the sampling window is named `[observed]` beside the numbers it
 can no longer explain.
 The Unaccounted block names the lane's state either way — a host
@@ -347,7 +347,7 @@ reads.
 This is why zejtron is not a monitoring daemon: there is no daemon
 to be one. The doctor's [eBPF] section carries the camera's own
 posture - `Mode: Lazy Camera (Kernel: recording | CLI: asleep)` when
-the tap is attached, `Mode: Lazy Camera (Kernel: not recording |
+the probe is attached, `Mode: Lazy Camera (Kernel: not recording |
 CLI: asleep)` when it is not.
 
 The full lifecycle - attach once per boot, the kernel records, a
@@ -398,7 +398,7 @@ zejtron net
 zejtron doctor
 
 # Why is my RAM eaten? The memory symptom - /proc reads plus the
-# post-mortem exit drain (when the eBPF tap is attached):
+# post-mortem exit drain (when the eBPF probe is attached):
 # per-process PSS, tmpfs files with holders, deleted-but-open files,
 # memfd files, page cache, slab, the recently-exited [observed],
 # and the unaccounted residual.
@@ -412,7 +412,7 @@ zejtron doctor --symptom ram --raw
 # who-holds-the-device census, honest on a driver-fragmented
 # landscape (the NVIDIA pair is named unaccounted, never guessed).
 # Each report names its own permission refusals, and each drains
-# the 2-second exit overlay when the tap is attached.
+# the 2-second exit overlay when the probe is attached.
 zejtron doctor --symptom cpu
 zejtron doctor --symptom disk
 zejtron doctor --symptom network
@@ -468,20 +468,20 @@ same stamp.
   snapshot-only with an honest unaccounted block naming the missing
   window. The log lane is `[inferred]` however strong an audit record
   reads - the tag is the truth about the source.
-- The live file taps record what crossed them: write(2) via the
+- The live file probes record what crossed them: write(2) via the
   `raw_syscalls/sys_enter` tracepoint (night-improve-59, the third
   anchor: the vfs_write kprobe went dead on the -O3 distro builds
   that inline it into the syscall stub, and the stub kprobe itself
-  proved a silent anchor under this loader — so the tap moved to
-  the tracepoint machinery the sock/exec/exit taps already ride
+  proved a silent anchor under this loader — so the probe moved to
+  the tracepoint machinery the sock/exec/exit probes already ride
   across the whole floor span, and attach now verifies its own
-  recorded write before declaring the tap live: a silent anchor
+  recorded write before declaring the probe live: a silent anchor
   refuses the attach), and the vectorized paths — `writev(2)`,
   `pwritev(2)`, `pwritev2(2)` — via the `vfs_writev` kprobe
-  (night-improve-42; the tap's symbol and its first-argument shape
+  (night-improve-42; the probe's symbol and its first-argument shape
   are verified from the host's own BTF at attach, `do_iter_write`
   the verified fallback, and attach refuses when neither can be
-  vouched for). The writes that still cross neither tap, named:
+  vouched for). The writes that still cross neither probe, named:
   mmap'd writes (no syscall at write time), async kiocb writes
   (io_uring/AIO call `call_write_iter` directly), and splice-class
   copies (`splice`/`sendfile`/`copy_file_range`). O_PATH peeks
@@ -493,10 +493,10 @@ same stamp.
   memory (smaps_rollup), fd tables, and /proc/slabinfo are
   permission-gated, and everything this invocation cannot see is
   counted in the report's Unaccounted block - never silently
-  dropped), and when the eBPF tap is attached it also drains the
+  dropped), and when the eBPF probe is attached it also drains the
   post-mortem exit ring for the last 5 seconds, naming the
   processes that exited `[observed]` - an old attach (pre
-  night-improve-47) plants no exit tap; re-run
+  night-improve-47) plants no exit probe; re-run
   `sudo zejtron doctor --attach` to heal the pin set. The
   night-improve-48 lanes hold the same honesty: `cpu`, `disk`, and
   `network` take exactly one 1.0-second sampling window per run
@@ -552,9 +552,9 @@ runs in CI — the tree cannot drift back. See
 Evidence Ledger: a subject, a mode line naming which lane ran, an
 Evidence block, an Unaccounted block, and a two-line verdict. Every
 row carries exactly one provenance tag — `[observed]` (from an eBPF
-kernel event: the file taps, filtered in-kernel by the
+kernel event: the file probes, filtered in-kernel by the
 tracked-inodes map so only the queried file's events reach the ring,
-or the post-mortem exit tap the symptom family drains - ram for
+or the post-mortem exit probe the symptom family drains - ram for
 its last five seconds, the night-improve-48 lanes for their
 2-second overlay), `[measured]`
 (from a snapshot read at the instant of the query: /proc scans,

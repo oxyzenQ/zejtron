@@ -9,7 +9,7 @@
 //! Three concerns in this entry module, shared by both build lanes:
 //!
 //! - the pin path constants (single source of truth for everything
-//!   the tap leaves at /sys/fs/bpf/zejtron - the loader writes them,
+//!   the probe leaves at /sys/fs/bpf/zejtron - the loader writes them,
 //!   the doctor stats them, `bpftool` prints them verbatim);
 //! - the kernel facts probe (std-only: /proc/sys/kernel/osrelease,
 //!   /sys/kernel/btf/vmlinux, /sys/kernel/security/lockdown,
@@ -32,58 +32,58 @@ use std::path::Path;
 /// kernel lives under this one directory - `detach` removes it whole.
 pub const PIN_DIR: &str = "/sys/fs/bpf/zejtron";
 
-/// Program pin - the exec tap (the tap program itself, for
+/// Program pin - the exec probe (the probe program itself, for
 /// introspection and reload).
-pub const PIN_PROG: &str = "/sys/fs/bpf/zejtron/tap";
+pub const PIN_PROG: &str = "/sys/fs/bpf/zejtron/probe";
 
-/// Link pin - the exec tap's attachment (unlinking it detaches the
-/// tap).
-pub const PIN_LINK: &str = "/sys/fs/bpf/zejtron/tap_link";
+/// Link pin - the exec probe's attachment (unlinking it detaches the
+/// probe).
+pub const PIN_LINK: &str = "/sys/fs/bpf/zejtron/probe_link";
 
 /// Map pin - the stats counter (`stats[0]` counts sched_process_exec
 /// events since attach; the doctor reads it through this pin).
 pub const PIN_MAP_STATS: &str = "/sys/fs/bpf/zejtron/stats";
 
-/// Program pin - the socket-state tap (night-improve-2's
+/// Program pin - the socket-state probe (night-improve-2's
 /// inet_sock_set_state program).
-pub const PIN_PROG_SOCK: &str = "/sys/fs/bpf/zejtron/sock_tap";
+pub const PIN_PROG_SOCK: &str = "/sys/fs/bpf/zejtron/sock_probe";
 
-/// Link pin - the socket-state tap's attachment.
-pub const PIN_LINK_SOCK: &str = "/sys/fs/bpf/zejtron/sock_tap_link";
+/// Link pin - the socket-state probe's attachment.
+pub const PIN_LINK_SOCK: &str = "/sys/fs/bpf/zejtron/sock_probe_link";
 
 /// Map pin - the sock_events ring buffer (the port surface's event
 /// window drains it through this pin; night-improve-2).
 pub const PIN_MAP_SOCK_EVENTS: &str = "/sys/fs/bpf/zejtron/sock_events";
 
-/// Program pin - the file-open tap (night-improve-3's kprobe on
+/// Program pin - the file-open probe (night-improve-3's kprobe on
 /// vfs_open).
-pub const PIN_PROG_OPEN: &str = "/sys/fs/bpf/zejtron/open_tap";
+pub const PIN_PROG_OPEN: &str = "/sys/fs/bpf/zejtron/open_probe";
 
-/// Link pin - the file-open tap's attachment.
-pub const PIN_LINK_OPEN: &str = "/sys/fs/bpf/zejtron/open_tap_link";
+/// Link pin - the file-open probe's attachment.
+pub const PIN_LINK_OPEN: &str = "/sys/fs/bpf/zejtron/open_probe_link";
 
-/// Program pin - the file-write tap (night-improve-59: the
+/// Program pin - the file-write probe (night-improve-59: the
 /// raw_syscalls/sys_enter tracepoint, self-verified at attach).
-pub const PIN_PROG_WRITE: &str = "/sys/fs/bpf/zejtron/write_tap";
+pub const PIN_PROG_WRITE: &str = "/sys/fs/bpf/zejtron/write_probe";
 
-/// Link pin - the file-write tap's attachment.
-pub const PIN_LINK_WRITE: &str = "/sys/fs/bpf/zejtron/write_tap_link";
+/// Link pin - the file-write probe's attachment.
+pub const PIN_LINK_WRITE: &str = "/sys/fs/bpf/zejtron/write_probe_link";
 
-/// Program pin - the vectorized-write tap (night-improve-42's
+/// Program pin - the vectorized-write probe (night-improve-42's
 /// kprobe on vfs_writev - the BTF-verified symbol; do_iter_write is
 /// the verified fallback the loader may attach instead).
-pub const PIN_PROG_WRITEV: &str = "/sys/fs/bpf/zejtron/writev_tap";
+pub const PIN_PROG_WRITEV: &str = "/sys/fs/bpf/zejtron/writev_probe";
 
-/// Link pin - the vectorized-write tap's attachment.
-pub const PIN_LINK_WRITEV: &str = "/sys/fs/bpf/zejtron/writev_tap_link";
+/// Link pin - the vectorized-write probe's attachment.
+pub const PIN_LINK_WRITEV: &str = "/sys/fs/bpf/zejtron/writev_probe_link";
 
-/// Program pin - the post-mortem exit tap (night-improve-47's
+/// Program pin - the post-mortem exit probe (night-improve-47's
 /// tracepoint on sched/sched_process_exit; the program lives in
 /// ebpf/src/exits.rs).
-pub const PIN_PROG_EXIT: &str = "/sys/fs/bpf/zejtron/exit_tap";
+pub const PIN_PROG_EXIT: &str = "/sys/fs/bpf/zejtron/exit_probe";
 
-/// Link pin - the post-mortem exit tap's attachment.
-pub const PIN_LINK_EXIT: &str = "/sys/fs/bpf/zejtron/exit_tap_link";
+/// Link pin - the post-mortem exit probe's attachment.
+pub const PIN_LINK_EXIT: &str = "/sys/fs/bpf/zejtron/exit_probe_link";
 
 /// Map pin - the tracked_inodes filter map (the in-kernel price
 /// control: the kprobes check it before recording; the holds/touch/
@@ -106,16 +106,16 @@ pub const PIN_MAP_OFFSETS: &str = "/sys/fs/bpf/zejtron/offsets";
 
 /// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
-/// last). Eighteen pins: one link/program pair per tap (the exec
+/// last). Eighteen pins: one link/program pair per probe (the exec
 /// tracepoint, the sock tracepoint, the three file kprobes - the
-/// open tap, the write tap, the writev tap - and the post-mortem
+/// open probe, the write probe, the writev probe - and the post-mortem
 /// exit tracepoint) and six maps (stats, sock_events, proc_events,
-/// tracked_inodes, file_events, offsets). The exec tap reuses its
+/// tracked_inodes, file_events, offsets). The exec probe reuses its
 /// existing pins (the phase-1 program carries the counter, not a
 /// new section). Thirteen through night-improve-3, eighteen from
 /// night-improve-4, thirteen again since night-improve-34, fifteen
-/// from night-improve-42 (the writev tap's pair joined), eighteen
-/// from night-improve-47: the exit tap's pair and its proc_events
+/// from night-improve-42 (the writev probe's pair joined), eighteen
+/// from night-improve-47: the exit probe's pair and its proc_events
 /// ring joined when the post-mortem doctor grew its drain.
 pub const ALL_PINS: [&str; 18] = [
     PIN_LINK,
@@ -273,10 +273,10 @@ pub fn parse_kernel_version(release: &str) -> Option<(u32, u32)> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LaneVerdict {
     /// The binary carries the loader, the host allows attach, nothing
-    /// is attached: `doctor --attach` plants the tap.
+    /// is attached: `doctor --attach` plants the probe.
     Live,
     /// The binary carries the loader and every pin of a complete
-    /// attach exists: the tap is counting. The event count and the
+    /// attach exists: the probe is counting. The event count and the
     /// attach moment are read separately (the count needs the map
     /// readback).
     LiveAttached,
@@ -289,7 +289,7 @@ pub enum LaneVerdict {
 /// Classify the lane from the probed facts. The order is the doctor
 /// contract's order: the kernel floor and lockdown first (a host that
 /// blocks eBPF blocks it whether or not something is attached), the
-/// pin state second (an attached tap reports live even from an
+/// pin state second (an attached probe reports live even from an
 /// unprivileged doctor - reading the pinned counter needs no
 /// capabilities, only the bpffs walk), the capabilities last (they
 /// gate ATTACH, not the read side).
@@ -419,7 +419,7 @@ pub mod embedded;
 pub mod events;
 
 pub mod btf;
-pub mod filetap;
+pub mod fileprobe;
 /// The loader (attach/detach), the counter readback, the two ring
 /// readers, the BTF offsets parser, the filter-map writer, and the
 /// file-window capture.

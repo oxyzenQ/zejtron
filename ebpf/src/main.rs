@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// zejtron eBPF tap, the pure-Rust BPF source (night-improve-1, the
+// zejtron eBPF probe, the pure-Rust BPF source (night-improve-1, the
 // zelynic/zylaxion lineage precedent: there is no C twin, the
 // aya-ebpf program IS the production source).
 //
 // FIVE programs, one object (night-improve-34 removes the two
 // sched_process lifecycle tracepoints the `proc --live` surface
-// drove; night-improve-42 adds the fifth program, the writev tap -
+// drove; night-improve-42 adds the fifth program, the writev probe -
 // the false-negative closer for the file-write arena); SIXTH in
 // its own module under the LOC cap (night-improve-47, exits.rs):
-// the post-mortem exit tap, the exit half of the lifecycle tap
+// the post-mortem exit probe, the exit half of the lifecycle probe
 // returning with a new consumer and a new shape - a bounded
 // post-mortem record the doctor's ram symptom drains, not a live
 // stream.
@@ -25,7 +25,7 @@
 //      filtering to the port-surface transitions, and publishing
 //      the 32-byte SockEvent with the changer's pid.
 //
-//   3. open_tap on vfs_open (phase 3, the Evidence Ledger pass): a
+//   3. open_probe on vfs_open (phase 3, the Evidence Ledger pass): a
 //      kprobe at the head of the syscall open path. vfs_open(const
 //      struct path *, struct file *) hands this program the path
 //      being bound; it walks path->dentry->d_inode for the inode,
@@ -33,13 +33,13 @@
 //      tracked_inodes filter map FIRST (the price control: vfs_open
 //      fires on every open on the host - only the queried file's
 //      events are allowed to cross), and publishes a 40-byte
-//      file that anyone asked about. The tap records the binding
+//      file that anyone asked about. The probe records the binding
 //      attempt at entry; whether the open later failed is not
-//      recorded (the same residual class as the write tap at
+//      recorded (the same residual class as the write probe at
 //      entry). O_PATH peeks never reach vfs_open and are not
 //      recorded - an O_PATH fd is not an open in the data sense.
 //
-//   4. write_tap on __x64_sys_write (night-improve-57, the second
+//   4. write_probe on __x64_sys_write (night-improve-57, the second
 //      generation - ebpf/src/write.rs owns the full story): the
 //      first generation anchored at vfs_write, which the newest
 //      -O3 distro builds (cachyos 7.x, found live by the
@@ -48,28 +48,28 @@
 //      the probe the fd register; task_struct->files->fdt->fd[fd]
 //      resolves the file through BTF-verified offsets, then the
 //      inode/device walk, the filter map, and op=2 mirror the open
-//      tap. mmap'd writes cross no syscall at all - the gap is
+//      probe. mmap'd writes cross no syscall at all - the gap is
 //      named in the README's Limitations and the log lane (audit)
 //      may still catch it.
 //
-//   5. writev_tap on vfs_writev (night-improve-42): a kprobe at
+//   5. writev_probe on vfs_writev (night-improve-42): a kprobe at
 //      the head of the vectorized write path. writev(2), pwritev(2),
 //      and pwritev2(2) all funnel through vfs_writev(struct file *,
 //      ...), so one probe covers the family; do_iter_write is the
 //      verified fallback the host side may attach instead (the
 //      arg0 contract is identical: a pointer to struct file,
 //      verified from the host's own BTF at attach). The walk, the
-//      filter, and the record mirror the write tap; the op
-//      vocabulary gains op=4. Before this tap a vectorized writer
+//      filter, and the record mirror the write probe; the op
+//      vocabulary gains op=4. Before this probe a vectorized writer
 //      (a database, a web server, an advanced logger) never crossed
 //      the kernel lane - the ledger could read silent while the
 //      file was under active write, and a silent detective is a
 //      lying one. Async kiocb writes (io_uring, libaio) call
-//      call_write_iter directly and cross neither write tap - the
+//      call_write_iter directly and cross neither write probe - the
 //      named residual.
 //
 //   6. sched_process_exit (night-improve-47, exits.rs): the
-//      post-mortem exit tap. The tracepoint fires for every
+//      post-mortem exit probe. The tracepoint fires for every
 //      exiting task; the program keeps only the thread-group
 //      leader (the tgid/tid halves of bpf_get_current_pid_tgid
 //      are equal only there - one record per process, and the
@@ -183,7 +183,7 @@ mod events;
 // publishes to it.
 mod exits;
 
-// The plain-write tap, second generation (night-improve-57): the
+// The plain-write probe, second generation (night-improve-57): the
 // module owns the probe, the syscall-stub anchor story, and the
 // fd-to-file walk - the exits.rs precedent (a dedicated module
 // under the 600-LOC no-mercy cap, same crate, same record).
@@ -250,7 +250,7 @@ pub(crate) static file_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
 /// The offsets config map (night-improve-3, grown by
 /// night-improve-57): Array<u64>, the twelve slots - eight
 /// file-walk slots plus the four fd-walk slots the syscall-stub
-/// write tap rides (see events.rs OFF_SLOT_*), written once at
+/// write probe rides (see events.rs OFF_SLOT_*), written once at
 /// attach time from the host's own BTF
 /// (src/ebpf/btf.rs). The slot indices are the shared contract in
 /// events.rs — OFF_SLOT_* on both sides.
@@ -284,10 +284,10 @@ mod ctx_offsets {
     pub const PROTOCOL: usize = 30;
 }
 
-/// The tap: increment stats[STATS_EVENTS] on every process exec.
+/// The probe: increment stats[STATS_EVENTS] on every process exec.
 /// The counter is the phase-1 chain proof - the doctor's readback.
 /// (night-improve-34: the exec lifecycle event emission is gone with
-/// `proc --live`; the tap reads no tracepoint context fields.)
+/// `proc --live`; the probe reads no tracepoint context fields.)
 ///
 /// Returning 0 is the tracepoint contract:
 /// the return value is recorded but never acts as a filter.
@@ -303,7 +303,7 @@ pub fn sched_process_exec(_ctx: TracePointContext) -> u32 {
     0
 }
 
-/// The port surface's event tap: read the socket facts at the pinned
+/// The port surface's event probe: read the socket facts at the pinned
 /// offsets, keep only the port-surface transitions, publish the
 /// 32-byte record with the changing process's pid.
 ///
@@ -389,7 +389,7 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
     0
 }
 
-// ── The file taps (night-improve-3, the Evidence Ledger pass) ────────
+// ── The file probes (night-improve-3, the Evidence Ledger pass) ────────
 //
 // Shared reading helpers: every struct walk reads its offset from the
 // `offsets` map (written at attach from the host's own BTF) and every
@@ -437,7 +437,7 @@ pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
     Some(set)
 }
 
-/// The open tap: vfs_open hands the program the path being bound to
+/// The open probe: vfs_open hands the program the path being bound to
 /// a file. The walk: path->dentry->d_inode for the inode,
 /// path->mnt->mnt_sb->s_dev for the device; the filter map decides
 /// whether the event is worth a ring slot; the record carries the
@@ -447,7 +447,7 @@ pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
 /// reads, the ktime and pid helpers) — the unsafe block is that API
 /// contract, nothing more.
 #[kprobe(function = "vfs_open")]
-pub fn open_tap(ctx: ProbeContext) -> u32 {
+pub fn open_probe(ctx: ProbeContext) -> u32 {
     unsafe {
         // arg0: const struct path * — extraction failure drops the
         // event (never fail the probed path).
@@ -495,19 +495,19 @@ pub fn open_tap(ctx: ProbeContext) -> u32 {
 }
 
 
-/// The writev tap (night-improve-42, the false-negative closer):
+/// The writev probe (night-improve-42, the false-negative closer):
 /// vfs_writev hands the program the file being written through the
 /// vectorized path - the shape writev(2)/pwritev(2)/pwritev2(2) all
 /// funnel into (arg0: struct file *, the same contract as the write
-/// tap, verified from the host's own BTF at attach by the loader).
-/// The walk, the filter, and the record mirror the write tap; the op
+/// probe, verified from the host's own BTF at attach by the loader).
+/// The walk, the filter, and the record mirror the write probe; the op
 /// is FILE_OP_WRITEV so the ledger names the write path that
 /// crossed. The section name carries the primary symbol; the loader
 /// attaches the BTF-verified one (vfs_writev, do_iter_write
 /// fallback) - aya's kprobe attach takes its symbol as an argument,
 /// the section only types the program.
 #[kprobe(function = "vfs_writev")]
-pub fn writev_tap(ctx: ProbeContext) -> u32 {
+pub fn writev_probe(ctx: ProbeContext) -> u32 {
     unsafe {
         // arg0: struct file * (BTF-verified at attach).
         let Some(file) = ctx.arg::<u64>(0) else { return 0 };

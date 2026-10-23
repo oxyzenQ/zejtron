@@ -359,7 +359,7 @@ fn read_validated_ebpf_object(path: &Path) -> Result<Vec<u8>, String> {
 /// 64-byte entries, and lies fully inside the file (bpf-linker places
 /// it LAST, so this bounds check is what catches truncation), and
 /// the three sections aya's loader demands from this object: one program
-/// section (tracepoint OR kprobe - the Phase 1 tap is a tracepoint;
+/// section (tracepoint OR kprobe - the Phase 1 probe is a tracepoint;
 /// the kprobe arm keeps the validator honest for later passes), the
 /// maps section (legacy map definitions), and the license section
 /// (the verifier refuses GPL-addressable programs without it).

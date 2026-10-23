@@ -77,8 +77,8 @@ fn minimal_bpf_elf(section_names: &[&str]) -> Vec<u8> {
 }
 
 #[test]
-fn ebpf_object_validator_accepts_the_tap_shape() {
-    // The Phase 1 tap shape: one tracepoint program section, the
+fn ebpf_object_validator_accepts_the_probe_shape() {
+    // The Phase 1 probe shape: one tracepoint program section, the
     // maps section, the license section.
     let elf = minimal_bpf_elf(&["tracepoint/sched_process_exec", "maps", "license"]);
     assert_eq!(validate_ebpf_object(&elf), Ok(()));

@@ -244,7 +244,7 @@ fn proc_exit_event_is_exactly_32_bytes() {
 fn proc_exit_event_offsets_are_pinned() {
     // repr(C) natural alignment: the u64 first, the pid, the
     // explicit pad, the comm array last - every byte written by the
-    // tap constructor (the 5.15-verifier lesson, the SockEvent
+    // probe constructor (the 5.15-verifier lesson, the SockEvent
     // discipline).
     assert_eq!(offset_of!(ProcExitEvent, timestamp_ns), 0);
     assert_eq!(offset_of!(ProcExitEvent, pid), 8);

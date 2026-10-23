@@ -68,7 +68,7 @@ surface_doctor() {
 	# capable (floor met + BTF readable + the two capabilities in
 	# the effective set), the attach may legitimately still refuse
 	# (lockdown active is the real-world case) or succeed - and a
-	# SUCCESS carries its own contract: the tap names itself, the
+	# SUCCESS carries its own contract: the probe names itself, the
 	# pin directory names itself, the BTF-verified offsets claim
 	# pins itself, the second attach is the honest idempotent
 	# nothing-to-do, and the detach that follows is the REAL
@@ -82,19 +82,19 @@ surface_doctor() {
 	sm_flag_used "doctor --attach"
 	if [[ "$rc" -eq 0 ]]; then
 		if ((can_attach)); then
-			sm_assert_contains "$SM_SCRATCH/att.out" "tap attached" \
-				"doctor --attach succeeds on a capable host and names the tap"
+			sm_assert_contains "$SM_SCRATCH/att.out" "probes attached" \
+				"doctor --attach succeeds on a capable host and names the probe"
 			sm_assert_contains "$SM_SCRATCH/att.out" "/sys/fs/bpf/zejtron" \
 				"doctor --attach names the pin directory"
 			sm_assert_contains "$SM_SCRATCH/att.out" "offsets verified from this host's BTF" \
 				"doctor --attach pins the BTF-verified offsets claim"
 			sm_run "$SM_SCRATCH/att2.out" "$SM_SCRATCH/att2.err" rc 20 -- "$SM_DEFAULT_BIN" doctor --attach
-			sm_assert_rc 0 "$rc" "doctor --attach is idempotent on a live tap (exit 0)"
-			sm_assert_contains "$SM_SCRATCH/att2.out" "tap is already attached - nothing to do" \
-				"doctor --attach idempotence names the live tap"
+			sm_assert_rc 0 "$rc" "doctor --attach is idempotent on a live probe (exit 0)"
+			sm_assert_contains "$SM_SCRATCH/att2.out" "probe is already attached - nothing to do" \
+				"doctor --attach idempotence names the live probe"
 			sm_run "$SM_SCRATCH/det.out" "$SM_SCRATCH/det.err" rc 20 -- "$SM_DEFAULT_BIN" doctor --detach
-			sm_assert_rc 0 "$rc" "doctor --detach unpins the live tap (exit 0)"
-			sm_assert_contains "$SM_SCRATCH/det.out" "tap detached: unpinned" \
+			sm_assert_rc 0 "$rc" "doctor --detach unpins the live probe (exit 0)"
+			sm_assert_contains "$SM_SCRATCH/det.out" "probes detached: unpinned" \
 				"doctor --detach reports the real unpin"
 			if [[ -e /sys/fs/bpf/zejtron ]]; then
 				sm_fail "doctor --detach removes the pin directory" \
@@ -121,7 +121,7 @@ surface_doctor() {
 				"the refusal output was: $(head -2 "$SM_SCRATCH/att.err" 2>/dev/null | tr '\n' ';')"
 		fi
 		# --detach is documented idempotent ("unpin everything,
-		# idempotent"): with no tap ever attached in this suite
+		# idempotent"): with no probe ever attached in this suite
 		# run, the verified contract is exit 0 and the honest
 		# nothing-to-detach line.
 		sm_run "$SM_SCRATCH/det.out" "$SM_SCRATCH/det.err" rc 20 -- "$SM_DEFAULT_BIN" doctor --detach
@@ -178,11 +178,11 @@ surface_doctor() {
 	sm_assert_contains "$SM_SCRATCH/ok.out" "Pins:" "row estate: the Pins row renders"
 
 	# The Probes row is the binary's contract, not host state (the
-	# tap object carries all six programs whatever the host allows):
+	# probe object carries all six programs whatever the host allows):
 	# the six names, in planting order, on every host.
 	sm_assert_contains "$SM_SCRATCH/ok.out" \
 		"sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, vfs_writev, sched_process_exit" \
-		"probes contract: the six tap names render in order"
+		"probes contract: the six probe names render in order"
 
 	# The kernel floor agreement (night-improve-43): the eBPF lane's
 	# documented floor is 5.15 (KERNEL_FLOOR in src/ebpf/mod.rs, the
