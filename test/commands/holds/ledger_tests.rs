@@ -159,7 +159,7 @@ fn a_port_target_report_renders_the_full_shape() {
     // The port target has no environment-dependent lane, so this is
     // a deterministic integration pin. Whatever holds the port, the
     // header and the mode line hold either way.
-    let out = build_port_report(54321, Duration::from_secs(10), "10s".to_owned())
+    let out = build_port_report(54321, Duration::from_secs(10), "10s".to_owned(), false)
         .expect("the port scan itself cannot fail here");
     assert!(out.starts_with(
         "Evidence report: :54321\nMode: snapshot (window 10s, no event lane available)"

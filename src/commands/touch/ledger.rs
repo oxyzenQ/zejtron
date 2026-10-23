@@ -34,6 +34,7 @@ pub fn build_report(
     path: &Path,
     window: Duration,
     window_label: String,
+    print_json: bool,
 ) -> Result<String, TouchError> {
     // The lane identity: the file's OWN identity. For a symlink the
     // target's identity is what the kernel sees when the link is
@@ -103,7 +104,11 @@ pub fn build_report(
         unaccounted,
         verdict,
     };
-    Ok(crate::evidence::render::render_report(&report))
+    Ok(if print_json {
+        crate::evidence::json::report_json(&report)
+    } else {
+        crate::evidence::render::render_report(&report)
+    })
 }
 
 /// The metadata facts as \[measured] rows - the old tree's block,

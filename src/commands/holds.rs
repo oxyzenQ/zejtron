@@ -169,13 +169,13 @@ struct MapEntry {
     perms: MmapPerms,
 }
 
-pub fn run(target: &str, since: Option<&str>) -> Result<(), Box<dyn Error>> {
+pub fn run(target: &str, since: Option<&str>, print_json: bool) -> Result<(), Box<dyn Error>> {
     let target = parse_target(target)?;
     let (window, window_label) =
         crate::commands::lane::resolve_window(since).map_err(HoldsError)?;
     let output = match target {
-        Target::Port(port) => ledger::build_port_report(port, window, window_label)?,
-        Target::Path(path) => ledger::build_path_report(&path, window, window_label)?,
+        Target::Port(port) => ledger::build_port_report(port, window, window_label, print_json)?,
+        Target::Path(path) => ledger::build_path_report(&path, window, window_label, print_json)?,
     };
     println!("{output}");
     Ok(())

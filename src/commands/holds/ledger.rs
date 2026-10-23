@@ -38,6 +38,7 @@ pub fn build_path_report(
     path: &Path,
     window: Duration,
     window_label: String,
+    print_json: bool,
 ) -> Result<String, HoldsError> {
     // The file identity for the filter key, from the same stat the
     // snapshot side will use (the parsers are untouched; this stat
@@ -99,7 +100,11 @@ pub fn build_path_report(
         unaccounted,
         verdict,
     };
-    Ok(crate::evidence::render::render_report(&report))
+    Ok(if print_json {
+        crate::evidence::json::report_json(&report)
+    } else {
+        crate::evidence::render::render_report(&report)
+    })
 }
 
 /// Build the report for a port target: the socket holders (\[measured]
@@ -111,6 +116,7 @@ pub fn build_port_report(
     port: u16,
     _window: Duration,
     window_label: String,
+    print_json: bool,
 ) -> Result<String, HoldsError> {
     let (holders, stats) = scan_port_holders(port)?;
     let scan_instant = unix_now();
@@ -174,7 +180,11 @@ pub fn build_port_report(
         unaccounted,
         verdict,
     };
-    Ok(crate::evidence::render::render_report(&report))
+    Ok(if print_json {
+        crate::evidence::json::report_json(&report)
+    } else {
+        crate::evidence::render::render_report(&report)
+    })
 }
 
 /// The action phrase for one piece of holder evidence - the same

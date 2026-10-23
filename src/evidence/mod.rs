@@ -20,6 +20,7 @@
 
 use row::EvidenceRow;
 
+pub mod json;
 pub mod render;
 pub mod row;
 

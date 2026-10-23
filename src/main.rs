@@ -89,16 +89,23 @@ fn main() {
                 no_color,
             },
         ),
-        Some(cli::Commands::Holds { target, since }) => {
-            commands::holds::run(&target, since.as_deref())
-        }
-        Some(cli::Commands::Touch { path, since }) => commands::touch::run(&path, since.as_deref()),
+        Some(cli::Commands::Holds {
+            target,
+            since,
+            print_json,
+        }) => commands::holds::run(&target, since.as_deref(), print_json),
+        Some(cli::Commands::Touch {
+            path,
+            since,
+            print_json,
+        }) => commands::touch::run(&path, since.as_deref(), print_json),
         Some(cli::Commands::Why {
             target,
             since,
             trace,
             raw,
-        }) => commands::why::run(&target, since.as_deref(), trace, raw),
+            print_json,
+        }) => commands::why::run(&target, since.as_deref(), trace, raw, print_json),
         Some(cli::Commands::Doctor {
             attach,
             detach,
