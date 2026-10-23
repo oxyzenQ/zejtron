@@ -287,15 +287,14 @@ fn pro_mode_flag_spelling(arg: &clap::Arg) -> Option<String> {
     // Only the value-taking actions render a value placeholder; the
     // SetTrue flags keep a phantom derived value name that clap's
     // help never shows (the -V/--version row is the live case).
-    if matches!(
+    let value_taking = matches!(
         arg.get_action(),
         clap::ArgAction::Set | clap::ArgAction::Append
-    ) {
-        if let Some(names) = arg.get_value_names() {
-            for name in names {
-                spelling.push(' ');
-                spelling.push_str(name);
-            }
+    );
+    if let Some(names) = arg.get_value_names().filter(|_| value_taking) {
+        for name in names {
+            spelling.push(' ');
+            spelling.push_str(name);
         }
     }
     Some(spelling)

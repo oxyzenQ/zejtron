@@ -76,10 +76,7 @@ const GROUPS: &[(&str, &[Row])] = &[
                 "--since DURATION",
                 "Event window width (s/m/h, default 60s, clamped to [1s, 1h])",
             ),
-            (
-                "--events-only",
-                "Show only the event window (no snapshot)",
-            ),
+            ("--events-only", "Show only the event window (no snapshot)"),
             (
                 "--snapshot-only",
                 "Show only the snapshot (the phase-1 behavior)",
@@ -101,21 +98,17 @@ const GROUPS: &[(&str, &[Row])] = &[
     ),
     (
         "holds:",
-        &[
-            (
-                "--since DURATION",
-                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
-            ),
-        ],
+        &[(
+            "--since DURATION",
+            "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+        )],
     ),
     (
         "touch:",
-        &[
-            (
-                "--since DURATION",
-                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
-            ),
-        ],
+        &[(
+            "--since DURATION",
+            "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+        )],
     ),
     (
         "why:",
