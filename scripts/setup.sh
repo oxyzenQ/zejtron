@@ -50,14 +50,14 @@ NC='\033[0m'
 ok() { echo -e "${GREEN}[setup]${NC} $1"; }
 warn() { echo -e "${YELLOW}[setup]${NC} $1"; }
 die() {
-        echo -e "${RED}[setup]${NC} $1" >&2
-        exit 1
+	echo -e "${RED}[setup]${NC} $1" >&2
+	exit 1
 }
 
 SKIP_HEAVY=false
 
 usage() {
-        cat <<'EOF'
+	cat <<'EOF'
 Usage: ./scripts/setup.sh [--skip-heavy]
 
   --skip-heavy  Stop after bootstrap + build + self-test
@@ -67,24 +67,24 @@ EOF
 }
 
 while [ $# -gt 0 ]; do
-        case "$1" in
-        --skip-heavy)
-                SKIP_HEAVY=true
-                shift
-                ;;
-        -h | --help)
-                usage
-                exit 0
-                ;;
-        *)
-                usage
-                die "unknown option: $1"
-                ;;
-        esac
+	case "$1" in
+	--skip-heavy)
+		SKIP_HEAVY=true
+		shift
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	*)
+		usage
+		die "unknown option: $1"
+		;;
+	esac
 done
 
 if [ "$(id -u)" -eq 0 ]; then
-        die "run as your normal user, not root — phase 1 installs into \$HOME and a root cargo build corrupts target/."
+	die "run as your normal user, not root — phase 1 installs into \$HOME and a root cargo build corrupts target/."
 fi
 
 cd "${REPO_ROOT}"
@@ -99,49 +99,49 @@ SECONDS=0
 # installed once, idempotently (the aliases link through rust-lld, so
 # the target is the only prerequisite - see .cargo/config.toml).
 ensure_musl_target() {
-        if ! rustup target list --installed 2>/dev/null | grep -q '^x86_64-unknown-linux-musl$'; then
-                ok "adding the musl rust-std target (rustup target add)"
-                rustup target add x86_64-unknown-linux-musl
-        fi
+	if ! rustup target list --installed 2>/dev/null | grep -q '^x86_64-unknown-linux-musl$'; then
+		ok "adding the musl rust-std target (rustup target add)"
+		rustup target add x86_64-unknown-linux-musl
+	fi
 }
 
 ok "phase 1/3: bootstrap (rustup + the pinned toolchain + the static pro-native-musl build)"
 if [ "$(uname -m)" != "x86_64" ]; then
-        die "the build pipeline is x86_64-only - musl is the only libc shape (night-badass-1, the GNU purge; see .cargo/config.toml)."
+	die "the build pipeline is x86_64-only - musl is the only libc shape (night-badass-1, the GNU purge; see .cargo/config.toml)."
 fi
 if ! command -v cargo >/dev/null 2>&1; then
-        ok "cargo not found - installing rustup (minimal profile; the pinned toolchain follows rust-toolchain.toml)"
-        if ! curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal; then
-                die "rustup install failed — read its output above; fix and re-run ./scripts/setup.sh (idempotent)."
-        fi
+	ok "cargo not found - installing rustup (minimal profile; the pinned toolchain follows rust-toolchain.toml)"
+	if ! curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal; then
+		die "rustup install failed — read its output above; fix and re-run ./scripts/setup.sh (idempotent)."
+	fi
 fi
 ensure_musl_target
 if ! cargo pro-native-musl --locked; then
-        die "the pro-native-musl build failed — read the compiler output above; fix and re-run ./scripts/setup.sh (idempotent)."
+	die "the pro-native-musl build failed — read the compiler output above; fix and re-run ./scripts/setup.sh (idempotent)."
 fi
 ok "phase 1/3: pro-native-musl ready at target/x86_64-unknown-linux-musl/pro-native-musl/zejtron (${SECONDS}s)"
 
 ok "phase 2/3: CLI battery self-test (rootless, against the built binary)"
 if ! ZEJTRON_BIN_PATH="target/x86_64-unknown-linux-musl/pro-native-musl/zejtron" "${SCRIPT_DIR}/build.sh" battery; then
-        die "self-test failed — the built binary broke the runtime contract; fix and re-run ./scripts/setup.sh (idempotent)."
+	die "self-test failed — the built binary broke the runtime contract; fix and re-run ./scripts/setup.sh (idempotent)."
 fi
 ok "phase 2/3: self-test green"
 
 if [ "${SKIP_HEAVY}" = true ]; then
-        ok "phase 3/3: release legs skipped (--skip-heavy)"
+	ok "phase 3/3: release legs skipped (--skip-heavy)"
 else
-        ok "phase 3/3: the release legs (v3/v4 musl, 5+ min cold)"
-        for leg in pro-linux-amd64-v3-musl pro-linux-amd64-v4-musl; do
-                leg_bin="target/x86_64-unknown-linux-musl/${leg}/zejtron"
-                ok "leg ${leg}: build"
-                if ! cargo "${leg}" --locked; then
-                        die "leg ${leg} build failed — read the compiler output above; fix and re-run ./scripts/setup.sh (idempotent)."
-                fi
-                ok "leg ${leg}: battery"
-                if ! ZEJTRON_BIN_PATH="${leg_bin}" "${SCRIPT_DIR}/build.sh" battery; then
-                        die "leg ${leg} battery failed — ${leg_bin} broke the runtime contract."
-                fi
-        done
+	ok "phase 3/3: the release legs (v3/v4 musl, 5+ min cold)"
+	for leg in pro-linux-amd64-v3-musl pro-linux-amd64-v4-musl; do
+		leg_bin="target/x86_64-unknown-linux-musl/${leg}/zejtron"
+		ok "leg ${leg}: build"
+		if ! cargo "${leg}" --locked; then
+			die "leg ${leg} build failed — read the compiler output above; fix and re-run ./scripts/setup.sh (idempotent)."
+		fi
+		ok "leg ${leg}: battery"
+		if ! ZEJTRON_BIN_PATH="${leg_bin}" "${SCRIPT_DIR}/build.sh" battery; then
+			die "leg ${leg} battery failed — ${leg_bin} broke the runtime contract."
+		fi
+	done
 fi
 
 BUILT="${REPO_ROOT}/target/x86_64-unknown-linux-musl/pro-native-musl/zejtron"
