@@ -49,10 +49,10 @@ zejtron's output complies with the [Evidence Ledger Specification v1](docs/EVIDE
 
 ## Why zejtron?
 
-An investigation fragments across seven tools: `which` for the binary,
-`ss` for the port, `lsof` for the holder, `ps` for the tree, `systemctl`
-for the unit, `journalctl` for the evidence, and shell glue to hold it
-together — each with its own output dialect, none of it deterministic.
+An investigation fragments across five tools: `which` for the binary,
+`ss` for the port, `lsof` for the holder, `ps` for the tree, and
+`journalctl` for the evidence — each with its own output dialect, none
+of it deterministic.
 
 zejtron is one binary that answers the incident questions in one
 dialect. The output is deterministic, the timestamps are UTC with an
@@ -66,7 +66,7 @@ explicit marker, and the tool never writes.
   For the single-question case, the kernel-native tools are faster —
   `ss` asks the kernel directly, `lsof` has decades of tuning. zejtron
   is the tool for the multi-question case: when you would otherwise
-  string seven tools together and parse seven dialects, the total
+  string five tools together and parse five dialects, the total
   wall-clock is smaller and the output is diffable.
 - **Read-only by design** — it does not kill processes, close ports,
   start or stop services, or modify files. Ever.
@@ -458,9 +458,11 @@ reference.
 
 ## Limitations (honest)
 
-- The current release is a pre-release. The surface may change
-  before 80.0.0 stable. Real usage will drive QC passes; no
-  breaking change will be silent.
+- The v80.0.0 LTS freeze is in effect: the surface is frozen. The CLI
+  contract — commands, flags, and output format — takes no breaking
+  changes from v80.0.0 on; future releases carry bug fixes,
+  procfs/sysfs compatibility, and internal performance only (see the
+  Stable API section below).
 - Without sudo, port owners and some holder details show as
   `unknown` on hardened systems — the kernel hides other users'
   process context; zejtron reports what is genuinely visible.
@@ -668,7 +670,7 @@ them.
 
 ## Test Results
 
-The suite is the contract: 205 tests green at every landing, plus the
+The suite is the contract: 441+ tests green at every landing, plus the
 CLI battery run against the built binary per supermassive leg (MSRV
 and stable, gnu and musl), the miri UB lane, the cargo-fuzz lane
 (three hostile-input targets - the BTF parser, the /proc parsers, and
