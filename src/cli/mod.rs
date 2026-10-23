@@ -65,6 +65,17 @@ pub struct Cli {
     )]
     pub version: bool,
 
+    // The diagnostic trace lane (night-hunter-4): a global flag so it
+    // parses before or after any subcommand. stderr-only by law - the
+    // Evidence Ledger's stdout stays byte-clean on a pipe.
+    #[arg(
+        short = 'v',
+        long = "verbose",
+        global = true,
+        help = "Print engine diagnostics to stderr (stdout stays ledger-clean)"
+    )]
+    pub verbose: bool,
+
     // Top-level only (night-improve-15, sibling shape): a network
     // flag has no business parsing after a subcommand, and demoting
     // it removes one noise row from every subcommand's help.

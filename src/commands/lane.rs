@@ -129,9 +129,13 @@ pub fn collect(
 ) -> Result<LaneParts, String> {
     {
         if crate::ebpf::all_pins_present() {
+            // The diagnostic trace (night-hunter-4): which lane the
+            // ledger rode, on stderr only.
+            crate::output::verbose::vlog!("lane", "live eBPF window selected (attached)");
             return collect_live(query, window, filter);
         }
     }
+    crate::output::verbose::vlog!("lane", "snapshot only (eBPF not attached)");
     Ok(collect_log(query, window))
 }
 
@@ -249,9 +253,20 @@ fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
     // back is THE latest the lane has.
     let record: Option<(TouchInfo, bool)> =
         match try_audit_log(query.display_path, query.lookup_path, query.users) {
-            Some(info) => Some((info, true)),
-            None => try_journalctl(query.display_path, query.lookup_path, query.users)
-                .map(|info| (info, false)),
+            Some(info) => {
+                crate::output::verbose::vlog!("lane", "audit log record selected");
+                Some((info, true))
+            }
+            None => match try_journalctl(query.display_path, query.lookup_path, query.users) {
+                Some(info) => {
+                    crate::output::verbose::vlog!("lane", "journal fallback selected");
+                    Some((info, false))
+                }
+                None => {
+                    crate::output::verbose::vlog!("lane", "no log record - metadata snapshot only");
+                    None
+                }
+            },
         };
 
     let mut unaccounted = Vec::new();

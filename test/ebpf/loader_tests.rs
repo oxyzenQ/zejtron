@@ -10,6 +10,16 @@
 //! truth and the contract constants the kernel side mirrors.
 
 use super::*;
+// The contract constants moved to plant.rs (night-hunter-4's pure
+// move at the 600 LOC cap); the pins follow the contract, and the
+// pin-path constants ride the ebpf module's one directory truth.
+use crate::ebpf::plant::{
+    EXIT_PROGRAM, EXIT_TRACEPOINT_CATEGORY, EXIT_TRACEPOINT_EVENT, MAP_PROC_EVENTS, MAP_STATS,
+    PROGRAM, TRACEPOINT_CATEGORY, TRACEPOINT_EVENT,
+};
+use crate::ebpf::{
+    PIN_LINK, PIN_LINK_EXIT, PIN_MAP_PROC_EVENTS, PIN_MAP_STATS, PIN_PROG, PIN_PROG_EXIT,
+};
 
 #[test]
 fn probe_elf_is_an_aligned_bpf_object() {

@@ -110,10 +110,16 @@ const GROUPS: &[(&str, &[Row])] = &[
     ),
     (
         "global:",
-        &[(
-            "--check-update",
-            "Alias: --check-updated (same surface, one check)",
-        )],
+        &[
+            (
+                "--check-update",
+                "Alias: --check-updated (same surface, one check)",
+            ),
+            (
+                "-v, --verbose",
+                "Print engine diagnostics to stderr (stdout stays ledger-clean)",
+            ),
+        ],
     ),
 ];
 

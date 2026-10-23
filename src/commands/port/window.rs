@@ -177,8 +177,12 @@ use crate::ebpf::events::SockEvent;
 /// reason lives.
 pub fn capture_window(options: &PortOptions) -> Option<Vec<SockEvent>> {
     if !crate::ebpf::all_pins_present() {
+        // The diagnostic trace (night-hunter-4): stderr only - the
+        // port report's stdout stays pipe-clean.
+        crate::output::verbose::vlog!("lane", "snapshot only (eBPF not attached)");
         return None;
     }
+    crate::output::verbose::vlog!("lane", "live eBPF window selected (attached)");
     let mut ring = crate::ebpf::ringbuf::open_sock_ring().ok()?;
     let mut collected: Vec<SockEvent> = Vec::new();
     collect_over_window(&mut ring, &mut collected, options.window);
