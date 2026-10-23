@@ -294,7 +294,16 @@ PYEOF
 
 install_b3sum() {
 	ok "installing b3sum ${B3SUM_VERSION} (cargo install, --locked)..."
-	with_retry cargo install b3sum --version "${B3SUM_VERSION}" --locked ||
+	# Host-side tool: the caller's RUSTFLAGS must not reach this
+	# install. The release lane's musl legs export -C
+	# target-feature=+crt-static for the product build, and cargo
+	# refuses to produce clap_derive's proc-macro for a crt-static
+	# host triple ("does not support these crate types") - the
+	# v80.0.0-alpha.2 and v80.0.0-beta.1 tag runs died in this step
+	# before a single crate compiled. The tier flags are the product
+	# contract (the release Build step and the .cargo/config.toml
+	# aliases), never a prerequisite tool's.
+	with_retry env -u RUSTFLAGS cargo install b3sum --version "${B3SUM_VERSION}" --locked ||
 		die "cargo install b3sum failed - install it manually: cargo install b3sum --version ${B3SUM_VERSION} --locked"
 	command -v b3sum >/dev/null 2>&1 ||
 		die "b3sum installed but not found on PATH - make sure ${HOME}/.cargo/bin is on PATH"
@@ -302,7 +311,7 @@ install_b3sum() {
 	reported="$(b3sum --version 2>/dev/null || echo "unknown")"
 	[[ "${reported}" == *"${B3SUM_VERSION}"* ]] ||
 		die "installed b3sum reports '${reported}', expected ${B3SUM_VERSION}"
-	ok "b3sum ${reported} installed"
+	ok "${reported} installed"
 }
 
 probe_all
