@@ -28,25 +28,84 @@ use aya::maps::{Array, Map, MapData};
 
 use super::PIN_MAP_STATS;
 
-/// The stats slot this module reads: stats\[0\], the count of
-/// sched_process_exec events since attach. The index contract with
-/// the kernel side (ebpf/src/main.rs's STATS_EVENTS) - both sides
-/// keep the same slot in lockstep.
+/// The stats slots this module reads. The index contract with the
+/// kernel side (ebpf/src/main.rs's STATS_EVENTS, STATS_ZJW_DROPS,
+/// STATS_ZJW_WALKED, STATS_ZJW_STAGE_BASE, STATS_ZJW_STAGE_COUNT) -
+/// both sides keep the slots in lockstep.
 const STATS_EVENTS: u32 = 0;
+const STATS_ZJW_DROPS: u32 = 1;
+const STATS_ZJW_WALKED: u32 = 2;
+const STATS_ZJW_STAGE_BASE: u32 = 3;
+const STATS_ZJW_STAGE_COUNT: u32 = 14;
 
-/// Read the events counter through the pin: stats\[STATS_EVENTS\] as
-/// the kernel holds it right now. Errors name the pin path (a missing
-/// pin reads as a diagnosis, not a generic failure).
-pub fn read_events_counter() -> Result<u64, String> {
+/// Read one stats slot through the pin: the same `MapData::from_pin`
+/// lane the events counter rides - a pinned map opens by path, like
+/// any file, which is exactly why the map is pinned.
+fn read_stats_slot(slot: u32) -> Result<u64, String> {
     let map_data = MapData::from_pin(PIN_MAP_STATS)
         .map_err(|e| format!("pinned stats map {PIN_MAP_STATS}: {e}"))?;
     let map = Map::Array(map_data);
     let counter: Array<_, u64> = Array::try_from(&map)
         .map_err(|e| format!("the pinned stats map is not an array map: {e}"))?;
-    let key: u32 = STATS_EVENTS;
     counter
-        .get(&key, 0)
-        .map_err(|e| format!("stats[{STATS_EVENTS}] read failed: {e}"))
+        .get(&slot, 0)
+        .map_err(|e| format!("stats[{slot}] read failed: {e}"))
+}
+
+/// Read the events counter through the pin: stats[STATS_EVENTS] as
+/// the kernel holds it right now. Errors name the pin path (a missing
+/// pin reads as a diagnosis, not a generic failure).
+pub fn read_events_counter() -> Result<u64, String> {
+    read_stats_slot(STATS_EVENTS)
+}
+
+/// The write probe's kernel-side drop census (night-hunter-2): the
+/// counters the pinned stats map carries for the fd-walk instrument.
+pub struct WriteCensus {
+    /// Total drops across every stage.
+    pub drops: u64,
+    /// Walks that crossed every hop (published, or missed the filter).
+    pub walked: u64,
+    /// The furthest stage that dropped - the blocker hop - with its
+    /// own drop count. `None` when no stage slot is nonzero.
+    pub furthest: Option<(u64, u64)>,
+}
+
+/// The furthest census stage with a nonzero count: the highest stage
+/// number whose per-stage counter survived. Pure so the lockstep
+/// derivation is testable without a pinned map.
+fn furthest_stage(counts: &[u64; STATS_ZJW_STAGE_COUNT as usize]) -> Option<(u64, u64)> {
+    (1..=STATS_ZJW_STAGE_COUNT)
+        .rev()
+        .map(|stage| (u64::from(stage), counts[(stage - 1) as usize]))
+        .find(|(_, count)| *count > 0)
+}
+
+/// Read the write probe's drop census through the pin: the totals and
+/// the furthest drop stage (the exact hop a silent verification died
+/// at, instead of a mute refusal).
+pub fn read_write_census() -> Result<WriteCensus, String> {
+    let map_data = MapData::from_pin(PIN_MAP_STATS)
+        .map_err(|e| format!("pinned stats map {PIN_MAP_STATS}: {e}"))?;
+    let map = Map::Array(map_data);
+    let stats: Array<_, u64> = Array::try_from(&map)
+        .map_err(|e| format!("the pinned stats map is not an array map: {e}"))?;
+    let slot = |index: u32| -> Result<u64, String> {
+        stats
+            .get(&index, 0)
+            .map_err(|e| format!("stats[{index}] read failed: {e}"))
+    };
+    let drops = slot(STATS_ZJW_DROPS)?;
+    let walked = slot(STATS_ZJW_WALKED)?;
+    let mut counts = [0u64; STATS_ZJW_STAGE_COUNT as usize];
+    for stage in 1..=STATS_ZJW_STAGE_COUNT {
+        counts[(stage - 1) as usize] = slot(STATS_ZJW_STAGE_BASE + stage - 1)?;
+    }
+    Ok(WriteCensus {
+        drops,
+        walked,
+        furthest: furthest_stage(&counts),
+    })
 }
 
 /// The attach moment: the stats pin's mtime (creation time - a pin is

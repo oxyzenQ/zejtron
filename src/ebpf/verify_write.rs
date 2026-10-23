@@ -37,9 +37,34 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use super::events::FILE_OP_WRITE;
+use super::readback::read_write_census;
 use super::ringbuf::drain_file_events;
 use super::tracked::{track_file, untrack_file};
 use crate::commands::lane::device_token_from_stat;
+
+/// The write probe's drop-census stage meanings (the stage numbers
+/// ebpf/src/write.rs's zjw_drop carries): the kernel-side census
+/// names the furthest hop the walk reached and dropped at, and this
+/// table turns the number into the hop's full name - the exact step
+/// a silent verification failed, never a mute refusal.
+fn stage_meaning(stage: u64) -> &'static str {
+    match stage {
+        1 => "the offsets map was unreadable (the walk never started)",
+        3 => "task->files unreadable or null",
+        4 => "files->fdt unreadable or null (the fd-table indirection hop)",
+        5 => "fdt->max_fds unreadable",
+        6 => "fd out of the table's range (fd >= max_fds)",
+        7 => "fdt->fd array pointer unreadable or null",
+        8 => "fd[fd] unreadable or null (no struct file behind the descriptor)",
+        9 => "file->f_inode unreadable",
+        10 => "inode->i_ino unreadable",
+        11 => "file->f_path.mnt unreadable",
+        12 => "mnt->mnt_sb unreadable",
+        13 => "sb->s_dev unreadable",
+        14 => "the tracked_inodes filter missed (the walked identity did not match)",
+        _ => "unnamed stage",
+    }
+}
 
 /// Demand one recorded write through the freshly planted probe.
 pub fn verify_write_probe() -> Result<(), String> {
@@ -83,11 +108,36 @@ fn verify_once(dir: &Path, probe: &Path) -> Result<(), String> {
         }
         if Instant::now() > deadline {
             let _ = untrack_file(inode, device);
+            let census_note = match read_write_census() {
+                Ok(census) if census.drops == 0 && census.walked == 0 => {
+                    "no census activity at all - the probe never executed its \
+                     walk for the verification write (the sys_enter anchor \
+                     itself never fired)"
+                        .to_owned()
+                }
+                Ok(census) => match census.furthest {
+                    Some((stage, count)) => format!(
+                        "{} drop(s), {} completed walk(s), furthest drop at stage {}: \
+                         {} ({} drop(s) there)",
+                        census.drops,
+                        census.walked,
+                        stage,
+                        stage_meaning(stage),
+                        count
+                    ),
+                    None => format!(
+                        "{} drop(s), {} completed walk(s), but no per-stage count \
+                         survived - the stage counters were wiped mid-verify",
+                        census.drops, census.walked
+                    ),
+                },
+                Err(e) => format!("the census could not be read ({e})"),
+            };
             return Err(format!(
                 "attach refused: the write probe stayed silent for its own \
                  verification write (inode {inode:#x} tracked, no op={FILE_OP_WRITE} \
-                 record drained) - a probe that cannot record a single write must \
-                 not claim to be live"
+                 record drained; the kernel-side census: {census_note}) - a probe \
+                 that cannot record a single write must not claim to be live"
             ));
         }
         std::thread::sleep(Duration::from_millis(50));

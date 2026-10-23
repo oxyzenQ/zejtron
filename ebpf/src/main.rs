@@ -204,19 +204,42 @@ use events::{
 const _: () = assert!(SOCK_EVENT_BYTES == 32);
 const _: () = assert!(FILE_EVENT_BYTES == 40);
 
-/// The one stats slot: the count of sched_process_exec events since
-/// attach. The index contract with the userspace read side
-/// (src/ebpf/readback.rs reads the same slot; keep both sides in
+/// The stats slot contract (the userspace read side
+/// src/ebpf/readback.rs reads the same slots; keep both sides in
 /// lockstep).
+/// stats[0]: the count of sched_process_exec events since attach.
 pub const STATS_EVENTS: u32 = 0;
+/// stats[1]: the write probe's drop census - one increment per walk
+/// that dropped at any stage (night-hunter-2: the census moves from
+/// BPF-local statics into the stats map so a silent verification
+/// names its stage instead of staying mute).
+pub const STATS_ZJW_DROPS: u32 = 1;
+/// stats[2]: the write probe's completed-walk count (a walk that
+/// crossed every hop and published, or missed the filter).
+pub const STATS_ZJW_WALKED: u32 = 2;
+/// stats[3..16]: one counter per census stage - stage s lives in
+/// slot STATS_ZJW_STAGE_BASE + (s - 1), stages 1..14. Per-stage
+/// counters (each stage owning its slot) instead of one fetch_max
+/// high-water mark: LLVM's BPF backend cannot lower atomicumax
+/// (bpf-linker aborts with "Cannot select: AtomicLoadUMax"), and the
+/// per-stage shape is exact and race-free - the furthest stage
+/// derives userspace-side as the highest stage with a nonzero count.
+pub const STATS_ZJW_STAGE_BASE: u32 = 3;
+/// The number of census stages that carry a slot (write.rs's stage
+/// map: 1 and 3..14).
+pub const STATS_ZJW_STAGE_COUNT: u32 = 14;
+/// The stats map's slot count (the map's max_entries): the three
+/// scalar slots plus the fourteen stage counters.
+pub const STATS_SLOTS: u32 = STATS_ZJW_STAGE_BASE + STATS_ZJW_STAGE_COUNT;
 
 // The static name IS the userspace contract (the loader opens the
 // map by name), so it stays lowercase exactly like the object's
 // symbol; the allow attribute suppresses the non-upper-case globals
-// lint for that reason.
+// lint for that reason. pub(crate): the write probe's census
+// (ebpf/src/write.rs) writes its slots through the same map.
 #[allow(non_upper_case_globals)]
 #[map(name = "stats")]
-static stats: Array<AtomicU64> = Array::with_max_entries(1, 0);
+pub(crate) static stats: Array<AtomicU64> = Array::with_max_entries(STATS_SLOTS, 0);
 
 /// The sock_events ring buffer: 256 KiB, 8192 records of 32 bytes
 /// each. The kernel-side filter is the bound — only LISTEN

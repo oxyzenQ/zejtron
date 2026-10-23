@@ -55,7 +55,10 @@ use aya_ebpf::{
     programs::TracePointContext,
 };
 
-use super::{read_ptr_at, read_u32_at, read_u64_at};
+use super::{
+    read_ptr_at, read_u32_at, read_u64_at, stats, STATS_ZJW_DROPS, STATS_ZJW_STAGE_BASE,
+    STATS_ZJW_WALKED,
+};
 use crate::{file_events, tracked_inodes};
 use crate::events::{
     device_token_from_kernel, pack_filter_key, FileEvent, FILE_OP_WRITE, OFF_SLOT_FILE_F_INODE,
@@ -79,22 +82,36 @@ const NR_WRITE: i64 = 1;
 // and friends, night-improve-57's four slots) - the same map the
 // kprobes read; no new slots, no BTF growth.
 
-// The drop census (night-improve-58's evidence instrument, KEPT
-// PERMANENTLY: it turned two silent-anchor generations into
-// named stages and it rides every future report the same way):
-// every drop names its stage, every 1024th drop prints to tracefs
-// (the flood gate), the first completed walk prints its proof -
-// the storm post-mortem reads the buffer directly. Stage map: 1 offsets, 2 not-a-write (never censused -
-// the id check returns first), 3 files, 4 fdt, 5 max_fds, 6
-// fd>=max, 7 fd-array, 8 file, 9 inode, 10 ino, 11 mnt, 12 sb,
-// 13 s_dev, 14 filter-miss.
-static ZJW_DROPS: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
-static ZJW_WALKED: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
-
+// The drop census (night-improve-58's evidence instrument, UPGRADED
+// by night-hunter-2: the counters moved from BPF-local statics into
+// the stats map's slots - STATS_ZJW_DROPS, STATS_ZJW_WALKED, and one
+// counter per stage at STATS_ZJW_STAGE_BASE + (stage - 1) - so the
+// userspace verify (src/ebpf/verify_write.rs) reads them through the
+// pinned map and names the exact stage the walk died at, instead of
+// a mute refusal): every drop names its stage, every 1024th drop
+// prints to tracefs (the flood gate), the first completed walk
+// prints its proof. Stage map: 1 offsets, 2 not-a-write (never
+// censused - the id check returns first), 3 files, 4 fdt, 5
+// max_fds, 6 fd>=max, 7 fd-array, 8 file, 9 inode, 10 ino, 11 mnt,
+// 12 sb, 13 s_dev, 14 filter-miss.
 unsafe fn zjw_drop(stage: u64, fd: u64) {
-    let n = ZJW_DROPS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-    if n % 1024 == 0 {
-        bpf_printk!(c"[zjw] drop stage=%d fd=%d n=%d\n", stage, fd, n);
+    if let Some(drops) = stats.get(STATS_ZJW_DROPS) {
+        let n = drops.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        if n % 1024 == 0 {
+            bpf_printk!(c"[zjw] drop stage=%d fd=%d n=%d\n", stage, fd, n);
+        }
+    }
+    // Per-stage counters: each stage owns its slot, so the counts are
+    // exact and race-free, and the furthest-reached stage derives
+    // userspace-side as the highest stage with a nonzero count. (A
+    // fetch_max high-water mark was tried first: LLVM's BPF backend
+    // cannot lower atomicumax - bpf-linker aborts with "Cannot select:
+    // AtomicLoadUMax" - so the per-stage shape is the one the
+    // toolchain can prove.)
+    if (1..=14).contains(&stage) {
+        if let Some(slot) = stats.get(STATS_ZJW_STAGE_BASE + (stage as u32 - 1)) {
+            let _ = slot.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        }
     }
 }
 
@@ -128,11 +145,13 @@ pub fn write_probe(ctx: TracePointContext) -> u32 {
             return 0;
         };
         let task = bpf_get_current_task() as usize;
-        let Some(files) = read_ptr_at(task, o[OFF_SLOT_TASK_FILES as usize]) else {
+        let Some(files) = read_ptr_at(task, o[OFF_SLOT_TASK_FILES as usize]).filter(|f| *f != 0)
+        else {
             zjw_drop(3, fdu);
             return 0;
         };
-        let Some(fdt) = read_ptr_at(files, o[OFF_SLOT_FILES_FDT as usize]) else {
+        let Some(fdt) = read_ptr_at(files, o[OFF_SLOT_FILES_FDT as usize]).filter(|f| *f != 0)
+        else {
             zjw_drop(4, fdu);
             return 0;
         };
@@ -187,7 +206,10 @@ pub fn write_probe(ctx: TracePointContext) -> u32 {
             zjw_drop(14, fdu);
             return 0;
         }
-        let walked = ZJW_WALKED.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        let walked = match stats.get(STATS_ZJW_WALKED) {
+            Some(counter) => counter.fetch_add(1, core::sync::atomic::Ordering::Relaxed),
+            None => 0,
+        };
         if walked == 0 {
             bpf_printk!(c"[zjw] walk ok fd=%d ino=%d\n", fdu, ino);
         }
