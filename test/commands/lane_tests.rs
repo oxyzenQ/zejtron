@@ -117,7 +117,11 @@ fn the_pin_denial_fallback_names_the_window_in_unaccounted() {
         device: 1,
     };
     let parts = snapshot_fallback(&query, Duration::from_secs(1));
-    let reasons: Vec<&str> = parts.unaccounted.iter().map(|e| e.reason.as_str()).collect();
+    let reasons: Vec<&str> = parts
+        .unaccounted
+        .iter()
+        .map(|e| e.reason.as_str())
+        .collect();
     assert!(
         reasons
             .iter()
