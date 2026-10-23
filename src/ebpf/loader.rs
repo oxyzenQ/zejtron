@@ -239,7 +239,9 @@ pub fn attach() -> Result<String, String> {
     // 2. Self-heal: a partial pin set (a crashed attach, a manual rm)
     //    is cleaned before replanting; a stale pin directory (a prior
     //    mkdir that failed before planting) is removed the same way.
-    //    Foreign entries are NOT ours to remove - the honest refusal.
+    //    Foreign entries refuse the attach - the sweep belongs to
+    //    --detach (the sledgehammer); attach never deletes what it
+    //    did not create.
     if any_pin_present() {
         clear_pins();
     }
@@ -248,8 +250,9 @@ pub fn attach() -> Result<String, String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) if e.kind() == std::io::ErrorKind::DirectoryNotEmpty => {
             return Err(format!(
-                "{PIN_DIR} holds entries zejtron did not create - remove them by \
-                 hand and re-run doctor --attach"
+                "{PIN_DIR} holds entries zejtron did not create - run \
+                 doctor --detach (the sledgehammer: it sweeps the whole \
+                 pin estate) and re-run doctor --attach"
             ));
         }
         Err(e) => {
@@ -535,14 +538,28 @@ fn clear_pins() -> usize {
         .count()
 }
 
-/// Detach the probe: unpin everything, idempotent. If no pins exist,
-/// the honest "nothing to detach" (exit 0 through the doctor's Ok).
+/// Detach the probe: unpin everything, then the sledgehammer - sweep
+/// whatever else the pin directory holds (legacy pins from earlier
+/// versions, foreign leftovers, partial states) and remove the
+/// directory itself, so the next attach always starts fresh. The one
+/// button that returns the estate to bare bpffs; no other tool or
+/// manual rm is ever needed. Idempotent: if no pins exist and the
+/// directory is gone, the honest "nothing to detach" (exit 0 through
+/// the doctor's Ok).
 pub fn detach() -> Result<String, String> {
     if !any_pin_present() && !Path::new(PIN_DIR).exists() {
         return Ok("nothing to detach - no pins present".to_owned());
     }
     let removed = clear_pins();
-    match std::fs::remove_dir(PIN_DIR) {
+    // The sledgehammer step: our own pins are gone; count whatever is
+    // left (legacy pin names from earlier versions, foreign files),
+    // then remove the directory whole. PIN_DIR is zejtron's own
+    // constant path - the one directory this tool owns - so nothing
+    // outside zejtron's estate can be swept by it.
+    let swept = std::fs::read_dir(PIN_DIR)
+        .map(|entries| entries.filter_map(|entry| entry.ok()).count())
+        .unwrap_or(0);
+    match std::fs::remove_dir_all(PIN_DIR) {
         // The directory is gone (or never was): the clean end state,
         // whichever way it was reached.
         Ok(()) => {}
@@ -551,10 +568,16 @@ pub fn detach() -> Result<String, String> {
         Err(_) if !Path::new(PIN_DIR).exists() => {}
         Err(e) => {
             return Err(format!(
-                "{PIN_DIR} could not be removed (foreign entries? {e}) - remove \
-                 them by hand"
+                "{PIN_DIR} could not be swept (is bpffs mounted?): {e}"
             ));
         }
+    }
+    if swept > 0 {
+        return Ok(format!(
+            "probes detached: unpinned {removed} pin(s), swept {swept} foreign \
+             entr{}; {PIN_DIR} is gone",
+            if swept == 1 { "y" } else { "ies" }
+        ));
     }
     Ok(format!(
         "probes detached: unpinned {removed} pin(s); {PIN_DIR} is gone"
