@@ -238,7 +238,8 @@ jobs:
           tar -xf rootfs.tar -C rootfs
           mkdir -p rootfs/opt/zejtron
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/zejtron
-          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron" rootfs/opt/zejtron/zejtron
+          cp "$GITHUB_WORKSPACE"/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron \
+            rootfs/opt/zejtron/zejtron
           chmod 755 rootfs/opt/zejtron/zejtron
           mkdir -p rootfs/opt/zejtron/.sandbox
           cat > rootfs/opt/zejtron/.sandbox/payload.sh <<'EOF'
