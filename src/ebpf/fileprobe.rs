@@ -43,8 +43,10 @@ pub fn capture_file_window(
     track_file(inode, device)?;
     // The collection: the kprobes are live against the filter map
     // for exactly this long. std sleep, no reader thread — the ring
-    // keeps the history and one drain takes it.
-    std::thread::sleep(window);
+    // keeps the history and one drain takes it. The wait is
+    // narrated (night-hunter-6): a grey countdown on stderr, the
+    // ledger's stdout untouched.
+    crate::output::spinner::wait(window, "watching for events");
     untrack_file(inode, device)?;
     let drained = ringbuf::drain_file_events()?;
     Ok(select_window(&drained, inode, device))

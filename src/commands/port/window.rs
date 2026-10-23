@@ -40,6 +40,7 @@ use super::render::format_report;
 // and the renderer exist.
 use super::model::{ProcessInfo, Protocol};
 use super::render::append_note;
+use crate::output::spinner::Countdown;
 use std::time::Instant;
 
 /// The window floor: a zero or sub-second window is not a window.
@@ -216,6 +217,10 @@ fn collect_over_window(
     out: &mut Vec<SockEvent>,
     window: Duration,
 ) {
+    // The narration (night-hunter-6): the loop already wakes every
+    // slice to drain the ring; the countdown rides the same clock
+    // and never touches the report's stdout.
+    let mut countdown = Countdown::start("watching for socket events");
     let deadline = Instant::now() + window;
     loop {
         crate::ebpf::ringbuf::drain_sock_events_from(ring, out);
@@ -223,8 +228,10 @@ fn collect_over_window(
         if now >= deadline {
             break;
         }
+        countdown.update(deadline - now);
         std::thread::sleep(POLL_SLICE.min(deadline - now));
     }
+    countdown.finish();
 }
 
 /// Filter the collected events to the requested window and selection,

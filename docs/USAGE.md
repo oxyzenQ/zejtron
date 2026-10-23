@@ -39,7 +39,9 @@ surface, so you learn it once. The pieces, top to bottom:
 - **The Changes subsection.** The event window's rows: what happened
   to the queried target in the last N seconds. A window is watched,
   not reconstructed - `--since 30s` waits 30 seconds, because the
-  camera only records while the shutter is open.
+  camera only records while the shutter is open. The wait is
+  narrated on stderr - a grey countdown, erased before the report
+  lands - so an open shutter never looks like a hang.
 - **The Unaccounted block.** Always present, even when empty. Read it
   before trusting anything: it names every boundary the evidence
   crossed (a pid that exited before attribution, a record older than
