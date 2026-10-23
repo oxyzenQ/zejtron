@@ -83,7 +83,7 @@ const NR_WRITE: i64 = 1;
 // kprobes read; no new slots, no BTF growth.
 
 // The drop census (night-improve-58's evidence instrument, UPGRADED
-// by night-hunter-2: the counters moved from BPF-local statics into
+// by night-hunter-2: the counters moved from program-local static atomics into
 // the stats map's slots - STATS_ZJW_DROPS, STATS_ZJW_WALKED, and one
 // counter per stage at STATS_ZJW_STAGE_BASE + (stage - 1) - so the
 // userspace verify (src/ebpf/verify_write.rs) reads them through the

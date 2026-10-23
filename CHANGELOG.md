@@ -905,7 +905,7 @@ v11.0.0
   what it did not create.
 
 - The write probe's drop census is userspace-readable
-  (night-hunter-2): the counters moved from BPF-local statics into
+  (night-hunter-2): the counters moved from program-local static atomics into
   the stats map - the drop and walk totals plus one counter per
   census stage (each stage owning its own slot, exact and
   race-free; a fetch_max high-water mark was tried first and
