@@ -1,15 +1,16 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
-# The release lane (the sibling's mature shape, zejtron's four-leg
+# The release lane (the sibling's mature shape, zejtron's two-leg
 # matrix). On a v* tag push:
 #
-#   validate -> build (4 legs: linux-amd64-{v3,v4} x {gnu,musl}) -> release
+#   validate -> build (2 legs: linux-amd64-{v3,v4}, fully static musl) -> release
 #
-# - The matrix is the AMD64 x86-64-v3/v4 microarch levels for both
-#   libc flavors - the only shapes zejtron supports and optimizes for
-#   (the native v1 baseline stays a local dev-only build via the
-#   pro-native aliases). Each leg's RUSTFLAGS is the build contract;
+# - The matrix is the AMD64 x86-64-v3/v4 microarch levels, both fully
+#   static musl - the only shapes zejtron supports and optimizes for
+#   (night-badass-1 retired the gnu pair; the native v1 baseline stays
+#   a local dev-only build via the pro-native-musl alias). Each leg's
+#   RUSTFLAGS is the build contract;
 #   the tripwire step pins the exact flag set per platform id, and
 #   the same tokens live in .cargo/config.toml's arch-baseline
 #   aliases so a local alias build reproduces the release tier.
@@ -106,14 +107,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: linux-amd64-v3-gnu
-            target: x86_64-unknown-linux-gnu
-            rustflags: "-D warnings -C target-cpu=x86-64-v3"
-            install_packages: b3sum
-          - platform: linux-amd64-v4-gnu
-            target: x86_64-unknown-linux-gnu
-            rustflags: "-D warnings -C target-cpu=x86-64-v4"
-            install_packages: b3sum
           - platform: linux-amd64-v3-musl
             target: x86_64-unknown-linux-musl
             rustflags: "-D warnings -C target-cpu=x86-64-v3 -C target-feature=+crt-static"
@@ -171,8 +164,6 @@ jobs:
         run: |
           set -euo pipefail
           case "${{ matrix.platform }}" in
-            linux-amd64-v3-gnu) expected="-D warnings -C target-cpu=x86-64-v3" ;;
-            linux-amd64-v4-gnu) expected="-D warnings -C target-cpu=x86-64-v4" ;;
             linux-amd64-v3-musl) expected="-D warnings -C target-cpu=x86-64-v3 -C target-feature=+crt-static" ;;
             linux-amd64-v4-musl) expected="-D warnings -C target-cpu=x86-64-v4 -C target-feature=+crt-static" ;;
             *) echo "::error::Unknown platform id ${{ matrix.platform }}"; exit 1 ;;
@@ -183,19 +174,19 @@ jobs:
           fi
           echo "arch-baseline inputs verified: ${{ matrix.platform }}"
 
-      # The gnu leg carries the full gate (fmt/clippy/test/battery);
-      # the other legs build only - their shape difference IS the
-      # product being released, and the gnu leg already vetted the
+      # The v3-musl leg carries the full gate (fmt/clippy/test/battery);
+      # the other leg builds only - its shape difference IS the
+      # product being released, and the v3 leg already vetted the
       # source. check-all hard-requires codespell (build.sh's
       # check_command gate), and the runner image does not carry it -
       # the fast lane installs the same pinned version before its own
       # check-all run; this leg needs the same install.
       - name: Install codespell
-        if: matrix.platform == 'linux-amd64-v3-gnu'
+        if: matrix.platform == 'linux-amd64-v3-musl'
         run: python3 -m pip install --user codespell==2.4.3
 
       - name: Run full checks
-        if: matrix.platform == 'linux-amd64-v3-gnu'
+        if: matrix.platform == 'linux-amd64-v3-musl'
         run: ./scripts/build.sh check-all
 
       - name: Build
@@ -399,19 +390,20 @@ jobs:
           path: dist
 
       # TRIPWIRE: assert the dist/ inventory BEFORE the publish step.
-      # The build matrix is four legs (v3/v4 x gnu/musl); each Prepare
+      # The build matrix is two legs (v3/v4, fully static musl -
+      # night-badass-1 retired the gnu pair); each Prepare
       # step emits one tarball plus three checksum files, and the build
       # job's signature-coverage tripwire makes GPG signing
-      # all-or-nothing - so the legal shapes here are exactly: 4
-      # tarballs + 12 checksums + (0 or 4) signatures. Anything else is
+      # all-or-nothing - so the legal shapes here are exactly: 2
+      # tarballs + 6 checksums + (0 or 2) signatures. Anything else is
       # a red pipeline with the precise missing file named, never a
       # silently asset-less release.
       - name: Assert release asset inventory
         run: |
           set -euo pipefail
           TARBALLS=$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)
-          if [ "${TARBALLS}" -ne 4 ]; then
-            echo "::error::Expected 4 release tarballs in dist/ (the build matrix legs), found ${TARBALLS}"
+          if [ "${TARBALLS}" -ne 2 ]; then
+            echo "::error::Expected 2 release tarballs in dist/ (the build matrix legs), found ${TARBALLS}"
             find dist -maxdepth 1 -type f -print 2>/dev/null || true
             exit 1
           fi

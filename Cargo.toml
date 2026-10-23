@@ -147,42 +147,32 @@ panic = "unwind"
 overflow-checks = false
 incremental = false
 
-# Native-CPU host build profiles for the cargo aliases
-# pro-native-gnu / pro-native-musl (.cargo/config.toml [alias]).
-# Both inherit release unchanged - the only delta is the
-# alias-injected -C target-cpu=native (plus +crt-static on the musl
-# pair, mirroring the alias's target-level rustflags) - so alias
-# binaries are bit-for-bit the same optimization tier as the release
-# packages, with the host CPU's full instruction set on top. Separate
-# profile names land the binaries in target/pro-native-gnu/zejtron
-# and target/x86_64-unknown-linux-musl/pro-native-musl/zejtron so a
+# Native-CPU host build profile for the cargo alias
+# pro-native-musl (.cargo/config.toml [alias]). It inherits release
+# unchanged - the only delta is the alias-injected -C target-cpu=native
+# (plus +crt-static, mirroring the alias's target-level rustflags) - so
+# the alias binary is bit-for-bit the same optimization tier as the
+# release packages, with the host CPU's full instruction set on top.
+# The separate profile name lands the binary in
+# target/x86_64-unknown-linux-musl/pro-native-musl/zejtron so a
 # native build never clobbers target/release/zejtron.
-[profile.pro-native-gnu]
-inherits = "release"
-
 [profile.pro-native-musl]
 inherits = "release"
 
 # Arch-baseline release profiles for the cargo aliases
-# pro-linux-amd64-v3-gnu / pro-linux-amd64-v4-gnu /
 # pro-linux-amd64-v3-musl / pro-linux-amd64-v4-musl
 # (the sibling's NIGHT-improve-22 lineage; see .cargo/config.toml
 # [alias]). They inherit release unchanged - the only delta is the
-# alias-injected -C target-cpu=x86-64-v3/v4 (plus +crt-static on the
-# musl pair, mirroring the file's [target] block) - so alias binaries
+# alias-injected -C target-cpu=x86-64-v3/v4 (plus +crt-static,
+# mirroring the file's [target] block) - so alias binaries
 # are bit-for-bit the same optimization tier as the release packages
-# they reproduce. Separate profile names exist so the four artifacts
-# land in target/<profile>/ (gnu) and
-# target/x86_64-unknown-linux-musl/<profile>/ (musl) and never
+# they reproduce. Separate profile names exist so the two artifacts
+# land in target/x86_64-unknown-linux-musl/<profile>/ and never
 # clobber each other or target/release/zejtron. v3/v4 are the ONLY
 # release shapes: the release matrix builds exactly these, and the
-# native v1 baseline stays a local dev-only lane (pro-native-*).
-[profile.pro-linux-amd64-v3-gnu]
-inherits = "release"
-
-[profile.pro-linux-amd64-v4-gnu]
-inherits = "release"
-
+# native v1 baseline stays a local dev-only lane (pro-native-musl).
+# night-badass-1 retired the gnu profiles with the gnu aliases: musl
+# is the only libc shape the project builds.
 [profile.pro-linux-amd64-v3-musl]
 inherits = "release"
 

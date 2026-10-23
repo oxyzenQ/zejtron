@@ -140,7 +140,7 @@ pub(super) fn build_ebpf_object() {
 /// (scripts/dev/regenerate-ebpf-prebuilt.sh) before this build's own
 /// nested compile proceeds. This is the build-time arm of the
 /// freshness contract - a production build alias
-/// (`cargo pro-linux-amd64-v3-gnu` and its siblings) or a plain
+/// (`cargo pro-linux-amd64-v3-musl` and its siblings) or a plain
 /// `cargo build` always leaves the shipped lane as fresh as the
 /// sources it describes; the commit gate is the commit-time arm and
 /// stages the refreshed lane into the commit.

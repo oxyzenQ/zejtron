@@ -225,15 +225,17 @@ no flags. Linux amd64 with rust required.
 
 ### Install from a release (recommended)
 
-The release matrix ships exactly four shapes: the x86-64-v3/v4
-microarch levels for both libc flavors (v3 covers Haswell 2013+,
-v4 covers AVX-512-era 2017+; musl builds are fully static).
+The release matrix ships exactly two shapes: the x86-64-v3/v4
+microarch levels, both fully static musl (v3 covers Haswell 2013+,
+v4 covers AVX-512-era 2017+). One libc, zero runtime dependencies on
+the host — the same binary runs on glibc distros, Alpine, and scratch
+containers.
 
 ```sh
 # The release tag. Every install block below reuses it, so the
 # version lives in one place and a bump is a two-line change.
 TAG=v80.0.0-beta.1
-SHAPE=linux-amd64-v3-gnu   # or v4-gnu / v3-musl / v4-musl
+SHAPE=linux-amd64-v3-musl   # or v4-musl
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
 sha512sum --check "zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
@@ -275,13 +277,12 @@ reports the lane honestly in every build.
 ### Install from source
 
 Lazy? Skip the manual order entirely — one command runs the WHOLE
-bring-up (bootstrap + the pro-native-gnu build + the rootless
-CLI battery + the four release-shape legs) and ends with a next-steps
+bring-up (bootstrap + the static pro-native-musl build + the rootless
+CLI battery + the two release-shape legs) and ends with a next-steps
 menu:
 
 ```sh
 ./scripts/setup.sh               # everything
-./scripts/setup.sh --musl        # also build the static musl twin
 ./scripts/setup.sh --skip-heavy  # bootstrap + build + self-test only
 ```
 
@@ -304,9 +305,10 @@ embeds a pure-Rust eBPF object. No program loads until you attach
 ./scripts/dev/bootstrap-ebpf.sh        # once per machine, for the
                                         # source-built lane: the dated
                                         # nightly pin + bpf-linker 0.11.1
-cargo pro-linux-amd64-v3-gnu           # the pro lane source-builds the
+cargo pro-linux-amd64-v3-musl         # the pro lane source-builds the
                                         # object + the release v3 binary
-                                        # (target/pro-linux-amd64-v3-gnu/)
+                                        # (target/x86_64-unknown-linux-musl/
+                                        # pro-linux-amd64-v3-musl/)
 ```
 
 The build cross-compiles `ebpf/` (pure Rust — aya-ebpf, no C, no
@@ -714,7 +716,7 @@ them.
 
 The suite is the contract: 441+ tests green at every landing, plus the
 CLI battery run against the built binary per supermassive leg (MSRV
-and stable, gnu and musl), the miri UB lane, the cargo-fuzz lane
+and stable, host and musl), the miri UB lane, the cargo-fuzz lane
 (three hostile-input targets - the BTF parser, the /proc parsers, and
 the terminal sanitizer - 60 seconds each per push, crash means red),
 and the container end-to-end leg. CI blocks the merge on every one of

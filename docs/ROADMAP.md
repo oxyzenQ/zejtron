@@ -13,7 +13,7 @@
 
 | Principle | Detail |
 |-----------|--------|
-| **Linux first** | amd64 Linux binaries (gnu + musl) |
+| **Linux first** | amd64 Linux binaries (musl, fully static) |
 | **Minimal deps** | Keep dependency count low (currently 3) |
 | **Fast** | Introspection must be instant |
 | **No daemon** | CLI tool, not a service |

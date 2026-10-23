@@ -1,56 +1,46 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-# Native-CPU host build aliases (sibling-project pro-native
+# Native-CPU host build alias (sibling-project pro-native
 # lineage, zelynic .cargo/config.toml).
 #
-# Owner contract: `cargo pro-native-gnu` / `cargo pro-native-musl`
-# compile for the host CPU (`-C target-cpu=native`) with dynamic
-# linking (gnu/glibc) or static linking (musl) respectively. No
-# feature flags ride these aliases - zejtron is feature-free by
-# design. No build-label env is needed either: version.rs's
-# build_label() detects arch + libc at compile time, so `-V` names
-# the shape ("linux-amd64-gnu" / "linux-amd64-musl") the same way
-# the release matrix's Build: line does. Separate profile names
-# (see the [profile.pro-native-*] blocks in Cargo.toml) land the
-# binaries in target/pro-native-gnu/zejtron and
+# Owner contract: `cargo pro-native-musl` compiles for the host CPU
+# (`-C target-cpu=native`) as a fully static musl binary. musl is
+# the project's only libc shape (night-badass-1, the GNU purge):
+# zero gnu builds ship and the host dev lane is static too. No
+# feature flags ride the alias - zejtron is feature-free by design.
+# No build-label env is needed either: version.rs's build_label()
+# detects arch + libc at compile time, so `-V` names the shape
+# ("linux-amd64-musl") the same way the release matrix's Build: line
+# does. The separate profile name (see the [profile.pro-native-musl]
+# block in Cargo.toml) lands the binary in
 # target/x86_64-unknown-linux-musl/pro-native-musl/zejtron so a
 # native build never clobbers target/release/zejtron.
 #
 # Precedence note (verified live on cargo 1.98.1, the sibling
 # config's rule): target-level rustflags SHADOW build-level
-# rustflags, so the musl alias sets
+# rustflags, so the alias sets
 # target.x86_64-unknown-linux-musl.rustflags directly - passing
 # only build.rustflags there would be silently ignored once a
-# [target.*] block exists for the triple (and the gnu alias rides
-# build.rustflags precisely because no [target] block exists in
-# this file). CLI --config rustflags are additionally CONCATENATED
-# with file-level target rustflags (not replaced), so the musl
-# alias carries +crt-static explicitly and its native+static
-# contract stays self-contained regardless of any future [target]
-# block.
+# [target.*] block exists for the triple. CLI --config rustflags
+# are additionally CONCATENATED with file-level target rustflags
+# (not replaced), so the alias carries +crt-static explicitly and
+# its native+static contract stays self-contained regardless of any
+# future [target] block.
 #
-# aarch64 hosts: pro-native-gnu works as-is (host triple, dynamic);
-# pro-native-musl is x86_64-only because cargo aliases cannot detect
-# the host arch - mirror the musl alias with the aarch64 target
-# triple if a static aarch64 native build is ever needed.
+# aarch64 hosts: pro-native-musl is x86_64-only because cargo
+# aliases cannot detect the host arch - mirror the alias with the
+# aarch64 target triple if a static aarch64 native build is ever
+# needed.
 #
-# Prerequisites: pro-native-musl needs the musl rust-std target
+# Prerequisites: the musl rust-std target
 # (`rustup target add x86_64-unknown-linux-musl`) and nothing else -
 # the alias links through rust-lld, the linker the pinned toolchain
 # ships, so no distro musl-tools package is required. The sibling
 # config's musl [target] block pins the same linker. The alias-level
 # --config linker is per-invocation: the release lane's own musl
-# build (release.yml, musl-tools) is untouched. pro-native-gnu needs
-# nothing beyond the pinned toolchain.
+# build (release.yml, musl-tools) is untouched.
 [alias]
-pro-native-gnu = [
-  "build",
-  "--profile",
-  "pro-native-gnu",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
-]
 pro-native-musl = [
   "build",
   "--profile",
@@ -64,44 +54,27 @@ pro-native-musl = [
 ]
 
 # Arch-baseline release aliases (the sibling's NIGHT-improve-22
-# lineage): `cargo pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu`
-# / `pro-linux-amd64-v3-musl` / `pro-linux-amd64-v4-musl` compile the
-# EXACT release shapes (release.yml builds v3 and v4 for both libc
-# flavors; the native v1 baseline is retired from releases and stays
-# a local dev-only build via the pro-native aliases above). Each
-# alias carries its own profile so the four artifacts land in
-# separate target dirs and never clobber each other or
-# target/release/zejtron. No build-label env: version.rs's
-# build_label() detects arch + libc at compile time (the
-# night-improve-11 contract); the x86-64 level is the one dimension
-# -V cannot self-detect at runtime, and it is documented by the
-# artifact name the release page ships.
+# lineage): `cargo pro-linux-amd64-v3-musl` /
+# `pro-linux-amd64-v4-musl` compile the EXACT release shapes
+# (release.yml builds v3 and v4; both are fully static musl -
+# night-badass-1 retired the gnu pair, the release matrix ships
+# musl only, and the native v1 baseline stays a local dev-only
+# build via the pro-native alias above). Each alias carries its own
+# profile so the two artifacts land in separate target dirs and
+# never clobber each other or target/release/zejtron. No build-label
+# env: version.rs's build_label() detects arch + libc at compile
+# time (the night-improve-11 contract); the x86-64 level is the one
+# dimension -V cannot self-detect at runtime, and it is documented
+# by the artifact name the release page ships.
 #
-# The gnu pair rides build.rustflags with the baseline -C target-cpu
-# flag; the musl pair sets the target-level rustflags directly (the
-# SHADOW rule documented above applies unchanged - the file's
-# target-level musl contract would ignore build-level flags, and the
-# CLI --config target rustflags are CONCATENATED with the alias's
-# +crt-static, so carrying it explicitly here keeps each alias
-# self-contained).
+# The aliases set the target-level rustflags directly (the SHADOW
+# rule documented above): a file-level target musl contract would
+# ignore build-level flags, and each alias carries +crt-static
+# explicitly so it stays self-contained.
 #
 # Parity contract (scripts/gates/check-release-parity.sh): the -C
 # tokens below must equal the release matrix's rustflags verbatim -
 # a one-file edit can no longer silently break that contract.
-pro-linux-amd64-v3-gnu = [
-  "build",
-  "--profile",
-  "pro-linux-amd64-v3-gnu",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
-]
-pro-linux-amd64-v4-gnu = [
-  "build",
-  "--profile",
-  "pro-linux-amd64-v4-gnu",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
-]
 pro-linux-amd64-v3-musl = [
   "build",
   "--profile",
