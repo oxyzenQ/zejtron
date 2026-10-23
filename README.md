@@ -293,15 +293,22 @@ every build, and the verbs live on the doctor:
 
 ```sh
 sudo zejtron doctor --attach   # plant the probes (pins under /sys/fs/bpf/zejtron/)
-sudo zejtron doctor --detach   # unpin everything, idempotent
+sudo zejtron doctor --detach   # the sledgehammer: unpin everything, sweep the
+                               # whole pin estate (legacy pins, foreign entries,
+                               # partial states), idempotent
 ```
 
 After `--attach` the process may exit: the pinned links keep the
 programs attached and the pinned maps keep the data. `doctor` reads
 the event count back through the pin — the read side needs no
-capabilities. Every binary carries both verbs; a host that cannot
-attach gets the named refusal, a non-zero exit, and nothing left
-behind — never a fake success.
+capabilities. `--detach` is the one button that always returns the
+estate to bare bpffs: it unpins zejtron's own pins and sweeps
+whatever else the pin directory holds, so the next attach starts
+fresh — no manual `rm` is ever needed. If the pin directory holds
+foreign entries at attach time, attach refuses and names `--detach`
+as the sweep; it never deletes what it did not create. Every binary
+carries both verbs; a host that cannot attach gets the named refusal,
+a non-zero exit, and nothing left behind — never a fake success.
 
 With the object embedded and the chain attached, `port` now shows
 what is listening (snapshot) and what entered or left LISTEN

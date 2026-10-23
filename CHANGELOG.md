@@ -894,6 +894,16 @@ v11.0.0
 
 ### Changed
 
+- `doctor --detach` is now the sledgehammer: after unpinning
+  zejtron's own pins it sweeps whatever else the pin directory holds
+  (legacy pins from earlier versions, foreign files, partial states)
+  and removes the directory whole, so the next attach always starts
+  fresh - the detach report names how many foreign entries were
+  swept. No new flags: the surface stays attach/detach. Attach keeps
+  its honest refusal on foreign entries but now names --detach as
+  the sweep instead of asking for a manual rm; it never deletes
+  what it did not create.
+
 - The write probe's drop census is userspace-readable
   (night-hunter-2): the counters moved from BPF-local statics into
   the stats map - the drop and walk totals plus one counter per
