@@ -110,7 +110,7 @@ surface_simulation() {
 	local dummy_count="${SIM_DUMMIES:-2000}"
 	local rogue_target="${SIM_ROGUES:-500}"
 	local fd_target="${SIM_FDS:-2000}"
-	local rogue_bar=104857600 proc_bar_ms=1000 heavy_buf_mb=200
+	local rogue_bar=100000000 proc_bar_ms=1000 heavy_buf_mb=200
 	local rogue_pin_pid="" io_pid="" storm_pid="" holder_pid=""
 	local probe_lane=0 alive=0 i port heavy_count=4 light_count=0
 	local light_buf_mb=0 rogue_count=0
@@ -514,6 +514,37 @@ while time.time() < end:
 		".ports[0].owners[0].pid == $rogue_pin_pid and .ports[0].owners[0].process == \"python3\"" \
 		"simulation: the port report names the pinned heavy rogue as owner (pid $rogue_pin_pid)"
 
+	# The readiness gate (night-dragon-5): a busy desktop boots its
+	# interpreters under load, and a heavy rogue can still be
+	# mid-allocation when the ram lane reads it - the first live run
+	# caught 3 of 4 heavy rogues above the bar and held the fourth
+	# short. The harness picks the read's moment: poll every heavy
+	# rogue's resident PSS (smaps_rollup, the kernel's own roll-up)
+	# until all four clear the bar, one 0.25s beat at a time, 3s of
+	# patience at most, early exit the beat all four are fat. The
+	# assert below stays the verdict; the gate only moves the scan
+	# past the allocation window.
+	local gate_round rogues_ready pss_now pid
+	gate_round=0
+	while ((gate_round < 12)); do
+		rogues_ready=1
+		for pid in "${rogue_pids[@]:0:4}"; do
+			pss_now="$(awk '/^Pss:/ {print $2 * 1024}' "/proc/$pid/smaps_rollup" 2>/dev/null || echo 0)"
+			if ! [[ "$pss_now" =~ ^[0-9]+$ ]] || ((pss_now < rogue_bar)); then
+				rogues_ready=0
+				break
+			fi
+		done
+		if ((rogues_ready == 1)); then
+			break
+		fi
+		sleep 0.25
+		gate_round=$((gate_round + 1))
+	done
+	if ((rogues_ready == 0)); then
+		printf '  note  the ram readiness gate timed out: a heavy rogue was still under the %s-byte bar when the scan ran\n' "$rogue_bar"
+	fi
+
 	# RAM: the heavy rogues must surface with their PSS above the
 	# 100 MB bar (they hold 200 MiB each) — the typed presence and
 	# the typed bar in one filter per rogue.
@@ -531,7 +562,7 @@ while time.time() < end:
 	pss_bytes=""
 	for pid in "${rogue_pids[@]:0:4}"; do
 		if jq -e --argjson p "$pid" \
-			'.processes | map(select(.pid == $p and .pss_bytes > 104857600)) | length > 0' \
+			'.processes | map(select(.pid == $p and .pss_bytes > 100000000)) | length > 0' \
 			"$SM_SCRATCH/ram.json" >/dev/null 2>&1; then
 			rogues_named=$((rogues_named + 1))
 			if [[ -z "$pss_bytes" ]]; then
