@@ -307,6 +307,8 @@ sm_normalize() {
 		-e 's/(errors|drops)=[0-9]+/\1=<COUNTER>/g' \
 		-e 's/[0-9]+(\.[0-9]+)?%/<COUNTER>/g' \
 		-e 's/[0-9]+ processes visible/<COUNTER> processes visible/g' \
+		-e 's/[0-9]+ sockets parsed/<COUNTER> sockets parsed/g' \
+		-e 's/; [0-9]+ proc-net files unavailable/; <COUNTER> proc-net files unavailable/g' \
 		-e 's/[0-9]+ processes \(unreadable/<COUNTER> processes (unreadable/g' \
 		-e 's/[0-9]+ maps \(unreadable/<COUNTER> maps (unreadable/g' \
 		-e 's/\(delta [0-9]+ ticks/(delta <COUNTER> ticks/g' \
@@ -463,7 +465,11 @@ sm_color_tritest() {
 	if cmp -s "$c1o" "$c2o" && cmp -s "$c1e" "$c2e" && [[ -s "$c1o" ]]; then
 		sm_pass "$label: NO_COLOR output equals piped output"
 	else
-		sm_fail "$label: NO_COLOR output equals piped output" "NO_COLOR pass differs from the piped pass"
+		local tri_diff
+		tri_diff="$(diff "$c1o" "$c2o" | head -6 | tr '\n' ';' || true)"
+		[[ -z "$tri_diff" ]] && tri_diff="$(diff "$c1e" "$c2e" | head -6 | tr '\n' ';' || true)"
+		sm_fail "$label: NO_COLOR output equals piped output" \
+			"NO_COLOR pass differs from the piped pass: $tri_diff"
 	fi
 
 	# Pass 3: the forced truecolor lane. The forced lane re-arms color
