@@ -172,21 +172,43 @@ probe counts for one controlled write across the whole family
 rerouted or cloned write path names itself in one round, never a
 bare FAIL (the named-never-swallowed law).
 
-The server incident simulation (night-badass-8) is the suite's
-scenario leg: a rogue process binds port 9999 and holds 100 MiB,
-and the suite must find it. `doctor --symptom ram --print-json`
-must name the rogue's pid with its PSS above the 50 MB bar, and
-`port 9999 --print-json` must name the same pid as the socket's
-owner (the port report's own typed owner row — night-badass-9's
-universal JSON; the ledger's "held" token belongs to holds/why
-and never rides this report) with the subject pinned to :9999 —
-the detection asserted on the JSON lane the automation contract
-pins. The rogue is spawned by the surface, bounded by its
-own sleep, and killed and reaped by the surface's own hand; on a
-host without python3, or one where port 9999 is already bound, the
-surface skips with the reason named. The write-event half of an
-incident stays the storm surface's contract — this leg stages and
-detects, it does not re-test the probe lane.
+The server incident simulation is the suite's scenario leg. As
+night-badass-8 it staged one rogue: a single process on port 9999
+holding 100 MiB. Night-dragon-2 upgrades it to the brutal inferno —
+a full host under fire that would crash or OOM a normal monitoring
+tool, staged by the surface itself and survived by the detective:
+500 dummy processes (`sleep 300`), 100 rogue python3 processes each
+binding a deterministic port (20000-20099), holding 10 MiB and
+accepting/closing localhost connections (1000 MiB fleet by
+construction, a 256 MiB RLIMIT_AS backstop per rogue, a 2 GiB
+MemAvailable staging bar — the runner cannot be OOMed by this
+surface), one holder keeping 1000 read descriptors open, a paced
+100 MiB dd I/O burst (one writer alive across the whole assertion
+window — the live lane attributes the actor from /proc at render
+time, so an exited writer reads as unaccounted by design), and a
+bounded localhost socket storm. Under that fire, on the JSON lane
+the automation contract pins: `proc --me --print-json` must finish
+in under 1 second (measured with EPOCHREALTIME, the forkless clock
+— a forked `date` lies under fork pressure) and capture more than
+500 processes; `port 20050 --print-json` must name rogue 50 as the
+listener's owner; `doctor --symptom ram --print-json` must name
+rogue pids among the top consumers with PSS above the 8 MB bar;
+`why <io file> --since 3s --print-json` must ride the live lane
+(gated on the `doctor --attach` preflight, the refusal direction
+staying the storm surface's contract) and attribute the writes to
+dd by name and pid. The teardown is a check, not a hope: TERM, a
+grace beat, KILL, a bare wait that reaps every child, and a /proc
+sweep asserting zero zombies among the tracked pids. The surface
+ends with the massive-scale report — one line carrying the real
+tallies (dummies, rogues, fds staged, socket connects, the measured
+proc latency under fire), computed from sidecars, never from
+constants — the CI log's badge for the leg. Every staged actor is
+self-bounded by its own sleep or loop bound; a host without python3
+or dd, under the staging memory bar, with a rogue port already
+bound, or under an fd ceiling below the storm, skips with the
+reason named; any other rogue death is a FAIL. No jq and no new
+dependency: the suite stays bash + coreutils, and grep counts the
+same JSON rows a jq length would.
 
 The local twin grew the arbitrary-kernel lane for the same
 reason: `--kernel PATH` boots any vmlinuz the operator chooses,
