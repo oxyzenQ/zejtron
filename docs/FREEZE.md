@@ -27,8 +27,9 @@ What the freeze means, exactly:
 - The release matrix is the two fully static musl shapes
   (`linux-amd64-v3-musl`, `linux-amd64-v4-musl`); the GNU builds are
   retired (night-badass-1) and do not return.
-- The dependency law holds: exactly three runtime crates (`clap`,
-  `regex-lite`, `aya`), `chrono` banned, no `serde`, no `tokio`, no
+- The dependency law holds: exactly four runtime crates (`clap`,
+  `regex-lite`, `aya`, `libc` - the SIGPIPE reset's one raw call,
+  night-dragon-6), `chrono` banned, no `serde`, no `tokio`, no
   `libbpf` - new surfaces cost zero crates, as the hand-written JSON
   serializer proves.
 
