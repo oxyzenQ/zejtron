@@ -161,14 +161,6 @@ struct SocketEntry {
     inode: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct MapEntry {
-    dev_major: u32,
-    dev_minor: u32,
-    inode: u64,
-    perms: MmapPerms,
-}
-
 pub fn run(target: &str, since: Option<&str>, print_json: bool) -> Result<(), Box<dyn Error>> {
     let target = parse_target(target)?;
     let (window, window_label) =
