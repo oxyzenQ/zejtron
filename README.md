@@ -86,6 +86,33 @@ explicit marker, and the tool never writes.
 - **Pro mode on `--help`** — the complete flag estate on one surface,
   grouped by the verbs that own them, aliases disclosed.
 
+### Where eBPF Meets Forensics
+
+zejtron sits at the intersection of two tool families. The
+observability side is the diagnosis lane: `doctor --symptom` and the
+proc-reading surfaces answer the operator's CPU, RAM, disk, and
+network questions. The forensics side is the evidence lane: file
+writes, process executions, and socket states, captured as they
+happen and rendered through the Evidence Ledger's provenance tiers.
+
+The eBPF lane is a lazy camera, not a monitoring daemon. Sysdig or
+Datadog run always-on userland agents that stream everything to a
+backend; zejtron's probes are planted on request (`doctor --attach`),
+the kernel records the events into its own trace buffers, and the
+evidence drains only when an operator asks a question (`why --raw`,
+the event windows) — the camera arms and disarms at the operator's
+command (`doctor --detach`), and no agent, stream, or backend exists
+in between.
+
+And the camera never intervenes. Falco and Tetragon sit on the
+enforcement side of the line — they can kill, block, and drop;
+zejtron is read-only by design, so it documents an incident without
+perturbing it. The honesty is in the ledger: every row carries its
+provenance tier — `[observed]` (the kernel's own event), `[measured]`
+(a snapshot read), `[inferred]` (a log replay) — so the analyst knows
+which evidence is direct and which is circumstantial, and the report
+names what it could not see (`[unaccounted]`) instead of guessing.
+
 ### Dependency policy (supply chain)
 
 Three runtime dependencies, all audited: `clap` (the CLI), `regex-lite`
