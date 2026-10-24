@@ -47,6 +47,8 @@
 //! once and the report says so - a residual computed from
 //! double-counted sums would be a lie with a number on it.
 
+use std::cmp::Reverse;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -169,16 +171,16 @@ pub(crate) fn pid_dirs(proc_root: &Path) -> Vec<u32> {
     pids
 }
 
-/// The process name, from the same status Name field every surface
-/// reads.
+/// The process name, from the same task->comm string the status Name
+/// field renders. night-dragon-1: /proc/<pid>/comm replaces the
+/// per-pid full status read + line scan; unreadable or vanished
+/// processes degrade to the same "unknown".
 fn comm_of(pid: u32) -> String {
-    fs::read_to_string(format!("/proc/{pid}/status"))
+    fs::read_to_string(format!("/proc/{pid}/comm"))
         .ok()
-        .and_then(|status| {
-            status
-                .lines()
-                .find(|line| line.starts_with("Name:"))
-                .and_then(|line| line.split_whitespace().nth(1).map(str::to_owned))
+        .and_then(|comm| {
+            let stripped = comm.strip_suffix('\n').unwrap_or(&comm);
+            (!stripped.is_empty()).then(|| stripped.to_owned())
         })
         .unwrap_or_else(|| "unknown".to_owned())
 }
@@ -253,12 +255,23 @@ fn collect_pss(pids: &[u32], sample: &mut MemorySample) {
             Err(_) => sample.pss_vanished += 1,
         }
     }
-    sample.pss.sort_by(|left, right| {
-        right
-            .pss_kib
-            .cmp(&left.pss_kib)
-            .then(left.pid.cmp(&right.pid))
-    });
+    // night-dragon-1: the head is all any consumer reads (top-10
+    // positive rows for the ledger and JSON, first for the verdict
+    // and --raw, sum for the residual), so select_nth plus a sorted
+    // front slice is byte-identical to the full sort. The (Reverse
+    // PSS, pid) key is the same total order the old full sort's
+    // comparator spelled. Full-coverage reads stay: the residual
+    // sums every row, and skipping small-RSS reads would move the
+    // unaccounted number.
+    let head_order = |process: &ProcessPss| (Reverse(process.pss_kib), process.pid);
+    if sample.pss.len() > ledger::TOP_N {
+        sample
+            .pss
+            .select_nth_unstable_by_key(ledger::TOP_N, head_order);
+        sample.pss[..ledger::TOP_N].sort_by_key(head_order);
+    } else {
+        sample.pss.sort_by_key(head_order);
+    }
 }
 
 /// The tmpfs mount points, from /proc/mounts (field 2, mount point;
@@ -369,22 +382,23 @@ fn collect_tmpfs(sample: &mut MemorySample) {
 }
 
 /// Attribute one fd link target: deleted files, memfd files, and
-/// tmpfs holders. The magic link's stat (metadata on
-/// `/proc/<pid>/fd/<n>`) follows to the underlying file even when the
-/// directory entry is gone - the only size source for a
-/// deleted-but-open file, and it is permission-gated like the rest
-/// of /proc.
+/// tmpfs holders. The magic link's stat follows to the underlying
+/// file even when the directory entry is gone - the only size source
+/// for a deleted-but-open file. night-dragon-1: the stat used to run
+/// for EVERY fd target although only the deleted and memfd branches
+/// read it; it now runs inside those branches, and the tmpfs holder
+/// lookup is the caller's path index, same push rule, same rows.
 fn attribute_fd_target(
     pid: u32,
     target: &str,
     fd_path: &Path,
-    tmpfs_mounts: &[String],
+    tmpfs_index: &HashMap<String, Vec<usize>>,
+    tmpfs_files: &mut [TmpfsFile],
     deleted: &mut Vec<DeletedOpenFile>,
     memfds: &mut Vec<MemfdFile>,
-    tmpfs_files: &mut [TmpfsFile],
 ) {
-    let size = fs::metadata(fd_path).ok().map(|m| m.len());
     if target.ends_with(" (deleted)") {
+        let size = fs::metadata(fd_path).ok().map(|m| m.len());
         deleted.push(DeletedOpenFile {
             pid,
             name: comm_of(pid),
@@ -394,6 +408,7 @@ fn attribute_fd_target(
         return;
     }
     if target.starts_with("memfd:") {
+        let size = fs::metadata(fd_path).ok().map(|m| m.len());
         memfds.push(MemfdFile {
             pid,
             name: comm_of(pid),
@@ -402,15 +417,16 @@ fn attribute_fd_target(
         });
         return;
     }
-    for mount in tmpfs_mounts {
-        if target.starts_with(&format!("{mount}/")) {
-            if let Some(file) = tmpfs_files
-                .iter_mut()
-                .find(|file| file.path == *target && !file.holders.contains(&pid))
-            {
+    // The index maps each path to every list position carrying it
+    // (duplicates are real: overlapping tmpfs mounts), so the lookup
+    // reproduces the old find's first-missing-holder rule.
+    if let Some(indices) = tmpfs_index.get(target) {
+        for &index in indices {
+            let file = &mut tmpfs_files[index];
+            if !file.holders.contains(&pid) {
                 file.holders.push(pid);
+                break;
             }
-            break;
         }
     }
 }
@@ -418,6 +434,17 @@ fn attribute_fd_target(
 fn collect_fds(pids: &[u32], sample: &mut MemorySample) {
     let mut deleted = Vec::new();
     let mut memfds = Vec::new();
+    // night-dragon-1: the tmpfs file list indexed once per scan; the
+    // old form re-scanned it linearly per matching fd (and allocated
+    // a mount-prefix string per fd per mount). Owned keys, so the
+    // index does not borrow its slice.
+    let mut tmpfs_index: HashMap<String, Vec<usize>> = HashMap::new();
+    for (index, file) in sample.tmpfs_files.iter().enumerate() {
+        tmpfs_index
+            .entry(file.path.clone())
+            .or_default()
+            .push(index);
+    }
     for pid in pids {
         let fd_dir = PathBuf::from(format!("/proc/{pid}/fd"));
         let entries = match fs::read_dir(&fd_dir) {
@@ -438,10 +465,10 @@ fn collect_fds(pids: &[u32], sample: &mut MemorySample) {
                 *pid,
                 &target,
                 &entry.path(),
-                &sample.tmpfs_mounts,
+                &tmpfs_index,
+                &mut sample.tmpfs_files,
                 &mut deleted,
                 &mut memfds,
-                &mut sample.tmpfs_files,
             );
         }
     }
