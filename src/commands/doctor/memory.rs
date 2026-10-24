@@ -52,6 +52,7 @@ use std::path::{Path, PathBuf};
 
 pub(crate) mod exits;
 pub(crate) mod ledger;
+pub(crate) mod verdict;
 
 pub(crate) use exits::ExitLane;
 
