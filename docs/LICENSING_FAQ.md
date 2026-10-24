@@ -27,7 +27,8 @@ self-declaration input:
 | -------------------------------------------------- | ---------------------------------- |
 | No commercial use (hobby/personal)                 | Personal (free, GPL-3.0)           |
 | Solo devs, freelancers (revenue under $100K/year)  | Solo Dev Business ($1,899/year)    |
-| Enterprise (revenue over $10M/year), SaaS, or any redistribution | Company ($35,999/year) |
+| Startups, SMBs (revenue $100K to $10M/year)        | SMB ($9,999/year)                  |
+| Enterprise (revenue over $10M/year), SaaS, or any redistribution | Company ($49,999/year) |
 
 Redistribution under your own terms is the Company tier regardless of
 revenue — it is the only tier that carries redistribution rights.
