@@ -10,6 +10,14 @@
 # path, the invalid-duration error path, the --since flag, fixture
 # determinism, the color tri-test, and the dormant build variant
 # (touch rides the fallback ladder).
+#
+# The window law (night-dragon-3): touch has no snapshot-only flag
+# and the live collect sleeps the full window width (default 10s),
+# so every lane that is not an error path and not the writev proof's
+# deliberate live window rides --since 1s - the window's clamp
+# floor, instant on the snapshot lane, a one-second bound on the
+# live lane. The grammar under test is the flag's acceptance and the
+# honest render, never a ten-second wait.
 # Exercised flags: --since, positional PATH.
 
 surface_touch() {
@@ -19,14 +27,17 @@ surface_touch() {
 	printf 'content\n' >"$file"
 	mkdir -p "$dir"
 
-	# Success path, file form: the battery-pinned type row.
-	sm_run "$SM_SCRATCH/file.out" "$SM_SCRATCH/file.err" rc 5 -- "$SM_DEFAULT_BIN" touch "$file"
+	# Success path, file form: the battery-pinned type row. The
+	# window law: --since 1s (the clamp floor) bounds the live lane.
+	sm_run "$SM_SCRATCH/file.out" "$SM_SCRATCH/file.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" touch "$file" --since 1s
 	sm_assert_rc 0 "$rc" "touch <file> exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/file.out" "touch <file> renders content"
 	sm_assert_contains "$SM_SCRATCH/file.out" "type file" "touch <file> names the file type"
 
 	# Success path, directory form.
-	sm_run "$SM_SCRATCH/dir.out" "$SM_SCRATCH/dir.err" rc 5 -- "$SM_DEFAULT_BIN" touch "$dir"
+	sm_run "$SM_SCRATCH/dir.out" "$SM_SCRATCH/dir.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" touch "$dir" --since 1s
 	sm_assert_rc 0 "$rc" "touch <dir> exits 0"
 	sm_assert_contains "$SM_SCRATCH/dir.out" "type directory" "touch <dir> names the directory type"
 
@@ -40,10 +51,12 @@ surface_touch() {
 		sm_fail "touch <missing> names the missing path" "neither stream mentioned 'path not found'"
 	fi
 
-	# --since grammar and its invalid-duration refusal.
+	# --since grammar and its invalid-duration refusal. The width is
+	# the clamp floor (the window law) - the flag's contract is
+	# acceptance and render, not a wait.
 	sm_run "$SM_SCRATCH/since.out" "$SM_SCRATCH/since.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" touch "$file" --since 1m
-	sm_assert_rc 0 "$rc" "touch --since 1m exits 0"
+		"$SM_DEFAULT_BIN" touch "$file" --since 1s
+	sm_assert_rc 0 "$rc" "touch --since 1s exits 0"
 	sm_flag_used "touch --since"
 
 	sm_run "$SM_SCRATCH/baddur.out" "$SM_SCRATCH/baddur.err" rc 5 -- \
@@ -58,17 +71,22 @@ surface_touch() {
 
 	# Determinism: the fixture's mtimes are frozen for the whole
 	# surface (nothing touches them), so the report is byte-stable
-	# modulo the volatile-field table.
-	sm_deterministic "touch determinism (fixture)" 5 -- "$SM_DEFAULT_BIN" touch "$file"
+	# modulo the volatile-field table. The window law: --since 1s.
+	sm_deterministic "touch determinism (fixture)" 5 -- \
+		"$SM_DEFAULT_BIN" touch "$file" --since 1s
 
 	# The color tri-test.
 	# Gauge knob: the event window may cover the fixture
 	# creation, so the NO_COLOR equality rides the volatile-field table.
-	SM_TRITEST_NORMALIZE=1 sm_color_tritest "touch" 5 -- "$SM_DEFAULT_BIN" touch "$file"
+	# The window law: --since 1s.
+	SM_TRITEST_NORMALIZE=1 sm_color_tritest "touch" 5 -- \
+		"$SM_DEFAULT_BIN" touch "$file" --since 1s
 
 	# Lane honesty: no dormant build exists (owner law); the lane
 	# declaration and the no-fake-observed-rows rule are the check.
-	sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- "$SM_DEFAULT_BIN" touch "$file"
+	# The window law: --since 1s.
+	sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" touch "$file" --since 1s
 	sm_assert_rc 0 "$rc" "lane honesty: touch renders its mode"
 	sm_assert_contains "$SM_SCRATCH/lane.out" "Mode:" "lane honesty: touch declares its lane"
 	if grep -q "Mode: snapshot" "$SM_SCRATCH/lane.out"; then

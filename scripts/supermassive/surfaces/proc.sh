@@ -129,8 +129,14 @@ surface_proc() {
 	sm_deterministic_structural "proc determinism (structural)" 5 -- \
 		"$SM_DEFAULT_BIN" proc --me --depth 1
 
-	# The color tri-test.
-	sm_color_tritest "proc" 5 -- "$SM_DEFAULT_BIN" proc --me --depth 1
+	# The color tri-test, on the stable skeleton: the process tree
+	# is live state and moves between ANY two invocations (pid labels
+	# and row churn - the same depth the structural determinism check
+	# claims above), so the raw byte-equality would test the host's
+	# churn, not the palette. The tri-test answers the color question,
+	# never the data question.
+	SM_TRITEST_STRUCTURAL=1 sm_color_tritest "proc" 5 -- \
+		"$SM_DEFAULT_BIN" proc --me --depth 1
 
 	sm_flag_used "proc --me"
 }

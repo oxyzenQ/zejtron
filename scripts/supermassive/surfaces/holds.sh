@@ -13,6 +13,14 @@
 # unconditional by owner law - there is no dormant build - so the
 # lane check pins the honest snapshot declaration and the
 # no-fake-observed-rows rule instead).
+#
+# The window law (night-dragon-3): holds has no snapshot-only flag
+# and the live collect sleeps the full window width (default 10s),
+# so every lane that is not an error path rides --since 1s - the
+# window's clamp floor, instant on the snapshot lane, a one-second
+# bound on the live lane. The grammar under test is the flag's
+# acceptance and the honest render, never a ten-second wait; the
+# window grammar's own pins live in the unit tests.
 # Exercised flags: --since, positional TARGET (path form and port form).
 
 surface_holds() {
@@ -21,8 +29,10 @@ surface_holds() {
 	printf 'held\n' >"$file"
 
 	# Success path: a freshly created, unheld temp file. The
-	# battery-pinned verdict: the honest no-holder line.
-	sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- "$SM_DEFAULT_BIN" holds "$file"
+	# battery-pinned verdict: the honest no-holder line. The window
+	# law: --since 1s (the clamp floor) bounds the live lane.
+	sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" holds "$file" --since 1s
 	sm_assert_rc 0 "$rc" "holds <unheld file> exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "holds renders content"
 	sm_assert_contains "$SM_SCRATCH/ok.out" "Evidence report:" "holds opens with the evidence header"
@@ -32,7 +42,8 @@ surface_holds() {
 
 	# The port form: a valid port number is accepted regardless of
 	# whether anything listens on it (the report is honest either way).
-	sm_run "$SM_SCRATCH/port.out" "$SM_SCRATCH/port.err" rc 5 -- "$SM_DEFAULT_BIN" holds 53
+	sm_run "$SM_SCRATCH/port.out" "$SM_SCRATCH/port.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" holds 53 --since 1s
 	sm_assert_rc 0 "$rc" "holds 53 (port form) exits 0"
 
 	# Error ladder: invalid port numbers, runtime failures (exit 1).
@@ -56,10 +67,12 @@ surface_holds() {
 	sm_assert_contains "$SM_SCRATCH/miss.err" "no such file or directory" \
 		"holds <missing> names the OS error on stderr"
 
-	# --since grammar and its invalid-duration refusal.
+	# --since grammar and its invalid-duration refusal. The width is
+	# the clamp floor (the window law) - the flag's contract is
+	# acceptance and render, not a wait.
 	sm_run "$SM_SCRATCH/since.out" "$SM_SCRATCH/since.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" holds "$file" --since 1m
-	sm_assert_rc 0 "$rc" "holds --since 1m exits 0"
+		"$SM_DEFAULT_BIN" holds "$file" --since 1s
+	sm_assert_rc 0 "$rc" "holds --since 1s exits 0"
 	sm_flag_used "holds --since"
 
 	sm_run "$SM_SCRATCH/baddur.out" "$SM_SCRATCH/baddur.err" rc 5 -- \
@@ -73,13 +86,16 @@ surface_holds() {
 	fi
 
 	# Determinism against the fixture (event-window stamps are
-	# normalized by the engine).
-	sm_deterministic "holds determinism (fixture)" 5 -- "$SM_DEFAULT_BIN" holds "$file"
+	# normalized by the engine). The window law: --since 1s.
+	sm_deterministic "holds determinism (fixture)" 5 -- \
+		"$SM_DEFAULT_BIN" holds "$file" --since 1s
 
 	# The color tri-test.
 	# Gauge knob: the event window may cover the fixture
 	# creation, so the NO_COLOR equality rides the volatile-field table.
-	SM_TRITEST_NORMALIZE=1 sm_color_tritest "holds" 5 -- "$SM_DEFAULT_BIN" holds "$file"
+	# The window law: --since 1s.
+	SM_TRITEST_NORMALIZE=1 sm_color_tritest "holds" 5 -- \
+		"$SM_DEFAULT_BIN" holds "$file" --since 1s
 
 	# Lane honesty: there is NO dormant build (owner law, Cargo.toml -
 	# the eBPF support is unconditional), so the honest check is the
@@ -87,7 +103,8 @@ surface_holds() {
 	# and while the snapshot lane is active the render must NOT fake
 	# kernel-observed rows (the ladder's [observed] tag belongs to the
 	# probe lane only).
-	sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- "$SM_DEFAULT_BIN" holds "$file"
+	sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" holds "$file" --since 1s
 	sm_assert_rc 0 "$rc" "lane honesty: holds renders its mode"
 	sm_assert_contains "$SM_SCRATCH/lane.out" "Mode:" "lane honesty: holds declares its lane"
 	if grep -q "Mode: snapshot" "$SM_SCRATCH/lane.out"; then

@@ -11,6 +11,15 @@
 # the clap conflict error (--listen --all), structural determinism
 # (the socket table moves under the suite by definition), and the
 # color tri-test. Pure procfs - no dormant variant.
+#
+# The window law (night-dragon-3): the port default window is SIXTY
+# seconds (the Lazy Camera's collect width) and the live collect
+# sleeps the full width, so every lane that is not explicitly the
+# event-window test rides --snapshot-only, and the window test rides
+# the 1s clamp floor. The tri-test rides the structural gauge: the
+# socket table is live kernel state and moves between ANY two
+# invocations - the tri-test answers the color question, never the
+# data question.
 # Exercised flags: all ten documented port flags.
 
 surface_port() {
@@ -24,9 +33,17 @@ surface_port() {
 	# Flag ladder: every documented flag runs clean, one invocation
 	# each (the flag-specific contract is rc 0 + rendered content;
 	# the render shape is pinned by the snapshot check above).
+	# Every lane rides --snapshot-only (the window law): without it
+	# the default 60s collect would burn the whole per-test timeout
+	# and die as exit 124 - the night-dragon-3 post-mortem's seven
+	# dead lanes, fixed at the invocation, not the timeout.
 	local flag
+	local -a flag_args
 	for flag in --tcp --udp --listen --all --numeric --group --no-pid --snapshot-only; do
-		sm_run "$SM_SCRATCH/f.out" "$SM_SCRATCH/f.err" rc 5 -- "$SM_DEFAULT_BIN" port "$flag"
+		flag_args=("$flag")
+		[[ "$flag" != "--snapshot-only" ]] && flag_args+=("--snapshot-only")
+		sm_run "$SM_SCRATCH/f.out" "$SM_SCRATCH/f.err" rc 5 -- \
+			"$SM_DEFAULT_BIN" port "${flag_args[@]}"
 		sm_assert_rc 0 "$rc" "port $flag exits 0"
 		sm_assert_file_nonempty "$SM_SCRATCH/f.out" "port $flag renders content"
 		sm_flag_used "port $flag"
@@ -35,10 +52,13 @@ surface_port() {
 	# --events-only and --since are the event-window family. The
 	# verified honest contract: the window renders with its width and
 	# states its capture ability plainly (unavailable or observed -
-	# never a fake event table).
+	# never a fake event table). The width is the 1s clamp floor: the
+	# contract under test is the window grammar and the honest
+	# header, not a sixty-second wait (the window law, night-dragon-3;
+	# the window grammar's own pins live in the unit tests).
 	sm_run "$SM_SCRATCH/ev.out" "$SM_SCRATCH/ev.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" port --events-only --since 1m
-	sm_assert_rc 0 "$rc" "port --events-only --since 1m exits 0"
+		"$SM_DEFAULT_BIN" port --events-only --since 1s
+	sm_assert_rc 0 "$rc" "port --events-only --since 1s exits 0"
 	sm_assert_contains "$SM_SCRATCH/ev.out" "Changes in the last" \
 		"port --events-only renders the honest window header"
 	sm_flag_used "port --events-only"
@@ -79,6 +99,10 @@ surface_port() {
 	sm_deterministic_structural "port determinism (structural)" 5 -- \
 		"$SM_DEFAULT_BIN" port --snapshot-only --numeric
 
-	# The color tri-test.
-	sm_color_tritest "port" 5 -- "$SM_DEFAULT_BIN" port --snapshot-only
+	# The color tri-test, on the stable skeleton: the socket table
+	# moves between ANY two invocations (the same depth the
+	# structural determinism check claims above), so the raw
+	# byte-equality would test the host's churn, not the palette.
+	SM_TRITEST_STRUCTURAL=1 sm_color_tritest "port" 5 -- \
+		"$SM_DEFAULT_BIN" port --snapshot-only
 }

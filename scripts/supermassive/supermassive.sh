@@ -168,6 +168,25 @@ export SUITE_README="$SUITE_DIR/../../README.md"
 export SUITE_CARGO_TOML="$SUITE_DIR/../../Cargo.toml"
 
 # ---------------------------------------------------------------------------
+# Lane normalization. The pins (/sys/fs/bpf/zejtron) outlive every process
+# that made them: a crashed prior run, a manual `doctor --attach`, or a
+# session left by an OLDER binary build would silently put every ledger
+# lane (holds/touch/why) live for this whole run - and the live lane sleeps
+# the full window width per call (src/commands/lane.rs, capture_file_window:
+# "std sleep, no reader thread"), so the suite's wall becomes a ledger of
+# 10s collects (the night-dragon-3 post-mortem: 49 failures, 187s wall, a
+# stale pin session riding every lane live). The suite owns its lane state:
+# leftover pins are detached HERE, named, and every surface that needs the
+# live lane attaches (and detaches) itself. The detach is idempotent on a
+# clean host (rc 0, the doctor's own contract).
+# ---------------------------------------------------------------------------
+
+if [[ -e /sys/fs/bpf/zejtron ]]; then
+	"$SM_DEFAULT_BIN" doctor --detach >/dev/null 2>&1 || true
+	printf 'note: a leftover probe session was detached at startup - stale pins would ride every ledger lane live\n'
+fi
+
+# ---------------------------------------------------------------------------
 # The surface manifest (explicit order, never a glob).
 # ---------------------------------------------------------------------------
 
