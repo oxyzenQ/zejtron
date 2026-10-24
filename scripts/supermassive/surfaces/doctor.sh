@@ -154,8 +154,13 @@ surface_doctor() {
 	# Determinism: gauges move; the skeleton is the claim.
 	sm_deterministic_structural "doctor determinism (structural)" 5 -- "$SM_DEFAULT_BIN" doctor
 
-	# The color tri-test.
-	sm_color_tritest "doctor" 5 -- "$SM_DEFAULT_BIN" doctor
+	# The color tri-test, on the stable skeleton: the doctor's gauge
+	# values (memory used, load averages, the visible-process count)
+	# move between ANY two invocations - the same depth the structural
+	# determinism check claims above - so the raw byte-equality would
+	# test the host's gauges, not the palette. The tri-test answers
+	# the color question, never the data question.
+	SM_TRITEST_STRUCTURAL=1 sm_color_tritest "doctor" 5 -- "$SM_DEFAULT_BIN" doctor
 
 	# Lane honesty: there is NO dormant build (owner law, Cargo.toml -
 	# the eBPF support is unconditional), so the honest check is the

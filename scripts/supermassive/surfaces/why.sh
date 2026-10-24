@@ -10,6 +10,14 @@
 # error ladder, the missing-path error path, the --since grammar,
 # determinism on the pinned fixture (the repo README), the color
 # tri-test, and the dormant build variant.
+#
+# The window law (night-dragon-3): why has no snapshot-only flag and
+# the live collect sleeps the full window width (default 10s), so
+# every lane that is not an error path and not the writev proof's
+# deliberate live window rides --since 1s - the window's clamp
+# floor, instant on the snapshot lane, a one-second bound on the
+# live lane. The grammar under test is the flag's acceptance and the
+# honest render, never a ten-second wait.
 # Exercised flags: --trace, --raw, --since, positional TARGET.
 
 surface_why() {
@@ -18,15 +26,17 @@ surface_why() {
 	# the tree, stable across the run (nothing rewrites it).
 	local file="$SUITE_README"
 
-	# Success path: the battery-pinned verdict line.
-	sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- "$SM_DEFAULT_BIN" why "$file"
+	# Success path: the battery-pinned verdict line. The window
+	# law: --since 1s (the clamp floor) bounds the live lane.
+	sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" why "$file" --since 1s
 	sm_assert_rc 0 "$rc" "why <readme> exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "why renders content"
 	sm_assert_contains "$SM_SCRATCH/ok.out" "The evidence supports:" "why names the evidence verdict"
 
 	# --trace appends the explainability ladder.
 	sm_run "$SM_SCRATCH/trace.out" "$SM_SCRATCH/trace.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --trace
+		"$SM_DEFAULT_BIN" why "$file" --since 1s --trace
 	sm_assert_rc 0 "$rc" "why --trace exits 0"
 	if grep -qi "trace\|how zejtron knows" "$SM_SCRATCH/trace.out"; then
 		sm_pass "why --trace renders the ladder section"
@@ -42,7 +52,7 @@ surface_why() {
 
 	# --raw appends the drained kernel events.
 	sm_run "$SM_SCRATCH/raw.out" "$SM_SCRATCH/raw.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --raw
+		"$SM_DEFAULT_BIN" why "$file" --since 1s --raw
 	sm_assert_rc 0 "$rc" "why --raw exits 0"
 	if [[ "$(wc -l <"$SM_SCRATCH/raw.out")" -ge "$(wc -l <"$SM_SCRATCH/ok.out")" ]]; then
 		sm_pass "why --raw renders at least the base report"
@@ -73,14 +83,16 @@ surface_why() {
 		sm_fail "why <missing> names the missing path" "neither stream mentioned 'path not found'"
 	fi
 
-	# --since grammar.
+	# --since grammar. The width is the clamp floor (the window law)
+	# - the flag's contract is acceptance and render, not a wait.
 	sm_run "$SM_SCRATCH/since.out" "$SM_SCRATCH/since.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1m
-	sm_assert_rc 0 "$rc" "why --since 1m exits 0"
+		"$SM_DEFAULT_BIN" why "$file" --since 1s
+	sm_assert_rc 0 "$rc" "why --since 1s exits 0"
 	sm_flag_used "why --since"
 
-	# Determinism on the pinned fixture.
-	sm_deterministic "why determinism (readme fixture)" 5 -- "$SM_DEFAULT_BIN" why "$file"
+	# Determinism on the pinned fixture. The window law: --since 1s.
+	sm_deterministic "why determinism (readme fixture)" 5 -- \
+		"$SM_DEFAULT_BIN" why "$file" --since 1s
 
 	# The color tri-test.
 	# The tri-test rides the normalized bytes: the render carries the
@@ -88,11 +100,14 @@ surface_why() {
 	# that moves it - the tool's own two passes land a second apart
 	# on hosts without relatime throttling. The volatile-field table
 	# owns that stamp; the strict raw claim cannot hold for it.
-	SM_TRITEST_NORMALIZE=1 sm_color_tritest "why" 5 -- "$SM_DEFAULT_BIN" why "$file"
+	SM_TRITEST_NORMALIZE=1 sm_color_tritest "why" 5 -- \
+		"$SM_DEFAULT_BIN" why "$file" --since 1s
 
 	# Lane honesty: no dormant build exists (owner law); the lane
 	# declaration and the no-fake-observed-rows rule are the check.
-	sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- "$SM_DEFAULT_BIN" why "$file"
+	# The window law: --since 1s.
+	sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" why "$file" --since 1s
 	sm_assert_rc 0 "$rc" "lane honesty: why renders its mode"
 	sm_assert_contains "$SM_SCRATCH/lane.out" "Mode:" "lane honesty: why declares its lane"
 	if grep -q "Mode: snapshot" "$SM_SCRATCH/lane.out"; then

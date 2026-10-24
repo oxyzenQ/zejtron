@@ -266,9 +266,12 @@ surface_storm() {
 
 	# The aftermath: the same render, twice, on a file a storm just
 	# hammered — normalized byte-equal (the atime the read itself
-	# moves), then the color tri-test on the same invocation.
+	# moves), then the color tri-test on the same invocation. The
+	# window law (night-dragon-3): --since 1s bounds the lanes in
+	# case a probe session is ever left attached above this point -
+	# the aftermath asserts the render shape, never a ten-second wait.
 	sm_deterministic "storm aftermath: why determinism" 5 -- \
-		"$SM_DEFAULT_BIN" why "$hot1"
+		"$SM_DEFAULT_BIN" why "$hot1" --since 1s
 	SM_TRITEST_NORMALIZE=1 sm_color_tritest "storm aftermath why" 5 -- \
-		"$SM_DEFAULT_BIN" why "$hot1"
+		"$SM_DEFAULT_BIN" why "$hot1" --since 1s
 }
