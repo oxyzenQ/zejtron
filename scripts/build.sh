@@ -98,14 +98,31 @@ if [[ "$MODE" == "miri" ]]; then
 	done
 fi
 
-# The binary the battery exercises. Override for cross-shape legs
-# (e.g. ZEJTRON_BIN_PATH=target/x86_64-unknown-linux-musl/release/zejtron).
-ZEJTRON_BIN="${ZEJTRON_BIN_PATH:-target/release/zejtron}"
+# The binary the battery exercises: an explicit $ZEJTRON_BIN_PATH
+# always wins (cross-shape legs, e.g.
+# ZEJTRON_BIN_PATH=target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron).
+# Without one, check-all exercises the target/release/zejtron binary
+# its own cargo build step produces below, while the standalone
+# battery discovers the binary through the shared resolver
+# (scripts/lib/zejtron-bin.sh): the custom cargo profile dirs first
+# (the alias lanes, e.g. target/pro-linux-amd64-v3-musl/zejtron),
+# the basic release/debug lanes last.
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/zejtron-bin.sh"
+if [[ "$MODE" == "check-all" ]]; then
+	ZEJTRON_BIN="${ZEJTRON_BIN_PATH:-target/release/zejtron}"
+else
+	zejtron_resolve_bin ZEJTRON_BIN "$PWD"
+fi
 
 if [[ "$MODE" == "battery" ]]; then
 	if [[ ! -x "$ZEJTRON_BIN" ]]; then
-		echo "error: battery mode needs a built binary - none at $ZEJTRON_BIN" >&2
-		echo "hint: build it first (cargo build --release [--target ...]) or run the full check-all" >&2
+		if [[ -z "$ZEJTRON_BIN" ]]; then
+			echo "error: battery mode needs a built binary - none found under target/" >&2
+		else
+			echo "error: battery mode needs a built binary - none at $ZEJTRON_BIN" >&2
+		fi
+		echo "hint: build it first (cargo build --release --locked or a cargo profile lane) or run the full check-all" >&2
 		exit 1
 	fi
 elif [[ "$MODE" == "miri" ]]; then

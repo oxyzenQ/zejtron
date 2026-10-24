@@ -48,15 +48,22 @@ HOLDERS="${ZEJTRON_SCALE_HOLDERS:-8}"
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 1
 REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd) || exit 1
 
+# The shared binary resolver (scripts/lib/zejtron-bin.sh): an
+# explicit $ZEJTRON_BIN wins, then discovery in the repo target/
+# tree - the custom cargo profile dirs first (the alias lanes this
+# repo builds through, e.g. target/pro-linux-amd64-v3-musl/zejtron
+# or target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron),
+# the basic release/debug lanes last.
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/zejtron-bin.sh"
 if [[ -n "${ZEJTRON_BIN:-}" ]]; then
 	BIN=$ZEJTRON_BIN
-elif [[ -x "$REPO_ROOT/target/release/zejtron" ]]; then
-	BIN=$REPO_ROOT/target/release/zejtron
-elif [[ -x "$REPO_ROOT/target/debug/zejtron" ]]; then
-	BIN=$REPO_ROOT/target/debug/zejtron
 else
+	zejtron_resolve_bin BIN "$REPO_ROOT"
+fi
+if [[ -z "$BIN" || ! -x "$BIN" ]]; then
 	echo "scale-audit: no zejtron binary found" >&2
-	echo "scale-audit: build one first (cargo build --release) or set ZEJTRON_BIN" >&2
+	echo "scale-audit: build one first (cargo build --release --locked or a cargo profile lane) or set ZEJTRON_BIN" >&2
 	exit 2
 fi
 
@@ -126,9 +133,9 @@ if ((PER_HOLDER > 0)); then
 	while ((h < HOLDERS)); do
 		# shellcheck disable=SC2016
 		# (the inner shell owns those positionals)
-		setsid bash -c '			for ((fd = 0; fd < $2; fd++)); do exec {fd}<"$1"; done
-			sleep 600
-		' holder "$TARGET_FILE" "$PER_HOLDER" &
+		setsid bash -c '                        for ((fd = 0; fd < $2; fd++)); do exec {fd}<"$1"; done
+                        sleep 600
+                ' holder "$TARGET_FILE" "$PER_HOLDER" &
 		holder_pids+=($!)
 		h=$((h + 1))
 	done
