@@ -82,6 +82,7 @@ include = [
     "CONTRIBUTING.md",
     "SECURITY.md",
     "QA.md",
+    "AI_AGENTS_READ_THIS.md",
 ]
 # Discovery discipline (sibling-manifest Pattern C lineage): every
 # auto-discovery axis is OFF. No tests/, benches/, or examples/
