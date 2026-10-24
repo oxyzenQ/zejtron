@@ -14,23 +14,32 @@
 #   The chaos spawner (every actor self-bounded — a wedged harness
 #   cannot leak an unbounded consumer):
 #   - 500 dummy processes (sleep 300 &).
-#   - 100 rogue python3 processes, each binding port 20000+i
-#     (deterministic ports, 20000-20099 — randomness cannot be
-#     asserted; 20050 is the pinned port target), allocating 10 MiB,
-#     and accepting/closing localhost connections. The fleet holds
-#     1000 MiB by construction; each rogue carries a 256 MiB
-#     RLIMIT_AS ceiling (the runaway backstop); the staging preflight
-#     demands 2 GiB MemAvailable before anything spawns (the runner
-#     cannot be OOMed by this surface).
+#   - four rogue python3 processes, each binding a port from the
+#     deterministic table 20000/20017/20033/20050 (the :20050 pin is
+#     the night-dragon-2 contract; randomness cannot be asserted),
+#     allocating 200 MiB, and accepting/closing localhost connections.
+#     The fleet holds ~880 MiB by construction - under the task's
+#     1 GiB python cap - and 4 x 200 MiB is what cracks a busy host's
+#     top-10 RAM table (10 MiB rogues drown among the desktop's own
+#     consumers, the night-dragon-3 finding); each rogue carries a
+#     1 GiB RLIMIT_AS ceiling (the runaway backstop - virtual, not
+#     resident); the staging preflight demands 2 GiB MemAvailable
+#     before anything spawns (the runner cannot be OOMed by this
+#     surface).
 #   - one holder subshell keeping 1000 read descriptors open on a
 #     scratch file (fd numbers 10-1009 — under a 1024 soft ceiling
 #     by construction, no ulimit surgery needed).
 #   - a dd I/O burst: 100 MiB (bs=1M count=100) into a scratch file,
-#     paced through a feeder pipe so ONE dd process writes across the
-#     whole assertion window — a bare 100 MiB dd finishes inside a
-#     second on a fast disk, before the why render can attribute it
-#     (the live lane resolves the actor from /proc at render time; an
-#     exited writer reads as unaccounted by design).
+#     written by ONE dd process that reads STDIN fed by a fork-free
+#     feeder (the printf builtin, 1 MiB every 0.2s, self-bounded 30s).
+#     The night-dragon-3 post-mortem: the old feeder piped into
+#     `dd if=/dev/zero`, which ignores stdin entirely - the pacing
+#     never paced, dd finished inside a second, and the live lane's
+#     why render found a cold trail. dd reads the pipe now: the
+#     writer stays alive across the whole assertion window (the live
+#     lane resolves the actor from /proc at render time; an exited
+#     writer reads as unaccounted by design), its tracked pid is
+#     stable, and a fork-starved host cannot silence the burst.
 #   - a socket storm: a bounded loop of localhost connects (open and
 #     close against the rogues' listeners), counted into a sidecar.
 #
@@ -43,11 +52,15 @@
 #     the same rows the jq length would). The scan is --me: the inferno
 #     runs under the suite's own uid, and a bare `proc` refuses to run
 #     without a target (the CLI's own law).
-#   - `port 20050 --print-json` must name rogue 50 as the listener's
-#     owner (the port report's typed owner rows, subject :20050).
+#   - `port 20050 --print-json --snapshot-only` must name the pinned
+#     rogue as the listener's owner (the port report's typed owner
+#     rows, subject :20050; the snapshot lane resolves owners from
+#     /proc and returns instantly - the window law, night-dragon-3:
+#     the default 60s collect died as exit 124 under the assert's
+#     timeout).
 #   - `doctor --symptom ram --print-json` must name rogue pids among
-#     the top consumers with PSS above the 8 MB bar (the rogues hold
-#     10 MiB each).
+#     the top consumers with PSS above the 100 MB bar (the rogues
+#     hold 200 MiB each).
 #   - `why <io file> --since 3s --print-json` must ride the live lane
 #     (gated on the doctor --attach preflight; the refusal direction
 #     is the storm surface's contract) and attribute the write to the
@@ -76,10 +89,13 @@
 
 surface_simulation() {
 	local rc
-	local rogue_base=20000 rogue_count=100 dummy_count=500
-	local fd_target=1000 rogue_bar=8000000 proc_bar_ms=1000
-	local rogue50_pid="" io_pid="" storm_pid="" holder_pid=""
+	local dummy_count=500
+	local fd_target=1000 rogue_bar=104857600 proc_bar_ms=1000
+	local rogue_pin_pid="" io_pid="" storm_pid="" holder_pid=""
 	local probe_lane=0 alive=0 i port
+	local -a rogue_ports=(20000 20017 20033 20050)
+	local rogue_count=${#rogue_ports[@]}
+	local pinned_port=${rogue_ports[rogue_count - 1]}
 	local mem_avail_kb fd_opened storm_conns proc_rows proc_ms
 	local pss_line pss_bytes rogues_named stat_line state comm
 	local zombies residue pid
@@ -140,7 +156,13 @@ surface_simulation() {
 		residue=0
 		local pid
 		for pid in "${chaos_pids[@]}"; do
-			if read -r stat_line <"/proc/$pid/stat" 2>/dev/null; then
+			# The stderr silence must precede the open: a killed
+			# pid's /proc entry is GONE at sweep time (reaped,
+			# the good outcome), and with the read's redirect
+			# ordered <file first, the failed open shouts to the
+			# original stderr - seventeen lines of noise under
+			# the real run (the night-dragon-3 finding).
+			if read -r stat_line 2>/dev/null <"/proc/$pid/stat"; then
 				comm="${stat_line#*(}"
 				comm="${comm%%)*}"
 				state="${stat_line#*) }"
@@ -198,22 +220,22 @@ surface_simulation() {
 		chaos_pids+=("$!")
 	done
 
-	# The rogues: bind 20000+i, hold 10 MiB, accept and close
-	# localhost connections until their own 45s bound. The RLIMIT_AS
-	# ceiling is the runaway backstop (the fleet's steady state is
-	# 1000 MiB by construction); exec keeps one process per rogue so
-	# the tracked pid IS the python pid.
-	for ((i = 0; i < rogue_count; i++)); do
-		port=$((rogue_base + i))
+	# The rogues: bind the deterministic port table, hold 200 MiB,
+	# accept and close localhost connections until their own 45s
+	# bound. The RLIMIT_AS ceiling is the runaway backstop (virtual
+	# 1 GiB; the fleet's resident steady state is ~880 MiB by
+	# construction, under the task's 1 GiB cap); exec keeps one
+	# process per rogue so the tracked pid IS the python pid.
+	for port in "${rogue_ports[@]}"; do
 		(
-			ulimit -v 262144 2>/dev/null || true
+			ulimit -v 1048576 2>/dev/null || true
 			exec python3 -c 'import socket, sys, time
 port = int(sys.argv[1])
 s = socket.socket()
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(("0.0.0.0", port))
 s.listen(64)
-ram = bytearray(10 * 1024 * 1024)
+ram = bytearray(200 * 1024 * 1024)
 end = time.time() + 45
 while time.time() < end:
     s.settimeout(1.0)
@@ -227,13 +249,14 @@ while time.time() < end:
 		chaos_pids+=("$!")
 	done
 
-	# The spawn window: the interpreter starts, the binds and the
-	# 10 MiB allocations must all settle before the responder looks.
-	sleep 3
+	# The spawn window: the interpreters start, the binds and the
+	# 200 MiB allocations settle before the responder looks (four
+	# rogues settle inside a second).
+	sleep 1
 
-	# The rogue gate: all 100 alive, or the incident was never
-	# staged (a bind conflict is host state — a named SKIP; any
-	# other death is a FAIL).
+	# The rogue gate: all $rogue_count alive, or the incident was
+	# never staged (a bind conflict is host state — a named SKIP;
+	# any other death is a FAIL).
 	alive=0
 	for pid in "${rogue_pids[@]}"; do
 		if kill -0 "$pid" 2>/dev/null; then
@@ -251,23 +274,27 @@ while time.time() < end:
 		fi
 		return 0
 	fi
-	sm_pass "simulation: the rogue fleet is up ($rogue_count rogues, ports $rogue_base-$((rogue_base + rogue_count - 1)), 10 MiB each)"
-	rogue50_pid="${rogue_pids[50]}"
+	sm_pass "simulation: the rogue fleet is up ($rogue_count rogues, ports ${rogue_ports[*]}, 200 MiB each)"
+	rogue_pin_pid="${rogue_pids[rogue_count - 1]}"
 
-	# The io burst: the task's dd shape (100 MiB, bs=1M), paced by
-	# the feeder so ONE dd process writes across the whole
-	# assertion window — the live lane's attribution needs the
-	# writer alive at render time. The feeder self-bounds at 25s;
-	# dd self-bounds at 100 blocks; the tracked pid is dd's (the
-	# pipeline's last process). When dd dies the feeder dies of
-	# SIGPIPE; the bare wait in the teardown reaps it.
+	# The io burst: the task's dd shape (100 MiB, bs=1M), written
+	# by ONE dd process across the whole assertion window — the
+	# live lane's attribution needs the writer alive at render
+	# time. dd reads STDIN (the night-dragon-3 finding: if= would
+	# ignore the pipe and the pacing would pace nothing); the
+	# feeder is the printf builtin — 1 MiB every 0.2s, zero forks,
+	# self-bounded at 30s — and dd self-bounds at 100 blocks
+	# (~20s at that rate). The tracked pid is dd's (the pipeline's
+	# last process) and it is stable for the whole window. When dd
+	# exits, the feeder dies of SIGPIPE; the bare wait in the
+	# teardown reaps it.
 	(
-		end=$((SECONDS + 25))
+		end=$((SECONDS + 30))
 		while ((SECONDS < end)); do
-			head -c 1048576 /dev/zero
-			sleep 0.3
+			printf '%1048576s' ''
+			sleep 0.2
 		done
-	) | dd if=/dev/zero of="$SM_SCRATCH/io-test.bin" bs=1M count=100 \
+	) | dd of="$SM_SCRATCH/io-test.bin" bs=1M count=100 \
 		iflag=fullblock conv=notrunc status=none 2>>"$SM_SCRATCH/dd.err" &
 	io_pid=$!
 	chaos_pids+=("$io_pid")
@@ -278,7 +305,7 @@ while time.time() < end:
 		local conns=0
 		local end=$((SECONDS + 12))
 		while ((SECONDS < end)) && ((conns < 400)); do
-			if (exec 3<>"/dev/tcp/127.0.0.1/$rogue_base") 2>/dev/null; then
+			if (exec 3<>"/dev/tcp/127.0.0.1/${rogue_ports[0]}") 2>/dev/null; then
 				conns=$((conns + 1))
 				# The tally lands after every connect: the
 				# teardown kills this loop mid-window, and
@@ -328,28 +355,33 @@ while time.time() < end:
 	fi
 	sm_flag_used "proc --me"
 
-	# Port 20050: rogue 50's listener, named as the owner.
+	# Port :20050 - the pinned contract: the listener's owner named
+	# from the snapshot lane. The window law (night-dragon-3):
+	# --snapshot-only returns instantly; the owner rows resolve
+	# from /proc either way, and without the pin the default 60s
+	# collect died as exit 124 under the assert's timeout.
 	sm_run "$SM_SCRATCH/port.json" "$SM_SCRATCH/port.err" rc 10 -- \
-		"$SM_DEFAULT_BIN" port 20050 --print-json
-	sm_assert_rc 0 "$rc" "simulation: port 20050 --print-json exits 0 under fire"
+		"$SM_DEFAULT_BIN" port "$pinned_port" --print-json --snapshot-only
+	sm_assert_rc 0 "$rc" \
+		"simulation: port $pinned_port --print-json --snapshot-only exits 0 under fire"
 	sm_assert_file_nonempty "$SM_SCRATCH/port.json" \
 		"simulation: the port report carries JSON content under fire"
 	sm_assert_contains "$SM_SCRATCH/port.json" \
-		"\"subject\":\":20050\"" \
-		"simulation: the port report pins the subject :20050"
+		"\"subject\":\":${pinned_port}\"" \
+		"simulation: the port report pins the subject :${pinned_port}"
 	sm_assert_contains "$SM_SCRATCH/port.json" \
 		"\"state\":\"LISTEN\"" \
 		"simulation: the socket table renders the listening state under fire"
-	if [[ -n "$rogue50_pid" ]] && grep -q "\"owners\":\[{\"pid\":${rogue50_pid},\"process\":\"python3\"" \
+	if [[ -n "$rogue_pin_pid" ]] && grep -q "\"owners\":\[{\"pid\":${rogue_pin_pid},\"process\":\"python3\"" \
 		"$SM_SCRATCH/port.json" 2>/dev/null; then
-		sm_pass "simulation: the port report names rogue 50 as the listener's owner (pid $rogue50_pid)"
+		sm_pass "simulation: the port report names the pinned rogue as :${pinned_port}'s owner (pid $rogue_pin_pid)"
 	else
-		sm_fail "simulation: the port report names rogue 50 as the listener's owner (pid ${rogue50_pid:-unknown})" \
+		sm_fail "simulation: the port report names the pinned rogue as :${pinned_port}'s owner (pid ${rogue_pin_pid:-unknown})" \
 			"no owner row for the pinned pid in the port report"
 	fi
 
 	# RAM: the rogues must surface among the top consumers with
-	# their PSS above the 8 MB bar (they hold 10 MiB each).
+	# their PSS above the 100 MB bar (they hold 200 MiB each).
 	sm_run "$SM_SCRATCH/ram.json" "$SM_SCRATCH/ram.err" rc 10 -- \
 		"$SM_DEFAULT_BIN" doctor --symptom ram --print-json
 	sm_assert_rc 0 "$rc" "simulation: doctor --symptom ram --print-json exits 0 under fire"
@@ -374,9 +406,9 @@ while time.time() < end:
 			"no rogue pid named in the RAM report (the top-K table missed the whole fleet?)"
 	fi
 	if [[ "$pss_bytes" =~ ^[0-9]+$ ]] && ((pss_bytes > rogue_bar)); then
-		sm_pass "simulation: the rogue's PSS clears the 8 MB bar under fire ($pss_bytes bytes)"
+		sm_pass "simulation: the rogue's PSS clears the 100 MB bar under fire ($pss_bytes bytes)"
 	else
-		sm_fail "simulation: the rogue's PSS clears the 8 MB bar under fire" \
+		sm_fail "simulation: the rogue's PSS clears the 100 MB bar under fire" \
 			"the first named rogue's PSS is ${pss_bytes:-missing} bytes (want > $rogue_bar)"
 	fi
 
@@ -446,8 +478,8 @@ while time.time() < end:
 
 	# The massive-scale report: the CI log's badge, computed from
 	# the sidecars and the measured latency, never from constants.
-	printf '  scale massive-scale: %s dummies | %s rogues on :%s-%s | %s/%s fds | dd io burst 100 MiB (paced) | %s socket connects | proc under fire: %s ms\n' \
-		"$dummy_count" "$rogue_count" "$rogue_base" "$((rogue_base + rogue_count - 1))" \
+	printf '  scale massive-scale: %s dummies | %s rogues (200 MiB each) on :%s-:%s | %s/%s fds | dd io burst 100 MiB (stdin-paced) | %s socket connects | proc under fire: %s ms\n' \
+		"$dummy_count" "$rogue_count" "${rogue_ports[0]}" "$pinned_port" \
 		"$fd_opened" "$fd_target" "$storm_conns" "${proc_ms:-?}"
 
 	# Flag registry: the manifest flag this surface exercised.
