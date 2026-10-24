@@ -218,9 +218,12 @@ constants — the CI log's badge for the leg. Every staged actor is
 self-bounded by its own sleep or loop bound; a host without python3
 or dd, under the staging memory bar, with a rogue port already
 bound, or under an fd ceiling below the storm, skips with the
-reason named; any other rogue death is a FAIL. No jq and no new
-dependency: the suite stays bash + coreutils, and grep counts the
-same JSON rows a jq length would.
+reason named; any other rogue death is a FAIL. The JSON assertions
+are typed (night-dragon-4): every `--print-json` lane must return
+pure JSON on stdout with silent stderr, and the shape checks ride
+`jq` filters on the flat Spec v3 grammar - jq is a harness-side
+dependency only (the runner refuses to start without it); the
+binary itself stays jq-free.
 
 The local twin grew the arbitrary-kernel lane for the same
 reason: `--kernel PATH` boots any vmlinuz the operator chooses,

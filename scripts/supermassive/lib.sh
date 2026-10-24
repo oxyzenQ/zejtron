@@ -189,6 +189,65 @@ sm_assert_no_escapes() {
 }
 
 # ---------------------------------------------------------------------------
+# The typed JSON law (night-dragon-4).
+# ---------------------------------------------------------------------------
+#
+# The --print-json lane is the automation contract: stdout must carry
+# ONE pure JSON value, stderr must be silent, and the shape must be
+# the flat Spec v3 grammar the serializers emit. These helpers pin
+# that law. jq is a HARNESS dependency only - the binary itself stays
+# jq-free (owner law) - and the runner refuses to start without it:
+# a missing jq would silently gut the suite's core depth, and a
+# silent depth loss is a fake PASS factory.
+
+# sm_assert_silent_stderr <err-file> <label>
+# The JSON lane's stderr must be EMPTY. A report that talks on both
+# streams is unusable by automation (interleaving is not the caller's
+# problem to untangle), and a diagnostic that leaks onto stderr on
+# the happy path is a regression the text lanes cannot see.
+sm_assert_silent_stderr() {
+	local file="$1" label="$2"
+	if [[ -s "$file" ]]; then
+		sm_fail "$label" "stderr carried bytes on a JSON lane: $(head -c 120 "$file" | tr '\n' ';')"
+	else
+		sm_pass "$label"
+	fi
+}
+
+# sm_assert_pure_json <out-file> <label>
+# stdout must parse as exactly one JSON value (jq -e .). A trailing
+# newline is legal; trailing prose, a second value, or a half-written
+# buffer is not.
+sm_assert_pure_json() {
+	local file="$1" label="$2"
+	if [[ ! -s "$file" ]]; then
+		sm_fail "$label" "stdout is empty (no JSON value at all)"
+		return
+	fi
+	if jq -e . "$file" >/dev/null 2>&1; then
+		sm_pass "$label"
+	else
+		sm_fail "$label" "stdout is not one pure JSON value: $(head -c 120 "$file" | tr '\n' ';')"
+	fi
+}
+
+# sm_assert_json <file> <jq-filter> <label>
+# The typed assertion: the filter must be TRUTHY under jq -e (a key
+# exists, a field equals a value, an array is non-empty, a numeric
+# bar is cleared). The failure detail names the filter and the value
+# it actually found - the difference is named, never swallowed.
+sm_assert_json() {
+	local file="$1" filter="$2" label="$3"
+	local got
+	if jq -e "$filter" "$file" >/dev/null 2>&1; then
+		sm_pass "$label"
+	else
+		got="$(jq "$filter" "$file" 2>/dev/null | head -c 120 || true)"
+		sm_fail "$label" "jq filter is not truthy: '$filter' (got: ${got:-unparseable})"
+	fi
+}
+
+# ---------------------------------------------------------------------------
 # Determinism.
 # ---------------------------------------------------------------------------
 
