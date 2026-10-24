@@ -118,26 +118,35 @@ updated with every security pass.
   (OSC 52 clipboard rewrites, output forging).
 - Every external invocation rides an argv array; /proc-derived values
   are data, never command fragments.
-- CodeQL alert triage (2026-10-19, night-improve-33): the
-  `rust/cleartext-logging` finding on `proc`'s snapshot print is
-  by-design disclosure, not a defect. The rule's Rust source model
+- CodeQL alert triage (2026-10-19, night-improve-33; generalized
+  2026-10-24, night-badass-7): the `rust/cleartext-logging` finding
+  is by-design disclosure, not a defect. The rule's Rust source model
   is a NAME heuristic - identifiers whose spellings match
   `passwd`/`uid`/token-like patterns are treated as credential
-  material. The data that reaches the terminal is the account name,
-  uid, pid, and the cmdlines of kernel-exposed processes: exactly
-  what ps(1) prints, into the invoking user's interactive terminal,
-  not a persisted log (CWE-532 is a logging-sink rule), and never
-  anything the kernel hides from the invoking uid. Renaming the
-  honest domain vocabulary (`passwd_entries`, `*_uid`) to dodge the
-  heuristic was rejected as self-deceiving; the alert is dismissed
-  as a false positive by the owner. The finding re-surfaces as a
-  fresh alert whenever a render refactor changes the query's flow
-  fingerprint (first re-detection 2026-10-20 as alert #6, after the
-  night-improve-37 render wiring); the verdict does not move, each
-  re-detection is closed with the same fixed verdict by the CodeQL
-  triage lane (codeql-triage.yml: a rule-id plus exact-path filter
-  dismisses every open match right after each analysis, and no other
-  rule or path is ever touched), and the rename stays rejected.
+  material - and it flagged the `proc` snapshot print first
+  (2026-10-19, first re-detection 2026-10-20 as alert #6 after the
+  night-improve-37 render wiring) and then the render prints across
+  the whole command surface (`why`, `touch`, `holds`, `doctor`) and
+  the test files. The generalization is not new information, it is
+  the honest scope: zejtron is a forensic CLI whose product is the
+  terminal print. The data that reaches the terminal is paths,
+  account names, uids, pids, and the cmdlines of kernel-exposed
+  files and processes: exactly what ls(1) and ps(1) print, into the
+  invoking user's interactive terminal, not a persisted log (CWE-532
+  is a logging-sink rule), and never anything the kernel hides from
+  the invoking uid. Renaming the honest domain vocabulary
+  (`passwd_entries`, `*_uid`) to dodge the heuristic was rejected as
+  self-deceiving. Since night-badass-7 the verdict is enforced at
+  scan time: `.github/codeql/codeql-config.yml` excludes
+  `rust/cleartext-logging` via query-filters - the default suite and
+  every other rule keep scanning - the codeql-triage lane closes the
+  alerts raised before that exclusion with the fixed verdict (a rule
+  filter, not a config change), and inline suppression is not an
+  option for Rust (codeql#11427). Standing review condition: the
+  exclusion covers the terminal-print surface only; if zejtron ever
+  gains a persisted sink - a report file, a journal, a log export -
+  the rule must be re-enabled for that code and re-triaged on its
+  merits.
 
 ## Forensics scope (DFIR)
 
