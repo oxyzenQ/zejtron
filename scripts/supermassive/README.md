@@ -177,9 +177,11 @@ scenario leg: a rogue process binds port 9999 and holds 100 MiB,
 and the suite must find it. `doctor --symptom ram --print-json`
 must name the rogue's pid with its PSS above the 50 MB bar, and
 `port 9999 --print-json` must name the same pid as the socket's
-holder (the ledger's typed actor) with the subject pinned to
-:9999 — the detection asserted on the JSON lane the automation
-contract pins. The rogue is spawned by the surface, bounded by its
+owner (the port report's own typed owner row — night-badass-9's
+universal JSON; the ledger's "held" token belongs to holds/why
+and never rides this report) with the subject pinned to :9999 —
+the detection asserted on the JSON lane the automation contract
+pins. The rogue is spawned by the surface, bounded by its
 own sleep, and killed and reaped by the surface's own hand; on a
 host without python3, or one where port 9999 is already bound, the
 surface skips with the reason named. The write-event half of an
@@ -240,9 +242,11 @@ Not part of `cargo test` — cargo test covers units, supermassive
 covers the binary a user actually runs. The suite is wired into CI
 by four lanes:
 
-- `.github/workflows/supermassive-e2e.yml` (two jobs: the
+- `.github/workflows/supermassive-e2e.yml` (three jobs: the
   low-spec leg on the MSRV floor, the best-spec leg on the stable
-  frontier) - the surface depth, on the runner's own kernel.
+  frontier, and the titled server-simulation showcase lane, the
+  best leg filtered to the one surface) - the surface depth, on
+  the runner's own kernel.
 - `.github/workflows/supermassive-kernel-floor.yml` (the micro-VM
   lane, night-improve-43) - the full low leg booted inside the
   REAL jammy GA 5.15.0 floor kernel in a KVM micro-VM, as root:
