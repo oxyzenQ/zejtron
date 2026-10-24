@@ -45,3 +45,30 @@ What the freeze does NOT mean:
 - It does not tag the release: `git tag -a v80.0.0 -m "v80.0.0"` is
   the owner's hand (see
   [docs/workflow/about-ci.md](workflow/about-ci.md)).
+
+### The Architecture Scope (The AMD64 Baseline)
+
+The freeze applies to the x86_64 (amd64) architecture. It is the
+only shape zejtron compiles, ships, and verifies end-to-end: the
+two musl release shapes run the full Supermassive E2E suite on real
+hardware before a release ships, and no architecture outside that
+lane is claimed alongside them.
+
+The honesty splits cleanly across the two layers:
+
+- The eBPF object is architecture-independent. It is bpfel
+  bytecode - compiled once for the BPF ISA, one object for every
+  host microarchitecture (the One Object Law,
+  [EBPF_LIFECYCLE.md](EBPF_LIFECYCLE.md)) - and the running kernel
+  JITs it to the native CPU at attach time. The kernel probes
+  therefore work on any CPU that runs the kernel.
+- The userspace binary (the CLI) is compiled and verified only for
+  x86_64. That is where the line sits: we do not ship binaries we
+  cannot run through the full E2E suite ourselves.
+
+There is no ARM64, ppc64le, or RISC-V lane in the release matrix,
+no cross-compilation target in the build config, and no "coming
+soon" promise. If your infrastructure runs another architecture,
+build from source (pure Rust, GPL-3.0), or request an officially
+verified build through the enterprise license: we compile the
+shape, run the full test suite, and provide the verified artifact.

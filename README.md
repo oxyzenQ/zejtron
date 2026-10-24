@@ -210,6 +210,24 @@ daemon, and the docs do not pretend otherwise.
   binary invoked); `dpkg`/`rpm`/`apk` for the same rows on
   Debian/RHEL/Alpine hosts
 
+### Architecture Support
+
+zejtron officially ships pre-built binaries for **x86_64 (amd64)**
+only. The verifier-first doctrine is the reason: we ship exactly
+what we can test end-to-end on our own hardware through the
+Supermassive E2E suite, and that suite runs on amd64. An untested
+binary is a liability, not a feature.
+
+If your infrastructure runs on ARM64, ppc64le, or RISC-V, the
+source is pure Rust and fully open-source (GPL-3.0): build from
+source with the standard toolchain (see Install from source). No
+pre-built artifact is offered for those architectures, and none is
+implied.
+
+Enterprise license holders ($35,999/year) can request an officially
+verified build for their architecture: we compile the shape, run
+the full test suite against it, and provide the verified artifact.
+
 ### Install on my machine (fast setup)
 
 Build for this machine's CPU and install to `/usr/bin` in one
