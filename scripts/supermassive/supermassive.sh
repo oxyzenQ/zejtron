@@ -291,6 +291,30 @@ for surface in "${run_surfaces[@]}"; do
 	sm_surface_end
 done
 
+# ---------------------------------------------------------------------------
+# The post-leg cleanup guarantee (night-dragon-4). The startup detach
+# normalizes the lane state BEFORE the run; this is the after law: the
+# next run (or the next tool on this host) must inherit a clean lane
+# state, never this run's leftovers. The pins outlive their maker - a
+# surface whose detach lane died mid-run would otherwise leave them
+# planted. The check is a check, not a hope: a pin directory that
+# survives the suite's own detach is a recorded FAIL, and a bare wait
+# reaps any surface child that outlived its surface.
+# ---------------------------------------------------------------------------
+wait 2>/dev/null || true
+if [[ -e /sys/fs/bpf/zejtron ]]; then
+	"$SM_DEFAULT_BIN" doctor --detach >/dev/null 2>&1 || true
+	if [[ -e /sys/fs/bpf/zejtron ]]; then
+		sm_fail "the post-leg cleanup guarantee" \
+			"/sys/fs/bpf/zejtron survived the run's own doctor --detach"
+	else
+		sm_pass "the post-leg cleanup guarantee (a leftover pin session was detached, named here)"
+		printf 'note: a leftover probe session was detached at shutdown - a surface lost its detach lane mid-run\n'
+	fi
+else
+	sm_pass "the post-leg cleanup guarantee (no pins, no residue)"
+fi
+
 WALL_ELAPSED=$((SECONDS - WALL_START))
 
 # ---------------------------------------------------------------------------

@@ -164,7 +164,12 @@ the idle-host version. The missing-path error path refuses by
 name mid-storm, and the surface ends clean by its own
 attach/detach hand (the probe it attached, the detach that unpins
 it, the pin directory gone - the lifecycle the doctor surface
-pins, re-proven under load). When the probe lane's write rows are
+pins, re-proven under load). The runner closes the loop both
+ways: leftover pins are detached at startup (the lane
+normalization law) and the post-leg cleanup guarantee re-checks
+at shutdown - a pin directory that survives the suite's own
+detach is a recorded FAIL, and a bare wait reaps any surface
+child that outlived its surface. When the probe lane's write rows are
 absent on a whole kernel generation (the 7.2 moving-latest
 witness found exactly this on its first boot: the open and
 writev lanes observed, the plain-write lane silent - and ftrace
