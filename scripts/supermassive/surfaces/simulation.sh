@@ -586,9 +586,12 @@ while time.time() < end:
 	fi
 
 	# Why: the dd attribution on the live lane, typed — the actor
-	# filter names dd's pid on an observed row. The probe lane's
-	# gate was decided by the attach preflight; on the snapshot
-	# lane the assert skips with the reason named.
+	# filter names dd's pid on the state rows the snapshot
+	# carries, and the event provenance rides the changes rows:
+	# [observed] is the kernel lane's tag and never a state row's
+	# (the first live run's finding). The probe lane's gate was
+	# decided by the attach preflight; on the snapshot lane the
+	# assert skips with the reason named.
 	if [[ "$probe_lane" -eq 1 ]]; then
 		sm_run "$SM_SCRATCH/why.json" "$SM_SCRATCH/why.err" rc 15 -- \
 			"$SM_DEFAULT_BIN" why "$SM_SCRATCH/io-test.bin" --since 2s --print-json
@@ -604,7 +607,7 @@ while time.time() < end:
 			'.measured | type == "array" and length > 0' \
 			"simulation: the why report carries measured rows under fire"
 		sm_assert_json "$SM_SCRATCH/why.json" \
-			'.measured | any(.provenance == "observed")' \
+			'.changes.rows | any(.provenance == "observed")' \
 			"simulation: the why report carries observed rows under fire"
 		sm_assert_json "$SM_SCRATCH/why.json" \
 			".measured | any(.actor != null and .actor.pid == $io_pid and .actor.name == \"dd\")" \
