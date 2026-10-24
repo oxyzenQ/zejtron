@@ -209,6 +209,29 @@ fn rolling_window_never_grows_past_cap_one_at_a_time() {
 }
 
 #[test]
+fn extend_rolling_matches_the_per_event_form() {
+    // night-dragon-1: the drains swapped the per-record pushes for
+    // the batch form; the contract did not move. Across several caps
+    // and several consecutive slices (the port window's real shape),
+    // the batch form must land exactly the window the per-event form
+    // produces.
+    for cap in [1usize, 3, 7, 64] {
+        let mut batch_window: Vec<SockEvent> = Vec::new();
+        let mut per_event_window: Vec<SockEvent> = Vec::new();
+        for start in [0usize, 5, 40] {
+            let batch: Vec<SockEvent> = (start..start + cap * 2)
+                .map(|i| event(i as u64, 1000 + i as u16, 1))
+                .collect();
+            for item in &batch {
+                push_rolling(&mut per_event_window, *item, cap);
+            }
+            extend_rolling(&mut batch_window, batch, cap);
+            assert_eq!(batch_window, per_event_window);
+        }
+    }
+}
+
+#[test]
 fn drain_on_a_clean_host_reads_nothing() {
     // On a host with no attached chain the pin is absent and the
     // open names it - the honest diagnosis, not a generic failure.
