@@ -210,12 +210,15 @@ label the source, never the ambition.
 
 ## 5. The JSON surface (`--print-json`)
 
-`holds`, `touch`, and `why` can answer with the same report as one
-line of JSON (`zejtron why /etc/passwd --print-json | jq .`). The
-JSON lane is a second rendering of the SAME report object - not a
-second truth: the fields mirror the text grammar field for field,
-and the byte-determinism law holds (same rows in, same bytes out).
-The serializer is std-only by the dependency law: no serde, no new
+Every data surface can answer with its report as one line of JSON
+(`zejtron why /etc/passwd --print-json | jq .`): the ledger trio
+(`holds`, `touch`, `why`), the doctor (readiness and the five
+symptom lanes), and - since night-badass-9/10, the universal JSON
+law - `path`, `recent`, `port`, `proc`, and `net`. The JSON lane is
+a second rendering of the SAME report object - not a second truth:
+the fields mirror the text grammar field for field, and the
+byte-determinism law holds (same rows in, same bytes out). The
+serializer is std-only by the dependency law: no serde, no new
 crates.
 
 Field map:
@@ -292,6 +295,51 @@ and UTF-8 passes through verbatim. `why`'s `--trace` and `--raw`
 are text-only drill-downs and the CLI refuses their combination
 with `--print-json` - the JSON line stays byte-clean on stdout,
 always.
+
+### The per-surface JSON lanes (night-badass-9/10)
+
+`path`, `recent`, `port`, `proc`, and `net` are not ledger reports,
+so their JSON carries no `ledger_version` - each speaks its own
+typed schema, the same selection the text renders, serialized by
+the same shared writers (the escaped string, the array grammar, the
+typed-absence nulls):
+
+- `path` - `{"command": "...", "found": <bool>, "active":
+  <match | null>, "duplicates": [<match>]}`, where a match is
+  `{"path": "...", "executable": <bool>, "symlink_chain": [...],
+  "package": "..." | null}`. The chain is the full resolution (the
+  text display truncates at three hops; the wire carries what the
+  kernel answered), and a package no backend named is `null` - the
+  text's `unknown` word is a display verdict, not a fact.
+- `recent` - `{"path": "...", "files": [{"path": "...",
+  "mtime_unix_secs": N, "changed_unix_secs": N, "size_bytes": N,
+  "uid": N, "owner": "...", "perms": "0644"}]}` - the same
+  selection (limit, window, newest-first); paths are the raw bytes
+  JSON-escaped (the terminal neutralizer is a render concern).
+- `port` - `{"subject": ":9999" | null, "mode": "snapshot" |
+  "live", "window": "60s", "ports": [{"protocol": "tcp",
+  "local_addr": "0.0.0.0:9999", "state": "LISTEN", "owners":
+  [{"pid": N, "process": "...", "user": "..."}]}], "changes":
+  {"available": <bool>, "reason": <token | null>, "events":
+  [{"kind": "listened" | "left-listen" | "closed", "protocol":
+  "tcp4", "port": N, "pid": N, "process": "...", "time_utc":
+  "HH:MM:SS UTC"}], "unaccounted": N}, "scan":
+  {"unreadable_processes": N, "unreadable_fds": N}}`. The lane
+  honesty carries: an unavailable window is `available: false` with
+  a stable reason token (`snapshot-only`, `lane-not-attached`),
+  never a fabricated event list. The table is not a ledger report;
+  `holds`/`why` remain the ledger's port view.
+- `proc` - `{"subject": "...", "processes": [{"pid": N,
+  "ppid": N, "comm": "...", "uid": N, "state": "S",
+  "vm_rss_kb": N, "vm_size_kb": N, "threads": N, "cmdline":
+  "..." | null}], "unreadable_statuses": N}` - the flat scan,
+  ascending by pid, the `--find` selection applied through the same
+  matcher the tree prunes with; `--depth` stays the render limiter
+  it is (the list is the data, not the drawing).
+- `net` - the `NetReport` model one-to-one: `interfaces` (name,
+  state, mtu, mac, ipv4, ipv6, the eight counters),
+  `arp_neighbors`, `routes`, `default_route`, `resolver` - every
+  fact the /proc read could not answer rides as `null`.
 
 ### v2 archive (Frozen)
 

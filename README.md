@@ -500,7 +500,7 @@ zejtron why /etc/resolv.conf --since 30s --trace --raw
 
 # The same Evidence Ledger as JSON for automation - one line,
 # jq-ready, std-only serializer (no serde in the graph):
-# holds, touch, and why speak it (--print-json excludes --trace/--raw)
+# holds, touch, and why speak the ledger (--print-json excludes --trace/--raw)
 zejtron why /etc/passwd --print-json | jq .
 zejtron holds 53 --print-json | jq '.verdict.supports'
 zejtron touch /etc/resolv.conf --print-json | jq '.changes.rows'
@@ -521,6 +521,20 @@ zejtron doctor --print-json | jq '.os, .kernel, .ebpf_lane'
 zejtron doctor --symptom ram --print-json | jq .memory.used_bytes
 zejtron doctor --symptom cpu --print-json | jq '.processes[0].pct'
 zejtron doctor --symptom network --print-json | jq '.sockets.time_wait'
+
+# EVERY data surface speaks JSON now (night-badass-9/10, the
+# universal law - no command left behind). path, recent, port, proc,
+# and net carry their own typed schemas, the same selection the text
+# renders, one line, jq-ready:
+zejtron path bash --print-json | jq '.active.package'
+zejtron recent . --limit 5 --print-json | jq '.files[] | select(.size_bytes > 1000000) | .path'
+zejtron proc --me --print-json | jq '.processes[] | select(.vm_rss_kb > 100000) | .comm'
+zejtron net --print-json | jq '.interfaces[] | select(.state=="up") | .name'
+# The SRE loop, end to end - who eats the RAM, who holds the port,
+# where the binary lives:
+zejtron doctor --symptom ram --print-json | jq '.processes[] | select(.pss_bytes > 100000000) | .pid'
+zejtron port 9999 --print-json | jq '.ports[].owners'
+zejtron path "$(which python3)" --print-json | jq '.active'
 
 # Network context
 zejtron net
