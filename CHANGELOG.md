@@ -1013,6 +1013,32 @@ v11.0.0
 
 ### Changed
 
+- The core readers survive the ultra-massive scale audit
+  (night-dragon-1). The process forest's recursive renderer and
+  traversals are explicit stacks now - a 10,000-deep fork chain
+  renders in bounded memory instead of one call frame per level, and
+  a `--find` over one family no longer re-walks shared subtrees per
+  match. The holds maps scan streams and exits on the first
+  dev/inode match instead of materializing `/proc/<pid>/maps` per
+  pid. The ram sweeper selects its top-10 with one
+  `select_nth_unstable_by_key` pass, stats only the fd links whose
+  rows need a size (the deleted and memfd lanes), and indexes the
+  tmpfs holder lookup; `/proc/<pid>/comm` replaces the full status
+  read per pid. The eBPF ring drains pay one memmove per drain
+  instead of one window shift per record - a full 8192-record
+  sock-ring drain used to memmove about half a gigabyte through
+  `Vec::remove(0)`, and the port window's slice pump repeated that
+  every poll slice. Every lane is byte-identical old versus new
+  (text, `--print-json`, `--raw`); the rolling window's
+  per-event form stays pinned beside the new batch form. Honest
+  residuals kept: the brief's skip-small-RSS-early was rejected -
+  the unaccounted math sums every readable PSS row, so a skipped
+  read moves the number the report exists to bound. The audit's
+  own verifier ships as `scripts/bench/scale-audit.sh`: a synthetic
+  busy host (fake processes, a thousand open descriptors), each of
+  `proc`, `holds`, and `doctor --symptom ram` gated at 500 ms
+  worst-of-three, every scaledown a restricted host forces named in
+  a note - never a silent shrink.
 - The JSON rows go flat and the actor goes typed (night-badass-6,
   Evidence Ledger Specification v3): the typed evidence fields
   moved from the nested `action` object to the row root -
