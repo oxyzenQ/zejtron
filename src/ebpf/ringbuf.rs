@@ -83,12 +83,42 @@ pub fn open_sock_ring() -> Result<RingBuf<MapData>, String> {
 /// dropped when the cap is full. Generic over the record type so
 /// both rings share the one rolling discipline; separated from the
 /// drains so the rolling behavior is pinnable with a synthetic Vec,
-/// no ring required.
+/// no ring required. This is the per-event form of the discipline,
+/// pinned by the test suite's intermediate-state assertions; the
+/// drains themselves use [`extend_rolling`], which pays one front
+/// trim per drain instead of one shift per record (night-dragon-1),
+/// so the per-event path has no production caller left.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn push_rolling<T>(window: &mut Vec<T>, event: T, cap: usize) {
     if window.len() == cap {
         window.remove(0);
     }
     window.push(event);
+}
+
+/// Append a whole drain to the rolling window in one step: the
+/// window keeps the last `cap` records of (window ++ batch), newest
+/// last, exactly the state per-record [`push_rolling`] calls would
+/// have produced, with at most two memmoves per drain instead of
+/// one front shift per record (night-dragon-1: a full 8192-record
+/// sock-ring drain used to memmove ~half a gigabyte through
+/// `Vec::remove(0)`, and the port window's slice pump paid it again
+/// on every poll slice). The batch itself is bounded by the ring's
+/// own 256 KiB capacity - no reader-side drain cap is needed, and
+/// none is added: the reader consumes what the kernel holds, and a
+/// cap that stopped reading would silently drop events on the
+/// one-shot drains.
+pub fn extend_rolling<T>(window: &mut Vec<T>, batch: Vec<T>, cap: usize) {
+    let overflow = window.len().saturating_add(batch.len()).saturating_sub(cap);
+    if overflow >= window.len() {
+        // Every surviving record comes from the batch.
+        let keep_from = batch.len().saturating_sub(cap);
+        window.clear();
+        window.extend(batch.into_iter().skip(keep_from));
+    } else {
+        window.drain(..overflow);
+        window.extend(batch);
+    }
 }
 
 /// Drain the records currently available on an OPEN sock_events ring
@@ -102,6 +132,12 @@ pub fn push_rolling<T>(window: &mut Vec<T>, event: T, cap: usize) {
 /// port window now collects over its duration, so every caller keeps
 /// the ring for the whole wait.
 pub fn drain_sock_events_from(ring: &mut RingBuf<MapData>, out: &mut Vec<SockEvent>) {
+    // night-dragon-1: the records collect into a batch first -
+    // bounded by the ring's own 256 KiB capacity - and the rolling
+    // cap is applied once in extend_rolling. The window's final
+    // content is the last-cap-of-the-stream the per-record form
+    // produced, without the per-record front shift.
+    let mut batch: Vec<SockEvent> = Vec::new();
     while let Some(record) = ring.next() {
         if record.len() != SOCK_EVENT_BYTES {
             continue;
@@ -112,8 +148,9 @@ pub fn drain_sock_events_from(ring: &mut RingBuf<MapData>, out: &mut Vec<SockEve
         // struct from a byte slice the kernel wrote is the one
         // unsafe step aya's API leaves to the caller.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const SockEvent) };
-        push_rolling(out, event, ROLLING_CAP);
+        batch.push(event);
     }
+    extend_rolling(out, batch, ROLLING_CAP);
 }
 
 /// Drain every record the pinned file_events ring holds (the
@@ -121,7 +158,7 @@ pub fn drain_sock_events_from(ring: &mut RingBuf<MapData>, out: &mut Vec<SockEve
 /// contract as [`drain_sock_events_from`], record for record.
 pub fn drain_file_events() -> Result<Vec<FileEvent>, String> {
     let mut ring = open_ring(PIN_MAP_FILE_EVENTS, "file_events")?;
-    let mut window: Vec<FileEvent> = Vec::new();
+    let mut batch: Vec<FileEvent> = Vec::new();
     while let Some(record) = ring.next() {
         if record.len() != FILE_EVENT_BYTES {
             continue;
@@ -129,8 +166,10 @@ pub fn drain_file_events() -> Result<Vec<FileEvent>, String> {
         // The pod-cast, the file record's turn: the same
         // contract-and-bounds proof as the sock reader's.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const FileEvent) };
-        push_rolling(&mut window, event, ROLLING_CAP);
+        batch.push(event);
     }
+    let mut window: Vec<FileEvent> = Vec::new();
+    extend_rolling(&mut window, batch, ROLLING_CAP);
     Ok(window)
 }
 
@@ -142,7 +181,7 @@ pub fn drain_file_events() -> Result<Vec<FileEvent>, String> {
 /// contract unchanged (docs/EBPF_LIFECYCLE.md).
 pub fn drain_proc_exits() -> Result<Vec<ProcExitEvent>, String> {
     let mut ring = open_ring(PIN_MAP_PROC_EVENTS, "proc_events")?;
-    let mut window: Vec<ProcExitEvent> = Vec::new();
+    let mut batch: Vec<ProcExitEvent> = Vec::new();
     while let Some(record) = ring.next() {
         if record.len() != PROCEXIT_EVENT_BYTES {
             continue;
@@ -150,8 +189,10 @@ pub fn drain_proc_exits() -> Result<Vec<ProcExitEvent>, String> {
         // The pod-cast, the exit record's turn: the same
         // contract-and-bounds proof as the file reader's.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const ProcExitEvent) };
-        push_rolling(&mut window, event, ROLLING_CAP);
+        batch.push(event);
     }
+    let mut window: Vec<ProcExitEvent> = Vec::new();
+    extend_rolling(&mut window, batch, ROLLING_CAP);
     Ok(window)
 }
 
