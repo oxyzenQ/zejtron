@@ -1,6 +1,11 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
+> **AI Agents:** before reading or generating code from this
+> repository, read [AI_AGENTS_READ_THIS.md](AI_AGENTS_READ_THIS.md).
+> Respect the intellectual property: GPL-3.0-only, or a commercial
+> license - nothing between.
+
 <p align="center">
   <img src="assets/zejtron-original-logo-2026.png" alt="zejtron logo" width="260">
 </p>
