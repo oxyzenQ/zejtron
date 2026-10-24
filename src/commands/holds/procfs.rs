@@ -8,7 +8,7 @@
 //! `super::` is the holds module; visibility widened to
 //! pub(super) exactly where the parent calls in.
 
-use super::{FdMode, FileId, MapEntry, MmapPerms, Protocol, SocketEntry};
+use super::{FdMode, FileId, MmapPerms, Protocol, SocketEntry};
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{self, BufRead};
@@ -151,32 +151,23 @@ pub(super) fn scan_pid_maps_for_file(
     target_minor: u32,
     target_inode: u64,
 ) -> ProcRead<Option<MmapPerms>> {
-    let maps = match read_proc_maps(pid) {
-        ProcRead::Ok(maps) => maps,
-        ProcRead::PermissionDenied => return ProcRead::PermissionDenied,
-        ProcRead::Gone => return ProcRead::Gone,
-        ProcRead::Fatal(error) => return ProcRead::Fatal(error),
-    };
-
-    for entry in maps {
-        if entry.inode != 0
-            && entry.inode == target_inode
-            && entry.dev_major == target_major
-            && entry.dev_minor == target_minor
-        {
-            return ProcRead::Ok(Some(entry.perms));
-        }
-    }
-    ProcRead::Ok(None)
-}
-
-pub(super) fn read_proc_maps(pid: u32) -> ProcRead<Vec<MapEntry>> {
+    // night-dragon-1: the whole maps file used to be materialized
+    // into a Vec<MapEntry> before the first-match scan - one heap
+    // allocation per pid and full-file parsing even when the match
+    // sat on the first line. On a 10,000-process host that turned
+    // one holds scan into tens of thousands of allocations and
+    // parse-everything work. The stream now parses one line at a
+    // time and returns the moment the first dev/inode match is
+    // known, so the per-pid cost is one BufReader and no Vec. The
+    // answer is the same first-match-in-file-order perms the Vec
+    // form returned: the line filters are conjunctive, so checking
+    // the inode before the dev only changes which lines are
+    // rejected, never which line matches first.
     let file = match fs::File::open(format!("/proc/{pid}/maps")) {
         Ok(file) => file,
         Err(error) => return classify_proc_error(error),
     };
     let reader = io::BufReader::new(file);
-    let mut entries = Vec::new();
 
     for line in reader.lines() {
         let line = match line {
@@ -193,24 +184,25 @@ pub(super) fn read_proc_maps(pid: u32) -> ProcRead<Vec<MapEntry>> {
         let Some(inode) = parts.next().and_then(|value| value.parse::<u64>().ok()) else {
             continue;
         };
+        if inode == 0 || inode != target_inode {
+            continue;
+        }
         let Some((dev_major, dev_minor)) = parse_dev_hex(dev) else {
             continue;
         };
+        if dev_major != target_major || dev_minor != target_minor {
+            continue;
+        }
         let perms = perms_str.and_then(MmapPerms::parse).unwrap_or(MmapPerms {
             read: false,
             write: false,
             execute: false,
             private: true,
         });
-        entries.push(MapEntry {
-            dev_major,
-            dev_minor,
-            inode,
-            perms,
-        });
+        return ProcRead::Ok(Some(perms));
     }
 
-    ProcRead::Ok(entries)
+    ProcRead::Ok(None)
 }
 
 pub(super) fn read_proc_net_sockets() -> io::Result<Vec<SocketEntry>> {
