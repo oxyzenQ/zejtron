@@ -182,22 +182,29 @@ night-badass-8 it staged one rogue: a single process on port 9999
 holding 100 MiB. Night-dragon-2 upgrades it to the brutal inferno —
 a full host under fire that would crash or OOM a normal monitoring
 tool, staged by the surface itself and survived by the detective:
-500 dummy processes (`sleep 300`), 100 rogue python3 processes each
-binding a deterministic port (20000-20099), holding 10 MiB and
-accepting/closing localhost connections (1000 MiB fleet by
-construction, a 256 MiB RLIMIT_AS backstop per rogue, a 2 GiB
+500 dummy processes (`sleep 300`), four rogue python3 processes each
+binding a port from the deterministic table 20000/20017/20033/20050
+(the :20050 pin is the night-dragon-2 contract), holding 200 MiB and
+accepting/closing localhost connections (a ~880 MiB fleet by
+construction — under the task's 1 GiB python cap, and 4 x 200 MiB is
+what cracks a busy host's top-10 RAM table, the night-dragon-3
+finding — with a 1 GiB RLIMIT_AS backstop per rogue, a 2 GiB
 MemAvailable staging bar — the runner cannot be OOMed by this
-surface), one holder keeping 1000 read descriptors open, a paced
-100 MiB dd I/O burst (one writer alive across the whole assertion
-window — the live lane attributes the actor from /proc at render
-time, so an exited writer reads as unaccounted by design), and a
-bounded localhost socket storm. Under that fire, on the JSON lane
+surface), one holder keeping 1000 read descriptors open, a 100 MiB
+dd I/O burst written by ONE dd process that reads stdin fed by a
+fork-free printf feeder (the night-dragon-3 post-mortem: a feeder
+piped into `dd if=/dev/zero` paced nothing, because dd ignores
+stdin when if= is given — the writer finished inside a second and
+the live lane's why render found a cold trail), and a bounded
+localhost socket storm. Under that fire, on the JSON lane
 the automation contract pins: `proc --me --print-json` must finish
 in under 1 second (measured with EPOCHREALTIME, the forkless clock
 — a forked `date` lies under fork pressure) and capture more than
-500 processes; `port 20050 --print-json` must name rogue 50 as the
-listener's owner; `doctor --symptom ram --print-json` must name
-rogue pids among the top consumers with PSS above the 8 MB bar;
+500 processes; `port 20050 --print-json --snapshot-only` must name
+the pinned rogue as the listener's owner (the window law:
+--snapshot-only returns instantly, the owner rows resolve from
+/proc either way); `doctor --symptom ram --print-json` must name
+rogue pids among the top consumers with PSS above the 100 MB bar;
 `why <io file> --since 3s --print-json` must ride the live lane
 (gated on the `doctor --attach` preflight, the refusal direction
 staying the storm surface's contract) and attribute the writes to
