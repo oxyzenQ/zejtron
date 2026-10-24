@@ -1013,6 +1013,24 @@ v11.0.0
 
 ### Changed
 
+- The JSON rows go flat and the actor goes typed (night-badass-6,
+  Evidence Ledger Specification v3): the typed evidence fields
+  moved from the nested `action` object to the row root -
+  `{"unix_secs":...,"kind":"size","bytes":884,"actor":...,
+  "provenance":"measured"}` - so `jq '.measured[] |
+  select(.kind=="size") | .bytes'` is one descent, no `.action`
+  walk. The actor is the typed name/pid/user object
+  (`{"name":"brave","pid":2985,"user":"rezky"}`) with JSON null
+  for each part the source did not name, and JSON null for the
+  whole actor on pure-state rows - `jq 'select(.actor.pid ==
+  2985)'` selects without parsing a parenthesized string. The
+  `ledger_version` rides 3 and docs/EVIDENCE-LEDGER.md carries
+  the amended field map with v2 archived beside v1. The TEXT
+  ledger is byte-identical - the actor column renders from the
+  same typed struct through Display (the locked grammar's one
+  implementation), one source, two surfaces. No serde, no new
+  dependencies, std-only serializer as before.
+
 - The doctor's JSON speaks the standard names (night-badass-6): the
   readiness report carries the host's critical facts at the root -
   `os`, `kernel`, `distro`, and `ebpf_lane`, each the same value

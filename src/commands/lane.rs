@@ -29,7 +29,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use crate::evidence::row::{EvidenceKind, EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, Mode, UnaccountedEntry};
 
 use crate::commands::touch::TouchInfo;
@@ -227,7 +227,7 @@ fn collect_live(
         rows.push(EvidenceRow::new(
             crate::ebpf::fileprobe::event_unix_secs(event),
             kind,
-            format!("{name} (pid {}, {user})", event.pid),
+            EvidenceActor::process(name, event.pid, user),
             Provenance::Observed,
         ));
     }
@@ -407,18 +407,19 @@ fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
     }
 }
 
-/// The log record's actor, in the holder rows' format: the process
-/// when the log recorded one, the username it recorded either way.
-fn log_actor(info: &TouchInfo) -> String {
-    // The old tree's actor line, single-sourced: ProcessEvidence::label
-    // is the one implementation ("name pid=N"); the row appends the
-    // user the log recorded.
+/// The log record's actor, in the holder rows' grammar: the typed
+/// actor carrying the process when the log recorded one (the pid
+/// when the record carried it) and the username it recorded either
+/// way. The row renders it through Display; the JSON lane holds it
+/// as the name/pid/user object.
+fn log_actor(info: &TouchInfo) -> EvidenceActor {
     match &info.process {
-        Some(process) => match process.pid {
-            Some(pid) => format!("{} (pid {pid}, {})", process.name, info.actor),
-            None => format!("{} ({})", process.name, info.actor),
-        },
-        None => info.actor.clone(),
+        Some(process) => EvidenceActor::recorded(
+            Some(process.name.clone()),
+            process.pid,
+            Some(info.actor.clone()),
+        ),
+        None => EvidenceActor::recorded(None, None, Some(info.actor.clone())),
     }
 }
 

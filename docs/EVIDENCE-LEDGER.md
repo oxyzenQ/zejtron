@@ -3,17 +3,20 @@
 
 # The Evidence Ledger Specification
 
-**Evidence Ledger Specification v2**
+**Evidence Ledger Specification v3**
 
 This document is the citable definition of the Evidence Ledger
 output format - the block structure zejtron prints for every
-question it answers. v1 (Frozen) remains citable history: every
-consumer pinned against it can find its contract in the archive
-below. v2 changes exactly one thing: the JSON row's `action`
-field became the typed evidence object (section 5) - the text
-grammar, the tier vocabulary, and the four laws are unchanged
-from v1. A change to any of them is a new specification version
-and a breaking event, not an edit.
+question it answers. v1 (Frozen) and v2 (Frozen) remain citable
+history: every consumer pinned against them can find their
+contracts in the archive below. v3 changes exactly two things,
+both in the JSON row (section 5): the typed evidence fields sit
+at the row root (v2 carried them under a nested `action` object),
+and the actor became the typed name/pid/user object (v1 and v2
+carried a pre-rendered string; the pure-state actor is JSON null).
+The text grammar, the tier vocabulary, and the four laws are
+unchanged from v1. A change to any of them is a new specification
+version and a breaking event, not an edit.
 
 The reference implementation is zejtron's `src/evidence/` module,
 and the repository carries a drift pin: a test reads this document's
@@ -217,8 +220,9 @@ crates.
 
 Field map:
 
-- `ledger_version` - `2`, the specification version this report
-  conforms to (v1 carried `1`; v2 typed the `action` field).
+- `ledger_version` - `3`, the specification version this report
+  conforms to (v1 carried `1`; v2 typed the action; v3 flattened
+  the row and typed the actor).
 - `subject`, `window` - the header and mode line's window label,
   the same tokens the text block carries.
 - `mode` - the base word: `live`, `snapshot`, or `mixed`.
@@ -227,19 +231,21 @@ Field map:
   the unqualified lanes (`live`, `mixed`).
 - `measured`, `changes.rows` - arrays of row objects. A row is
   `{"unix_secs": <seconds | null>, "timestamp_utc": <"YYYY-MM-DD
-  HH:MM:SS (UTC)" | null>, "action": <the typed evidence object>,
-  "actor": "...", "provenance": "<tier>"}`. An absent time is JSON
-  `null` in both fields - the machine-native form of the text
-  renderer's `unknown`; the fact stays absent, never guessed.
+  HH:MM:SS (UTC)" | null>, "kind": "...", <the kind's raw
+  fields>, "actor": <the typed actor object | null>,
+  "provenance": "<tier>"}`. An absent time is JSON `null` in both
+  time fields - the machine-native form of the text renderer's
+  `unknown`; the fact stays absent, never guessed.
   `provenance` is one of the four tier tags, the locked
   vocabulary.
-- The `action` object (v2's change) carries the fact as typed
-  data, not a pre-rendered string. `kind` is one token per row
-  kind - the same vocabulary the text phrase renders ("size 884
-  bytes" is `{"kind":"size","bytes":884}`) - and the variant's
-  raw fields ride beside it: numbers stay numbers, strings stay
-  strings, and an absent optional part is JSON `null`. The kinds
-  this version speaks:
+- The row's typed fields (v3's change: at the row root; v2
+  carried them under a nested `action` object) hold the fact as
+  typed data, not a pre-rendered string. `kind` is one token per
+  row kind - the same vocabulary the text phrase renders ("size
+  884 bytes" is `"kind":"size","bytes":884`) - and the variant's
+  raw fields ride beside it at the same level: numbers stay
+  numbers, strings stay strings, and an absent optional part is
+  JSON `null`. The kinds this version speaks:
   - `type` - `{"file_type": "..."}` (the stat(2) class word).
   - `symlink-target` - `{"target": "..."}`.
   - `size` - `{"bytes": N}`.
@@ -260,6 +266,16 @@ Field map:
   - `journal-mention` - no payload (the log lane's weakest hit).
   A new kind is a specification event: the variant joins the
   code's enum, this list, and a version line - never silently.
+- The `actor` (v3's other change) is the typed acting identity:
+  `{"name": "...", "pid": N, "user": "..."}`, with JSON `null`
+  for each part the source did not name (a log record that
+  carried no pid, a username-only record), and JSON `null` for
+  the whole actor when the row is pure state - the
+  machine-native form of the text grammar's `—`. The live
+  holders and event rows carry all three (the name, the pid, and
+  the user resolved from the uid); the log-replayed rows carry
+  what the record said. `jq 'select(.actor.pid == 2985)'`
+  selects without parsing a parenthesized string.
 - `changes.unavailable` - the absent-lane truth beside the rows:
   `true` when no event lane could serve, `false` when it ran (an
   empty window with a present lane is `false` with an empty `rows`
@@ -276,6 +292,18 @@ and UTF-8 passes through verbatim. `why`'s `--trace` and `--raw`
 are text-only drill-downs and the CLI refuses their combination
 with `--print-json` - the JSON line stays byte-clean on stdout,
 always.
+
+### v2 archive (Frozen)
+
+Evidence Ledger Specification v2 (Frozen) is the pre-v3 contract,
+citable verbatim: identical to this document except section 5,
+where v2's row carried the typed evidence fields under a nested
+`"action": {...}` object (v3 flattened them to the row root) and
+the actor as the pre-rendered string ("systemd (pid 1, root)")
+that v3 replaced with the typed name/pid/user object. `ledger_version`
+was `2`, and no other field differed. The text grammar (section
+2), the tier vocabulary (section 1), and the four laws (section
+3) are byte-identical between v2 and v3.
 
 ### v1 archive (Frozen)
 

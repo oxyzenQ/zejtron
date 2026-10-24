@@ -19,9 +19,15 @@
 //! pair, the inode/dev pair) and owns two renderings - [`
 //! EvidenceKind::phrase`] is the locked text grammar ("size 884
 //! bytes"), and the JSON lane (json.rs) serializes the same enum
-//! into the typed evidence object (`{"kind":"size","bytes":884}`).
-//! One source, two surfaces, no drift: the text phrase and the JSON
-//! object are two renderings of the same variant.
+//! into the typed evidence fields at the row's root (night-badass-6:
+//! `{"kind":"size","bytes":884}`). The actor is a typed fact too
+//! (night-badass-6): [`EvidenceActor`] carries the name/pid/user
+//! triple raw, [`Display`] renders the locked text column
+//! ("brave (pid 2985, rezky)", the em-dash for pure state), and the
+//! JSON lane serializes the same struct into the typed actor object
+//! (`{"name":"brave","pid":2985,"user":"rezky"}`, JSON null for
+//! pure state). One source, two surfaces, no drift: the text and
+//! the JSON are two renderings of the same variants.
 
 /// The four provenance tiers - exactly four, the locked grammar.
 /// \[observed] rows come from eBPF kernel events, \[measured] rows
@@ -58,6 +64,80 @@ impl Provenance {
             Self::Measured => "measured",
             Self::Inferred => "inferred",
             Self::Unaccounted => "unaccounted",
+        }
+    }
+}
+
+/// The row's acting identity (night-badass-6): the typed actor, not
+/// a pre-rendered string. Three parts - the process name, the pid,
+/// the user - each present only when the source named it: the live
+/// holders and the event lane read all three from /proc, the log
+/// lane carries what the record said, and pure state (the metadata
+/// rows) names no actor at all. Like the kind, the struct owns two
+/// renderings: [`Display`] is the locked text grammar's one
+/// implementation ("brave (pid 2985, rezky)", the em-dash when no
+/// part exists), and the JSON lane (json.rs) serializes the same
+/// struct into the typed actor object
+/// (`{"name":"brave","pid":2985,"user":"rezky"}`, JSON null when no
+/// part exists - the machine-native form of the em-dash).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EvidenceActor {
+    /// The process name, when the source named one.
+    pub name: Option<String>,
+    /// The process id, when the source carried one.
+    pub pid: Option<u32>,
+    /// The user name - resolved from the uid, or as the record
+    /// spelled it.
+    pub user: Option<String>,
+}
+
+impl EvidenceActor {
+    /// The pure-state actor: the row names no acting identity - the
+    /// text column's em-dash, the JSON lane's null.
+    pub fn none() -> Self {
+        Self {
+            name: None,
+            pid: None,
+            user: None,
+        }
+    }
+
+    /// The process actor: the live holder's or event's triple, all
+    /// three facts read from /proc at the same instant.
+    pub fn process(name: impl Into<String>, pid: u32, user: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            pid: Some(pid),
+            user: Some(user.into()),
+        }
+    }
+
+    /// The recorded actor: what a log line carried - the process
+    /// name and pid when the record named them, the username it
+    /// recorded either way. Each absent part is an honest absence.
+    pub fn recorded(name: Option<String>, pid: Option<u32>, user: Option<String>) -> Self {
+        Self { name, pid, user }
+    }
+}
+
+impl std::fmt::Display for EvidenceActor {
+    /// The text column's locked grammar, byte-identical to the
+    /// pre-typed strings: `name (pid N, user)` when the process and
+    /// its account are known, `name (user)` when the record carried
+    /// no pid, `name (pid N)` when it carried no account, the bare
+    /// name or user when only one part exists, and the em-dash for
+    /// pure state. Every shape degrades honestly - never a panic,
+    /// never a guessed part.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match (&self.name, self.pid, &self.user) {
+            (None, None, None) => f.write_str("—"),
+            (Some(name), Some(pid), Some(user)) => write!(f, "{name} (pid {pid}, {user})"),
+            (Some(name), Some(pid), None) => write!(f, "{name} (pid {pid})"),
+            (Some(name), None, Some(user)) => write!(f, "{name} ({user})"),
+            (Some(name), None, None) => f.write_str(name),
+            (None, Some(pid), Some(user)) => write!(f, "{user} (pid {pid})"),
+            (None, Some(pid), None) => write!(f, "pid {pid}"),
+            (None, None, Some(user)) => f.write_str(user),
         }
     }
 }
@@ -230,17 +310,18 @@ impl EvidenceKind {
 
 /// One evidence row. The timestamp is the moment of the fact: the
 /// scan instant for state rows, the event's own time for event rows,
-/// the mtime for an mtime row. The actor is the acting identity
-/// (`name (pid N, user)` for processes, `—` for pure state that has
-/// no actor).
+/// the mtime for an mtime row. The actor is the acting identity -
+/// the typed [`EvidenceActor`] triple for processes, [`
+/// EvidenceActor::none`] for pure state that has no actor.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EvidenceRow {
     /// Unix seconds of the fact; `None` renders `unknown`.
     pub unix_secs: Option<i64>,
     /// What happened or what holds - the typed fact itself.
     pub kind: EvidenceKind,
-    /// Who did it or who holds it; `—` when the row is pure state.
-    pub actor: String,
+    /// Who did it or who holds it - the typed actor; [`
+    /// EvidenceActor::none`] when the row is pure state.
+    pub actor: EvidenceActor,
     /// Exactly one tier.
     pub provenance: Provenance,
 }
@@ -250,13 +331,13 @@ impl EvidenceRow {
     pub fn new(
         unix_secs: Option<i64>,
         kind: EvidenceKind,
-        actor: impl Into<String>,
+        actor: EvidenceActor,
         provenance: Provenance,
     ) -> Self {
         Self {
             unix_secs,
             kind,
-            actor: actor.into(),
+            actor,
             provenance,
         }
     }
@@ -295,6 +376,9 @@ impl EvidenceRow {
             Provenance::Observed | Provenance::Measured => crate::output::ok_out(&tag),
             Provenance::Inferred | Provenance::Unaccounted => crate::output::grey_out(&tag),
         };
+        // The actor renders through Display - the locked text
+        // grammar's one implementation, byte-identical to the
+        // pre-typed strings.
         format!(
             "{}  {}  {}  {tag}",
             crate::output::grey_out(&timestamp),

@@ -21,7 +21,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::evidence::row::{EvidenceKind, EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{EvidenceReport, UnaccountedEntry, Verdict};
 
 use super::{TouchError, TouchInfo, inspect_path, parse_passwd};
@@ -121,14 +121,13 @@ fn metadata_rows(
     users: &std::collections::HashMap<u32, String>,
 ) -> Vec<EvidenceRow> {
     let mut rows = Vec::new();
-    let dash = "—".to_owned();
     if let Some(meta) = &info.meta {
         rows.push(EvidenceRow::new(
             Some(scan_instant),
             EvidenceKind::Type {
                 file_type: meta.file_type.clone(),
             },
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
         if meta.is_symlink
@@ -139,14 +138,14 @@ fn metadata_rows(
                 EvidenceKind::SymlinkTarget {
                     target: target.clone(),
                 },
-                dash.clone(),
+                EvidenceActor::none(),
                 Provenance::Measured,
             ));
         }
         rows.push(EvidenceRow::new(
             Some(scan_instant),
             EvidenceKind::Size { bytes: meta.size },
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
         let uname = users
@@ -165,7 +164,7 @@ fn metadata_rows(
                 uid: meta.uid,
                 gid: meta.gid,
             },
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
         rows.push(EvidenceRow::new(
@@ -173,7 +172,7 @@ fn metadata_rows(
             EvidenceKind::Permissions {
                 octal: meta.perms_octal.clone(),
             },
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
         rows.push(EvidenceRow::new(
@@ -182,7 +181,7 @@ fn metadata_rows(
                 id: meta.inode,
                 dev: meta.dev,
             },
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
         let stamp = |t: SystemTime| {
@@ -193,26 +192,26 @@ fn metadata_rows(
         rows.push(EvidenceRow::new(
             stamp(meta.modified),
             EvidenceKind::Modified { via: None },
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
         rows.push(EvidenceRow::new(
             stamp(meta.accessed),
             EvidenceKind::Accessed,
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
         rows.push(EvidenceRow::new(
             stamp(meta.changed),
             EvidenceKind::Changed,
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
     } else {
         rows.push(EvidenceRow::new(
             stamp_of(info.modified),
             EvidenceKind::Modified { via: None },
-            dash.clone(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
     }

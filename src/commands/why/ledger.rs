@@ -23,7 +23,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::evidence::row::{EvidenceKind, EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, EvidenceReport, Mode, UnaccountedEntry, Verdict};
 
 use super::super::holds::{self, Holder};
@@ -163,7 +163,7 @@ pub fn build_port_report(
                 EvidenceKind::Cwd {
                     path: Some(crate::system::sanitize_display(&cwd.to_string_lossy())),
                 },
-                format!("{} (pid {}, {})", holder.name, holder.pid, holder.user),
+                EvidenceActor::process(&holder.name, holder.pid, &holder.user),
                 Provenance::Measured,
             ));
         }
@@ -218,7 +218,7 @@ pub fn build_port_report(
 
 /// The holder rows (the evidence pairs), shared by both targets.
 fn push_holder_rows(rows: &mut Vec<EvidenceRow>, holder: &Holder, scan_instant: i64) {
-    let actor = format!("{} (pid {}, {})", holder.name, holder.pid, holder.user);
+    let actor = EvidenceActor::process(&holder.name, holder.pid, &holder.user);
     for evidence in &holder.evidence {
         rows.push(EvidenceRow::new(
             Some(scan_instant),
@@ -237,7 +237,7 @@ fn push_holder_rows(rows: &mut Vec<EvidenceRow>, holder: &Holder, scan_instant: 
 fn push_enrichment_rows(rows: &mut Vec<EvidenceRow>, holder: &Holder, scan_instant: i64) {
     let unit = read_systemd_unit(Path::new("/proc"), holder.pid);
     let cmdline = read_cmdline(Path::new("/proc"), holder.pid);
-    let actor = format!("{} (pid {}, {})", holder.name, holder.pid, holder.user);
+    let actor = EvidenceActor::process(&holder.name, holder.pid, &holder.user);
     let cmd_fresh = cmdline
         .as_deref()
         .is_some_and(|cmd| !cmd.is_empty() && cmd != holder.name);
@@ -280,12 +280,11 @@ fn push_metadata_rows(
     scan_instant: i64,
     users: &std::collections::HashMap<u32, String>,
 ) {
-    let dash = "—".to_owned();
     let Some(meta) = &info.meta else {
         rows.push(EvidenceRow::new(
             stamp_of(info.modified),
             EvidenceKind::Modified { via: None },
-            dash,
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
         return;
@@ -303,7 +302,7 @@ fn push_metadata_rows(
         EvidenceKind::Type {
             file_type: meta.file_type.clone(),
         },
-        "—".to_owned(),
+        EvidenceActor::none(),
         Provenance::Measured,
     ));
     if meta.is_symlink
@@ -314,14 +313,14 @@ fn push_metadata_rows(
             EvidenceKind::SymlinkTarget {
                 target: target.clone(),
             },
-            "—".to_owned(),
+            EvidenceActor::none(),
             Provenance::Measured,
         ));
     }
     rows.push(EvidenceRow::new(
         Some(scan_instant),
         EvidenceKind::Size { bytes: meta.size },
-        "—".to_owned(),
+        EvidenceActor::none(),
         Provenance::Measured,
     ));
     rows.push(EvidenceRow::new(
@@ -332,7 +331,7 @@ fn push_metadata_rows(
             uid: meta.uid,
             gid: meta.gid,
         },
-        "—".to_owned(),
+        EvidenceActor::none(),
         Provenance::Measured,
     ));
     rows.push(EvidenceRow::new(
@@ -340,7 +339,7 @@ fn push_metadata_rows(
         EvidenceKind::Permissions {
             octal: meta.perms_octal.clone(),
         },
-        "—".to_owned(),
+        EvidenceActor::none(),
         Provenance::Measured,
     ));
     rows.push(EvidenceRow::new(
@@ -349,13 +348,13 @@ fn push_metadata_rows(
             id: meta.inode,
             dev: meta.dev,
         },
-        "—".to_owned(),
+        EvidenceActor::none(),
         Provenance::Measured,
     ));
     rows.push(EvidenceRow::new(
         stamp_of(meta.modified),
         EvidenceKind::Modified { via: None },
-        "—".to_owned(),
+        EvidenceActor::none(),
         Provenance::Measured,
     ));
 }

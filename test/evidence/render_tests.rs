@@ -5,7 +5,7 @@
 //! locked output shape, all four sections, byte-deterministic, no
 //! ANSI escape bytes ever. Wired from src/evidence/render.rs.
 
-use super::super::row::{EvidenceKind, EvidenceRow, Provenance};
+use super::super::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use super::super::{ChangesSection, Mode, UnaccountedEntry, Verdict};
 use super::*;
 
@@ -23,7 +23,7 @@ fn sample_report() -> EvidenceReport {
                 EvidenceKind::Held {
                     via: "fd 3 (rw)".to_owned(),
                 },
-                "sshd (pid 1234, root)",
+                EvidenceActor::process("sshd", 1234, "root"),
                 Provenance::Measured,
             ),
             EvidenceRow::new(
@@ -31,7 +31,7 @@ fn sample_report() -> EvidenceReport {
                 EvidenceKind::Held {
                     via: "mmap rw-p".to_owned(),
                 },
-                "python3 (pid 77, nightky)",
+                EvidenceActor::process("python3", 77, "nightky"),
                 Provenance::Measured,
             ),
         ],
@@ -40,7 +40,7 @@ fn sample_report() -> EvidenceReport {
                 EvidenceRow::new(
                     Some(FIXED_LATER),
                     EvidenceKind::Opened,
-                    "cat (pid 9, root)",
+                    EvidenceActor::process("cat", 9, "root"),
                     Provenance::Observed,
                 ),
                 EvidenceRow::new(
@@ -48,7 +48,7 @@ fn sample_report() -> EvidenceReport {
                     EvidenceKind::Modified {
                         via: Some("audit log"),
                     },
-                    "cron (pid 123, root)",
+                    EvidenceActor::process("cron", 123, "root"),
                     Provenance::Inferred,
                 ),
             ],
