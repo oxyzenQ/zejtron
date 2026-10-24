@@ -486,11 +486,12 @@ zejtron why /etc/passwd --print-json | jq '.measured[].action | select(.kind=="s
 zejtron why /etc/passwd --print-json | jq '.measured[].action | select(.kind=="owner") | .uid'
 
 # The doctor speaks the same JSON dialect (one line, jq-ready):
-# the readiness report (checks, summary, eBPF facts) and every
-# symptom lane (--print-json excludes --attach/--detach/--raw)
-zejtron doctor --print-json | jq '.ebpf.lane'
+# the readiness report (the host's facts at the root - os, kernel,
+# distro, ebpf_lane - plus the detailed checks and eBPF facts) and
+# every symptom lane (--print-json excludes --attach/--detach/--raw)
+zejtron doctor --print-json | jq '.os, .kernel, .ebpf_lane'
 zejtron doctor --symptom ram --print-json | jq .memory.used_bytes
-zejtron doctor --symptom cpu --print-json | jq '.top[0].pct'
+zejtron doctor --symptom cpu --print-json | jq '.processes[0].pct'
 zejtron doctor --symptom network --print-json | jq '.sockets.time_wait'
 
 # Network context
