@@ -328,10 +328,10 @@ embeds a pure-Rust eBPF object. No program loads until you attach
 (see below) and nothing pins before that.
 
 ```sh
-./scripts/dev/bootstrap-ebpf.sh        # once per machine, for the
+./scripts/dev/bootstrap-ebpf.sh         # once per machine, for the
                                         # source-built lane: the dated
                                         # nightly pin + bpf-linker 0.11.1
-cargo pro-linux-amd64-v3-musl         # the pro lane source-builds the
+cargo pro-linux-amd64-v3-musl           # the pro lane source-builds the
                                         # object + the release v3 binary
                                         # (target/x86_64-unknown-linux-musl/
                                         # pro-linux-amd64-v3-musl/)

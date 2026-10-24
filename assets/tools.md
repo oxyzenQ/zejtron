@@ -6,7 +6,7 @@
 ### usually for rounder corner image
 
 
-```bash
+```sh
 magick input.png \( -size 1254x1254 xc:none -fill white -draw 'roundrectangle 0,0 1253,1253 68,68' \) -alpha off -compose CopyOpacity -composite output.png
 
 ```
