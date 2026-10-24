@@ -35,7 +35,8 @@
 #                         lines always emitted
 #   --help                this text
 #
-# The suite is bash + coreutils only, by design. It is not part of
+# The suite is bash + coreutils + jq (the typed JSON law's harness
+# dependency - the binary itself stays jq-free). It is not part of
 # `cargo test`: cargo test covers units, supermassive covers the
 # binary a user actually runs.
 
@@ -48,7 +49,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/zejtron-bin.sh"
 
 usage() {
-	sed -n '2,40p' "$SUITE_DIR/supermassive.sh" | sed 's/^# \{0,1\}//'
+	sed -n '2,41p' "$SUITE_DIR/supermassive.sh" | sed 's/^# \{0,1\}//'
 	exit "${1:-0}"
 }
 
@@ -148,6 +149,17 @@ fi
 if [[ ! -x "$BIN" ]]; then
 	echo "error: binary not found or not executable: $BIN" >&2
 	echo "hint: pass an executable --bin / ZEJTRON_BIN_PATH, or build it first (cargo build --release --locked or a cargo profile lane)" >&2
+	exit 2
+fi
+
+# The typed JSON law (night-dragon-4): jq is a HARNESS dependency.
+# The binary stays jq-free (owner law), but the suite's JSON
+# assertions are typed through jq, and a missing jq would silently
+# gut the depth the whole suite exists to prove. The honest move is
+# the hard error at startup, named, with the escape hatch given.
+if ! command -v jq >/dev/null 2>&1; then
+	echo "error: jq is not on PATH - the typed JSON law (night-dragon-4) needs it on the harness side (the binary itself stays jq-free)" >&2
+	echo "hint: install the distribution jq package, or run the binary-only battery: scripts/build.sh battery" >&2
 	exit 2
 fi
 # There is NO dormant build to hand over: the eBPF support is

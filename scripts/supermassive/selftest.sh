@@ -242,6 +242,35 @@ fi
 sm_flag_used "--version"
 grep -qxF -- "--version" "$SM_FLAGS_USED_FILE" || sm_fail "selftest: flag registry" "recorded flag not found"
 
+# 7. The typed JSON law (night-dragon-4): purity, silence, truthy
+# filters. The probes ride fixture files, no binary needed.
+if command -v jq >/dev/null 2>&1; then
+	printf '{"mode":"snapshot","ports":[{"state":"LISTEN"}]}\n' >"$SM_SCRATCH/j.json"
+	sm_assert_silent_stderr /dev/null "selftest: silent stderr passes on an empty stream"
+	printf 'noise\n' >"$SM_SCRATCH/j.err"
+	probe_failures=$((probe_failures + 1))
+	sm_assert_silent_stderr "$SM_SCRATCH/j.err" "selftest: injected silent-stderr probe"
+	[[ "$SM_FAIL" -eq "$probe_failures" ]] || sm_fail "selftest: silent-stderr law" \
+		"bytes on a JSON lane's stderr did not record a failure"
+
+	sm_assert_pure_json "$SM_SCRATCH/j.json" "selftest: pure JSON passes"
+	printf 'not json at all\n' >"$SM_SCRATCH/j.bad"
+	probe_failures=$((probe_failures + 1))
+	sm_assert_pure_json "$SM_SCRATCH/j.bad" "selftest: injected pure-json probe"
+	[[ "$SM_FAIL" -eq "$probe_failures" ]] || sm_fail "selftest: pure-json law" \
+		"prose on a JSON lane's stdout did not record a failure"
+
+	sm_assert_json "$SM_SCRATCH/j.json" '.mode == "snapshot"' "selftest: truthy jq filter passes"
+	sm_assert_json "$SM_SCRATCH/j.json" '.ports | length == 1' "selftest: typed array filter passes"
+	probe_failures=$((probe_failures + 1))
+	sm_assert_json "$SM_SCRATCH/j.json" '.mode == "live"' "selftest: injected jq probe"
+	[[ "$SM_FAIL" -eq "$probe_failures" ]] || sm_fail "selftest: jq law" \
+		"a false filter did not record a failure"
+else
+	sm_skip "selftest: the typed JSON probes" \
+		"jq is not on PATH (the typed JSON law's harness dependency)"
+fi
+
 rm -rf "$SM_SCRATCH"
 
 # The verdict: the failure counter must hold EXACTLY the deliberate
