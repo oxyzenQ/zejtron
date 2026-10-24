@@ -229,7 +229,7 @@ source with the standard toolchain (see Install from source). No
 pre-built artifact is offered for those architectures, and none is
 implied.
 
-Enterprise license holders ($35,999/year) can request an officially
+Enterprise license holders ($49,999/year) can request an officially
 verified build for their architecture: we compile the shape, run
 the full test suite against it, and provide the verified artifact.
 
@@ -849,14 +849,16 @@ verification process live in
 | ------------------ | -------------- | ---------------------------------------------------------- |
 | Personal           | Free (GPL-3.0) | Hobby, personal, non-commercial, contributions             |
 | Solo Dev Business  | $1,899/year    | Solo devs, freelancers, revenue under $100K/year           |
-| Company            | $35,999/year   | Enterprise, revenue over $10M/year, or any redistribution  |
+| SMB                | $9,999/year    | Startups, SMBs, revenue $100K to $10M/year                 |
+| Company            | $49,999/year   | Enterprise, revenue over $10M/year, or any redistribution  |
 
 The paid rungs follow the value upward: the tool's value increases
 year by year — the price tracks the value and keeps rising as the
 work compounds. Buyers who paid before a move are
 grandfathered at the price they bought, for the term they bought.
 The tier's revenue anchors are self-declared in good faith: Solo Dev
-Business names solo devs and freelancers under $100K/year; Company
+Business names solo devs and freelancers under $100K/year; SMB names
+startups and SMBs from $100K to $10M/year; Company
 covers enterprise (over $10M/year) and every use that needs
 redistribution rights.
 
