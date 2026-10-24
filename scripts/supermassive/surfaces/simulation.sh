@@ -14,10 +14,14 @@
 # its PSS above the 50 MB bar (the memory symptom's typed process
 # rows: pid, comm, pss_bytes — the hand-written serializer's field
 # order is the pin), and `port 9999 --print-json` must name the same
-# pid as the socket's holder (the Evidence Ledger's typed actor, the
-# report's subject pinning the port). The rogue is spawned by the
-# surface, bounded by its own sleep (a wedged harness cannot leak an
-# unbounded consumer), killed and reaped by the surface's own hand.
+# pid as the socket's owner (the port report's own typed truth —
+# night-badass-9's universal JSON: the socket table's owners rows,
+# pid/process/user at the row root, and the event window's
+# listened/left-listen/closed tokens; the Evidence Ledger's "held"
+# token belongs to holds/why and never rides this report). The rogue
+# is spawned by the surface, bounded by its own sleep (a wedged
+# harness cannot leak an unbounded consumer), killed and reaped by
+# the surface's own hand.
 #
 # Host contracts: python3 must exist on the harness PATH (the rogue
 # is plain python; no dependency is added to the suite itself, which
@@ -115,11 +119,11 @@ time.sleep(45)' >"$SM_SCRATCH/rogue.out" 2>"$SM_SCRATCH/rogue.err" &
 		"\"subject\":\":9999\"" \
 		"simulation: the port report pins the subject :9999"
 	sm_assert_contains "$SM_SCRATCH/sim-port.json" \
-		"\"pid\":${rogue_pid}" \
-		"simulation: the port report names the rogue as the holder (pid $rogue_pid)"
+		"\"state\":\"LISTEN\"" \
+		"simulation: the socket table renders the listening state"
 	sm_assert_contains "$SM_SCRATCH/sim-port.json" \
-		"\"kind\":\"held\"" \
-		"simulation: the port report carries the held evidence row"
+		"\"owners\":\[{\"pid\":${rogue_pid},\"process\":\"" \
+		"simulation: the port report names the rogue as the socket's owner (pid $rogue_pid)"
 
 	# The surface ends clean by its own hand: the rogue killed and
 	# reaped, the incident closed.
