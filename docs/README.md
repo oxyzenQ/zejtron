@@ -21,6 +21,7 @@ carries the disclaimer and yields to it.
 | [RULES.md](RULES.md) | The project law: the gates, the caps, the conventions a change must land under. |
 | [ROADMAP.md](ROADMAP.md) / [ROADMAP-current.md](ROADMAP-current.md) | Where the project is going; the owner's call. |
 | [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) | The supply-chain ledger: every direct dependency's justification, the removed set, the rules going forward. |
+| [DOC_AUDIT.md](DOC_AUDIT.md) | The documentation depth audit: the master ruleset every doc is measured against - tell once (one home per fact, no duplicates), the depth bar, the registry, same-pass sync. |
 | [LICENSING_FAQ.md](LICENSING_FAQ.md) | The licensing quick answers: who needs the commercial license, tiers, contact. |
 
 ## Governance (repository root)
