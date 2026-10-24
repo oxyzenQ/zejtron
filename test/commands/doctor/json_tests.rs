@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The doctor JSON lane's tests (night-badass-5): the readiness
-//! envelope, the ram and cpu byte pins, the absent-fact null law,
-//! the exit lane's three truths, the deferral's JSON honesty, and
-//! the one-line law. Wired from src/commands/doctor/json.rs.
+//! The doctor JSON lane's tests (night-badass-5, repinned by
+//! night-badass-6): the readiness envelope with its root facts, the
+//! ram and cpu byte pins, the standard array names (`processes`,
+//! `caches`), the absent-fact null law, the exit lane's three
+//! truths, the deferral's JSON honesty, and the one-line law.
+//! Wired from src/commands/doctor/json.rs.
 
 use super::super::CheckStatus;
 use super::super::cpu::{CpuRow, CpuSample};
@@ -108,7 +110,7 @@ fn every_json_lane_is_one_line() {
 fn the_symptom_envelope_carries_its_identity() {
     let line = json_gpu(&GpuSample::default());
     assert!(line.starts_with(
-        "{\"ledger_version\":1,\"mode\":\"symptom\",\"symptom\":\"gpu\",\"window\":null"
+        "{\"ledger_version\":2,\"mode\":\"symptom\",\"symptom\":\"gpu\",\"window\":null"
     ));
     let line = json_cpu(&cpu_sample());
     assert!(line.contains("\"symptom\":\"cpu\",\"window\":\"1.0s\""));
@@ -119,7 +121,7 @@ fn the_slow_json_names_the_absence_never_a_fake_report() {
     let line = slow_json(&super::super::symptom::IMPLEMENTED);
     assert_eq!(
         line,
-        "{\"ledger_version\":1,\"mode\":\"symptom\",\"symptom\":\"slow\",\"window\":null,\
+        "{\"ledger_version\":2,\"mode\":\"symptom\",\"symptom\":\"slow\",\"window\":null,\
 \"implemented\":false,\"implemented_symptoms\":[\"ram\",\"cpu\",\"disk\",\"network\",\"gpu\"]}"
     );
 }
@@ -150,16 +152,25 @@ fn readiness_prefix() -> String {
 #[test]
 fn the_readiness_json_pins_its_envelope() {
     let line = readiness_prefix();
-    // The envelope and the check rows are deterministic; the eBPF
-    // facts probe the host, so the pin stops at the summary and the
-    // ebpf object's own opening keys.
-    assert!(line.starts_with(
-        "{\"ledger_version\":1,\"mode\":\"readiness\",\"user\":{\"uid\":0,\
-\"class\":\"privileged\"},\"checks\":[{\"name\":\"os\",\"status\":\"ok\",\
+    // The envelope opens with the root host facts (night-badass-6):
+    // the OS word is the compile-time constant, the kernel and
+    // distro ride the host's probes, the lane is the eBPF facts'
+    // own - so the pin takes the deterministic prefix and the rest
+    // rides contains assertions. The detailed check rows, the
+    // summary, and the ebpf object follow.
+    assert!(
+        line.starts_with(
+            "{\"ledger_version\":2,\"mode\":\"readiness\",\"os\":\"linux\",\"kernel\":"
+        )
+    );
+    assert!(line.contains(
+        "\"user\":{\"uid\":0,\"class\":\"privileged\"},\"checks\":[{\"name\":\"os\",\"status\":\"ok\",\
 \"message\":\"linux\"},{\"name\":\"journalctl\",\"status\":\"warn\",\
 \"message\":\"unreadable\"}],\"summary\":{\"ok\":1,\"warn\":1,\"fail\":0},\
 \"ebpf\":{\"feature\":\"enabled\""
     ));
+    assert!(line.contains("\"distro\":"));
+    assert!(line.contains("\"ebpf_lane\":"));
     assert!(line.contains("\"pins_state\":"));
     assert!(line.contains("\"probes\":["));
 }
@@ -183,7 +194,7 @@ fn the_ram_json_pins_its_shape() {
     let line = json_ram(&ram_sample());
     assert_eq!(
         line,
-        "{\"ledger_version\":1,\"mode\":\"symptom\",\"symptom\":\"ram\",\"window\":null,\
+        "{\"ledger_version\":2,\"mode\":\"symptom\",\"symptom\":\"ram\",\"window\":null,\
 \"memory\":{\"total_bytes\":1048576,\"used_bytes\":262144,\"available_bytes\":786432,\
 \"used_pct\":25},\
 \"processes\":[{\"pid\":42,\"comm\":\"brave\",\"pss_bytes\":409600,\"anon_bytes\":102400,\
@@ -194,7 +205,7 @@ fn the_ram_json_pins_its_shape() {
 \"deleted_open\":[],\"memfds\":[],\
 \"kernel_buckets\":{\"page_cache_bytes\":122880,\"buffers_bytes\":16384,\
 \"shmem_bytes\":8192},\
-\"slab\":{\"readable\":true,\"top\":[{\"cache\":\"kmalloc-1k\",\"size_bytes\":65536}]},\
+\"slab\":{\"readable\":true,\"caches\":[{\"cache\":\"kmalloc-1k\",\"size_bytes\":65536}]},\
 \"residual_bytes\":0,\"exits\":{\"lane\":\"not-attached\"},\
 \"unaccounted\":[{\"count\":1,\"category\":\"exited processes\",\"reason\":\"eBPF is not \
 attached - processes that exited before this snapshot are invisible\"},\
@@ -220,7 +231,7 @@ fn the_absent_facts_stay_absent_never_zero() {
     assert!(line.contains("\"residual_bytes\":null"));
     assert!(line.contains("\"processes\":[],\"processes_total\":0"));
     assert!(line.contains("\"exits\":{\"lane\":\"not-attached\"}"));
-    assert!(line.contains("\"slab\":{\"readable\":false,\"top\":[]}"));
+    assert!(line.contains("\"slab\":{\"readable\":false,\"caches\":[]}"));
 }
 
 // ── cpu ──────────────────────────────────────────────────────────
@@ -230,9 +241,9 @@ fn the_cpu_json_pins_its_shape() {
     let line = json_cpu(&cpu_sample());
     assert_eq!(
         line,
-        "{\"ledger_version\":1,\"mode\":\"symptom\",\"symptom\":\"cpu\",\"window\":\"1.0s\",\
+        "{\"ledger_version\":2,\"mode\":\"symptom\",\"symptom\":\"cpu\",\"window\":\"1.0s\",\
 \"ncpu\":8,\"loadavg_1min\":1.5,\"busy_pct\":47.2,\"total_ticks_delta\":1000,\
-\"top\":[{\"pid\":2985,\"comm\":\"brave\",\"pct\":47.2,\"ticks\":472}],\
+\"processes\":[{\"pid\":2985,\"comm\":\"brave\",\"pct\":47.2,\"ticks\":472}],\
 \"running\":1,\"stuck\":[],\"stuck_overflow\":0,\"started_in_window\":0,\
 \"vanished_between_reads\":0,\"exits\":{\"lane\":\"not-attached\"},\
 \"unaccounted\":[{\"count\":1,\"category\":\"process lifecycles\",\"reason\":\"processes \
@@ -256,7 +267,7 @@ fn numbers_stay_numbers_in_the_json_lane() {
 // ── The exit lane's three truths ─────────────────────────────────
 
 #[test]
-fn the_drained_lane_names_its_rows_and_the_overflow() {
+fn the_drained_lane_names_its_processes_and_the_overflow() {
     let lane = ExitLane::Drained(vec![
         ExitRow {
             pid: 7,
@@ -272,7 +283,7 @@ fn the_drained_lane_names_its_rows_and_the_overflow() {
     let mut out = String::new();
     write_exits(&mut out, &lane, "5s");
     assert!(out.starts_with(
-        ",\"exits\":{\"lane\":\"drained\",\"window_label\":\"5s\",\"rows\":\
+        ",\"exits\":{\"lane\":\"drained\",\"window_label\":\"5s\",\"processes\":\
 [{\"pid\":7,\"comm\":\"gone\",\"at\":"
     ));
     assert!(out.contains("\"timestamp_ns\":2000000000}"));

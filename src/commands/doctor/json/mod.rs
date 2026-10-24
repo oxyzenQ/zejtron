@@ -12,12 +12,23 @@
 //! `{count, category, reason}` entries the Evidence Ledger speaks.
 //!
 //! ```json
-//! {"ledger_version":1,"mode":"readiness","user":{"uid":0,"class":
-//!  "privileged"},"checks":[...],"summary":{...},"ebpf":{...}}
-//! {"ledger_version":1,"mode":"symptom","symptom":"ram","memory":
+//! {"ledger_version":2,"mode":"readiness","os":"linux","kernel":
+//!  "...","distro":"...","ebpf_lane":"live","user":{"uid":0,
+//!  "class":"privileged"},"checks":[...],"summary":{...},"ebpf":{...}}
+//! {"ledger_version":2,"mode":"symptom","symptom":"ram","memory":
 //!  {"total_bytes":N,"used_bytes":N,"available_bytes":N,"used_pct":
 //!  N},"processes":[...],"unaccounted":[...],"verdict":{"lines":[...]}}
 //! ```
+//!
+//! The standard names (night-badass-6): every array of process
+//! records is `processes` (the ranked consumers, the socket and
+//! device holders, the drained exit rows), the interface deltas are
+//! `interfaces`, the per-holder device lists are `devices`, the
+//! slab census is `caches` - an SRE writes the jq path from the
+//! noun, not from this document. The readiness report carries the
+//! host's critical facts at the root (`os`, `kernel`, `distro`,
+//! `ebpf_lane`) beside the detailed `checks` array - the five-second
+//! query does not descend.
 //!
 //! The verdicts are prose by nature - the fact sentence the report
 //! names - so they ride as `verdict.lines`; everything a machine
@@ -34,8 +45,11 @@ use crate::evidence::UnaccountedEntry;
 use crate::evidence::json::{write_string, write_unaccounted};
 
 /// The one version number the doctor's automation lane pins: the
-/// JSON surface's own contract line, v1.
-const LEDGER_VERSION: u32 = 1;
+/// JSON surface's own contract line. v2 (night-badass-6) moved the
+/// readiness host facts to the root and standardized the array
+/// names (`processes`, `interfaces`, `devices`, `caches`) - a
+/// breaking shape change, named by the version.
+const LEDGER_VERSION: u32 = 2;
 
 // ── Shared writers ────────────────────────────────────────────────
 
@@ -108,8 +122,9 @@ fn write_unaccounted_entries(out: &mut String, entries: &[UnaccountedEntry]) {
 }
 
 /// The exits overlay object (night-improve-47's three truths): the
-/// lane state, the drained rows (the render's own TOP_N cap and
-/// overflow count), or the drain failure verbatim.
+/// lane state, the drained rows under the standard `processes` name
+/// (night-badass-6; the render's own TOP_N cap and the overflow
+/// count beside them), or the drain failure verbatim.
 fn write_exits(out: &mut String, lane: &ExitLane, window_label: &str) {
     out.push_str(",\"exits\":{\"lane\":");
     match lane {
@@ -122,7 +137,7 @@ fn write_exits(out: &mut String, lane: &ExitLane, window_label: &str) {
         ExitLane::Drained(rows) => {
             out.push_str("\"drained\",\"window_label\":");
             write_string(out, window_label);
-            out.push_str(",\"rows\":");
+            out.push_str(",\"processes\":");
             let shown = rows.len().min(super::memory::ledger::TOP_N);
             write_array(out, shown, |out, index| {
                 let row = &rows[index];
@@ -152,18 +167,41 @@ fn write_exits(out: &mut String, lane: &ExitLane, window_label: &str) {
 
 // ── The readiness report ─────────────────────────────────────────
 
-/// The readiness report as JSON: the user context, every check
-/// (name, lowercase status, the message the text row carries), the
-/// summary counts, and the eBPF section's structured facts.
+/// The readiness report as JSON: the host's critical facts at the
+/// root (the OS word, the kernel release, the distro, and the eBPF
+/// lane, each the same value its check row speaks, probed once), the
+/// user context, every check (name, lowercase status, the message
+/// the text row carries), the summary counts, and the eBPF
+/// section's structured facts.
 pub(super) fn readiness_json(
     checks: &[CheckResult],
     summary: &Summary,
     uid: Option<u32>,
 ) -> String {
+    let facts = ebpf::facts_json();
     let mut out = String::with_capacity(1024);
     out.push_str("{\"ledger_version\":");
     let _ = write!(out, "{LEDGER_VERSION}");
     out.push_str(",\"mode\":\"readiness\"");
+    // The root facts (night-badass-6): the five-second query's
+    // answers, each the same value its check row or eBPF section
+    // speaks - the OS word is the compile-time constant, the kernel
+    // and distro ride the shared probes, and the lane is the eBPF
+    // facts' own. An unreadable fact is JSON null, never a guess.
+    out.push_str(",\"os\":");
+    write_string(&mut out, std::env::consts::OS);
+    out.push_str(",\"kernel\":");
+    match super::checks::kernel_release() {
+        Some(release) => write_string(&mut out, &release),
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"distro\":");
+    match super::checks::distro_name() {
+        Some(name) => write_string(&mut out, &name),
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"ebpf_lane\":");
+    write_string(&mut out, facts.lane);
     out.push_str(",\"user\":{\"uid\":");
     match uid {
         Some(uid) => {
@@ -198,7 +236,7 @@ pub(super) fn readiness_json(
     out.push_str(",\"fail\":");
     let _ = write!(out, "{}", summary.fail);
     out.push_str("},\"ebpf\":");
-    write_ebpf_facts(&mut out, &ebpf::facts_json());
+    write_ebpf_facts(&mut out, &facts);
     out.push('}');
     out
 }

@@ -1013,6 +1013,20 @@ v11.0.0
 
 ### Changed
 
+- The doctor's JSON speaks the standard names (night-badass-6): the
+  readiness report carries the host's critical facts at the root -
+  `os`, `kernel`, `distro`, and `ebpf_lane`, each the same value
+  its check row or eBPF section speaks - so the five-second query
+  (`zejtron doctor --print-json | jq '.os, .kernel, .ebpf_lane'`)
+  does not descend into the detailed `checks` array, which stays.
+  Every array of process records is now `processes` (the ranked
+  cpu/disk consumers that rode `.top`, the socket and device
+  holders that rode `.holders`, the drained exit rows that rode
+  `exits.rows`), and the slab census is `caches` - the noun the
+  array holds, not the render's word for "the short list". The
+  doctor's JSON contract rides `ledger_version` 2. The text
+  ledgers are byte-identical; no serde, no new dependencies.
+
 - The `--print-json` evidence rows speak typed data (night-badass-5,
   Evidence Ledger Specification v2): the row's `action` field was a
   pre-rendered string ("size 884 bytes") that `jq` had to parse

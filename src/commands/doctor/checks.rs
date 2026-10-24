@@ -14,8 +14,8 @@ use std::process::Command;
 use super::{CheckResult, CheckStatus};
 
 pub(super) fn check_kernel_distro() -> CheckResult {
-    let kernel = run_uname_r().unwrap_or_else(|| "unknown".to_owned());
-    let distro = read_distro().unwrap_or_else(|| "unknown".to_owned());
+    let kernel = kernel_release().unwrap_or_else(|| "unknown".to_owned());
+    let distro = distro_name().unwrap_or_else(|| "unknown".to_owned());
     CheckResult {
         status: CheckStatus::Ok,
         check: "kernel",
@@ -23,7 +23,10 @@ pub(super) fn check_kernel_distro() -> CheckResult {
     }
 }
 
-fn run_uname_r() -> Option<String> {
+/// The kernel's release, probed once and shared: the kernel check's
+/// message composes it with the distro, and the JSON lane's root
+/// facts read the same probe (one source, two surfaces).
+pub(super) fn kernel_release() -> Option<String> {
     let out = Command::new("uname").arg("-r").output().ok()?;
     if !out.status.success() {
         return None;
@@ -32,7 +35,9 @@ fn run_uname_r() -> Option<String> {
     if s.is_empty() { None } else { Some(s) }
 }
 
-fn read_distro() -> Option<String> {
+/// The host's distro name, read once and shared: the kernel check's
+/// message and the JSON lane's root facts speak the same value.
+pub(super) fn distro_name() -> Option<String> {
     let content = fs::read_to_string("/etc/os-release").ok()?;
     let mut name = None;
     let mut version = None;

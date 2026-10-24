@@ -173,7 +173,7 @@ pub(in crate::commands::doctor) fn json_ram(sample: &MemorySample) -> String {
     } else {
         "false"
     });
-    out.push_str(",\"top\":[");
+    out.push_str(",\"caches\":[");
     for (index, row) in sample.slab.iter().enumerate() {
         if index > 0 {
             out.push(',');
@@ -252,9 +252,10 @@ pub(super) fn ram_unaccounted(sample: &MemorySample) -> Vec<UnaccountedEntry> {
 // ── cpu ──────────────────────────────────────────────────────────
 
 /// The cpu symptom as JSON: the window's busy share and load
-/// average, the ranked consumers (the pct the text renders, as a
-/// number), the R/D state counts, the boundary counts, the exit
-/// lane, and the Unaccounted block.
+/// average, the ranked consumers under the standard `processes`
+/// name (night-badass-6; the pct the text renders, as a number),
+/// the R/D state counts, the boundary counts, the exit lane, and
+/// the Unaccounted block.
 pub(in crate::commands::doctor) fn json_cpu(sample: &CpuSample) -> String {
     let mut out = String::with_capacity(768);
     symptom_header(&mut out, "cpu", Some("1.0s"));
@@ -266,7 +267,7 @@ pub(in crate::commands::doctor) fn json_cpu(sample: &CpuSample) -> String {
     write_opt_pct(&mut out, sample.busy_pct);
     out.push_str(",\"total_ticks_delta\":");
     let _ = write!(out, "{}", sample.total_ticks_delta);
-    out.push_str(",\"top\":");
+    out.push_str(",\"processes\":");
     write_array(&mut out, sample.top.len(), |out, index| {
         write_cpu_row(out, &sample.top[index]);
     });
@@ -356,8 +357,9 @@ fn sampling_entry(lane: &ExitLane) -> UnaccountedEntry {
 // ── disk ─────────────────────────────────────────────────────────
 
 /// The disk symptom as JSON: the iowait share, the ranked block I/O
-/// consumers as raw byte deltas, the boundary counts, the exit lane,
-/// and the Unaccounted block.
+/// consumers under the standard `processes` name (night-badass-6)
+/// as raw byte deltas, the boundary counts, the exit lane, and the
+/// Unaccounted block.
 pub(in crate::commands::doctor) fn json_disk(sample: &DiskSample) -> String {
     let mut out = String::with_capacity(768);
     symptom_header(&mut out, "disk", Some("1.0s"));
@@ -365,7 +367,7 @@ pub(in crate::commands::doctor) fn json_disk(sample: &DiskSample) -> String {
     write_opt_pct(&mut out, sample.iowait_pct);
     out.push_str(",\"total_ticks_delta\":");
     let _ = write!(out, "{}", sample.total_ticks_delta);
-    out.push_str(",\"top\":");
+    out.push_str(",\"processes\":");
     write_array(&mut out, sample.top.len(), |out, index| {
         let row = &sample.top[index];
         out.push_str("{\"pid\":");
@@ -423,8 +425,8 @@ pub(super) fn disk_unaccounted(sample: &DiskSample) -> Vec<UnaccountedEntry> {
 
 /// The network symptom as JSON: the interface deltas as raw byte
 /// and packet counts, the socket-state census, the top socket
-/// holders, the boundary count, the exit lane, and the Unaccounted
-/// block.
+/// holders under the standard `processes` name (night-badass-6),
+/// the boundary count, the exit lane, and the Unaccounted block.
 pub(in crate::commands::doctor) fn json_network(sample: &NetworkSample) -> String {
     let mut out = String::with_capacity(768);
     symptom_header(&mut out, "network", Some("1.0s"));
@@ -452,7 +454,7 @@ pub(in crate::commands::doctor) fn json_network(sample: &NetworkSample) -> Strin
     out.push_str(",\"close_wait\":");
     let _ = write!(out, "{}", sample.sockets.close_wait);
     out.push('}');
-    out.push_str(",\"holders\":");
+    out.push_str(",\"processes\":");
     write_array(&mut out, sample.holders.len(), |out, index| {
         let row = &sample.holders[index];
         out.push_str("{\"pid\":");
@@ -488,13 +490,14 @@ pub(super) fn network_unaccounted(sample: &NetworkSample) -> Vec<UnaccountedEntr
 
 // ── gpu ──────────────────────────────────────────────────────────
 
-/// The gpu symptom as JSON: the device holders with their device
-/// lists, the AMD/amdgpu VRAM rows as byte pairs, the NVIDIA marker,
-/// the boundary count, the exit lane, and the Unaccounted block.
+/// The gpu symptom as JSON: the device holders under the standard
+/// `processes` name (night-badass-6) with their `devices` lists,
+/// the AMD/amdgpu VRAM rows as byte pairs, the NVIDIA marker, the
+/// boundary count, the exit lane, and the Unaccounted block.
 pub(in crate::commands::doctor) fn json_gpu(sample: &GpuSample) -> String {
     let mut out = String::with_capacity(768);
     symptom_header(&mut out, "gpu", None);
-    out.push_str(",\"holders\":");
+    out.push_str(",\"processes\":");
     write_array(&mut out, sample.holders.len(), |out, index| {
         let row = &sample.holders[index];
         out.push_str("{\"pid\":");
