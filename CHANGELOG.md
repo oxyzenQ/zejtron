@@ -15,6 +15,7 @@ frozen verbatim.
 
 ## [Released]
 
+v80.0.0-rc.2
 v80.0.0-rc.1
 v80.0.0
 v80.0.0-beta.1

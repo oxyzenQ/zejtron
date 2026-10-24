@@ -284,7 +284,7 @@ containers.
 ```sh
 # The release tag. Every install block below reuses it, so the
 # version lives in one place and a bump is a two-line change.
-TAG=v80.0.0-rc.1
+TAG=v80.0.0-rc.2
 SHAPE=linux-amd64-v3-musl   # or v4-musl
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
