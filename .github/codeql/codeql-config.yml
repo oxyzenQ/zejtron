@@ -1,0 +1,27 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The CodeQL scan configuration: the standing false-positive exclusion.
+#
+# zejtron is a forensic CLI whose product is the terminal print: every
+# command renders kernel- and filesystem-exposed metadata (paths, uids,
+# pids, usernames, kernel facts) to the invoking user's own terminal -
+# the ps(1) disclosure class - and persists no log anywhere. CodeQL's
+# rust/cleartext-logging rule (CWE-532, a logging-sink rule driven by
+# NAME heuristics over identifiers like passwd_entries and *_uid)
+# flags those prints as credential leakage. That is a category error
+# for this codebase, and the whole shipped surface is that category,
+# so the rule is excluded at scan time. The standing verdict and its
+# reasoning live in SECURITY.md's hardening posture; the codeql-triage
+# lane stays as the mechanical closer for alerts raised before this
+# exclusion (a config change is not retroactive) and for anything that
+# survives a config revert.
+#
+# Standing review condition: the exclusion covers the terminal-print
+# surface only. If zejtron ever gains a persisted sink - a report
+# file, a journal, a log export - the rust/cleartext-logging rule must
+# be re-enabled for that code and re-triaged on its merits.
+
+query-filters:
+  - exclude:
+      id: rust/cleartext-logging
