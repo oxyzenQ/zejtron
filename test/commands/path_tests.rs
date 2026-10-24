@@ -122,3 +122,58 @@ fn resolves_symlink_chain() {
     assert_eq!(matches[0].symlink_chain, vec![PathBuf::from("tool-real")]);
     assert!(matches[0].executable);
 }
+
+// The JSON lane (night-badass-9): the same resolution, typed.
+
+#[test]
+fn json_resolution_carries_the_active_match_and_duplicates() {
+    let matches = vec![
+        PathMatch {
+            path: PathBuf::from("/usr/bin/sh"),
+            executable: true,
+            symlink_chain: vec![PathBuf::from("/usr/bin/bash")],
+        },
+        PathMatch {
+            path: PathBuf::from("/home/rezky/.local/bin/sh"),
+            executable: false,
+            symlink_chain: Vec::new(),
+        },
+    ];
+    let out = super::path_json("sh", &matches, &|_| Some("bash (pacman)".to_owned()));
+    // The active match first, the duplicates after, the queried
+    // command pinned as the subject.
+    assert!(out.starts_with("{\"command\":\"sh\""));
+    assert!(out.contains("\"found\":true"));
+    assert!(out.contains("\"active\":{\"path\":\"/usr/bin/sh\""));
+    assert!(out.contains("\"executable\":true"));
+    assert!(out.contains("\"symlink_chain\":[\"/usr/bin/bash\"]"));
+    assert!(out.contains("\"package\":\"bash (pacman)\""));
+    assert!(out.contains("\"duplicates\":[{\"path\":\"/home/rezky/.local/bin/sh\""));
+    assert!(out.contains("\"executable\":false"));
+    assert!(out.contains("\"symlink_chain\":[]"));
+    assert!(!out.contains('\n'));
+}
+
+#[test]
+fn json_resolution_not_found_is_typed_absence() {
+    let out = super::path_json("nope", &[], &|_| None);
+    // The same verdict the text's "command not found in PATH" line
+    // renders: found false, no active match, no duplicates.
+    assert_eq!(
+        out,
+        "{\"command\":\"nope\",\"found\":false,\"active\":null,\"duplicates\":[]}"
+    );
+}
+
+#[test]
+fn json_package_absence_is_null_not_the_unknown_word() {
+    let matches = vec![PathMatch {
+        path: PathBuf::from("/usr/bin/tool"),
+        executable: true,
+        symlink_chain: Vec::new(),
+    }];
+    let out = super::path_json("tool", &matches, &|_| None);
+    // The text's "unknown" is a display verdict; the JSON wire
+    // carries the typed absence.
+    assert!(out.contains("\"package\":null"));
+}

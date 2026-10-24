@@ -67,12 +67,21 @@ pub struct NetReport {
     pub resolver: Option<ResolverConfig>,
 }
 
-pub fn run() -> Result<(), Box<dyn Error>> {
+pub fn run(print_json: bool) -> Result<(), Box<dyn Error>> {
     let report = collect_report();
-    println!("{}", render_report(&report));
+    // The renderer branch (night-badass-9): the JSON lane speaks the
+    // same report - the NetReport struct is the schema - as one typed
+    // line; the text lane renders the tree. One collection, two
+    // renderers, no second scan.
+    if print_json {
+        println!("{}", json::report_json(&report));
+    } else {
+        println!("{}", render_report(&report));
+    }
     Ok(())
 }
 
+mod json;
 mod render;
 
 use render::render_report;

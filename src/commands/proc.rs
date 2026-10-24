@@ -4,6 +4,7 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
+use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -62,6 +63,7 @@ pub struct ProcFlags {
     pub find: Option<String>,
     pub no_pid: bool,
     pub no_color: bool,
+    pub print_json: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,6 +119,18 @@ fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> 
     // the CodeQL triage lane (codeql-triage.yml) closes anything
     // raised before that exclusion. Renaming honest domain
     // vocabulary to dodge a name heuristic stays rejected.
+    // The renderer branch (night-badass-9): the JSON lane speaks the
+    // same scan - the same target, the same --find selection - as one
+    // typed line; the text lane renders the forest tree. --depth is a
+    // render limiter (it prunes the drawn tree), so the flat JSON
+    // list carries the scan's full selection and ignores it; --no-pid
+    // and --no-color are text-render concerns and ride unused on the
+    // JSON lane.
+    if flags.print_json {
+        let output = snapshot_json(&target, &view)?;
+        println!("{output}");
+        return Ok(());
+    }
     print!("{}", render_snapshot(&target, !flags.no_pid, &view)?);
     Ok(())
 }
@@ -226,6 +240,72 @@ fn render_snapshot(
 ) -> Result<String, String> {
     let report = scan_processes_for_uid(target.uid)?;
     Ok(render_report(target, report, show_pid, view))
+}
+
+/// The JSON lane's snapshot (night-badass-9): the same scan the text
+/// forest renders, flat and typed. The tree is a render of this set,
+/// so the list carries the scan's processes with the --find selection
+/// applied through the same matcher the tree prunes with (matched
+/// families, ancestors kept), ascending by pid (the scan's own
+/// order, and the BTreeMap's). --depth stays the render limiter it
+/// is: the flat list is the data, not the drawing.
+fn snapshot_json(target: &TargetUser, view: &ViewOptions) -> Result<String, String> {
+    let report = scan_processes_for_uid(target.uid)?;
+    let mut selected: Vec<Process> = report.processes;
+    if let Some(pattern) = &view.find {
+        let forest = build_forest(std::mem::take(&mut selected));
+        let matches = matching_process_ids(&forest, pattern);
+        let pruned = prune_for_matches(&forest, &matches);
+        selected = pruned.processes.into_values().collect();
+    }
+    Ok(processes_json(
+        target,
+        &selected,
+        report.unreadable_statuses,
+    ))
+}
+
+/// The process scan as one JSON line: the subject's own label (the
+/// text header's words), the typed rows (pid, ppid, comm, uid, state,
+/// the memory and thread counters, the fresh cmdline or null), and
+/// the unreadable-status count - the same honesty the text note
+/// renders, as a number the automation lane can gate on.
+fn processes_json(
+    target: &TargetUser,
+    processes: &[Process],
+    unreadable_statuses: usize,
+) -> String {
+    use crate::evidence::json::{write_array, write_opt_string, write_string};
+    let mut out = String::with_capacity(160 * processes.len().max(1));
+    out.push_str("{\"subject\":");
+    write_string(&mut out, &target.label());
+    out.push_str(",\"processes\":");
+    write_array(&mut out, processes.len(), |out, index| {
+        let process = &processes[index];
+        out.push_str("{\"pid\":");
+        let _ = write!(out, "{}", process.pid);
+        out.push_str(",\"ppid\":");
+        let _ = write!(out, "{}", process.ppid);
+        out.push_str(",\"comm\":");
+        write_string(out, &process.name);
+        out.push_str(",\"uid\":");
+        let _ = write!(out, "{}", process.uid);
+        out.push_str(",\"state\":");
+        write_string(out, &process.state);
+        out.push_str(",\"vm_rss_kb\":");
+        let _ = write!(out, "{}", process.vm_rss_kb);
+        out.push_str(",\"vm_size_kb\":");
+        let _ = write!(out, "{}", process.vm_size_kb);
+        out.push_str(",\"threads\":");
+        let _ = write!(out, "{}", process.threads);
+        out.push_str(",\"cmdline\":");
+        write_opt_string(out, process.cmdline.as_deref());
+        out.push('}');
+    });
+    out.push_str(",\"unreadable_statuses\":");
+    let _ = write!(out, "{unreadable_statuses}");
+    out.push('}');
+    out
 }
 
 fn render_report(

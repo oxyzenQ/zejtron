@@ -38,7 +38,10 @@ fn pro_mode_discloses_every_hidden_alias() {
 #[test]
 fn pro_mode_covers_every_flag_owning_verb() {
     let help = help_command().render_help().to_string();
-    for group in ["recent:", "port:", "proc:", "doctor:", "global:"] {
+    for group in [
+        "path:", "recent:", "port:", "proc:", "holds:", "touch:", "why:", "doctor:", "net:",
+        "global:",
+    ] {
         assert!(help.contains(group), "Pro mode must own the {group} group");
     }
     for spelling in [
@@ -47,6 +50,7 @@ fn pro_mode_covers_every_flag_owning_verb() {
         "--since DURATION",
         "--depth N",
         "--find PATTERN",
+        "--print-json",
     ] {
         assert!(
             help.contains(spelling),
@@ -58,7 +62,23 @@ fn pro_mode_covers_every_flag_owning_verb() {
 #[test]
 fn parses_net() {
     let cli = Cli::try_parse_from(["zejtron", "net"]).unwrap();
-    assert!(matches!(cli.command, Some(Commands::Net)));
+    match cli.command {
+        Some(Commands::Net { print_json }) => {
+            assert!(!print_json, "the JSON lane must default off");
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+}
+
+#[test]
+fn parses_net_print_json() {
+    let cli = Cli::try_parse_from(["zejtron", "net", "--print-json"]).unwrap();
+    match cli.command {
+        Some(Commands::Net { print_json }) => {
+            assert!(print_json, "--print-json must parse on the net verb");
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
 }
 
 #[test]

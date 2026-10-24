@@ -111,6 +111,8 @@ pub struct PortFlags {
     pub since: Option<String>,
     pub events_only: bool,
     pub snapshot_only: bool,
+    /// The JSON lane (night-badass-9): the same two truths, typed.
+    pub print_json: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
