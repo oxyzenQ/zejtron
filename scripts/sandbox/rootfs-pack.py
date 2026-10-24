@@ -27,12 +27,12 @@ NOTHING but python3 and git - no docker, no host root:
     its own main pocket - the report lane's ready-made witnesses.
   * rootfs: the ubuntu:22.04 base tarball (glibc 2.35, the suite
     jammy itself shipped - the same userland the floor kernel
-    natively booted) plus iproute2 provisioned by REAL dependency
+    natively booted) plus iproute2 and jq provisioned by REAL dependency
     resolution against the jammy Packages index (the one index
     serves the kernel resolution and the package closure both) -
     every closure .deb downloaded and data.tar extracted rootless.
-    The suite itself is bash + coreutils by design and needs
-    nothing else (supermassive.sh's own contract).
+    The suite itself is bash + coreutils + jq by design and needs
+    nothing else (jq rides as the typed JSON law's harness dependency).
   * initramfs: packed as a newc cpio by this file itself, with the
     device nodes a non-root packer cannot mknod (console, null,
     tty, ttyS0) synthesized directly into the archive stream, the
@@ -134,7 +134,8 @@ SUITE_TABLE = {
 def suite_packages_url(pocket):
     return f"{ARCHIVE_DIST}{pocket}/main/binary-amd64/Packages.gz"
 
-ROOT_PACKAGES = ["iproute2"]
+# iproute2 for the loopback bring-up, jq for the typed JSON law (night-dragon-4).
+ROOT_PACKAGES = ["iproute2", "jq"]
 
 
 def http_get(url, timeout=120):
