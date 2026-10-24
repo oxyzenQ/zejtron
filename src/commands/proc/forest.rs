@@ -89,11 +89,23 @@ pub(super) fn include_ancestors(forest: &ProcessForest, pid: u32, included: &mut
 }
 
 pub(super) fn include_descendants(forest: &ProcessForest, pid: u32, included: &mut BTreeSet<u32>) {
-    included.insert(pid);
-
-    if let Some(children) = forest.children.get(&pid) {
-        for child in children {
-            include_descendants(forest, *child, included);
+    // night-dragon-1: the recursive walk is gone. Two bounds replace
+    // it: the explicit stack cannot overflow on a pathological deep
+    // chain (a 10,000-pid fork chain renders in constant call-stack
+    // space), and the per-call expanded set stops the shared-subtree
+    // re-walk - with many matches inside one family the old form
+    // revisited each shared descendant once per match (O(matches x
+    // nodes)); this form walks every node at most once across the
+    // whole prune. The included set's final content is identical.
+    let mut expanded: BTreeSet<u32> = BTreeSet::new();
+    let mut stack = vec![pid];
+    while let Some(current) = stack.pop() {
+        if !expanded.insert(current) {
+            continue;
+        }
+        included.insert(current);
+        if let Some(children) = forest.children.get(&current) {
+            stack.extend_from_slice(children);
         }
     }
 }
@@ -105,13 +117,21 @@ pub(super) fn include_to_depth(
     max_depth: usize,
     included: &mut BTreeSet<u32>,
 ) {
-    if depth > max_depth || !included.insert(pid) {
-        return;
-    }
-
-    if let Some(children) = forest.children.get(&pid) {
-        for child in children {
-            include_to_depth(forest, *child, depth + 1, max_depth, included);
+    // night-dragon-1: same bound as include_descendants - the
+    // recursion becomes an explicit (pid, depth) stack, so a deep
+    // chain cannot overflow the call stack and the visited set still
+    // stops any re-walk. Each pid has exactly one parent link, so it
+    // is pushed exactly once and the inserted set matches the
+    // recursive form's.
+    let mut stack = vec![(pid, depth)];
+    while let Some((current, current_depth)) = stack.pop() {
+        if current_depth > max_depth || !included.insert(current) {
+            continue;
+        }
+        if let Some(children) = forest.children.get(&current) {
+            for child in children {
+                stack.push((*child, current_depth + 1));
+            }
         }
     }
 }
