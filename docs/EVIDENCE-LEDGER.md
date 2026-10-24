@@ -3,14 +3,17 @@
 
 # The Evidence Ledger Specification
 
-**Evidence Ledger Specification v1 (Frozen)**
+**Evidence Ledger Specification v2**
 
 This document is the citable definition of the Evidence Ledger
 output format - the block structure zejtron prints for every
-question it answers. v1 is frozen: the grammar, the tier vocabulary,
-and the laws below do not change under this version line. A change
-to any of them is a new specification version and a breaking event,
-not an edit.
+question it answers. v1 (Frozen) remains citable history: every
+consumer pinned against it can find its contract in the archive
+below. v2 changes exactly one thing: the JSON row's `action`
+field became the typed evidence object (section 5) - the text
+grammar, the tier vocabulary, and the four laws are unchanged
+from v1. A change to any of them is a new specification version
+and a breaking event, not an edit.
 
 The reference implementation is zejtron's `src/evidence/` module,
 and the repository carries a drift pin: a test reads this document's
@@ -214,8 +217,8 @@ crates.
 
 Field map:
 
-- `ledger_version` - `1`, the specification version this report
-  conforms to.
+- `ledger_version` - `2`, the specification version this report
+  conforms to (v1 carried `1`; v2 typed the `action` field).
 - `subject`, `window` - the header and mode line's window label,
   the same tokens the text block carries.
 - `mode` - the base word: `live`, `snapshot`, or `mixed`.
@@ -224,11 +227,39 @@ Field map:
   the unqualified lanes (`live`, `mixed`).
 - `measured`, `changes.rows` - arrays of row objects. A row is
   `{"unix_secs": <seconds | null>, "timestamp_utc": <"YYYY-MM-DD
-  HH:MM:SS (UTC)" | null>, "action": "...", "actor": "...",
-  "provenance": "<tier>"}`. An absent time is JSON `null` in both
-  fields - the machine-native form of the text renderer's
-  `unknown`; the fact stays absent, never guessed. `provenance`
-  is one of the four tier tags, the locked vocabulary.
+  HH:MM:SS (UTC)" | null>, "action": <the typed evidence object>,
+  "actor": "...", "provenance": "<tier>"}`. An absent time is JSON
+  `null` in both fields - the machine-native form of the text
+  renderer's `unknown`; the fact stays absent, never guessed.
+  `provenance` is one of the four tier tags, the locked
+  vocabulary.
+- The `action` object (v2's change) carries the fact as typed
+  data, not a pre-rendered string. `kind` is one token per row
+  kind - the same vocabulary the text phrase renders ("size 884
+  bytes" is `{"kind":"size","bytes":884}`) - and the variant's
+  raw fields ride beside it: numbers stay numbers, strings stay
+  strings, and an absent optional part is JSON `null`. The kinds
+  this version speaks:
+  - `type` - `{"file_type": "..."}` (the stat(2) class word).
+  - `symlink-target` - `{"target": "..."}`.
+  - `size` - `{"bytes": N}`.
+  - `owner` - `{"user": "...", "group": "...", "uid": N,
+    "gid": N}` (resolved names AND raw ids).
+  - `perms` - `{"octal": "..."}` (the mode's octal text).
+  - `inode` - `{"id": N, "dev": N}` (the lane's identity key).
+  - `modified` - `{"via": "audit log" | null}` (the carrying
+    record, when the row rode a lane).
+  - `accessed`, `changed` - no payload (the atime/ctime facts).
+  - `held` - `{"via": "fd 3 (rw)"}` (the holds evidence label).
+  - `cwd` - `{"path": "..." | null}` (null = unreadable, the
+    named boundary).
+  - `runs` - `{"cmd": "..." | null, "unit": "..." | null}` (the
+    enrichment halves, each present only when read).
+  - `opened` - no payload (the kernel's own open record).
+  - `wrote` - `{"via": "writev" | null}` (the syscall family).
+  - `journal-mention` - no payload (the log lane's weakest hit).
+  A new kind is a specification event: the variant joins the
+  code's enum, this list, and a version line - never silently.
 - `changes.unavailable` - the absent-lane truth beside the rows:
   `true` when no event lane could serve, `false` when it ran (an
   empty window with a present lane is `false` with an empty `rows`
@@ -245,6 +276,18 @@ and UTF-8 passes through verbatim. `why`'s `--trace` and `--raw`
 are text-only drill-downs and the CLI refuses their combination
 with `--print-json` - the JSON line stays byte-clean on stdout,
 always.
+
+### v1 archive (Frozen)
+
+Evidence Ledger Specification v1 (Frozen) is the pre-v2 contract,
+citable verbatim: identical to this document except section 5,
+where v1's row was `{"unix_secs": <seconds | null>,
+"timestamp_utc": <"YYYY-MM-DD HH:MM:SS (UTC)" | null>, "action":
+"...", "actor": "...", "provenance": "<tier>"}` - the action was
+the rendered text phrase (`"size 884 bytes"`), `ledger_version`
+was `1`, and no other field differed. The text grammar (section
+2), the tier vocabulary (section 1), and the four laws (section
+3) are byte-identical between v1 and v2.
 
 ## Conformance checklist
 

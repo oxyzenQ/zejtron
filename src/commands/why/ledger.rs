@@ -23,7 +23,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::evidence::row::{EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, EvidenceReport, Mode, UnaccountedEntry, Verdict};
 
 use super::super::holds::{self, Holder, ScanStats};
@@ -159,10 +159,9 @@ pub fn build_port_report(
         if let Some(cwd) = &holder.cwd {
             measured.push(EvidenceRow::new(
                 Some(scan_instant),
-                format!(
-                    "cwd {}",
-                    crate::system::sanitize_display(&cwd.to_string_lossy())
-                ),
+                EvidenceKind::Cwd {
+                    path: Some(crate::system::sanitize_display(&cwd.to_string_lossy())),
+                },
                 format!("{} (pid {}, {})", holder.name, holder.pid, holder.user),
                 Provenance::Measured,
             ));
@@ -222,7 +221,9 @@ fn push_holder_rows(rows: &mut Vec<EvidenceRow>, holder: &Holder, scan_instant: 
     for evidence in &holder.evidence {
         rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("held via {}", evidence.label()),
+            EvidenceKind::Held {
+                via: evidence.label(),
+            },
             actor.clone(),
             Provenance::Measured,
         ));
@@ -243,19 +244,28 @@ fn push_enrichment_rows(rows: &mut Vec<EvidenceRow>, holder: &Holder, scan_insta
         (None, false) => {}
         (Some(unit), true) => rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("runs {} (unit {unit})", cmdline.unwrap_or_default()),
+            EvidenceKind::Runs {
+                cmd: Some(cmdline.unwrap_or_default()),
+                unit: Some(unit.clone()),
+            },
             actor,
             Provenance::Measured,
         )),
         (Some(unit), false) => rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("runs under unit {unit}"),
+            EvidenceKind::Runs {
+                cmd: None,
+                unit: Some(unit.clone()),
+            },
             actor,
             Provenance::Measured,
         )),
         (None, true) => rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("runs {}", cmdline.unwrap_or_default()),
+            EvidenceKind::Runs {
+                cmd: Some(cmdline.unwrap_or_default()),
+                unit: None,
+            },
             actor,
             Provenance::Measured,
         )),
@@ -273,7 +283,7 @@ fn push_metadata_rows(
     let Some(meta) = &info.meta else {
         rows.push(EvidenceRow::new(
             stamp_of(info.modified),
-            "modified".to_owned(),
+            EvidenceKind::Modified { via: None },
             dash,
             Provenance::Measured,
         ));
@@ -287,10 +297,11 @@ fn push_metadata_rows(
         .get(&meta.gid)
         .cloned()
         .unwrap_or_else(|| meta.gid.to_string());
-    let rows_before = rows.len();
     rows.push(EvidenceRow::new(
         Some(scan_instant),
-        format!("type {}", meta.file_type),
+        EvidenceKind::Type {
+            file_type: meta.file_type.clone(),
+        },
         "—".to_owned(),
         Provenance::Measured,
     ));
@@ -299,42 +310,53 @@ fn push_metadata_rows(
     {
         rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("symlink-target {target}"),
+            EvidenceKind::SymlinkTarget {
+                target: target.clone(),
+            },
             "—".to_owned(),
             Provenance::Measured,
         ));
     }
     rows.push(EvidenceRow::new(
         Some(scan_instant),
-        format!("size {} bytes", meta.size),
+        EvidenceKind::Size { bytes: meta.size },
         "—".to_owned(),
         Provenance::Measured,
     ));
     rows.push(EvidenceRow::new(
         Some(scan_instant),
-        format!("owner {uname}:{gname} (uid {}, gid {})", meta.uid, meta.gid),
+        EvidenceKind::Owner {
+            user: uname,
+            group: gname,
+            uid: meta.uid,
+            gid: meta.gid,
+        },
         "—".to_owned(),
         Provenance::Measured,
     ));
     rows.push(EvidenceRow::new(
         Some(scan_instant),
-        format!("perms {}", meta.perms_octal),
+        EvidenceKind::Permissions {
+            octal: meta.perms_octal.clone(),
+        },
         "—".to_owned(),
         Provenance::Measured,
     ));
     rows.push(EvidenceRow::new(
         Some(scan_instant),
-        format!("inode {} (dev {})", meta.inode, meta.dev),
+        EvidenceKind::Inode {
+            id: meta.inode,
+            dev: meta.dev,
+        },
         "—".to_owned(),
         Provenance::Measured,
     ));
     rows.push(EvidenceRow::new(
         stamp_of(meta.modified),
-        "modified".to_owned(),
+        EvidenceKind::Modified { via: None },
         "—".to_owned(),
         Provenance::Measured,
     ));
-    let _ = rows_before;
 }
 
 fn stamp_of(t: SystemTime) -> Option<i64> {
@@ -513,7 +535,7 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
     let holder_rows = report
         .measured
         .iter()
-        .filter(|r| r.action.starts_with("held via"))
+        .filter(|r| matches!(r.kind, EvidenceKind::Held { .. }))
         .count();
     if holder_rows > 0 {
         lines.push(format!(
@@ -525,7 +547,7 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
     let enrich_rows = report
         .measured
         .iter()
-        .filter(|r| r.action.starts_with("runs"))
+        .filter(|r| matches!(r.kind, EvidenceKind::Runs { .. }))
         .count();
     if enrich_rows > 0 {
         lines.push(format!(

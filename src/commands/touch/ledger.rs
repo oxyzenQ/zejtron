@@ -21,7 +21,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::evidence::row::{EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{EvidenceReport, UnaccountedEntry, Verdict};
 
 use super::{TouchError, TouchInfo, inspect_path, parse_passwd};
@@ -125,7 +125,9 @@ fn metadata_rows(
     if let Some(meta) = &info.meta {
         rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("type {}", meta.file_type),
+            EvidenceKind::Type {
+                file_type: meta.file_type.clone(),
+            },
             dash.clone(),
             Provenance::Measured,
         ));
@@ -134,14 +136,16 @@ fn metadata_rows(
         {
             rows.push(EvidenceRow::new(
                 Some(scan_instant),
-                format!("symlink-target {target}"),
+                EvidenceKind::SymlinkTarget {
+                    target: target.clone(),
+                },
                 dash.clone(),
                 Provenance::Measured,
             ));
         }
         rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("size {} bytes", meta.size),
+            EvidenceKind::Size { bytes: meta.size },
             dash.clone(),
             Provenance::Measured,
         ));
@@ -155,19 +159,29 @@ fn metadata_rows(
             .unwrap_or_else(|| meta.gid.to_string());
         rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("owner {uname}:{gname} (uid {}, gid {})", meta.uid, meta.gid),
+            EvidenceKind::Owner {
+                user: uname,
+                group: gname,
+                uid: meta.uid,
+                gid: meta.gid,
+            },
             dash.clone(),
             Provenance::Measured,
         ));
         rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("perms {}", meta.perms_octal),
+            EvidenceKind::Permissions {
+                octal: meta.perms_octal.clone(),
+            },
             dash.clone(),
             Provenance::Measured,
         ));
         rows.push(EvidenceRow::new(
             Some(scan_instant),
-            format!("inode {} (dev {})", meta.inode, meta.dev),
+            EvidenceKind::Inode {
+                id: meta.inode,
+                dev: meta.dev,
+            },
             dash.clone(),
             Provenance::Measured,
         ));
@@ -178,26 +192,26 @@ fn metadata_rows(
         };
         rows.push(EvidenceRow::new(
             stamp(meta.modified),
-            "modified".to_owned(),
+            EvidenceKind::Modified { via: None },
             dash.clone(),
             Provenance::Measured,
         ));
         rows.push(EvidenceRow::new(
             stamp(meta.accessed),
-            "accessed".to_owned(),
+            EvidenceKind::Accessed,
             dash.clone(),
             Provenance::Measured,
         ));
         rows.push(EvidenceRow::new(
             stamp(meta.changed),
-            "changed".to_owned(),
+            EvidenceKind::Changed,
             dash.clone(),
             Provenance::Measured,
         ));
     } else {
         rows.push(EvidenceRow::new(
             stamp_of(info.modified),
-            "modified".to_owned(),
+            EvidenceKind::Modified { via: None },
             dash.clone(),
             Provenance::Measured,
         ));

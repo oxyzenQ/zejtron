@@ -22,7 +22,9 @@ fn all_four_tiers_render_their_lowercase_bracketed_tags() {
 fn row_line_is_timestamp_action_actor_tag_with_double_spaces() {
     let row = EvidenceRow::new(
         Some(FIXED_SECS),
-        "held via fd 3 (rw)",
+        EvidenceKind::Held {
+            via: "fd 3 (rw)".to_owned(),
+        },
         "sshd (pid 1234, root)",
         Provenance::Measured,
     );
@@ -40,7 +42,7 @@ fn row_line_is_timestamp_action_actor_tag_with_double_spaces() {
 fn first_row_keeps_the_utc_suffix_and_later_rows_drop_it() {
     let row = EvidenceRow::new(
         Some(FIXED_SECS),
-        "opened",
+        EvidenceKind::Opened,
         "cat (pid 9)",
         Provenance::Observed,
     );
@@ -61,7 +63,12 @@ fn first_row_keeps_the_utc_suffix_and_later_rows_drop_it() {
 
 #[test]
 fn unknown_timestamp_renders_unknown_never_a_guess() {
-    let row = EvidenceRow::new(None, "modified", "—", Provenance::Inferred);
+    let row = EvidenceRow::new(
+        None,
+        EvidenceKind::Modified { via: None },
+        "—",
+        Provenance::Inferred,
+    );
     assert_eq!(row.render_line(true), "unknown  modified  —  [inferred]");
     assert_eq!(row.render_line(false), "unknown  modified  —  [inferred]");
 }

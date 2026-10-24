@@ -82,10 +82,10 @@ fn a_symlink_carries_its_target_row() {
     meta.is_symlink = true;
     meta.symlink_target = Some("/etc/real-target".to_owned());
     let rows = metadata_rows(&info, 1_767_230_000, &users());
-    assert!(
-        rows.iter()
-            .any(|r| r.action == "symlink-target /etc/real-target")
-    );
+    assert!(rows.iter().any(|r| r.kind
+        == crate::evidence::row::EvidenceKind::SymlinkTarget {
+            target: "/etc/real-target".to_owned()
+        }));
 }
 
 #[test]
@@ -95,7 +95,10 @@ fn a_missing_meta_block_degrades_to_the_modified_row_only() {
     info.modified = UNIX_EPOCH + Duration::from_secs(1_767_225_600);
     let rows = metadata_rows(&info, 1_767_230_000, &users());
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].action, "modified");
+    assert_eq!(
+        rows[0].kind,
+        crate::evidence::row::EvidenceKind::Modified { via: None }
+    );
 }
 
 #[test]
@@ -108,7 +111,7 @@ fn the_supports_line_names_the_facts_and_the_window() {
     let mut changes = crate::evidence::ChangesSection::default();
     changes.rows.push(crate::evidence::row::EvidenceRow::new(
         Some(0),
-        "wrote",
+        crate::evidence::row::EvidenceKind::Wrote { via: None },
         "tee (pid 5, root)",
         crate::evidence::row::Provenance::Observed,
     ));

@@ -94,13 +94,13 @@ fn the_changes_clause_rides_the_one_liner() {
     let mut changes = ChangesSection::default();
     changes.rows.push(EvidenceRow::new(
         Some(0),
-        "opened",
+        EvidenceKind::Opened,
         "cat (pid 9)",
         Provenance::Observed,
     ));
     changes.rows.push(EvidenceRow::new(
         Some(1),
-        "wrote",
+        EvidenceKind::Wrote { via: None },
         "tee (pid 5)",
         Provenance::Observed,
     ));
@@ -129,25 +129,47 @@ fn the_trace_ladder_names_each_class_present() {
         measured: vec![
             EvidenceRow::new(
                 Some(0),
-                "held via fd 3 (rw)",
+                EvidenceKind::Held {
+                    via: "fd 3 (rw)".to_owned(),
+                },
                 "bash (pid 1)",
                 Provenance::Measured,
             ),
             EvidenceRow::new(
                 Some(0),
-                "runs /usr/bin/sshd (unit sshd)",
+                EvidenceKind::Runs {
+                    cmd: Some("/usr/bin/sshd".to_owned()),
+                    unit: Some("sshd".to_owned()),
+                },
                 "sshd (pid 7)",
                 Provenance::Measured,
             ),
-            EvidenceRow::new(Some(0), "type file", "—", Provenance::Measured),
+            EvidenceRow::new(
+                Some(0),
+                EvidenceKind::Type {
+                    file_type: "file".to_owned(),
+                },
+                "—",
+                Provenance::Measured,
+            ),
         ],
         changes: ChangesSection {
             rows: vec![
-                EvidenceRow::new(Some(1), "opened", "cat (pid 9)", Provenance::Observed),
-                EvidenceRow::new(Some(2), "wrote", "tee (pid 5)", Provenance::Observed),
+                EvidenceRow::new(
+                    Some(1),
+                    EvidenceKind::Opened,
+                    "cat (pid 9)",
+                    Provenance::Observed,
+                ),
+                EvidenceRow::new(
+                    Some(2),
+                    EvidenceKind::Wrote { via: None },
+                    "tee (pid 5)",
+                    Provenance::Observed,
+                ),
                 EvidenceRow::new(
                     Some(3),
-                    "journal mention",
+                    EvidenceKind::JournalMention,
                     "cron (pid 123)",
                     Provenance::Inferred,
                 ),

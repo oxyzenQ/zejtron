@@ -14,10 +14,12 @@ What the freeze means, exactly:
   Stable API section states, now effective. The nine surfaces
   (`path`, `recent`, `port`, `proc`, `holds`, `touch`, `why`, `net`,
   `doctor`) keep their spellings, flags, and output bytes.
-- The Evidence Ledger Specification v1 is frozen with it
+- The Evidence Ledger Specification v2 is frozen with it
   ([docs/EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md)), including the
   JSON surface (`--print-json`) and its field map - automation
-  written against it keeps working.
+  written against it keeps working. v2 typed the row's `action`
+  field (the one pre-freeze correction rc.1 carries); v1 remains
+  citable inside the spec document's archive.
 - Future releases carry bug fixes, procfs/sysfs compatibility, and
   internal performance only. Additive changes (new flags, new
   sections) ride minor versions without breaking the contract.
