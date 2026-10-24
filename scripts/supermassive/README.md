@@ -11,11 +11,12 @@ and zylaxion's supermassive suites): not a gimmick — the proof.
 
 ## What "end to end depth" means here
 
-For every one of the seventeen surfaces (path, recent, port, proc,
+For every one of the eighteen surfaces (path, recent, port, proc,
 holds, touch, why, net, doctor, `doctor --symptom ram`,
 `doctor --symptom cpu`, `doctor --symptom disk`,
 `doctor --symptom network`, `doctor --symptom gpu`, `-h/--help`,
-`-V/--version`, and the realtime storm):
+`-V/--version`, the realtime storm, and the server incident
+simulation):
 
 1. **Real invocation.** The actual compiled binary, called by the
    suite. Assertions pin exit codes, not just "it ran".
@@ -170,6 +171,20 @@ probe counts for one controlled write across the whole family
 (where tracefs is writable, root inside the witness VMs) - so a
 rerouted or cloned write path names itself in one round, never a
 bare FAIL (the named-never-swallowed law).
+
+The server incident simulation (night-badass-8) is the suite's
+scenario leg: a rogue process binds port 9999 and holds 100 MiB,
+and the suite must find it. `doctor --symptom ram --print-json`
+must name the rogue's pid with its PSS above the 50 MB bar, and
+`port 9999 --print-json` must name the same pid as the socket's
+holder (the ledger's typed actor) with the subject pinned to
+:9999 — the detection asserted on the JSON lane the automation
+contract pins. The rogue is spawned by the surface, bounded by its
+own sleep, and killed and reaped by the surface's own hand; on a
+host without python3, or one where port 9999 is already bound, the
+surface skips with the reason named. The write-event half of an
+incident stays the storm surface's contract — this leg stages and
+detects, it does not re-test the probe lane.
 
 The local twin grew the arbitrary-kernel lane for the same
 reason: `--kernel PATH` boots any vmlinuz the operator chooses,

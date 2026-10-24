@@ -158,7 +158,8 @@ export SUITE_CARGO_TOML="$SUITE_DIR/../../Cargo.toml"
 # ---------------------------------------------------------------------------
 
 ALL_SURFACES=(path recent port proc holds touch why net doctor doctor-ram
-	doctor-cpu doctor-disk doctor-network doctor-gpu help version storm)
+	doctor-cpu doctor-disk doctor-network doctor-gpu help version storm
+	simulation)
 
 # The documented-flag manifest. Every documented flag of every
 # surface; the runner reports any flag no surface exercised as
@@ -234,6 +235,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor-gpu.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/help.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/version.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/storm.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/simulation.sh"
 
 for surface in "${run_surfaces[@]}"; do
 	sm_surface_begin "$surface"
