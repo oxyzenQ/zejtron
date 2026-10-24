@@ -34,6 +34,24 @@ surface_why() {
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "why renders content"
 	sm_assert_contains "$SM_SCRATCH/ok.out" "The evidence supports:" "why names the evidence verdict"
 
+	# The typed JSON lane (night-dragon-4): the ledger's automation
+	# contract on the evidence report - pure JSON, silent stderr,
+	# the typed v3 keys.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" why "$file" --since 1s --print-json
+	sm_assert_rc 0 "$rc" "why --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"why --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"why --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 3' \
+		"why --print-json names the ledger version"
+	sm_assert_json "$SM_SCRATCH/json.out" '.verdict | has("supports")' \
+		"why --print-json carries the typed verdict"
+	sm_assert_json "$SM_SCRATCH/json.out" '.subject | type == "string"' \
+		"why --print-json carries the typed subject"
+	sm_flag_used "why --print-json"
+
 	# --trace appends the explainability ladder.
 	sm_run "$SM_SCRATCH/trace.out" "$SM_SCRATCH/trace.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" why "$file" --since 1s --trace

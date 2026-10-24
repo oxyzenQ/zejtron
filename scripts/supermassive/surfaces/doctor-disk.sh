@@ -22,6 +22,23 @@ surface_doctor_disk() {
 	sm_assert_rc 0 "$rc" "doctor --symptom disk exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/disk.out" "doctor --symptom disk renders content"
 
+	# The typed JSON lane (night-dragon-4): the symptom report's
+	# automation contract - pure JSON, silent stderr, the typed
+	# disk shape.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 10 -- \
+		"$SM_DEFAULT_BIN" doctor --symptom disk --print-json
+	sm_assert_rc 0 "$rc" "doctor --symptom disk --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"doctor disk --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"doctor disk --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" \
+		'.mode == "symptom" and .symptom == "disk"' \
+		"doctor disk --print-json names the disk symptom"
+	sm_assert_json "$SM_SCRATCH/json.out" 'has("iowait_pct")' \
+		"doctor disk --print-json carries the iowait gauge"
+	sm_flag_used "doctor --print-json"
+
 	# The lane's contracts: the delta mode line, the iowait gauge
 	# header, the Unaccounted block, and the verdict.
 	sm_assert_contains "$SM_SCRATCH/disk.out" "Mode: snapshot delta" \

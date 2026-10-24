@@ -30,6 +30,21 @@ surface_port() {
 	sm_assert_rc 0 "$rc" "port --snapshot-only exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "port renders content"
 
+	# The typed JSON lane (night-dragon-4): the automation contract.
+	# Pure JSON on stdout, silent stderr, the flat Spec v3 shape.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" port --snapshot-only --print-json
+	sm_assert_rc 0 "$rc" "port --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"port --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"port --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" '.mode == "snapshot"' \
+		"port --print-json names the snapshot mode"
+	sm_assert_json "$SM_SCRATCH/json.out" '.ports | type == "array"' \
+		"port --print-json carries the ports array"
+	sm_flag_used "port --print-json"
+
 	# Flag ladder: every documented flag runs clean, one invocation
 	# each (the flag-specific contract is rc 0 + rendered content;
 	# the render shape is pinned by the snapshot check above).

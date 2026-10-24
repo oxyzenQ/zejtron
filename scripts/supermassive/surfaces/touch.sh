@@ -41,6 +41,25 @@ surface_touch() {
 	sm_assert_rc 0 "$rc" "touch <dir> exits 0"
 	sm_assert_contains "$SM_SCRATCH/dir.out" "type directory" "touch <dir> names the directory type"
 
+	# The typed JSON lane (night-dragon-4): the ledger's automation
+	# contract on the write surface - pure JSON, silent stderr,
+	# the typed v3 keys.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" touch "$file" --since 1s --print-json
+	sm_assert_rc 0 "$rc" "touch --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"touch --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"touch --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 3' \
+		"touch --print-json names the ledger version"
+	sm_assert_json "$SM_SCRATCH/json.out" '.verdict | has("supports")' \
+		"touch --print-json carries the typed verdict"
+	sm_assert_json "$SM_SCRATCH/json.out" \
+		'.measured | type == "array" and length > 0' \
+		"touch --print-json carries the measured rows"
+	sm_flag_used "touch --print-json"
+
 	# Error path: a path that does not exist (battery-pinned).
 	sm_run "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" touch "$SM_SCRATCH/no-such-path"

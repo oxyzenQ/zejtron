@@ -30,6 +30,25 @@ surface_doctor() {
 	sm_assert_rc 0 "$rc" "doctor exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "doctor renders content"
 
+	# The typed JSON lane (night-dragon-4): the readiness report's
+	# automation contract - pure JSON, silent stderr, the typed
+	# readiness shape (the checks array is the report's spine).
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" doctor --print-json
+	sm_assert_rc 0 "$rc" "doctor --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"doctor --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"doctor --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" '.mode == "readiness"' \
+		"doctor --print-json names the readiness mode"
+	sm_assert_json "$SM_SCRATCH/json.out" \
+		'.checks | type == "array" and length > 0' \
+		"doctor --print-json carries the checks array"
+	sm_assert_json "$SM_SCRATCH/json.out" '.ebpf_lane | type == "string"' \
+		"doctor --print-json names its eBPF lane"
+	sm_flag_used "doctor --print-json"
+
 	# The floor direction, computed once up front: the attach
 	# lifecycle below and the floor agreement at the end both hold
 	# the binary to the same direction, read from the same file

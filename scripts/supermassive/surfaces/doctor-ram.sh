@@ -21,6 +21,25 @@ surface_doctor_ram() {
 	sm_assert_rc 0 "$rc" "doctor --symptom ram exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "doctor --symptom ram renders content"
 
+	# The typed JSON lane (night-dragon-4): the symptom report's
+	# automation contract - pure JSON, silent stderr, the typed
+	# memory shape.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" doctor --symptom ram --print-json
+	sm_assert_rc 0 "$rc" "doctor --symptom ram --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"doctor ram --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"doctor ram --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" \
+		'.mode == "symptom" and .symptom == "ram"' \
+		"doctor ram --print-json names the ram symptom"
+	sm_assert_json "$SM_SCRATCH/json.out" '.memory | has("total_bytes")' \
+		"doctor ram --print-json carries the memory block"
+	sm_assert_json "$SM_SCRATCH/json.out" '.processes | type == "array"' \
+		"doctor ram --print-json carries the processes array"
+	sm_flag_used "doctor --print-json"
+
 	# --raw appends the raw /proc reads (the documented drill-down).
 	sm_run "$SM_SCRATCH/raw.out" "$SM_SCRATCH/raw.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" doctor --symptom ram --raw

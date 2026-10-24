@@ -22,6 +22,23 @@ surface_doctor_network() {
 	sm_assert_rc 0 "$rc" "doctor --symptom network exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/net.out" "doctor --symptom network renders content"
 
+	# The typed JSON lane (night-dragon-4): the symptom report's
+	# automation contract - pure JSON, silent stderr, the typed
+	# network shape.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 10 -- \
+		"$SM_DEFAULT_BIN" doctor --symptom network --print-json
+	sm_assert_rc 0 "$rc" "doctor --symptom network --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"doctor network --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"doctor network --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" \
+		'.mode == "symptom" and .symptom == "network"' \
+		"doctor network --print-json names the network symptom"
+	sm_assert_json "$SM_SCRATCH/json.out" '.sockets | has("total")' \
+		"doctor network --print-json carries the socket census"
+	sm_flag_used "doctor --print-json"
+
 	# The lane's contracts: the delta mode line, the interface table
 	# header, the socket-state census header, the Unaccounted block,
 	# and the verdict.

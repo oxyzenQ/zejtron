@@ -22,6 +22,21 @@ surface_net() {
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "net renders content"
 	sm_assert_contains "$SM_SCRATCH/ok.out" "lo" "net names the loopback interface"
 
+	# The typed JSON lane (night-dragon-4): the automation contract
+	# - pure JSON, silent stderr, the typed interface rows.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" net --print-json
+	sm_assert_rc 0 "$rc" "net --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"net --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"net --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" '.interfaces | type == "array"' \
+		"net --print-json carries the interfaces array"
+	sm_assert_json "$SM_SCRATCH/json.out" 'any(.interfaces[]; .name == "lo")' \
+		"net --print-json names the loopback row"
+	sm_flag_used "net --print-json"
+
 	# Grammar refusal: net takes no positional argument, so an extra
 	# word is a usage error - exit 2.
 	sm_run "$SM_SCRATCH/extra.out" "$SM_SCRATCH/extra.err" rc 5 -- "$SM_DEFAULT_BIN" net extra-arg

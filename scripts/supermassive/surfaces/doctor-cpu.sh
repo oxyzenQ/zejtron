@@ -26,6 +26,24 @@ surface_doctor_cpu() {
 	sm_assert_rc 0 "$rc" "doctor --symptom cpu exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/cpu.out" "doctor --symptom cpu renders content"
 
+	# The typed JSON lane (night-dragon-4): the symptom report's
+	# automation contract - pure JSON, silent stderr, the typed
+	# cpu shape.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 10 -- \
+		"$SM_DEFAULT_BIN" doctor --symptom cpu --print-json
+	sm_assert_rc 0 "$rc" "doctor --symptom cpu --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"doctor cpu --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"doctor cpu --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" \
+		'.mode == "symptom" and .symptom == "cpu"' \
+		"doctor cpu --print-json names the cpu symptom"
+	sm_assert_json "$SM_SCRATCH/json.out" \
+		'.ncpu > 0 and has("loadavg_1min")' \
+		"doctor cpu --print-json carries the typed cpu gauges"
+	sm_flag_used "doctor --print-json"
+
 	# The lane's contracts: the delta mode line (both lane states
 	# carry the "snapshot delta" shape), the ranked table header,
 	# the Unaccounted block, and the two-line verdict family.

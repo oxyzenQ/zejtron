@@ -28,6 +28,24 @@ surface_path() {
 	sm_assert_contains "$SM_SCRATCH/ok.out" "active:" "path sh names the active resolution"
 	sm_assert_contains "$SM_SCRATCH/ok.out" "duplicates:" "path sh names the duplicates section"
 
+	# The typed JSON lane (night-dragon-4): the automation contract
+	# - pure JSON, silent stderr, the typed resolution shape.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 20 -- \
+		"$SM_DEFAULT_BIN" path sh --print-json
+	sm_assert_rc 0 "$rc" "path --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"path --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"path --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" \
+		'.command == "sh" and .found == true' \
+		"path --print-json names the typed resolution"
+	sm_assert_json "$SM_SCRATCH/json.out" '.active | has("path")' \
+		"path --print-json carries the active block"
+	sm_assert_json "$SM_SCRATCH/json.out" '.duplicates | type == "array"' \
+		"path --print-json carries the duplicates array"
+	sm_flag_used "path --print-json"
+
 	# Runtime error path: a command that cannot exist on PATH. The
 	# honest contract (verified against the binary): this is a REPORT,
 	# not a failure - exit 0, the miss named on stdout, so scripts can
