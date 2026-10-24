@@ -985,6 +985,21 @@ v11.0.0
 
 ### Changed
 
+- The `--print-json` evidence rows speak typed data (night-badass-5,
+  Evidence Ledger Specification v2): the row's `action` field was a
+  pre-rendered string ("size 884 bytes") that `jq` had to parse
+  back apart; it is now the typed evidence object
+  (`{"kind":"size","bytes":884}`) - numbers stay numbers, absent
+  optional parts are JSON null, and the `kind` token names the
+  fact class (`size`, `owner`, `inode`, `perms`, `type`,
+  `symlink-target`, `modified`, `accessed`, `changed`, `held`,
+  `cwd`, `runs`, `opened`, `wrote`, `journal-mention`). The
+  `ledger_version` rides 2 and docs/EVIDENCE-LEDGER.md carries the
+  amended field map with the frozen v1 archived inside; the TEXT
+  ledger is byte-identical - the action phrase now renders from
+  the same enum the JSON serializes, one source, two surfaces. No
+  serde, no new dependencies, std-only serializer as before.
+
 - The architecture support policy is now explicitly documented
   (night-badass-3): zejtron officially ships and verifies x86_64
   (amd64) binaries only - the verifier-first doctrine, ship what

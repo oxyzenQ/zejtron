@@ -30,17 +30,24 @@ fn fd_evidence() -> Vec<super::super::Evidence> {
 }
 
 #[test]
-fn held_action_prefixes_the_single_sourced_label() {
+fn held_kind_carries_the_single_sourced_label() {
     use super::super::Evidence;
-    let fd = held_action(&Evidence::Fd(3, FdMode::ReadWrite));
-    assert_eq!(fd, "held via fd 3 (rw)");
-    let mmap = held_action(&Evidence::Mmap(MmapPerms {
+    let fd = held_kind(&Evidence::Fd(3, FdMode::ReadWrite));
+    assert_eq!(
+        fd,
+        crate::evidence::row::EvidenceKind::Held {
+            via: "fd 3 (rw)".to_owned()
+        }
+    );
+    // The text phrase is the locked grammar, rendered from the kind.
+    assert_eq!(fd.phrase(), "held via fd 3 (rw)");
+    let mmap = held_kind(&Evidence::Mmap(MmapPerms {
         read: true,
         write: true,
         execute: false,
         private: true,
     }));
-    assert_eq!(mmap, "held via mmap rw-p");
+    assert_eq!(mmap.phrase(), "held via mmap rw-p");
 }
 
 #[test]
@@ -69,7 +76,7 @@ fn the_supports_line_carries_the_old_count_line() {
     let mut changes = ChangesSection::default();
     changes.rows.push(crate::evidence::row::EvidenceRow::new(
         Some(0),
-        "opened",
+        crate::evidence::row::EvidenceKind::Opened,
         "cat (pid 9)",
         Provenance::Observed,
     ));
@@ -187,7 +194,7 @@ fn the_measured_row_shape_for_a_holder() {
     let actor = format!("{} (pid {}, {})", holder.name, holder.pid, holder.user);
     let row = crate::evidence::row::EvidenceRow::new(
         Some(scan_instant),
-        held_action(&holder.evidence[0]),
+        held_kind(&holder.evidence[0]),
         actor,
         Provenance::Measured,
     );

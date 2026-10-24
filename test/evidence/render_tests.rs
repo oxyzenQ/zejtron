@@ -5,7 +5,7 @@
 //! locked output shape, all four sections, byte-deterministic, no
 //! ANSI escape bytes ever. Wired from src/evidence/render.rs.
 
-use super::super::row::{EvidenceRow, Provenance};
+use super::super::row::{EvidenceKind, EvidenceRow, Provenance};
 use super::super::{ChangesSection, Mode, UnaccountedEntry, Verdict};
 use super::*;
 
@@ -20,13 +20,17 @@ fn sample_report() -> EvidenceReport {
         measured: vec![
             EvidenceRow::new(
                 Some(FIXED_SECS),
-                "held via fd 3 (rw)",
+                EvidenceKind::Held {
+                    via: "fd 3 (rw)".to_owned(),
+                },
                 "sshd (pid 1234, root)",
                 Provenance::Measured,
             ),
             EvidenceRow::new(
                 Some(FIXED_SECS),
-                "held via mmap rw-p",
+                EvidenceKind::Held {
+                    via: "mmap rw-p".to_owned(),
+                },
                 "python3 (pid 77, nightky)",
                 Provenance::Measured,
             ),
@@ -35,13 +39,15 @@ fn sample_report() -> EvidenceReport {
             rows: vec![
                 EvidenceRow::new(
                     Some(FIXED_LATER),
-                    "opened",
+                    EvidenceKind::Opened,
                     "cat (pid 9, root)",
                     Provenance::Observed,
                 ),
                 EvidenceRow::new(
                     Some(FIXED_LATER),
-                    "modified (audit log)",
+                    EvidenceKind::Modified {
+                        via: Some("audit log"),
+                    },
                     "cron (pid 123, root)",
                     Provenance::Inferred,
                 ),

@@ -29,7 +29,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use crate::evidence::row::{EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, Mode, UnaccountedEntry};
 
 use crate::commands::touch::TouchInfo;
@@ -215,15 +215,18 @@ fn collect_live(
         };
         // The action names the write path that crossed: the writev
         // parenthetical is the whole point of op=4 - the operator
-        // learns WHICH syscall family the writer used.
-        let action = match event.op {
-            crate::ebpf::events::FILE_OP_OPEN => "opened",
-            crate::ebpf::events::FILE_OP_WRITEV => "wrote (writev)",
-            _ => "wrote",
+        // learns WHICH syscall family the writer used. The kind
+        // carries the family as typed data; the phrase renders it.
+        let kind = match event.op {
+            crate::ebpf::events::FILE_OP_OPEN => EvidenceKind::Opened,
+            crate::ebpf::events::FILE_OP_WRITEV => EvidenceKind::Wrote {
+                via: Some("writev"),
+            },
+            _ => EvidenceKind::Wrote { via: None },
         };
         rows.push(EvidenceRow::new(
             crate::ebpf::fileprobe::event_unix_secs(event),
-            action,
+            kind,
             format!("{name} (pid {}, {user})", event.pid),
             Provenance::Observed,
         ));
@@ -321,11 +324,14 @@ fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
             if record_secs >= cutoff && record_secs > 0 {
                 // The action names the exact source: an audit record
                 // is a real syscall record; a journal grep hit only
-                // proves the journal mentioned the path.
-                let action = if from_audit {
-                    "modified (audit log)"
+                // proves the journal mentioned the path. The kind is
+                // the typed fact; the phrase is its text form.
+                let kind = if from_audit {
+                    EvidenceKind::Modified {
+                        via: Some("audit log"),
+                    }
                 } else {
-                    "journal mention"
+                    EvidenceKind::JournalMention
                 };
                 let actor = log_actor(&info);
                 let mut changes = ChangesSection {
@@ -334,7 +340,7 @@ fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
                 };
                 changes.rows.push(EvidenceRow::new(
                     Some(record_secs),
-                    action,
+                    kind,
                     actor,
                     Provenance::Inferred,
                 ));

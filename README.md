@@ -23,7 +23,7 @@
 
 </div>
 
-zejtron's output complies with the [Evidence Ledger Specification v1](docs/EVIDENCE-LEDGER.md). See [docs/EVIDENCE-LEDGER.md](docs/EVIDENCE-LEDGER.md) for the citable format.
+zejtron's output complies with the [Evidence Ledger Specification v2](docs/EVIDENCE-LEDGER.md). See [docs/EVIDENCE-LEDGER.md](docs/EVIDENCE-LEDGER.md) for the citable format.
 
 <p align="center">
   <a href="https://ko-fi.com/rezky">

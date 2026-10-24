@@ -22,7 +22,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::evidence::row::{EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, EvidenceReport, Mode, UnaccountedEntry, Verdict};
 
 use super::{Evidence, Holder, HoldsError, ScanStats, scan_path_holders, scan_port_holders};
@@ -76,7 +76,7 @@ pub fn build_path_report(
         for evidence in &holder.evidence {
             measured.push(EvidenceRow::new(
                 Some(scan_instant),
-                held_action(evidence),
+                held_kind(evidence),
                 actor.clone(),
                 Provenance::Measured,
             ));
@@ -127,7 +127,7 @@ pub fn build_port_report(
         for evidence in &holder.evidence {
             measured.push(EvidenceRow::new(
                 Some(scan_instant),
-                held_action(evidence),
+                held_kind(evidence),
                 actor.clone(),
                 Provenance::Measured,
             ));
@@ -135,17 +135,16 @@ pub fn build_port_report(
         if let Some(cwd) = &holder.cwd {
             measured.push(EvidenceRow::new(
                 Some(scan_instant),
-                format!(
-                    "cwd {}",
-                    crate::system::sanitize_display(&cwd.to_string_lossy())
-                ),
+                EvidenceKind::Cwd {
+                    path: Some(crate::system::sanitize_display(&cwd.to_string_lossy())),
+                },
                 actor.clone(),
                 Provenance::Measured,
             ));
         } else {
             measured.push(EvidenceRow::new(
                 Some(scan_instant),
-                "cwd (unreadable)".to_owned(),
+                EvidenceKind::Cwd { path: None },
                 actor.clone(),
                 Provenance::Measured,
             ));
@@ -187,13 +186,15 @@ pub fn build_port_report(
     })
 }
 
-/// The action phrase for one piece of holder evidence - the same
+/// The typed action for one piece of holder evidence - the same
 /// facts the old tree's sub-lines carried, in the row grammar.
-fn held_action(evidence: &Evidence) -> String {
+fn held_kind(evidence: &Evidence) -> EvidenceKind {
     // The old tree's sub-line, single-sourced: evidence::label() is
     // the one implementation (the phase-2 tree used it verbatim);
-    // the row prefix is the only new part.
-    format!("held via {}", evidence.label())
+    // the typed variant is the only new part.
+    EvidenceKind::Held {
+        via: evidence.label(),
+    }
 }
 
 /// The scan instant in unix seconds (the \[measured] rows' timestamp).

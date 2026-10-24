@@ -13,7 +13,7 @@
 //! render.rs's text grammar field for field:
 //!
 //! ```json
-//! {"ledger_version":1,"subject":"/etc/resolv.conf","mode":"snapshot",
+//! {"ledger_version":2,"subject":"/etc/resolv.conf","mode":"snapshot",
 //!  "lane":"journal fallback","window":"10s","measured":[...],
 //!  "changes":{"unavailable":false,"rows":[...]},
 //!  "unaccounted":[{"count":1,"category":"opens","reason":"..."}],
@@ -30,8 +30,19 @@
 //! - A row carries `unix_secs` (null when the fact is absent - the
 //!   JSON-native form of the text renderer's `unknown`),
 //!   `timestamp_utc` (the clock-rendered string, null with it),
-//!   `action`, `actor`, and `provenance` (one of the four tier
-//!   tags, the locked vocabulary).
+//!   `action` (the TYPED evidence object, night-badass-5), `actor`,
+//!   and `provenance` (one of the four tier tags, the locked
+//!   vocabulary).
+//! - The `action` object carries `kind` - one token per variant of
+//!   [`super::row::EvidenceKind`], the same vocabulary the text
+//!   phrase renders ("size 884 bytes" is `{"kind":"size",
+//!   "bytes":884}`) - plus the variant's raw data as named fields:
+//!   numbers stay numbers (bytes, uid, gid, inode, dev), strings
+//!   stay strings (file_type, octal, the held-via label, the cwd
+//!   path), and absent optional parts are JSON null (the cwd of an
+//!   unreadable directory, a runs row's missing half). The object
+//!   is the enterprise lane's contract: jq filters on `.action.kind`
+//!   and reads the raw fields without parsing a phrase.
 //! - `changes.unavailable` is the absent-lane truth; rows sit
 //!   beside it, and an empty window with a present lane is
 //!   `unavailable:false` with an empty `rows` array - the two
@@ -47,12 +58,15 @@
 
 use std::fmt::Write as _;
 
-use super::row::EvidenceRow;
+use super::row::{EvidenceKind, EvidenceRow};
 use super::{EvidenceReport, Mode};
 
 /// The one version number the automation lane can pin against: the
-/// Evidence Ledger Specification v1 this module mirrors.
-const LEDGER_VERSION: u32 = 1;
+/// Evidence Ledger Specification this module mirrors. v2
+/// (night-badass-5) types the row's `action` field - the v1 string
+/// phrase became the typed evidence object; every other field is
+/// byte-compatible with v1.
+const LEDGER_VERSION: u32 = 2;
 
 /// Serialize the report to one line of JSON. Pure function of its
 /// input: no clock reads, no environment reads, no map iteration -
@@ -136,11 +150,103 @@ fn write_row(out: &mut String, row: &EvidenceRow) {
         None => out.push_str("null"),
     }
     out.push_str(",\"action\":");
-    write_string(out, &row.action);
+    write_kind(out, &row.kind);
     out.push_str(",\"actor\":");
     write_string(out, &row.actor);
     out.push_str(",\"provenance\":");
     write_string(out, row.provenance.tag());
+    out.push('}');
+}
+
+/// Serialize the typed action (night-badass-5): one object per
+/// variant of [`EvidenceKind`], `kind` first (the word comes from
+/// [`EvidenceKind::kind_word`] - one source for the vocabulary),
+/// then the variant's raw fields - numbers as numbers, absent
+/// optional parts as JSON null. The field names are the contract
+/// the automation lane pins.
+fn write_kind(out: &mut String, kind: &EvidenceKind) {
+    use EvidenceKind as K;
+    out.push_str("{\"kind\":");
+    write_string(out, kind.kind_word());
+    match kind {
+        K::Type { file_type } => {
+            out.push_str(",\"file_type\":");
+            write_string(out, file_type);
+        }
+        K::SymlinkTarget { target } => {
+            out.push_str(",\"target\":");
+            write_string(out, target);
+        }
+        K::Size { bytes } => {
+            out.push_str(",\"bytes\":");
+            let _ = write!(out, "{bytes}");
+        }
+        K::Owner {
+            user,
+            group,
+            uid,
+            gid,
+        } => {
+            out.push_str(",\"user\":");
+            write_string(out, user);
+            out.push_str(",\"group\":");
+            write_string(out, group);
+            out.push_str(",\"uid\":");
+            let _ = write!(out, "{uid}");
+            out.push_str(",\"gid\":");
+            let _ = write!(out, "{gid}");
+        }
+        K::Permissions { octal } => {
+            out.push_str(",\"octal\":");
+            write_string(out, octal);
+        }
+        K::Inode { id, dev } => {
+            out.push_str(",\"id\":");
+            let _ = write!(out, "{id}");
+            out.push_str(",\"dev\":");
+            let _ = write!(out, "{dev}");
+        }
+        K::Modified { via } => {
+            out.push_str(",\"via\":");
+            match via {
+                Some(source) => write_string(out, source),
+                None => out.push_str("null"),
+            }
+        }
+        K::Accessed | K::Changed => {}
+        K::Held { via } => {
+            out.push_str(",\"via\":");
+            write_string(out, via);
+        }
+        K::Cwd { path } => {
+            out.push_str(",\"path\":");
+            match path {
+                Some(path) => write_string(out, path),
+                None => out.push_str("null"),
+            }
+        }
+        K::Runs { cmd, unit } => {
+            out.push_str(",\"cmd\":");
+            match cmd {
+                Some(cmd) => write_string(out, cmd),
+                None => out.push_str("null"),
+            }
+            out.push_str(",\"unit\":");
+            match unit {
+                Some(unit) => write_string(out, unit),
+                None => out.push_str("null"),
+            }
+        }
+        K::Opened => {}
+        K::Wrote { via } => {
+            out.push_str(",\"via\":");
+            match via {
+                Some(family) => write_string(out, family),
+                None => out.push_str("null"),
+            }
+        }
+        K::JournalMention => {}
+    }
     out.push('}');
 }
 
