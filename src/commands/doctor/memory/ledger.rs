@@ -457,18 +457,38 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
 
 fn render_verdict(sample: &MemorySample, lines: &mut Vec<String>) {
     lines.push(crate::output::ok_out("Verdict:"));
+    let (verdict, absence) = verdict_parts(sample);
+    let last = verdict.len().saturating_sub(1);
+    for (index, line) in verdict.iter().enumerate() {
+        // The absence verdict rides grey (the "no events" class -
+        // the same honesty an empty window gets); the findings and
+        // the largest-consumer line stay unwrapped (the values).
+        if absence && index == last {
+            lines.push(crate::output::grey_out(&format!("  {line}")));
+        } else {
+            lines.push(format!("  {line}"));
+        }
+    }
+}
+
+/// The verdict's lines, without the two-space indent and the
+/// header - one source for the text renderer and the JSON lane
+/// (night-badass-5). The bool is the absence flag: when no finding
+/// fired, the last line is the "No anomalous consumer detected."
+/// sentence, which the text renderer seats in the grey tier.
+pub(crate) fn verdict_parts(sample: &MemorySample) -> (Vec<String>, bool) {
+    let mut lines: Vec<String> = Vec::new();
 
     // Line 1: the largest single consumer, always named when the
-    // data allowed one. The verdict text is the report's content and
-    // stays unwrapped (white, the values it is composed of).
+    // data allowed one. The verdict text is the report's content.
     match sample.pss.first() {
         Some(top) => lines.push(format!(
-            "  The largest single consumer is {} ({} PSS).",
+            "The largest single consumer is {} ({} PSS).",
             top.name,
             fmt_bytes(kib_to_bytes(top.pss_kib))
         )),
         None => lines.push(
-            "  No process PSS was readable (permission boundary); the largest \
+            "No process PSS was readable (permission boundary); the largest \
              consumer cannot be named."
                 .to_owned(),
         ),
@@ -487,7 +507,7 @@ fn render_verdict(sample: &MemorySample, lines: &mut Vec<String>) {
         .find(|f| f.size_bytes >= ANOMALY_BYTES && f.holders.is_empty())
     {
         lines.push(format!(
-            "  The tmpfs file {} holds {} and no process in this namespace holds it \
+            "The tmpfs file {} holds {} and no process in this namespace holds it \
              (a stale write, or a holder this user cannot see). It can be removed only \
              if nothing needs it - verify with `zejtron touch {}` first, which names \
              the file's actual holders and mtime.",
@@ -507,7 +527,7 @@ fn render_verdict(sample: &MemorySample, lines: &mut Vec<String>) {
         .sum();
     if deleted_total >= ANOMALY_BYTES {
         lines.push(format!(
-            "  {} is held by deleted files still open in live processes. These cannot \
+            "{} is held by deleted files still open in live processes. These cannot \
              be removed without closing the holder. Named above.",
             fmt_bytes(deleted_total)
         ));
@@ -521,7 +541,7 @@ fn render_verdict(sample: &MemorySample, lines: &mut Vec<String>) {
         let pct = u64::checked_mul(residual, 100).and_then(|n| n.checked_div(mem.total_kib));
         if let Some(pct) = pct.filter(|pct| *pct > RESIDUAL_PCT_THRESHOLD) {
             lines.push(format!(
-                "  The unaccounted remainder ({pct}%) is above the \
+                "The unaccounted remainder ({pct}%) is above the \
                  {RESIDUAL_PCT_THRESHOLD}% heuristic threshold - this is unusual; \
                  investigate with `zejtron doctor --symptom ram --raw` (raw dump of \
                  the underlying /proc reads)."
@@ -530,11 +550,11 @@ fn render_verdict(sample: &MemorySample, lines: &mut Vec<String>) {
         }
     }
 
-    if findings == 0 {
-        // The absence verdict rides grey (the "no events" class -
-        // the same honesty an empty window gets).
-        lines.push(crate::output::grey_out("  No anomalous consumer detected."));
+    let absence = findings == 0;
+    if absence {
+        lines.push("No anomalous consumer detected.".to_owned());
     }
+    (lines, absence)
 }
 
 /// The drill-down: the verbatim /proc reads the report rode on.

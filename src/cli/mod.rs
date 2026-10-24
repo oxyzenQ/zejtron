@@ -262,6 +262,12 @@ pub enum Commands {
             help = "With --symptom: append the raw /proc reads (drill-down)"
         )]
         raw: bool,
+        #[arg(
+            long,
+            conflicts_with_all = ["attach", "detach", "raw"],
+            help = "Print the doctor report as JSON (one line, jq-ready)"
+        )]
+        print_json: bool,
     },
     #[command(about = "Which interfaces exist, and how does traffic route?")]
     Net,

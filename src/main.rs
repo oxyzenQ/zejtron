@@ -111,12 +111,14 @@ fn main() {
             detach,
             symptom,
             raw,
+            print_json,
         }) => commands::doctor::run(
             env!("ZEJTRON_GIT_HASH"),
             attach,
             detach,
             symptom.as_deref(),
             raw,
+            print_json,
         ),
         Some(cli::Commands::Net) => commands::net::run(),
         None => {

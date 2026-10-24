@@ -56,6 +56,66 @@ pub(super) fn section() -> String {
     )
 }
 
+/// The eBPF section's structured facts (night-badass-5): the same
+/// probe and verdict the text rows render, held as data for the JSON
+/// lane. One probe per run, whichever lane runs - the text renderer
+/// and this function never both execute for one invocation.
+pub(super) struct EbpfFactsJson {
+    pub feature: &'static str,
+    pub kernel: String,
+    pub btf: &'static str,
+    pub lockdown: &'static str,
+    pub caps: String,
+    /// The lane verdict's base word: `live` or `snapshot`.
+    pub lane: &'static str,
+    /// True only for the attached live lane.
+    pub lane_attached: bool,
+    /// The Lane row's parenthetical detail (the attach availability,
+    /// the live counter, or the snapshot reason).
+    pub lane_detail: String,
+    /// The Lazy Camera posture row, verbatim.
+    pub camera: String,
+    pub probes: Vec<&'static str>,
+    /// `present`, `partial`, or `absent` - the pin set's state.
+    pub pins_state: &'static str,
+    /// The pin base names present, in planting order.
+    pub pins: Vec<&'static str>,
+    /// The pin base names missing (partial sets only).
+    pub pins_missing: Vec<&'static str>,
+}
+
+/// Probe once and classify once, as [`section`] does - the JSON
+/// lane's own read of the same truth.
+pub(super) fn facts_json() -> EbpfFactsJson {
+    let facts = ebpf::probe_kernel();
+    let verdict = ebpf::lane_verdict(&facts);
+    let (lane, lane_attached, lane_detail) = match &verdict {
+        LaneVerdict::Live => ("live", false, "attach available".to_owned()),
+        LaneVerdict::LiveAttached => ("live", true, attached_detail()),
+        LaneVerdict::Snapshot(reason) => ("snapshot", false, reason.clone()),
+    };
+    let (pins_state, pins, pins_missing) = pin_facts();
+    EbpfFactsJson {
+        feature: "enabled",
+        kernel: facts.release_label().to_owned(),
+        btf: if facts.btf_present {
+            "present"
+        } else {
+            "absent"
+        },
+        lockdown: facts.lockdown.label(),
+        caps: facts.caps_label(),
+        lane,
+        lane_attached,
+        lane_detail,
+        camera: mode_row(&verdict),
+        probes: probe_names(),
+        pins_state,
+        pins,
+        pins_missing,
+    }
+}
+
 /// The Feature row: what THIS binary can do, by compile-time fact.
 /// The eBPF support is unconditional (night-weekly-maintenance-1) -
 /// every binary carries the full lane, so the row is a constant.
@@ -150,9 +210,20 @@ fn mode_row(verdict: &LaneVerdict) -> String {
 /// (the probe object carries all six programs whatever the host
 /// allows).
 fn probes_row() -> String {
-    "sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, \
-     vfs_writev, sched_process_exit"
-        .to_owned()
+    probe_names().join(", ")
+}
+
+/// The probe names, in the row's own order - one source for the
+/// text row and the JSON facts.
+fn probe_names() -> Vec<&'static str> {
+    vec![
+        "sched_process_exec",
+        "inet_sock_set_state",
+        "vfs_open",
+        "raw_syscalls/sys_enter",
+        "vfs_writev",
+        "sched_process_exit",
+    ]
 }
 
 /// The Pins row: the whole pin set, a partial set named honestly (a
@@ -160,26 +231,41 @@ fn probes_row() -> String {
 /// present list names every pin in planting order - the same list
 /// attach prints and the same set detach removes.
 fn pins_row() -> String {
-    if ebpf::all_pins_present() {
-        format!("{} (present: {})", ebpf::PIN_DIR, pin_names().join(", "))
-    } else if ebpf::any_pin_present() {
-        let missing: Vec<&str> = ebpf::ALL_PINS
-            .iter()
-            .filter(|p| !Path::new(*p).exists())
-            .map(|p| {
-                Path::new(p)
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or(p)
-            })
-            .collect();
-        format!(
+    let (state, present, missing) = pin_facts();
+    match state {
+        "present" => format!("{} (present: {})", ebpf::PIN_DIR, present.join(", ")),
+        "partial" => format!(
             "{} (partial - missing: {})",
             ebpf::PIN_DIR,
             missing.join(", ")
-        )
+        ),
+        _ => format!("{} (absent)", ebpf::PIN_DIR),
+    }
+}
+
+/// The pin set's facts: the state word, the present base names, the
+/// missing base names - one source for the text row and the JSON
+/// facts. `present` and `missing` ride in ALL_PINS order.
+fn pin_facts() -> (&'static str, Vec<&'static str>, Vec<&'static str>) {
+    if ebpf::all_pins_present() {
+        ("present", pin_names(), Vec::new())
+    } else if ebpf::any_pin_present() {
+        let mut present = Vec::new();
+        let mut missing = Vec::new();
+        for p in ebpf::ALL_PINS {
+            let name = Path::new(p)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(p);
+            if Path::new(p).exists() {
+                present.push(name);
+            } else {
+                missing.push(name);
+            }
+        }
+        ("partial", present, missing)
     } else {
-        format!("{} (absent)", ebpf::PIN_DIR)
+        ("absent", Vec::new(), Vec::new())
     }
 }
 

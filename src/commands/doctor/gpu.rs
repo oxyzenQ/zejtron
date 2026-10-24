@@ -274,15 +274,26 @@ fn render_unaccounted(sample: &GpuSample, lines: &mut Vec<String>) {
 
 fn render_verdict(sample: &GpuSample, lines: &mut Vec<String>) {
     lines.push(crate::output::ok_out("Verdict:"));
+    for line in verdict_lines(sample) {
+        lines.push(format!("  {line}"));
+    }
+}
+
+/// The verdict's lines, without the two-space indent and the
+/// header - one source for the text renderer and the JSON lane
+/// (night-badass-5).
+pub(crate) fn verdict_lines(sample: &GpuSample) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
     match sample.holders.first() {
         Some(top) => lines.push(format!(
-            "  The GPU is held by {} (PID {}, devices: {}).",
+            "The GPU is held by {} (PID {}, devices: {}).",
             top.comm,
             top.pid,
             top.devices.join(", ")
         )),
-        None => lines.push("  No process holds the GPU device (the scene is idle).".to_owned()),
+        None => lines.push("No process holds the GPU device (the scene is idle).".to_owned()),
     }
+    lines
 }
 
 /// The drill-down: the holders' fd link targets verbatim - the

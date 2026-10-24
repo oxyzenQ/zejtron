@@ -41,12 +41,15 @@ pub fn run(
     detach: bool,
     symptom: Option<&str>,
     raw: bool,
+    print_json: bool,
 ) -> Result<(), Box<dyn Error>> {
     // The eBPF verbs (night-improve-1): attach/detach print their own
     // result and skip the snapshot report. The verbs exist in every
     // build - a featureless binary answers with the honest refusal
     // and a non-zero exit, never a fake success, and a feature binary
-    // on an incapable host names the reason it refused.
+    // on an incapable host names the reason it refused. The CLI
+    // refuses --print-json beside them: the verbs are actions, not
+    // reports, and there is nothing for a JSON lane to speak.
     if attach {
         return match crate::ebpf::attach() {
             Ok(summary) => {
@@ -70,7 +73,7 @@ pub fn run(
     // A symptom report replaces the readiness report; --raw without a
     // symptom is a usage error, never a silently ignored flag.
     if let Some(name) = symptom {
-        return symptom::run(name, raw).map_err(Into::into);
+        return symptom::run(name, raw, print_json).map_err(Into::into);
     }
     if raw {
         return Err(
@@ -82,12 +85,21 @@ pub fn run(
 
     let checks = collect_checks(git_hash);
     let summary = summarize(&checks);
-    // The check block closes with the Summary row and the separated
-    // [eBPF] sub-report follows (night-improve-1): always present,
-    // always honest about what this binary and this host can do.
-    let report = format_report(&checks, summary);
-    let section = ebpf::section();
-    println!("{report}\n{section}");
+    // The renderer branch (night-badass-5): the JSON lane speaks the
+    // same readiness truth - checks, summary, eBPF facts - as one
+    // typed line; the text lane renders the framed report. The exit
+    // contract is shared: FAIL count > 0 exits non-zero either way,
+    // so CI can gate on doctor in both lanes.
+    let report = if print_json {
+        json::readiness_json(&checks, &summary, crate::system::effective_uid())
+    } else {
+        // The check block closes with the Summary row and the
+        // separated [eBPF] sub-report follows (night-improve-1):
+        // always present, always honest about what this binary and
+        // this host can do.
+        format!("{}\n{}", format_report(&checks, summary), ebpf::section())
+    };
+    println!("{report}");
     // Non-zero exit on FAIL so CI / automation can gate on doctor.
     if summary.fail > 0 {
         return Err("doctor checks failed".into());
@@ -118,6 +130,7 @@ mod delta;
 mod disk;
 mod ebpf;
 mod gpu;
+mod json;
 mod memory;
 mod network;
 mod symptom;

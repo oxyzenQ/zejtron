@@ -250,7 +250,7 @@ fn write_kind(out: &mut String, kind: &EvidenceKind) {
     out.push('}');
 }
 
-fn write_unaccounted(out: &mut String, entries: &[super::UnaccountedEntry]) {
+pub(crate) fn write_unaccounted(out: &mut String, entries: &[super::UnaccountedEntry]) {
     out.push('[');
     for (index, entry) in entries.iter().enumerate() {
         if index > 0 {
@@ -272,7 +272,7 @@ fn write_unaccounted(out: &mut String, entries: &[super::UnaccountedEntry]) {
 /// controls take `\b` `\f` `\n` `\r` `\t`, any other control byte
 /// takes `\u00xx`, and every other scalar (including all of UTF-8)
 /// passes through untouched.
-fn write_string(out: &mut String, value: &str) {
+pub(crate) fn write_string(out: &mut String, value: &str) {
     out.push('"');
     for character in value.chars() {
         match character {
