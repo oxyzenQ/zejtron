@@ -279,7 +279,14 @@ sm_assert_json() {
 #                "N processes visible" gauge - kernel threads
 #                appear and vanish between two adjacent doctor runs
 #                on the newest kernel lines; found live by the 7.2
-#                moving-latest witness, night-improve-54)
+#                moving-latest witness, night-improve-54), and the
+#                evidence report's unreadable-accounting rows (the
+#                why lane's "N processes (unreadable ...)" / "N maps
+#                (unreadable ...)" lines - the host's own process
+#                table shifts between two adjacent runs, so the
+#                unreadable count moves with it; found live by the
+#                storm aftermath determinism check on a shared
+#                runner, night-dragon-4)
 sm_normalize() {
 	local in_file="$1" out_file="$2"
 	sed -E \
@@ -300,6 +307,8 @@ sm_normalize() {
 		-e 's/(errors|drops)=[0-9]+/\1=<COUNTER>/g' \
 		-e 's/[0-9]+(\.[0-9]+)?%/<COUNTER>/g' \
 		-e 's/[0-9]+ processes visible/<COUNTER> processes visible/g' \
+		-e 's/[0-9]+ processes \(unreadable/<COUNTER> processes (unreadable/g' \
+		-e 's/[0-9]+ maps \(unreadable/<COUNTER> maps (unreadable/g' \
 		-e 's/\(delta [0-9]+ ticks/(delta <COUNTER> ticks/g' \
 		"$in_file" >"$out_file"
 }
