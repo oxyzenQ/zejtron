@@ -179,36 +179,48 @@ bare FAIL (the named-never-swallowed law).
 
 The server incident simulation is the suite's scenario leg. As
 night-badass-8 it staged one rogue: a single process on port 9999
-holding 100 MiB. Night-dragon-2 upgrades it to the brutal inferno —
-a full host under fire that would crash or OOM a normal monitoring
-tool, staged by the surface itself and survived by the detective:
-500 dummy processes (`sleep 300`), four rogue python3 processes each
-binding a port from the deterministic table 20000/20017/20033/20050
-(the :20050 pin is the night-dragon-2 contract), holding 200 MiB and
-accepting/closing localhost connections (a ~880 MiB fleet by
-construction — under the task's 1 GiB python cap, and 4 x 200 MiB is
-what cracks a busy host's top-10 RAM table, the night-dragon-3
-finding — with a 1 GiB RLIMIT_AS backstop per rogue, a 2 GiB
-MemAvailable staging bar — the runner cannot be OOMed by this
-surface), one holder keeping 1000 read descriptors open, a 100 MiB
-dd I/O burst written by ONE dd process that reads stdin fed by a
-fork-free printf feeder (the night-dragon-3 post-mortem: a feeder
-piped into `dd if=/dev/zero` paced nothing, because dd ignores
-stdin when if= is given — the writer finished inside a second and
-the live lane's why render found a cold trail), and a bounded
-localhost socket storm. Under that fire, on the JSON lane
+holding 100 MiB. Night-dragon-4 upgrades it to the ultra-scale
+inferno — a full host under fire that would crash or OOM a normal
+monitoring tool, staged by the surface itself and survived by the
+detective: 2000 dummy processes (`sleep 300`), a 500-rogue python3
+fleet — four HEAVY rogues on the deterministic table
+20000/20017/20033/20050 (the :20050 pin is the night-dragon-2
+contract), each holding 200 MiB so the fleet cracks a busy host's
+top-10 RAM table (the night-dragon-3 finding), plus 496 LIGHT rogues
+on kernel-assigned random ports carrying a governed buffer — one
+holder keeping 2000 read descriptors open (the soft ceiling rises to
+the hard limit inside the holder), a 500 MiB dd I/O burst written by
+ONE dd process that reads stdin fed by a fork-free printf feeder
+(the night-dragon-3 post-mortem: a feeder piped into
+`dd if=/dev/zero` paced nothing, because dd ignores stdin when if=
+is given — the writer finished inside a second and the live lane's
+why render found a cold trail), and a bounded localhost socket
+storm. Two governors keep the inferno honest about its host: the
+fork governor fits the fleet into the task budget (threads-max minus
+the live tasks; a budget under the floor is a named SKIP, a smaller
+budget scales the fleet down, named), and the memory governor caps
+the python fleet at 60% of MemAvailable — the night-dragon-4 letter
+(500 x 20 MiB) is 16 GiB of resident python on a 16 GiB runner, so
+the fleet's COUNT is the scale law and the buffer adapts, clamped at
+the spec's own 20 MiB, every scaledown named. Each rogue carries a
+RLIMIT_AS backstop and the staging preflight demands 2 GiB
+MemAvailable before anything spawns — the runner cannot be OOMed by
+this surface. Under that fire, on the typed JSON lane
 the automation contract pins: `proc --me --print-json` must finish
 in under 1 second (measured with EPOCHREALTIME, the forkless clock
-— a forked `date` lies under fork pressure) and capture more than
-500 processes; `port 20050 --print-json --snapshot-only` must name
-the pinned rogue as the listener's owner (the window law:
+— a forked `date` lies under fork pressure) and capture more
+processes than the spawner staged (at full spec scale that is the
+> 2000 law); `port 20050 --print-json --snapshot-only` must name
+the pinned heavy rogue as the listener's owner (the window law:
 --snapshot-only returns instantly, the owner rows resolve from
 /proc either way); `doctor --symptom ram --print-json` must name
-rogue pids among the top consumers with PSS above the 100 MB bar;
-`why <io file> --since 3s --print-json` must ride the live lane
+all four heavy rogues with PSS above the 100 MB bar;
+`why <io file> --since 2s --print-json` must ride the live lane
 (gated on the `doctor --attach` preflight, the refusal direction
 staying the storm surface's contract) and attribute the writes to
-dd by name and pid. The teardown is a check, not a hope: TERM, a
+dd by name and pid — every filter a typed jq check on the flat
+Spec v3 grammar, every lane pure-JSON on stdout and silent on
+stderr. The teardown is a check, not a hope: TERM, a
 grace beat, KILL, a bare wait that reaps every child, and a /proc
 sweep asserting zero zombies among the tracked pids. The surface
 ends with the massive-scale report — one line carrying the real
@@ -216,9 +228,10 @@ tallies (dummies, rogues, fds staged, socket connects, the measured
 proc latency under fire), computed from sidecars, never from
 constants — the CI log's badge for the leg. Every staged actor is
 self-bounded by its own sleep or loop bound; a host without python3
-or dd, under the staging memory bar, with a rogue port already
-bound, or under an fd ceiling below the storm, skips with the
-reason named; any other rogue death is a FAIL. The JSON assertions
+or dd, under the staging memory bar, under a task budget below the
+fleet floor, with a rogue port already bound, or under an fd ceiling
+below the storm, skips (or scales down, named) with the reason
+named; any other rogue death is a FAIL. The JSON assertions
 are typed (night-dragon-4): every `--print-json` lane must return
 pure JSON on stdout with silent stderr, and the shape checks ride
 `jq` filters on the flat Spec v3 grammar - jq is a harness-side
