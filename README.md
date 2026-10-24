@@ -115,10 +115,12 @@ names what it could not see (`[unaccounted]`) instead of guessing.
 
 ### Dependency policy (supply chain)
 
-Three runtime dependencies, all audited: `clap` (the CLI), `regex-lite`
-(a small pattern engine), and `aya` 0.14 (the eBPF loader, carried
+Four runtime dependencies, all audited: `clap` (the CLI), `regex-lite`
+(a small pattern engine), `aya` 0.14 (the eBPF loader, carried
 unconditionally — a registry install embeds the maintainer-built
-kernel object and needs no BPF toolchain). No chrono — it was dropped Hinnant-style and is **banned**
+kernel object and needs no BPF toolchain), and `libc` 0.2 (the one
+raw call — the SIGPIPE disposition reset at main's top,
+night-dragon-6's pipe law). No chrono — it was dropped Hinnant-style and is **banned**
 in `deny.toml`; the lockfile is committed so `cargo install zejtron
 --locked` reproduces the exact graph the release lane vetted. See
 [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md).
@@ -128,15 +130,16 @@ in `deny.toml`; the lockfile is committed so `cargo install zejtron
 Two structural decisions define the tool's footprint. Both are
 audited facts about this tree, not aspirations.
 
-**Peak lean dependency.** The runtime graph is exactly three crates:
-`clap` (the CLI), `regex-lite` (the pattern engine), and `aya` (the
-eBPF loader). There is no `serde`, no `tokio`, no `libbpf` — and no
+**Peak lean dependency.** The runtime graph is exactly four crates:
+`clap` (the CLI), `regex-lite` (the pattern engine), `aya` (the
+eBPF loader), and `libc` (the one raw call — the SIGPIPE reset).
+There is no `serde`, no `tokio`, no `libbpf` — and no
 `chrono`, which was replaced by Howard Hinnant's `civil_from_days`
 running on `std::time` and is banned in `deny.toml`. The JSON output
 lane (`--print-json`) hand-writes its serializer for the same
 reason: the enterprise feature costs zero crates. The comparison set
 is the mature heavyweight tools: `sysdig` carries libbpf and Lua,
-`bpftrace` carries LLVM and BCC; zejtron carries three small crates
+`bpftrace` carries LLVM and BCC; zejtron carries four small crates
 and a committed lockfile.
 
 **Native kernel reader, not a wrapper.** The nine surfaces — `path`,

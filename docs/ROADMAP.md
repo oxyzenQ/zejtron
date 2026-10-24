@@ -14,7 +14,7 @@
 | Principle | Detail |
 |-----------|--------|
 | **Linux first** | amd64 Linux binaries (musl, fully static) |
-| **Minimal deps** | Keep dependency count low (currently 3) |
+| **Minimal deps** | Keep dependency count low (currently 4 - the count's one home: [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)) |
 | **Fast** | Introspection must be instant |
 | **No daemon** | CLI tool, not a service |
 

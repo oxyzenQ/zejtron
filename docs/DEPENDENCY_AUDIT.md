@@ -10,9 +10,11 @@ later"; feature lists are trimmed to the modules actually used; and
 regressive dependencies are blocked in CI by the bans section of
 `deny.toml` (`cargo deny check all`).
 
-The audit baseline: 4 direct dependencies (chrono removed in
-night-improve-13 - the Hinnant civil clock replaced it; see
-`src/info/clock.rs` and the chrono ban in `deny.toml`).
+The audit baseline: 4 direct runtime dependencies - `clap`,
+`regex-lite`, `aya`, and `libc` (the last joined in night-dragon-6,
+the SIGPIPE law) - plus one dev dependency (`tempfile`). chrono
+removed in night-improve-13 - the Hinnant civil clock replaced it;
+see `src/info/clock.rs` and the chrono ban in `deny.toml`.
 
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
@@ -37,6 +39,8 @@ night-improve-13 - the Hinnant civil clock replaced it; see
 |---|---|---|
 | `clap` | 4.5 | The entire CLI surface: derive parser (`src/cli/mod.rs`), help rendering, the brand styles (`src/cli/styles.rs`), error + suggestion lanes. Default features ride (derive + std + color + help + usage + error-context + suggestions are what the surface consumes). |
 | `regex-lite` | 0.1 | The pattern filters where a full regex engine would be dead weight: substring/pattern matching in the read-only surfaces that accept user-supplied patterns. The "lite" build is deliberate - no unicode tables beyond what the surfaces need. |
+| `aya` | 0.14 | The eBPF userspace loader: loads the embedded kernel object (source-built on a git checkout, registry-prebuilt from `ebpf-prebuilt/` on a tarball install), attaches the tracepoints, pins and reads the maps (`src/ebpf/`). Unconditional since night-weekly-maintenance-1 - no feature toggle, no dormant binary; the target install needs no nightly and no bpf-linker. |
+| `libc` (unix) | 0.2 | The one raw call: the SIGPIPE disposition reset to `SIG_DFL` at main's top (`src/main.rs`) - std has no signal API, and a closed pipe must kill the process the UNIX way (silent, exit 141), never a Rust print panic. night-dragon-6; the escape hatch the policy note above `aya` reserved. `cfg(unix)`-gated. |
 | `tempfile` (dev) | 3.20 | Test-tree isolation: `touch`, `doctor`, and the path-surface unit tests create throwaway directories/files. Dev-only; never compiled into any binary. |
 
 ## Removed
