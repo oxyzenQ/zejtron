@@ -24,9 +24,9 @@
 #                         (low = 60s wall, best = 300s wall; the depth
 #                         is identical on both legs - only the budget
 #                         differs)
-#   --bin PATH            the binary to exercise
-#                         (default: $ZEJTRON_BIN_PATH, then
-#                         target/release/zejtron)
+#   --bin PATH            the binary to exercise ($ZEJTRON_BIN_PATH,
+#                         then discovery in target/: custom cargo
+#                         profile dirs first, release/debug last)
 #   --surfaces a,b,c      run only the named surfaces (debug aid; the
 #                         legs always run the full list)
 #   --keep-scratch        keep per-surface scratch dirs (post-mortem)
@@ -43,6 +43,9 @@ set -Eeuo pipefail
 
 SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+# The shared binary resolver (scripts/lib/zejtron-bin.sh): the same
+# discovery law the build battery and the bench scale audit use.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/zejtron-bin.sh"
 
 usage() {
 	sed -n '2,40p' "$SUITE_DIR/supermassive.sh" | sed 's/^# \{0,1\}//'
@@ -125,15 +128,26 @@ esac
 # ---------------------------------------------------------------------------
 # Binary resolution. The suite exercises the REAL compiled binary; if
 # it is missing, that is an honest hard error with a build hint, not
-# a skip.
+# a skip. The resolver (scripts/lib/zejtron-bin.sh) honors --bin and
+# $ZEJTRON_BIN_PATH as authoritative, then discovers the binary under
+# the repo target/ tree: the custom cargo profile dirs first (the
+# alias lanes this repo builds through, e.g.
+# target/pro-linux-amd64-v3-musl/zejtron or
+# target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron),
+# the basic release/debug lanes last.
 # ---------------------------------------------------------------------------
 
 if [[ -z "$BIN" ]]; then
-	BIN="${ZEJTRON_BIN_PATH:-$SUITE_DIR/../../target/release/zejtron}"
+	zejtron_resolve_bin BIN "$SUITE_DIR/../.."
+fi
+if [[ -z "$BIN" ]]; then
+	echo "error: no zejtron binary found (searched the repo target/ tree: custom cargo profile dirs, then release/debug)" >&2
+	echo "hint: build it first (cargo build --release --locked or a cargo profile lane), or pass --bin / ZEJTRON_BIN_PATH" >&2
+	exit 2
 fi
 if [[ ! -x "$BIN" ]]; then
 	echo "error: binary not found or not executable: $BIN" >&2
-	echo "hint: cargo build --release --locked (or pass --bin / ZEJTRON_BIN_PATH)" >&2
+	echo "hint: pass an executable --bin / ZEJTRON_BIN_PATH, or build it first (cargo build --release --locked or a cargo profile lane)" >&2
 	exit 2
 fi
 # There is NO dormant build to hand over: the eBPF support is

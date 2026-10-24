@@ -108,7 +108,12 @@ privileged 5.15+ host they pin the probe lane's declaration.
 
 The binary is NOT built by the suite: the suite exercises whatever
 binary the caller hands it (default: `$ZEJTRON_BIN_PATH`, then
-`target/release/zejtron`). The CI legs build first, then hand the
+discovery in `target/` through the shared resolver
+`scripts/lib/zejtron-bin.sh` - the custom cargo profile dirs first
+(the alias lanes, e.g. `target/pro-linux-amd64-v3-musl/zejtron` or
+`target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron`),
+the basic `release`/`debug` lanes last; newest binary within a
+tier). The CI legs build first, then hand the
 binary to the leg script. A missing binary is a hard error with a
 build hint — never a skip.
 
