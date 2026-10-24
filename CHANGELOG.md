@@ -984,6 +984,19 @@ v11.0.0
 
 ### Changed
 
+- The architecture support policy is now explicitly documented
+  (night-badass-3): zejtron officially ships and verifies x86_64
+  (amd64) binaries only - the verifier-first doctrine, ship what
+  the Supermassive E2E suite covers on real hardware. The README's
+  Architecture Support section and the freeze declaration's The
+  Architecture Scope section state the split: the eBPF object stays
+  architecture-independent (bpfel bytecode, JIT at attach time),
+  the userspace CLI is the x86_64-verified layer, other
+  architectures build from source (pure Rust, GPL-3.0), and
+  enterprise license holders can request an officially verified
+  build for their architecture. Documentation only - no code, no
+  build flags, no CI changes.
+
 - `doctor --detach` is now the sledgehammer: after unpinning
   zejtron's own pins it sweeps whatever else the pin directory holds
   (legacy pins from earlier versions, foreign files, partial states)
