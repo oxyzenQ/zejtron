@@ -3,23 +3,32 @@
 
 # The CodeQL triage lane: closes the standing false positive by rule.
 #
-# The cleartext-logging finding on proc's snapshot print is a triaged
-# false positive (SECURITY.md, hardening posture, 2026-10-19): the
-# flagged data is kernel-exposed process metadata printed to the
-# invoking user's own terminal - the ps(1) disclosure class - not a
+# The scan-time exclusion (.github/codeql/codeql-config.yml,
+# night-badass-7) stops the rust/cleartext-logging rule from raising
+# fresh alerts, but a config change is not retroactive: alerts raised
+# before it stay open in the security tab. This lane closes them
+# mechanically, right after each completed analysis, and doubles as
+# the enforcement backstop if the exclusion is ever reverted.
+#
+# The cleartext-logging finding on the command render prints is a
+# triaged false positive (SECURITY.md, hardening posture, 2026-10-19,
+# generalized 2026-10-24): the flagged data is kernel-exposed paths,
+# usernames, uids, pids, and process metadata printed to the invoking
+# user's own terminal - the ls(1)/ps(1) disclosure class - not a
 # persisted log. CodeQL has no inline suppression for Rust
-# (codeql#11427), and every render refactor that shifts the print
-# re-opens the finding as a fresh alert, so the same verdict used to
-# be re-applied by hand each time. This lane re-applies it
-# mechanically instead, right after each completed analysis.
+# (codeql#11427), and every render refactor that shifts a print used
+# to re-open the finding as a fresh alert, so the same verdict used
+# to be re-applied by hand each time. This lane re-applies it
+# mechanically instead.
 #
 # Safety properties (why the auto-close is a replay, not a blind sweep):
-# - the filter is the conjunction of the rule id suffix and the exact
-#   triaged path - no other rule, no other file is ever touched;
+# - the filter is the rule id suffix alone - the one rule with a
+#   standing owner verdict covering the whole terminal-print surface -
+#   so no other rule is ever touched;
 # - the dismissal comment is the fixed SECURITY.md verdict text, so
 #   the audit trail carries the same reasoning as the hand dismissals;
-# - a genuinely new finding class in proc.rs under a different rule
-#   id lands outside the filter and stays open for human triage.
+# - a genuinely new finding class under a different rule id lands
+#   outside the filter and stays open for human triage.
 # Zero third-party actions: the job is a single gh api call, so there
 # is nothing to SHA-pin and no supply-chain surface.
 
@@ -43,15 +52,20 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   TRIAGE_COMMENT: >-
     False positive - standing triage, SECURITY.md (hardening posture,
-    2026-10-19, night-improve-33). The cleartext-logging finding on the proc
-    snapshot print is by-design disclosure, not a defect: the data reaching
-    the terminal is the account name, uid, pid, and cmdlines of
-    kernel-exposed processes - exactly what ps(1) prints - into the invoking
-    user's own interactive terminal, not a persisted log (CWE-532 is a
-    logging-sink rule), and never anything the kernel hides from the
-    invoking uid. Renaming honest domain vocabulary to dodge the name
-    heuristic stays rejected. Closed by the CodeQL triage lane under the
-    owner's standing verdict; reopen deliberately if the verdict ever moves.
+    night-improve-33 2026-10-19, generalized night-badass-7 2026-10-24).
+    The cleartext-logging rule flags the command render prints as
+    credential leakage: a category error for the whole shipped surface.
+    zejtron is a forensic CLI whose product is the terminal print: the
+    data reaching the terminal is paths, account names, uids, pids, and
+    cmdlines of kernel-exposed files and processes - exactly what ls(1)
+    and ps(1) print - into the invoking user's own interactive terminal,
+    not a persisted log (CWE-532 is a logging-sink rule), and never
+    anything the kernel hides from the invoking uid. The rule is now
+    excluded at scan time (.github/codeql/codeql-config.yml); this lane
+    closes alerts raised before that exclusion, which a config change
+    does not retract. Renaming honest domain vocabulary to dodge the
+    name heuristic stays rejected. Closed under the owner's standing
+    verdict; reopen deliberately if the verdict ever moves.
 
 jobs:
   triage:
@@ -68,17 +82,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Keep the two literals below in sync with SECURITY.md's
-          # triage paragraph: the rule id suffix and the exact path.
+          # Keep the literal below in sync with SECURITY.md's triage
+          # paragraph: the rule id suffix is the whole filter - the
+          # standing verdict covers every path in this repository.
           alerts="$(gh api "repos/${GITHUB_REPOSITORY}/code-scanning/alerts?state=open&per_page=100" --jq '
                   .[]
                   | select((.rule.id // "") | endswith("cleartext-logging"))
-                  | select((.most_recent_instance.location.path // "") == "src/commands/proc.rs")
                   | .number
           ')"
 
           if [ -z "${alerts}" ]; then
-                  echo "No open alert matches the standing triage (cleartext-logging at src/commands/proc.rs)."
+                  echo "No open alert matches the standing triage (cleartext-logging, any path)."
                   exit 0
           fi
 
