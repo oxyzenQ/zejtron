@@ -40,6 +40,23 @@ surface_holds() {
 	sm_assert_contains "$SM_SCRATCH/ok.out" "The evidence supports:" \
 		"holds names the no-holder verdict"
 
+	# The typed JSON lane (night-dragon-4): the ledger's automation
+	# contract - pure JSON, silent stderr, the typed v3 keys.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" holds "$file" --since 1s --print-json
+	sm_assert_rc 0 "$rc" "holds --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"holds --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"holds --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 3' \
+		"holds --print-json names the ledger version"
+	sm_assert_json "$SM_SCRATCH/json.out" '.verdict | has("supports")' \
+		"holds --print-json carries the typed verdict"
+	sm_assert_json "$SM_SCRATCH/json.out" '.measured | type == "array"' \
+		"holds --print-json carries the measured array"
+	sm_flag_used "holds --print-json"
+
 	# The port form: a valid port number is accepted regardless of
 	# whether anything listens on it (the report is honest either way).
 	sm_run "$SM_SCRATCH/port.out" "$SM_SCRATCH/port.err" rc 5 -- \

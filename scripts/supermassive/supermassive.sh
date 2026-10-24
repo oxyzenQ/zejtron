@@ -211,6 +211,9 @@ ALL_SURFACES=(path recent port proc holds touch why net doctor doctor-ram
 # UNTESTED by name (the honest gap report).
 FLAG_MANIFEST=(
 	"--help" "-h" "--version" "-V" "--check-update"
+	"path --print-json" "recent --print-json" "port --print-json"
+	"proc --print-json" "holds --print-json" "touch --print-json"
+	"why --print-json" "doctor --print-json" "net --print-json"
 	"recent --limit" "recent --since"
 	"port --tcp" "port --udp" "port --listen" "port --all" "port --numeric"
 	"port --group" "port --no-pid" "port --since" "port --events-only" "port --snapshot-only"

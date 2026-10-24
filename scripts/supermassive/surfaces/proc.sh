@@ -22,6 +22,25 @@ surface_proc() {
 	sm_assert_rc 0 "$rc" "proc --me exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "proc renders content"
 
+	# The typed JSON lane (night-dragon-4): the automation contract
+	# on the process scan - the flat rows the serializers emit.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" proc --me --print-json
+	sm_assert_rc 0 "$rc" "proc --me --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"proc --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"proc --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" '.processes | type == "array"' \
+		"proc --print-json carries the processes array"
+	sm_assert_json "$SM_SCRATCH/json.out" '.processes | length > 0' \
+		"proc --print-json names at least one process"
+	sm_assert_json "$SM_SCRATCH/json.out" '.processes[0].pid > 0' \
+		"proc --print-json rows carry typed pids"
+	sm_assert_json "$SM_SCRATCH/json.out" '.processes[0] | has("comm")' \
+		"proc --print-json rows carry the comm field"
+	sm_flag_used "proc --print-json"
+
 	# --depth bounds the render.
 	sm_run "$SM_SCRATCH/depth.out" "$SM_SCRATCH/depth.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" proc --me --depth 1

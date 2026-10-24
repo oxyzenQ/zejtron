@@ -41,6 +41,26 @@ surface_recent() {
 	sm_assert_rc 0 "$rc" "recent --limit 1 exits 0"
 	sm_assert_file_nonempty "$SM_SCRATCH/lim.out" "recent --limit 1 renders content"
 
+	# The typed JSON lane (night-dragon-4): the automation contract
+	# - pure JSON, silent stderr, and the --limit law enforced on
+	# the typed row count, not a rendered table's shape.
+	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" recent "$dir" --print-json
+	sm_assert_rc 0 "$rc" "recent --print-json exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+		"recent --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/json.out" \
+		"recent --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/json.out" '.files | type == "array"' \
+		"recent --print-json carries the files array"
+	sm_assert_json "$SM_SCRATCH/json.out" '(.files | length) >= 1' \
+		"recent --print-json rows survive the fixture"
+	sm_run "$SM_SCRATCH/limjson.out" "$SM_SCRATCH/limjson.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" recent "$dir" --limit 1 --print-json
+	sm_assert_json "$SM_SCRATCH/limjson.out" '(.files | length) <= 1' \
+		"recent --limit 1 --print-json bounds the typed row count"
+	sm_flag_used "recent --print-json"
+
 	# The battery's own edge: --limit 0 must not blank the report.
 	sm_run "$SM_SCRATCH/zero.out" "$SM_SCRATCH/zero.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" recent "$dir" --limit 0
