@@ -478,6 +478,21 @@ zejtron why /etc/passwd --print-json | jq .
 zejtron holds 53 --print-json | jq '.verdict.supports'
 zejtron touch /etc/resolv.conf --print-json | jq '.changes.rows'
 
+# The JSON rows speak TYPED data (Evidence Ledger Spec v2): the
+# action is an object with a `kind` token and its raw fields -
+# numbers stay numbers, absent optional parts are null - so jq
+# filters facts without parsing phrases:
+zejtron why /etc/passwd --print-json | jq '.measured[].action | select(.kind=="size") | .bytes'
+zejtron why /etc/passwd --print-json | jq '.measured[].action | select(.kind=="owner") | .uid'
+
+# The doctor speaks the same JSON dialect (one line, jq-ready):
+# the readiness report (checks, summary, eBPF facts) and every
+# symptom lane (--print-json excludes --attach/--detach/--raw)
+zejtron doctor --print-json | jq '.ebpf.lane'
+zejtron doctor --symptom ram --print-json | jq .memory.used_bytes
+zejtron doctor --symptom cpu --print-json | jq '.top[0].pct'
+zejtron doctor --symptom network --print-json | jq '.sockets.time_wait'
+
 # Network context
 zejtron net
 
