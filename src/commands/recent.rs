@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::cmp::Reverse;
+use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const IGNORED_DIRECTORIES: &[&str] = &[".git", "target", "node_modules", ".cache"];
 
@@ -24,9 +25,22 @@ pub fn run(
     path: &Path,
     limit: usize,
     since: Option<&str>,
+    print_json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let since = since.map(parse_duration).transpose()?;
     let files = select_recent_files(scan_recent_files(path)?, limit, since, SystemTime::now());
+
+    // The renderer branch (night-badass-9): the JSON lane speaks the
+    // same selection - the same limit, the same window, the same
+    // newest-first order - as one typed line; the text lane renders
+    // the tree. One scan, two renderers, no second walk.
+    if print_json {
+        // One passwd read for the whole report - the text lane's own
+        // law, shared here.
+        let users = crate::system::passwd_users().unwrap_or_default();
+        println!("{}", files_json(path, &files, &users));
+        return Ok(());
+    }
 
     if files.is_empty() {
         // The empty-result line rides grey (the "no events" class).
@@ -265,6 +279,54 @@ fn human_size(bytes: u64) -> String {
     } else {
         format!("{bytes}B")
     }
+}
+
+/// The recent-files report as one JSON line (night-badass-9): the
+/// same selection the text renders, typed. Paths carry the raw bytes
+/// JSON-escaped (the terminal lane's display neutralizer is a render
+/// concern; the JSON wire's escaping is [`write_string`]'s), the
+/// timestamps are unix seconds (the ledger's own convention), and an
+/// owner the passwd read cannot name rides the raw uid text - the
+/// same fallback [`uid_to_user`] renders.
+pub(crate) fn files_json(
+    base: &Path,
+    files: &[RecentFile],
+    users: &std::collections::HashMap<u32, String>,
+) -> String {
+    use crate::evidence::json::{write_array, write_string};
+    let mut out = String::with_capacity(256 * files.len().max(1));
+    out.push_str("{\"path\":");
+    write_string(&mut out, &base.display().to_string());
+    out.push_str(",\"files\":");
+    write_array(&mut out, files.len(), |out, index| {
+        let file = &files[index];
+        out.push_str("{\"path\":");
+        write_string(out, &display_relative_path(base, &file.path));
+        out.push_str(",\"mtime_unix_secs\":");
+        let _ = write!(out, "{}", unix_secs(file.modified));
+        out.push_str(",\"changed_unix_secs\":");
+        let _ = write!(out, "{}", unix_secs(file.changed));
+        out.push_str(",\"size_bytes\":");
+        let _ = write!(out, "{}", file.size);
+        out.push_str(",\"uid\":");
+        let _ = write!(out, "{}", file.uid);
+        out.push_str(",\"owner\":");
+        write_string(out, &crate::system::uid_to_user(file.uid, users));
+        out.push_str(",\"perms\":");
+        let _ = write!(out, "\"{:04o}\"", file.perms & 0o7777);
+        out.push('}');
+    });
+    out.push('}');
+    out
+}
+
+/// The unix seconds of a timestamp, saturating at the epoch: a clock
+/// before 1970 is not a reportable fact, and the ledger's own
+/// unix_now rides the same zero fallback.
+fn unix_secs(time: SystemTime) -> u64 {
+    time.duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 #[cfg(test)]

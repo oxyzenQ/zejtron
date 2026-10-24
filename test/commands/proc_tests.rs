@@ -298,3 +298,52 @@ fn find_no_match_returns_clean_message() {
 
     assert_eq!(output, "No processes matched 'missing'.\n");
 }
+
+// The JSON lane (night-badass-9): the same scan, flat and typed.
+
+#[test]
+fn json_processes_carry_the_typed_rows() {
+    let mut report = report();
+    report.processes[0].cmdline = Some("bash -l".to_owned());
+    let out = super::processes_json(&target(), &report.processes, 2);
+    // The subject's own label, the typed rows in pid order, the fresh
+    // cmdline, and the unreadable count the text note renders.
+    assert!(out.starts_with("{\"subject\":\"rezky uid=1000\""));
+    assert!(out.contains("\"pid\":20,\"ppid\":1,\"comm\":\"bash\""));
+    assert!(out.contains("\"cmdline\":\"bash -l\""));
+    assert!(out.contains("\"cmdline\":null"));
+    assert!(out.contains("\"state\":\"?\""));
+    assert!(out.contains("\"vm_rss_kb\":0"));
+    assert!(out.contains("\"threads\":1"));
+    assert!(out.contains("\"unreadable_statuses\":2"));
+    assert!(!out.contains('\n'));
+}
+
+#[test]
+fn json_processes_empty_scan_is_an_empty_array() {
+    let out = super::processes_json(&target(), &[], 0);
+    // The honest empty: the scan ran and saw nothing for this uid.
+    assert_eq!(
+        out,
+        "{\"subject\":\"rezky uid=1000\",\"processes\":[],\"unreadable_statuses\":0}"
+    );
+}
+
+#[test]
+fn json_find_selection_flattens_the_matched_family() {
+    let processes = vec![
+        process("bash", 20, 1),
+        process("python3", 30, 20),
+        process("worker", 50, 20),
+    ];
+    let forest = super::forest::build_forest(processes);
+    let matches = super::forest::matching_process_ids(&forest, "python3");
+    let pruned = super::forest::prune_for_matches(&forest, &matches);
+    let selected: Vec<_> = pruned.processes.into_values().collect();
+    // The same family the tree prunes with: the match and its
+    // ancestor stay, the sibling branch drops.
+    let out = super::processes_json(&target(), &selected, 0);
+    assert!(out.contains("\"comm\":\"bash\""));
+    assert!(out.contains("\"comm\":\"python3\""));
+    assert!(!out.contains("\"comm\":\"worker\""));
+}

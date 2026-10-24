@@ -50,12 +50,23 @@ type Row = (&'static str, &'static str);
 /// computes the column, the data never encodes geometry.
 const GROUPS: &[(&str, &[Row])] = &[
     (
+        "path:",
+        &[(
+            "--print-json",
+            "Print the path resolution as JSON (one line, jq-ready)",
+        )],
+    ),
+    (
         "recent:",
         &[
             ("--limit N", "Maximum files to show (default 20)"),
             (
                 "--since DURATION",
                 "Only show files modified since this duration",
+            ),
+            (
+                "--print-json",
+                "Print the recent-files report as JSON (one line, jq-ready)",
             ),
         ],
     ),
@@ -81,6 +92,10 @@ const GROUPS: &[(&str, &[Row])] = &[
                 "--snapshot-only",
                 "Show only the snapshot (the phase-1 behavior)",
             ),
+            (
+                "--print-json",
+                "Print the port report as JSON (one line, jq-ready)",
+            ),
         ],
     ),
     (
@@ -94,6 +109,10 @@ const GROUPS: &[(&str, &[Row])] = &[
             ),
             ("--no-pid", "Hide pid=<PID> labels"),
             ("--no-color", "Disable ANSI color output"),
+            (
+                "--print-json",
+                "Print the process scan as JSON (one line, jq-ready)",
+            ),
         ],
     ),
     (
@@ -167,6 +186,13 @@ const GROUPS: &[(&str, &[Row])] = &[
                 "Print the doctor report as JSON (one line, jq-ready; excludes --attach, --detach, --raw)",
             ),
         ],
+    ),
+    (
+        "net:",
+        &[(
+            "--print-json",
+            "Print the network report as JSON (one line, jq-ready)",
+        )],
     ),
     (
         "global:",

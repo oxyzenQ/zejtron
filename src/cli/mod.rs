@@ -96,6 +96,8 @@ pub enum Commands {
     Path {
         #[arg(value_name = "COMMAND", help = "Command name to find in PATH")]
         command: String,
+        #[arg(long, help = "Print the path resolution as JSON (one line, jq-ready)")]
+        print_json: bool,
     },
     #[command(about = "What changed here lately?")]
     Recent {
@@ -114,6 +116,11 @@ pub enum Commands {
             help = "Only show files modified since this duration"
         )]
         since: Option<String>,
+        #[arg(
+            long,
+            help = "Print the recent-files report as JSON (one line, jq-ready)"
+        )]
+        print_json: bool,
     },
     #[command(about = "Which ports are open, and who owns them?")]
     Port {
@@ -147,6 +154,8 @@ pub enum Commands {
         events_only: bool,
         #[arg(long, help = "Show only the snapshot (the phase-1 behavior)")]
         snapshot_only: bool,
+        #[arg(long, help = "Print the port report as JSON (one line, jq-ready)")]
+        print_json: bool,
     },
     #[command(about = "What is running, and under whom?")]
     Proc {
@@ -178,6 +187,8 @@ pub enum Commands {
         no_pid: bool,
         #[arg(long, help = "Disable ANSI color output")]
         no_color: bool,
+        #[arg(long, help = "Print the process scan as JSON (one line, jq-ready)")]
+        print_json: bool,
     },
     #[command(about = "Who holds this file, port, or device?")]
     Holds {
@@ -270,7 +281,10 @@ pub enum Commands {
         print_json: bool,
     },
     #[command(about = "Which interfaces exist, and how does traffic route?")]
-    Net,
+    Net {
+        #[arg(long, help = "Print the network report as JSON (one line, jq-ready)")]
+        print_json: bool,
+    },
 }
 
 impl Cli {

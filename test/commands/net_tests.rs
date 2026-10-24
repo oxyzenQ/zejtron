@@ -145,3 +145,108 @@ fn render_empty_report() {
     assert!(out.contains("resolver"));
     assert!(out.contains("missing"));
 }
+
+// The JSON lane (night-badass-9): the same report, typed.
+
+#[test]
+fn json_report_mirrors_the_model() {
+    let report = NetReport {
+        interfaces: vec![InterfaceEntry {
+            name: "eth0".to_owned(),
+            state: Some("up".to_owned()),
+            mtu: Some(1500),
+            mac: Some("aa:bb:cc:dd:ee:ff".to_owned()),
+            flags: Some(0x1 | 0x40 | 0x100),
+            iftype: Some(1),
+            ipv4: vec!["10.0.0.5".to_owned()],
+            ipv6: vec!["fe80::1".to_owned()],
+            rx_bytes: Some(123456),
+            tx_bytes: Some(654321),
+            rx_packets: Some(100),
+            tx_packets: Some(200),
+            rx_errors: Some(0),
+            tx_errors: Some(0),
+            rx_dropped: Some(0),
+            tx_dropped: Some(0),
+        }],
+        arp_neighbors: vec![ArpEntry {
+            ip: "10.0.0.1".to_owned(),
+            hw_type: "0x1".to_owned(),
+            flags: "0x2".to_owned(),
+            mac: "ff:ff:ff:ff:ff:ff".to_owned(),
+            iface: "eth0".to_owned(),
+        }],
+        routes: vec![RouteEntry {
+            iface: "eth0".to_owned(),
+            destination: "default".to_owned(),
+            gateway: "10.0.0.1".to_owned(),
+            flags: "0003".to_owned(),
+            metric: Some(100),
+        }],
+        default_route: Some("eth0".to_owned()),
+        resolver: Some(ResolverConfig {
+            nameservers: vec!["8.8.8.8".to_owned()],
+            search: vec![],
+            options: vec![],
+        }),
+    };
+    let out = super::json::report_json(&report);
+    // The scalars and the arrays all ride the struct's own field names.
+    assert!(out.starts_with("{\"interfaces\":["));
+    assert!(out.contains("\"name\":\"eth0\""));
+    assert!(out.contains("\"state\":\"up\""));
+    assert!(out.contains("\"mtu\":1500"));
+    assert!(out.contains("\"mac\":\"aa:bb:cc:dd:ee:ff\""));
+    assert!(out.contains("\"ipv4\":[\"10.0.0.5\"]"));
+    assert!(out.contains("\"ipv6\":[\"fe80::1\"]"));
+    assert!(out.contains("\"rx_bytes\":123456"));
+    assert!(out.contains("\"tx_bytes\":654321"));
+    assert!(out.contains("\"arp_neighbors\":[{\"ip\":\"10.0.0.1\""));
+    assert!(out.contains("\"routes\":[{\"iface\":\"eth0\""));
+    assert!(out.contains("\"destination\":\"default\""));
+    assert!(out.contains("\"metric\":100"));
+    assert!(out.contains("\"default_route\":\"eth0\""));
+    assert!(out.contains("\"resolver\":{\"nameservers\":[\"8.8.8.8\"]"));
+    // One line, valid JSON shape (balanced).
+    assert!(!out.contains('\n'));
+}
+
+#[test]
+fn json_report_carries_the_absences_as_nulls() {
+    let report = NetReport {
+        interfaces: vec![InterfaceEntry {
+            name: "lo".to_owned(),
+            state: None,
+            mtu: None,
+            mac: None,
+            flags: None,
+            iftype: None,
+            ipv4: vec![],
+            ipv6: vec![],
+            rx_bytes: None,
+            tx_bytes: None,
+            rx_packets: None,
+            tx_packets: None,
+            rx_errors: None,
+            tx_errors: None,
+            rx_dropped: None,
+            tx_dropped: None,
+        }],
+        arp_neighbors: vec![],
+        routes: vec![],
+        default_route: None,
+        resolver: None,
+    };
+    let out = super::json::report_json(&report);
+    // The absence law: a fact the /proc read could not answer is
+    // null, never an empty string and never a fabricated zero.
+    assert!(out.contains("\"state\":null"));
+    assert!(out.contains("\"mtu\":null"));
+    assert!(out.contains("\"mac\":null"));
+    assert!(out.contains("\"rx_bytes\":null"));
+    assert!(out.contains("\"ipv4\":[],"));
+    assert!(out.contains("\"default_route\":null"));
+    assert!(out.contains("\"resolver\":null"));
+    assert!(out.contains("\"arp_neighbors\":[]"));
+    assert!(out.contains("\"routes\":[]"));
+}

@@ -19,9 +19,17 @@ pub struct PathMatch {
     pub symlink_chain: Vec<PathBuf>,
 }
 
-pub fn run(command: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(command: &str, print_json: bool) -> Result<(), Box<dyn std::error::Error>> {
     let path_env = env::var_os("PATH");
     let matches = find_in_path(command, path_env.as_deref())?;
+
+    // The renderer branch (night-badass-9): the JSON lane speaks the
+    // same resolution - the same match set, the same owner lookup -
+    // as one typed line; the text lane renders the tree.
+    if print_json {
+        println!("{}", path_json(command, &matches, &package_owner_multi));
+        return Ok(());
+    }
 
     if matches.is_empty() {
         // The empty-result line: the verdict text rides grey (the
@@ -43,6 +51,62 @@ pub fn run(command: &str) -> Result<(), Box<dyn std::error::Error>> {
 
 pub fn format_path_report(command: &str, matches: &[PathMatch]) -> String {
     format_path_report_with(command, matches, &package_owner_multi)
+}
+
+/// The path resolution as one JSON line (night-badass-9): the same
+/// match set the text tree renders, typed. The active match and each
+/// duplicate carry the full symlink chain (the text lane's display
+/// truncates at three hops - the JSON wire carries what the kernel
+/// answered), and a package no backend named is JSON null - the
+/// text's "unknown" word is a display verdict, not a fact.
+pub(crate) fn path_json(
+    command: &str,
+    matches: &[PathMatch],
+    owner: &dyn Fn(&Path) -> Option<String>,
+) -> String {
+    use crate::evidence::json::{write_array, write_string};
+    fn match_json(
+        out: &mut String,
+        path_match: &PathMatch,
+        owner: &dyn Fn(&Path) -> Option<String>,
+    ) {
+        out.push_str("{\"path\":");
+        write_string(out, &path_match.path.display().to_string());
+        out.push_str(",\"executable\":");
+        out.push_str(if path_match.executable {
+            "true"
+        } else {
+            "false"
+        });
+        out.push_str(",\"symlink_chain\":");
+        write_array(out, path_match.symlink_chain.len(), |out, index| {
+            write_string(out, &path_match.symlink_chain[index].display().to_string());
+        });
+        out.push_str(",\"package\":");
+        match owner(&path_match.path) {
+            Some(package) => write_string(out, &package),
+            None => out.push_str("null"),
+        }
+        out.push('}');
+    }
+
+    let mut out = String::with_capacity(256);
+    out.push_str("{\"command\":");
+    write_string(&mut out, command);
+    out.push_str(",\"found\":");
+    out.push_str(if matches.is_empty() { "false" } else { "true" });
+    out.push_str(",\"active\":");
+    match matches.first() {
+        Some(active) => match_json(&mut out, active, owner),
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"duplicates\":");
+    let duplicates = matches.get(1..).unwrap_or(&[]);
+    write_array(&mut out, duplicates.len(), |out, index| {
+        match_json(out, &duplicates[index], owner);
+    });
+    out.push('}');
+    out
 }
 
 /// The test seam: the same renderer with the owner lookup injected,

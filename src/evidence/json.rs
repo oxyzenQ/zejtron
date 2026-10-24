@@ -335,6 +335,44 @@ pub(crate) fn write_string(out: &mut String, value: &str) {
     out.push('"');
 }
 
+/// Write a JSON array: the bracket grammar around `items` element
+/// emissions, comma-separated. The one array shape every JSON lane
+/// shares - the ledger rows, the doctor's checks, and the per-surface
+/// JSON reports (night-badass-9) all ride this helper, so no
+/// serializer hand-rolls its own separators.
+pub(crate) fn write_array(out: &mut String, items: usize, emit: impl Fn(&mut String, usize)) {
+    out.push('[');
+    for index in 0..items {
+        if index > 0 {
+            out.push(',');
+        }
+        emit(out, index);
+    }
+    out.push(']');
+}
+
+/// Write a JSON string literal only when the value exists; JSON null
+/// otherwise. The typed absence every JSON lane shares: an absent
+/// fact is absent, never an empty string.
+pub(crate) fn write_opt_string(out: &mut String, value: Option<&str>) {
+    match value {
+        Some(value) => write_string(out, value),
+        None => out.push_str("null"),
+    }
+}
+
+/// Write a JSON number only when the value exists; JSON null
+/// otherwise. Same typed-absence law as [`write_opt_string`], for
+/// the numeric fields the /proc reads leave unanswered.
+pub(crate) fn write_opt_u64(out: &mut String, value: Option<u64>) {
+    match value {
+        Some(value) => {
+            let _ = write!(out, "{value}");
+        }
+        None => out.push_str("null"),
+    }
+}
+
 #[cfg(test)]
 #[path = "../../test/evidence/json_tests.rs"]
 mod tests;

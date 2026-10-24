@@ -41,10 +41,16 @@ fn main() {
     }
 
     let result = match cli.command {
-        Some(cli::Commands::Path { command }) => commands::path::run(&command),
-        Some(cli::Commands::Recent { path, limit, since }) => {
-            commands::recent::run(&path, limit, since.as_deref())
-        }
+        Some(cli::Commands::Path {
+            command,
+            print_json,
+        }) => commands::path::run(&command, print_json),
+        Some(cli::Commands::Recent {
+            path,
+            limit,
+            since,
+            print_json,
+        }) => commands::recent::run(&path, limit, since.as_deref(), print_json),
         Some(cli::Commands::Port {
             port,
             tcp,
@@ -57,6 +63,7 @@ fn main() {
             since,
             events_only,
             snapshot_only,
+            print_json,
         }) => commands::port::run(
             port.as_deref(),
             commands::port::PortFlags {
@@ -70,6 +77,7 @@ fn main() {
                 since,
                 events_only,
                 snapshot_only,
+                print_json,
             },
         ),
         Some(cli::Commands::Proc {
@@ -79,6 +87,7 @@ fn main() {
             find,
             no_pid,
             no_color,
+            print_json,
         }) => commands::proc::run(
             user_or_uid.as_deref(),
             commands::proc::ProcFlags {
@@ -87,6 +96,7 @@ fn main() {
                 find,
                 no_pid,
                 no_color,
+                print_json,
             },
         ),
         Some(cli::Commands::Holds {
@@ -120,7 +130,7 @@ fn main() {
             raw,
             print_json,
         ),
-        Some(cli::Commands::Net) => commands::net::run(),
+        Some(cli::Commands::Net { print_json }) => commands::net::run(print_json),
         None => {
             // The branded builder, not the raw derive command: the
             // bare help render obeys the same capability rule as -h.

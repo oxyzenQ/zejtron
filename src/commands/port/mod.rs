@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+mod json;
 mod model;
 mod owners;
 mod parser;
@@ -18,9 +19,30 @@ pub use model::PortFlags;
 use render::{format_owner, format_unknown_owner, should_show_unreadable_note};
 
 pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
+    let print_json = flags.print_json;
     let options = parse_options(port, flags)?;
     let (sockets, owners, stats) = parser::scan_proc()?;
     let selected = filter_sockets(&sockets, &options);
+    // The renderer branch (night-badass-9): the JSON lane speaks the
+    // same two truths - the snapshot table and the event window - as
+    // one typed line. The lane decision mirrors format_port_output's
+    // own branches: --snapshot-only never asks the chain, the default
+    // and --events-only shapes capture the window when the chain can
+    // serve it and carry the named refusal reason when it cannot.
+    // One scan, one capture, two renderers - the text lane below is
+    // untouched.
+    if print_json {
+        let events = if options.snapshot_only {
+            None
+        } else {
+            window::capture_window(&options)
+        };
+        println!(
+            "{}",
+            json::port_report_json(&selected, &owners, &stats, &options, events.as_deref())
+        );
+        return Ok(());
+    }
     let output = window::format_port_output(&selected, &owners, &stats, &options);
     println!("{output}");
     Ok(())

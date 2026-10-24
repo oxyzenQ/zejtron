@@ -109,7 +109,7 @@ fn limit_zero_selects_no_files() {
 fn invalid_since_fails_before_scanning() {
     let directory = TempDir::new().unwrap();
 
-    assert!(run(directory.path(), 20, Some("bad")).is_err());
+    assert!(run(directory.path(), 20, Some("bad"), false).is_err());
 }
 
 #[test]
@@ -127,4 +127,60 @@ fn scan_skips_ignored_directories() {
 
     assert_eq!(files.len(), 1);
     assert_eq!(files[0].path, directory.path().join("visible"));
+}
+
+// The JSON lane (night-badass-9): the same selection, typed.
+
+#[test]
+fn json_files_carry_the_typed_rows() {
+    let base = PathBuf::from("/tmp/recent-json");
+    let files = vec![RecentFile {
+        path: base.join("src/main.rs"),
+        modified: SystemTime::UNIX_EPOCH + Duration::from_secs(1_761_270_000),
+        changed: SystemTime::UNIX_EPOCH + Duration::from_secs(1_761_270_000),
+        size: 4123,
+        uid: 1000,
+        perms: 0o644,
+    }];
+    let users = std::collections::HashMap::from([(1000u32, "rezky".to_owned())]);
+    let out = super::files_json(&base, &files, &users);
+    // The relative path the text renders, the unix-second timestamps,
+    // and the resolved owner - all typed, one line.
+    assert!(out.starts_with("{\"path\":\"/tmp/recent-json\""));
+    assert!(out.contains("\"path\":\"src/main.rs\""));
+    assert!(out.contains("\"mtime_unix_secs\":1761270000"));
+    assert!(out.contains("\"changed_unix_secs\":1761270000"));
+    assert!(out.contains("\"size_bytes\":4123"));
+    assert!(out.contains("\"uid\":1000"));
+    assert!(out.contains("\"owner\":\"rezky\""));
+    assert!(out.contains("\"perms\":\"0644\""));
+    assert!(!out.contains('\n'));
+}
+
+#[test]
+fn json_files_empty_selection_is_an_empty_array() {
+    let base = PathBuf::from(".");
+    let users = std::collections::HashMap::new();
+    let out = super::files_json(&base, &[], &users);
+    // The honest empty: the selection ran and found nothing - the
+    // same verdict the text's "no modified files found" renders.
+    assert_eq!(out, "{\"path\":\".\",\"files\":[]}");
+}
+
+#[test]
+fn json_owner_falls_back_to_the_uid_word() {
+    let base = PathBuf::from(".");
+    let files = vec![RecentFile {
+        path: PathBuf::from("orphan"),
+        modified: SystemTime::UNIX_EPOCH,
+        changed: SystemTime::UNIX_EPOCH,
+        size: 1,
+        uid: 65534,
+        perms: 0o600,
+    }];
+    let users = std::collections::HashMap::new();
+    let out = super::files_json(&base, &files, &users);
+    // The text lane's own fallback: an unnamed uid rides the raw uid
+    // string the renderer prints.
+    assert!(out.contains("\"owner\":\"65534\""));
 }
