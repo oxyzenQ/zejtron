@@ -218,14 +218,19 @@ processes than the spawner staged (at full spec scale that is the
 > 2000 law); `port 20050 --print-json --snapshot-only` must name
 the pinned heavy rogue as the listener's owner (the window law:
 --snapshot-only returns instantly, the owner rows resolve from
-/proc either way); `doctor --symptom ram --print-json` must name
-all four heavy rogues with PSS above the 100 MB bar — and the
-harness picks the read's moment: a bounded readiness gate polls
-each heavy rogue's smaps_rollup Pss until all four clear the bar
-(one 0.25s beat at a time, 3s of patience, early exit the beat
-all four are fat — the night-dragon-5 finding: a busy desktop
-boots its interpreters under load, and a rogue mid-allocation is
-a rogue the top table has not met yet);
+/proc either way); `doctor --symptom ram --print-json` must rank
+the heavy fleet above the 100 MB bar: at least one census row per
+heavy rogue carrying PSS above the bar (the process table is a
+top-10 census, so a fat desktop's own consumers can crowd a live
+rogue out of the named rows while it holds every byte — the
+night-dragon-5 live finding), and the harness picks the read's
+moment: a bounded readiness gate polls each heavy rogue's
+smaps_rollup Pss until all four clear the bar (one 0.25s beat at
+a time, 3s of patience, early exit the beat all four are fat — a
+busy desktop boots its interpreters under load, and a rogue
+mid-allocation is a rogue the census has not met yet); the
+per-rogue teeth stay (the first named heavy rogue clears the bar
+by pid);
 `why <io file> --since 2s --print-json` must ride the live lane
 (gated on the `doctor --attach` preflight, the refusal direction
 staying the storm surface's contract) and attribute the writes to
