@@ -112,6 +112,20 @@ else
 	sm_fail "selftest: normalizer absorbs the visible-process gauge" "normalized fixtures differ"
 fi
 
+# 3c. The evidence report's unreadable-accounting rows (night-dragon-4):
+# the host's own process table shifts between two adjacent runs, so the
+# why lane's "N processes (unreadable ...)" / "N maps (unreadable ...)"
+# counts move under the determinism check's feet on a shared runner.
+printf 'Unaccounted:\n  157 processes (unreadable - try sudo for complete explanation)\n  32 maps (unreadable - try sudo for complete explanation)\n' >"$SM_SCRATCH/ua1"
+printf 'Unaccounted:\n  156 processes (unreadable - try sudo for complete explanation)\n  31 maps (unreadable - try sudo for complete explanation)\n' >"$SM_SCRATCH/ua2"
+sm_normalize "$SM_SCRATCH/ua1" "$SM_SCRATCH/ua1.norm"
+sm_normalize "$SM_SCRATCH/ua2" "$SM_SCRATCH/ua2.norm"
+if cmp -s "$SM_SCRATCH/ua1.norm" "$SM_SCRATCH/ua2.norm"; then
+	sm_pass "selftest: normalizer absorbs the unreadable-accounting gauges"
+else
+	sm_fail "selftest: normalizer absorbs the unreadable-accounting gauges" "normalized fixtures differ"
+fi
+
 # 4. The escape detector: a file with CSI is caught, clean text is not.
 printf 'plain line\n' >"$SM_SCRATCH/clean"
 printf 'colored \033[38;2;255;90;90mred\033[0m line\n' >"$SM_SCRATCH/dirty"
