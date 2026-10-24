@@ -83,6 +83,13 @@ jobs:
       # Pinned to rust: the security surface users run is the Rust
       # binary - the whole shipped code is Rust.
       #
+      # The config file carries the standing rust/cleartext-logging
+      # exclusion: a false positive on the whole product, whose output
+      # is the forensic terminal print (the ps(1) disclosure class).
+      # The verdict and the review condition live in SECURITY.md's
+      # hardening posture; the triage lane closes anything raised
+      # before the exclusion.
+      #
       # codeql-action is the ONE action deliberately left on a moving
       # tag (github-org official): its value is tracking the current
       # analyzers and query packs - SHA-pinning it would freeze the
@@ -92,6 +99,7 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: rust
+          config-file: .github/codeql/codeql-config.yml
 
       - name: Build (autobuild)
         uses: github/codeql-action/autobuild@v4
