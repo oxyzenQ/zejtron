@@ -472,15 +472,65 @@ pub fn render_forest(target: &TargetUser, forest: &ProcessForest, show_pid: bool
     // the tree rows keep the roles render_process applies.
     let mut output = format!("{}\n", crate::output::ok_out(&target.label()));
 
+    // night-dragon-1: the recursive render_process is now an explicit
+    // pre-order walk. Two bounds replace the call stack: the (pid,
+    // is_last, prefix_len) stack cannot overflow on a pathological
+    // 10,000-deep fork chain, and the prefix is one reusable buffer
+    // truncated per node instead of an O(depth) format per node (the
+    // recursive form rebuilt and re-formatted the full ancestor
+    // prefix for every row). Children are pushed in reverse so pop()
+    // yields the ascending order the recursive form drew, and each
+    // stack entry carries its own prefix length, so interleaved
+    // subtrees cannot corrupt one another's indentation. The bytes
+    // are the recursive form's, row for row.
+    let mut prefix = String::new();
+    let mut stack: Vec<(u32, bool, usize)> = Vec::with_capacity(forest.processes.len());
     for (index, pid) in forest.roots.iter().enumerate() {
-        render_process(
-            &mut output,
-            forest,
-            *pid,
-            "",
-            index + 1 == forest.roots.len(),
-            show_pid,
-        );
+        stack.push((*pid, index + 1 == forest.roots.len(), 0));
+    }
+    stack.reverse();
+
+    while let Some((pid, is_last, prefix_len)) = stack.pop() {
+        let Some(process) = forest.processes.get(&pid) else {
+            continue;
+        };
+
+        prefix.truncate(prefix_len);
+
+        // Roles (night-improve-37): the tree glyph rides grey
+        // (grammar), the comm name is the value and stays unwrapped,
+        // the pid= and state= keys ride grey (inline annotations)
+        // with their values unwrapped. In Mono every wrap is the
+        // identity.
+        let branch = if is_last { "└── " } else { "├── " };
+        output.push_str(&crate::output::grey_out(&format!("{prefix}{branch}")));
+        output.push_str(&process.name);
+
+        if show_pid {
+            output.push_str(&crate::output::grey_out(" pid="));
+            let _ = write!(output, "{}", process.pid);
+        }
+        // Always show state — it's a single char and very high signal (Z = zombie!)
+        output.push_str(&crate::output::grey_out(" state="));
+        output.push_str(&process.state);
+
+        output.push('\n');
+
+        let Some(children) = forest.children.get(&pid) else {
+            continue;
+        };
+        if children.is_empty() {
+            continue;
+        }
+
+        // The children's prefix extends this node's own prefix with
+        // this node's continuation segment, exactly the next_prefix
+        // the recursive form built.
+        prefix.push_str(if is_last { "    " } else { "│   " });
+        let child_prefix_len = prefix.len();
+        for (index, child_pid) in children.iter().enumerate().rev() {
+            stack.push((*child_pid, index + 1 == children.len(), child_prefix_len));
+        }
     }
 
     output
@@ -504,67 +554,6 @@ fn render_unreadable_note() -> &'static str {
     // secondary content); the wrap is applied at the call site's
     // push through grey_out so the static stays plain.
     "note: some processes were not readable; try sudo for a complete tree"
-}
-
-fn render_process(
-    output: &mut String,
-    forest: &ProcessForest,
-    pid: u32,
-    prefix: &str,
-    is_last: bool,
-    show_pid: bool,
-) {
-    let Some(process) = forest.processes.get(&pid) else {
-        return;
-    };
-
-    // Roles (night-improve-37): the tree glyph rides grey (grammar),
-    // the comm name is the value and stays unwrapped, the pid= and
-    // state= keys ride grey (inline annotations) with their values
-    // unwrapped. In Mono every wrap is the identity.
-    let branch = if is_last { "└── " } else { "├── " };
-    output.push_str(&format!(
-        "{}{}",
-        crate::output::grey_out(&format!("{prefix}{branch}")),
-        process.name
-    ));
-
-    if show_pid {
-        output.push_str(&format!(
-            "{}{}",
-            crate::output::grey_out(" pid="),
-            process.pid
-        ));
-    }
-    // Always show state — it's a single char and very high signal (Z = zombie!)
-    output.push_str(&format!(
-        "{}{}",
-        crate::output::grey_out(" state="),
-        process.state
-    ));
-
-    output.push('\n');
-
-    let next_prefix = if is_last {
-        format!("{prefix}    ")
-    } else {
-        format!("{prefix}│   ")
-    };
-
-    let Some(children) = forest.children.get(&pid) else {
-        return;
-    };
-
-    for (index, child_pid) in children.iter().enumerate() {
-        render_process(
-            output,
-            forest,
-            *child_pid,
-            &next_prefix,
-            index + 1 == children.len(),
-            show_pid,
-        );
-    }
 }
 
 #[cfg(test)]
