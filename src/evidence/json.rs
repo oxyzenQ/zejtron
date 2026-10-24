@@ -13,7 +13,7 @@
 //! render.rs's text grammar field for field:
 //!
 //! ```json
-//! {"ledger_version":2,"subject":"/etc/resolv.conf","mode":"snapshot",
+//! {"ledger_version":3,"subject":"/etc/resolv.conf","mode":"snapshot",
 //!  "lane":"journal fallback","window":"10s","measured":[...],
 //!  "changes":{"unavailable":false,"rows":[...]},
 //!  "unaccounted":[{"count":1,"category":"opens","reason":"..."}],
@@ -29,20 +29,29 @@
 //!   omits the qualifier there, and so does JSON.
 //! - A row carries `unix_secs` (null when the fact is absent - the
 //!   JSON-native form of the text renderer's `unknown`),
-//!   `timestamp_utc` (the clock-rendered string, null with it),
-//!   `action` (the TYPED evidence object, night-badass-5), `actor`,
+//!   `timestamp_utc` (the clock-rendered string, null with it), the
+//!   TYPED evidence fields at the row root (night-badass-6: `kind`
+//!   plus the kind's raw fields, the v2 nested `action` object is
+//!   gone), `actor` (the typed actor object, null for pure state),
 //!   and `provenance` (one of the four tier tags, the locked
 //!   vocabulary).
-//! - The `action` object carries `kind` - one token per variant of
-//!   [`super::row::EvidenceKind`], the same vocabulary the text
-//!   phrase renders ("size 884 bytes" is `{"kind":"size",
-//!   "bytes":884}`) - plus the variant's raw data as named fields:
-//!   numbers stay numbers (bytes, uid, gid, inode, dev), strings
-//!   stay strings (file_type, octal, the held-via label, the cwd
-//!   path), and absent optional parts are JSON null (the cwd of an
-//!   unreadable directory, a runs row's missing half). The object
-//!   is the enterprise lane's contract: jq filters on `.action.kind`
-//!   and reads the raw fields without parsing a phrase.
+//! - The row's `kind` token is one per variant of [`
+//!   super::row::EvidenceKind`], the same vocabulary the text
+//!   phrase renders ("size 884 bytes" is `"kind":"size",
+//!   "bytes":884`), and the variant's raw data rides beside it at
+//!   the same level: numbers stay numbers (bytes, uid, gid, inode,
+//!   dev), strings stay strings (file_type, octal, the held-via
+//!   label, the cwd path), and absent optional parts are JSON null
+//!   (the cwd of an unreadable directory, a runs row's missing
+//!   half). The flat shape is the enterprise lane's contract: jq
+//!   filters `.measured[] | select(.kind=="size") | .bytes` in one
+//!   descent, no nesting to walk.
+//! - The `actor` is the typed acting identity (night-badass-6):
+//!   `{"name":...,"pid":N,"user":...}` with JSON null for each
+//!   part the source did not name, and JSON null for the whole
+//!   actor when the row is pure state - the machine-native form of
+//!   the text grammar's em-dash. jq selects `.actor.pid == 2985`
+//!   without parsing a parenthesized string.
 //! - `changes.unavailable` is the absent-lane truth; rows sit
 //!   beside it, and an empty window with a present lane is
 //!   `unavailable:false` with an empty `rows` array - the two
@@ -58,15 +67,18 @@
 
 use std::fmt::Write as _;
 
-use super::row::{EvidenceKind, EvidenceRow};
+use super::row::{EvidenceActor, EvidenceKind, EvidenceRow};
 use super::{EvidenceReport, Mode};
 
 /// The one version number the automation lane can pin against: the
-/// Evidence Ledger Specification this module mirrors. v2
-/// (night-badass-5) types the row's `action` field - the v1 string
-/// phrase became the typed evidence object; every other field is
-/// byte-compatible with v1.
-const LEDGER_VERSION: u32 = 2;
+/// Evidence Ledger Specification this module mirrors. v3
+/// (night-badass-6) flattened the row - the typed evidence fields
+/// moved from the nested `action` object to the row root - and
+/// typed the actor (the name/pid/user object, null for pure
+/// state); v2 (night-badass-5) had typed the action, v1 was the
+/// string phrase. Every one of those changes is a breaking event,
+/// named by the version.
+const LEDGER_VERSION: u32 = 3;
 
 /// Serialize the report to one line of JSON. Pure function of its
 /// input: no clock reads, no environment reads, no map iteration -
@@ -149,25 +161,27 @@ fn write_row(out: &mut String, row: &EvidenceRow) {
         Some(secs) => write_string(out, &crate::info::clock::format_unix_secs(secs)),
         None => out.push_str("null"),
     }
-    out.push_str(",\"action\":");
-    write_kind(out, &row.kind);
+    // The flat row (night-badass-6): the kind token and its raw
+    // fields sit at the row root - the text column's own order
+    // (timestamp, action, actor, tag) with no nesting to walk.
+    out.push_str(",\"kind\":");
+    write_string(out, row.kind.kind_word());
+    write_kind_fields(out, &row.kind);
     out.push_str(",\"actor\":");
-    write_string(out, &row.actor);
+    write_actor(out, &row.actor);
     out.push_str(",\"provenance\":");
     write_string(out, row.provenance.tag());
     out.push('}');
 }
 
-/// Serialize the typed action (night-badass-5): one object per
-/// variant of [`EvidenceKind`], `kind` first (the word comes from
-/// [`EvidenceKind::kind_word`] - one source for the vocabulary),
-/// then the variant's raw fields - numbers as numbers, absent
-/// optional parts as JSON null. The field names are the contract
-/// the automation lane pins.
-fn write_kind(out: &mut String, kind: &EvidenceKind) {
+/// Serialize the typed action's raw fields (night-badass-6, the
+/// flattened v2 writer): one fragment per variant of [`EvidenceKind`],
+/// each field carrying its own leading comma (the `kind` token was
+/// written by the caller) - numbers as numbers, absent optional
+/// parts as JSON null. The field names are the contract the
+/// automation lane pins.
+fn write_kind_fields(out: &mut String, kind: &EvidenceKind) {
     use EvidenceKind as K;
-    out.push_str("{\"kind\":");
-    write_string(out, kind.kind_word());
     match kind {
         K::Type { file_type } => {
             out.push_str(",\"file_type\":");
@@ -246,6 +260,35 @@ fn write_kind(out: &mut String, kind: &EvidenceKind) {
             }
         }
         K::JournalMention => {}
+    }
+}
+
+/// Serialize the typed actor (night-badass-6): the name/pid/user
+/// object with JSON null for each part the source did not name, and
+/// JSON null for the whole actor when the row is pure state - the
+/// machine-native form of the text grammar's em-dash. jq selects
+/// `.actor.pid == 2985` without parsing a phrase.
+fn write_actor(out: &mut String, actor: &EvidenceActor) {
+    if actor.name.is_none() && actor.pid.is_none() && actor.user.is_none() {
+        out.push_str("null");
+        return;
+    }
+    out.push_str("{\"name\":");
+    match &actor.name {
+        Some(name) => write_string(out, name),
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"pid\":");
+    match actor.pid {
+        Some(pid) => {
+            let _ = write!(out, "{pid}");
+        }
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"user\":");
+    match &actor.user {
+        Some(user) => write_string(out, user),
+        None => out.push_str("null"),
     }
     out.push('}');
 }

@@ -77,7 +77,7 @@ fn the_supports_line_carries_the_old_count_line() {
     changes.rows.push(crate::evidence::row::EvidenceRow::new(
         Some(0),
         crate::evidence::row::EvidenceKind::Opened,
-        "cat (pid 9)",
+        EvidenceActor::recorded(Some("cat".to_owned()), Some(9), None),
         Provenance::Observed,
     ));
     let line = supports_line(&holders, &changes, "10s", false);
@@ -191,7 +191,7 @@ fn the_measured_row_shape_for_a_holder() {
         evidence: fd_evidence(),
     };
     let scan_instant = 1_767_225_600i64;
-    let actor = format!("{} (pid {}, {})", holder.name, holder.pid, holder.user);
+    let actor = EvidenceActor::process(&holder.name, holder.pid, &holder.user);
     let row = crate::evidence::row::EvidenceRow::new(
         Some(scan_instant),
         held_kind(&holder.evidence[0]),

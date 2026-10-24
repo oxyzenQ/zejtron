@@ -83,7 +83,10 @@ fn log_actor_prefers_the_process_and_appends_the_user() {
         }),
         "root",
     );
-    assert_eq!(log_actor(&with_pid), "cron (pid 123, root)");
+    assert_eq!(
+        log_actor(&with_pid),
+        EvidenceActor::process("cron", 123, "root")
+    );
 
     let no_pid = info(
         Some(ProcessEvidence {
@@ -92,10 +95,10 @@ fn log_actor_prefers_the_process_and_appends_the_user() {
         }),
         "root",
     );
-    assert_eq!(log_actor(&no_pid), "CROND (root)");
+    assert_eq!(log_actor(&no_pid).to_string(), "CROND (root)");
 
     let no_process = info(None, "root");
-    assert_eq!(log_actor(&no_process), "root");
+    assert_eq!(log_actor(&no_process).to_string(), "root");
 }
 
 #[test]

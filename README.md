@@ -23,7 +23,7 @@
 
 </div>
 
-zejtron's output complies with the [Evidence Ledger Specification v2](docs/EVIDENCE-LEDGER.md). See [docs/EVIDENCE-LEDGER.md](docs/EVIDENCE-LEDGER.md) for the citable format.
+zejtron's output complies with the [Evidence Ledger Specification v3](docs/EVIDENCE-LEDGER.md). See [docs/EVIDENCE-LEDGER.md](docs/EVIDENCE-LEDGER.md) for the citable format.
 
 <p align="center">
   <a href="https://ko-fi.com/rezky">
@@ -478,12 +478,13 @@ zejtron why /etc/passwd --print-json | jq .
 zejtron holds 53 --print-json | jq '.verdict.supports'
 zejtron touch /etc/resolv.conf --print-json | jq '.changes.rows'
 
-# The JSON rows speak TYPED data (Evidence Ledger Spec v2): the
-# action is an object with a `kind` token and its raw fields -
-# numbers stay numbers, absent optional parts are null - so jq
-# filters facts without parsing phrases:
-zejtron why /etc/passwd --print-json | jq '.measured[].action | select(.kind=="size") | .bytes'
-zejtron why /etc/passwd --print-json | jq '.measured[].action | select(.kind=="owner") | .uid'
+# The JSON rows speak TYPED data (Evidence Ledger Spec v3): the row
+# IS the typed fact - the `kind` token and its raw fields sit at
+# the row root, the actor is the typed name/pid/user object - so
+# jq filters and selects without descending or parsing phrases:
+zejtron why /etc/passwd --print-json | jq '.measured[] | select(.kind=="size") | .bytes'
+zejtron why /etc/passwd --print-json | jq '.measured[] | select(.kind=="owner") | .uid'
+zejtron holds /etc/resolv.conf --print-json | jq '.measured[] | select(.actor.pid == 1234) | .kind'
 
 # The doctor speaks the same JSON dialect (one line, jq-ready):
 # the readiness report (the host's facts at the root - os, kernel,

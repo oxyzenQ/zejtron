@@ -13,7 +13,7 @@ carries the disclaimer and yields to it.
 | Document | What it owns |
 |---|---|
 | [../README.md](../README.md) | The project front page: what zejtron is, install, the command surface, compatibility, safety contract, the intended environments (servers, desktops) and the user profiles - including who the tool is wrong for. |
-| [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md) | The Evidence Ledger Specification v2: the citable output format - the four provenance tiers, the block grammar, the UTC/deterministic/zero-escape laws, the typed JSON evidence objects (`--print-json`), and the non-eBPF compliance path. v1 remains archived inside. |
+| [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md) | The Evidence Ledger Specification v3: the citable output format - the four provenance tiers, the block grammar, the UTC/deterministic/zero-escape laws, the flat typed JSON rows with the typed actor (`--print-json`), and the non-eBPF compliance path. v1 and v2 remain archived inside. |
 | [USAGE.md](USAGE.md) | The usage playbook: the real-world investigation scenarios (find a RAM leak, catch a config-file writer, track a missing port, trace a deleted file still consuming disk), the exact commands, and how to read the Evidence Ledger. |
 | [EBPF_LIFECYCLE.md](EBPF_LIFECYCLE.md) | The Lazy Camera Doctrine: how the eBPF lane lives - the two modes (snapshot vs live), the kernel-side bounded rings, the attach/record/drain lifecycle, and why none of it is monitoring. |
 | [BRANDING.md](BRANDING.md) | The brand: naming, the purple palette (#A855F7), the color system ladder, the civil-clock UTC markers, third-party usage rules. |

@@ -25,7 +25,7 @@ fn row_line_is_timestamp_action_actor_tag_with_double_spaces() {
         EvidenceKind::Held {
             via: "fd 3 (rw)".to_owned(),
         },
-        "sshd (pid 1234, root)",
+        EvidenceActor::process("sshd", 1234, "root"),
         Provenance::Measured,
     );
     let line = row.render_line(true);
@@ -43,7 +43,7 @@ fn first_row_keeps_the_utc_suffix_and_later_rows_drop_it() {
     let row = EvidenceRow::new(
         Some(FIXED_SECS),
         EvidenceKind::Opened,
-        "cat (pid 9)",
+        EvidenceActor::recorded(Some("cat".to_owned()), Some(9), None),
         Provenance::Observed,
     );
     let marked = row.render_line(true);
@@ -66,7 +66,7 @@ fn unknown_timestamp_renders_unknown_never_a_guess() {
     let row = EvidenceRow::new(
         None,
         EvidenceKind::Modified { via: None },
-        "—",
+        EvidenceActor::none(),
         Provenance::Inferred,
     );
     assert_eq!(row.render_line(true), "unknown  modified  —  [inferred]");

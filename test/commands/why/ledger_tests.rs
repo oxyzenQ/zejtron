@@ -10,7 +10,7 @@
 use super::*;
 use crate::commands::holds::{Holder, ScanStats};
 use crate::commands::touch::{EvidenceSource, ProcessEvidence, TouchInfo};
-use crate::evidence::row::{EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceActor, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, EvidenceReport, Mode, Verdict};
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -95,13 +95,13 @@ fn the_changes_clause_rides_the_one_liner() {
     changes.rows.push(EvidenceRow::new(
         Some(0),
         EvidenceKind::Opened,
-        "cat (pid 9)",
+        EvidenceActor::recorded(Some("cat".to_owned()), Some(9), None),
         Provenance::Observed,
     ));
     changes.rows.push(EvidenceRow::new(
         Some(1),
         EvidenceKind::Wrote { via: None },
-        "tee (pid 5)",
+        EvidenceActor::recorded(Some("tee".to_owned()), Some(5), None),
         Provenance::Observed,
     ));
     let line = path_supports_line(&[], Some(&info), &changes, "10s");
@@ -132,7 +132,7 @@ fn the_trace_ladder_names_each_class_present() {
                 EvidenceKind::Held {
                     via: "fd 3 (rw)".to_owned(),
                 },
-                "bash (pid 1)",
+                EvidenceActor::recorded(Some("bash".to_owned()), Some(1), None),
                 Provenance::Measured,
             ),
             EvidenceRow::new(
@@ -141,7 +141,7 @@ fn the_trace_ladder_names_each_class_present() {
                     cmd: Some("/usr/bin/sshd".to_owned()),
                     unit: Some("sshd".to_owned()),
                 },
-                "sshd (pid 7)",
+                EvidenceActor::recorded(Some("sshd".to_owned()), Some(7), None),
                 Provenance::Measured,
             ),
             EvidenceRow::new(
@@ -149,7 +149,7 @@ fn the_trace_ladder_names_each_class_present() {
                 EvidenceKind::Type {
                     file_type: "file".to_owned(),
                 },
-                "—",
+                EvidenceActor::none(),
                 Provenance::Measured,
             ),
         ],
@@ -158,19 +158,19 @@ fn the_trace_ladder_names_each_class_present() {
                 EvidenceRow::new(
                     Some(1),
                     EvidenceKind::Opened,
-                    "cat (pid 9)",
+                    EvidenceActor::recorded(Some("cat".to_owned()), Some(9), None),
                     Provenance::Observed,
                 ),
                 EvidenceRow::new(
                     Some(2),
                     EvidenceKind::Wrote { via: None },
-                    "tee (pid 5)",
+                    EvidenceActor::recorded(Some("tee".to_owned()), Some(5), None),
                     Provenance::Observed,
                 ),
                 EvidenceRow::new(
                     Some(3),
                     EvidenceKind::JournalMention,
-                    "cron (pid 123)",
+                    EvidenceActor::recorded(Some("cron".to_owned()), Some(123), None),
                     Provenance::Inferred,
                 ),
             ],

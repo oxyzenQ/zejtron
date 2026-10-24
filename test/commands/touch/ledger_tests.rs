@@ -112,7 +112,7 @@ fn the_supports_line_names_the_facts_and_the_window() {
     changes.rows.push(crate::evidence::row::EvidenceRow::new(
         Some(0),
         crate::evidence::row::EvidenceKind::Wrote { via: None },
-        "tee (pid 5, root)",
+        EvidenceActor::process("tee", 5, "root"),
         crate::evidence::row::Provenance::Observed,
     ));
     let parts_with = lane::LaneParts {

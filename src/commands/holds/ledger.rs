@@ -22,7 +22,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::evidence::row::{EvidenceKind, EvidenceRow, Provenance};
+use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, EvidenceReport, Mode, UnaccountedEntry, Verdict};
 
 use super::{Evidence, Holder, HoldsError, ScanStats, scan_path_holders, scan_port_holders};
@@ -72,7 +72,7 @@ pub fn build_path_report(
 
     let mut measured = Vec::new();
     for holder in &holders {
-        let actor = format!("{} (pid {}, {})", holder.name, holder.pid, holder.user);
+        let actor = EvidenceActor::process(&holder.name, holder.pid, &holder.user);
         for evidence in &holder.evidence {
             measured.push(EvidenceRow::new(
                 Some(scan_instant),
@@ -123,7 +123,7 @@ pub fn build_port_report(
 
     let mut measured = Vec::new();
     for holder in &holders {
-        let actor = format!("{} (pid {}, {})", holder.name, holder.pid, holder.user);
+        let actor = EvidenceActor::process(&holder.name, holder.pid, &holder.user);
         for evidence in &holder.evidence {
             measured.push(EvidenceRow::new(
                 Some(scan_instant),

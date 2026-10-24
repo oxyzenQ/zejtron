@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! The spec drift pin (night-improve-44): docs/EVIDENCE-LEDGER.md is
-//! the citable contract - Evidence Ledger Specification v2 -
+//! the citable contract - Evidence Ledger Specification v3 -
 //! and this file is the clamp that keeps the document and the code
 //! from drifting apart. The pin reads the spec's machine-readable
 //! tier block (the fenced ```ledger-tiers``` section) and demands
@@ -13,7 +13,7 @@
 //! `Provenance` variant is a compile error in this file before it
 //! can be a format break anywhere else. A new source class fits
 //! inside the four (the spec's law) or the author writes
-//! specification v3 - there is no silent third option.
+//! specification v4 - there is no silent third option.
 
 use super::Provenance;
 
@@ -68,16 +68,21 @@ fn spec_tier_block() -> Vec<String> {
 }
 
 #[test]
-fn the_spec_declares_itself_v2() {
+fn the_spec_declares_itself_v3() {
     assert!(
-        SPEC_MD.contains("Evidence Ledger Specification v2"),
-        "the spec's version line drifted - the citable contract is v2"
+        SPEC_MD.contains("Evidence Ledger Specification v3"),
+        "the spec's version line drifted - the citable contract is v3"
     );
-    // v1 stays frozen history: the document names the version it
-    // superseded, so a v1-pinned consumer can find its contract.
+    // The frozen versions stay citable history: the document names
+    // each version it superseded, so a v1- or v2-pinned consumer
+    // can find its contract.
     assert!(
         SPEC_MD.contains("v1 (Frozen)"),
         "the spec must keep naming the frozen v1 it supersedes"
+    );
+    assert!(
+        SPEC_MD.contains("v2 (Frozen)"),
+        "the spec must keep naming the frozen v2 it supersedes"
     );
 }
 
