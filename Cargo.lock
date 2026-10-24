@@ -412,6 +412,7 @@ version = "80.0.0-rc.2"
 dependencies = [
  "aya",
  "clap",
+ "libc",
  "regex-lite",
  "tempfile",
 ]

@@ -135,6 +135,16 @@ aya = { version = "0.14" }
 # nightly toolchain and no bpf-linker on the target machine. The
 # doctor reports the lane honestly in every build.
 
+# night-dragon-6, the UNIX pipe law: SIGPIPE must kill the process the
+# UNIX way (silent, exit 141) when a piped consumer (jq, head) closes
+# early - never a Rust print panic with a backtrace. std has no signal
+# API; this is the escape hatch the policy note above aya reserved
+# ("a later pass that needs a raw syscall adds it feature-gated, one
+# line") arriving at its first raw syscall. Unix-gated (the crate is
+# Linux-only anyway), one call site: the SIG_DFL reset at main's top.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = "3.20.0"
 

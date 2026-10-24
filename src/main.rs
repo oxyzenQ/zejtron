@@ -11,6 +11,21 @@ mod system;
 mod update;
 
 fn main() {
+    // The UNIX pipe law (night-dragon-6): a CLI piped into a consumer
+    // that closes early (jq, head) must die the UNIX way - SIGPIPE,
+    // silent, exit 141 - never a Rust panic and a backtrace. std
+    // ignores SIGPIPE at startup and turns the failed write into a
+    // print panic ("failed printing to stdout: Broken pipe"); the
+    // SIG_DFL reset, before any other logic, hands the write failure
+    // back to the kernel's default disposition - the contract git,
+    // curl, and every other pipe citizen on the host follows. The
+    // libc pull is the dependency policy's own escape hatch (the
+    // Cargo.toml note under aya), arriving at its first raw syscall.
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+
     // Parse through the UX bridge (night-improve-19, the sibling's
     // zelynic contract): usage errors get the migration redirects,
     // the case-insensitive flag rescue, the one-tip contract, and the
