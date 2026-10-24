@@ -232,7 +232,11 @@ jobs:
           docker rm -f floor-rootfs >/dev/null 2>&1 || true
           docker run --name floor-rootfs -d ubuntu:24.04 sleep infinity
           docker exec floor-rootfs apt-get update -qq
-          docker exec floor-rootfs apt-get install -y --no-install-recommends iproute2
+          # jq rides the typed JSON law's harness dependency
+          # (night-dragon-4): without it the suite refuses at startup
+          # inside the micro-VM (the witness lane's own finding; the
+          # rootfs-pack twin stages it from the jammy closure).
+          docker exec floor-rootfs apt-get install -y --no-install-recommends iproute2 jq
           docker export floor-rootfs -o rootfs.tar
           mkdir -p rootfs
           tar -xf rootfs.tar -C rootfs
