@@ -253,14 +253,24 @@ fn render_unaccounted(sample: &DiskSample, lines: &mut Vec<String>) {
 
 fn render_verdict(sample: &DiskSample, lines: &mut Vec<String>) {
     lines.push(crate::output::ok_out("Verdict:"));
+    for line in verdict_lines(sample) {
+        lines.push(format!("  {line}"));
+    }
+}
+
+/// The verdict's lines, without the two-space indent and the
+/// header - one source for the text renderer and the JSON lane
+/// (night-badass-5).
+pub(crate) fn verdict_lines(sample: &DiskSample) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
     match sample.top.first() {
         Some(top) => lines.push(format!(
-            "  The largest disk I/O consumer is {} (read {}, wrote {} in the window).",
+            "The largest disk I/O consumer is {} (read {}, wrote {} in the window).",
             top.comm,
             fmt_bytes(top.read_delta),
             fmt_bytes(top.write_delta)
         )),
-        None => lines.push("  No process moved block-backed I/O in the window.".to_owned()),
+        None => lines.push("No process moved block-backed I/O in the window.".to_owned()),
     }
     // The iowait finding: a high iowait share with a named top
     // consumer is two facts the reader ties - the verdict states
@@ -269,12 +279,13 @@ fn render_verdict(sample: &DiskSample, lines: &mut Vec<String>) {
         && pct > 20.0
     {
         lines.push(format!(
-            "  The I/O wait ({pct:.1}% of the window's CPU ticks) is high; the top I/O \
+            "The I/O wait ({pct:.1}% of the window's CPU ticks) is high; the top I/O \
                  consumer above is {comm} (PID {pid}).",
             comm = top.comm,
             pid = top.pid
         ));
     }
+    lines
 }
 
 /// The drill-down: the top consumers' verbatim /proc/<pid>/io at

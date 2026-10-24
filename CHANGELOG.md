@@ -26,6 +26,34 @@ v11.0.0
 
 ### Added
 
+- The doctor speaks JSON (night-badass-5): `--print-json` lands on
+  the doctor - the readiness report (the user context, all twelve
+  checks with lowercase statuses, the summary counts, and the eBPF
+  section's structured facts: lane, camera posture, the probe list,
+  and the pin set's state beside its names) and every implemented
+  symptom - `ram` (memory as byte counts and a percent, the
+  per-process PSS table, the tmpfs/deleted/memfd views, the kernel
+  buckets, the slab census, the residual as a number, the exit
+  lane's three truths), `cpu` (tick deltas and the ranked
+  consumers as raw numbers), `disk` (iowait share and raw block
+  I/O byte deltas), `network` (interface deltas, the socket-state
+  census, the top holders), and `gpu` (device holders with their
+  device lists, the AMD/amdgpu VRAM byte pairs, the NVIDIA marker).
+  The named boundaries ride `unaccounted` as the same
+  `{count, category, reason}` entries the Evidence Ledger speaks,
+  and the verdicts stay prose in `verdict.lines` while everything
+  a dashboard filters on is a typed field - `zejtron doctor
+  --symptom ram --print-json | jq .memory.used_bytes` is the whole
+  story. Std-only, no serde, no new dependencies; the string
+  escaper is the Evidence Ledger's own. The flag refuses
+  `--attach`/`--detach` (verbs are not reports) and `--raw` (the
+  drill-down stays text-only); the exit contract is shared - FAIL
+  count > 0 exits non-zero in both lanes. The deferral answers in
+  kind: `--symptom slow --print-json` names its absence in the
+  same envelope. The text ledgers are byte-identical - the verdict
+  sentences now render from the same builders the JSON lane
+  speaks, one source, two surfaces.
+
 - The intentional waits are narrated (night-hunter-6): the Lazy
   Camera's event windows and sampling gaps - holds/touch/why's live
   file window, port's socket window, and the doctor delta symptoms'

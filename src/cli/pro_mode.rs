@@ -162,6 +162,10 @@ const GROUPS: &[(&str, &[Row])] = &[
                 "--raw",
                 "With --symptom: append the raw /proc reads (drill-down)",
             ),
+            (
+                "--print-json",
+                "Print the doctor report as JSON (one line, jq-ready; excludes --attach, --detach, --raw)",
+            ),
         ],
     ),
     (

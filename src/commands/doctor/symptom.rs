@@ -26,6 +26,7 @@
 //! as unaccounted - the Evidence Ledger discipline, applied to
 //! each lane.
 
+use super::json;
 use super::{cpu, disk, gpu, memory, network};
 use std::error::Error;
 use std::fmt;
@@ -55,8 +56,11 @@ impl Error for SymptomError {}
 
 /// The doctor's `--symptom` dispatch. `Ok(())` is a completed report
 /// or a completed deferral - both exit 0; an unknown symptom is a
-/// usage error (exit 1 through the labeled renderer).
-pub fn run(symptom: &str, raw: bool) -> Result<(), SymptomError> {
+/// usage error (exit 1 through the labeled renderer). The JSON lane
+/// (night-badass-5) speaks the same symptom truth as one typed line;
+/// the deferral speaks its named absence in the same envelope, and
+/// `--raw` stays text-only (the CLI refuses the pair).
+pub fn run(symptom: &str, raw: bool, print_json: bool) -> Result<(), SymptomError> {
     if !KNOWN.contains(&symptom) {
         return Err(SymptomError(format!(
             "unknown symptom '{symptom}' - the symptoms this version speaks: {}",
@@ -68,7 +72,13 @@ pub fn run(symptom: &str, raw: bool) -> Result<(), SymptomError> {
         // content - an honest absence, not a verdict); the symptom
         // names inside it are the values and stay unwrapped, quoted
         // from the one source so the list cannot drift from the
-        // dispatch arms.
+        // dispatch arms. The JSON lane names the same absence in its
+        // own envelope - the flag cannot turn a deferral into a fake
+        // report.
+        if print_json {
+            println!("{}", json::slow_json(&IMPLEMENTED));
+            return Ok(());
+        }
         let quoted = quoted_list(&IMPLEMENTED);
         println!(
             "{}",
@@ -81,7 +91,21 @@ pub fn run(symptom: &str, raw: bool) -> Result<(), SymptomError> {
         return Ok(());
     }
     // The KNOWN gate above owns the arm set: every name that reaches
-    // this match is one of the five implemented lanes.
+    // this match is one of the five implemented lanes. The JSON lane
+    // reuses the sample the text lane renders - one collection, two
+    // renderings, the evidence ledger's own law.
+    if print_json {
+        let line = match symptom {
+            "ram" => json::json_ram(&memory::collect()),
+            "cpu" => json::json_cpu(&cpu::collect()),
+            "disk" => json::json_disk(&disk::collect()),
+            "network" => json::json_network(&network::collect()),
+            "gpu" => json::json_gpu(&gpu::collect()),
+            _ => unreachable!("the KNOWN gate above owns this arm"),
+        };
+        println!("{line}");
+        return Ok(());
+    }
     let report = match symptom {
         "ram" => memory::report(raw),
         "cpu" => cpu::report(raw),

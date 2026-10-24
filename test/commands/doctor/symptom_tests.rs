@@ -29,13 +29,13 @@ fn the_deferral_names_what_exists_and_what_does_not() {
     // The honest deferral: the line names the implemented set (from
     // the one source, quoted) and the deferred name. Exit 0 - a
     // deferral is an answer, not a failure.
-    let result = run(DEFERRED, false);
+    let result = run(DEFERRED, false, false);
     assert!(result.is_ok(), "the deferral must defer with Ok");
 }
 
 #[test]
 fn unknown_symptom_is_a_usage_error_naming_the_vocabulary() {
-    let err = run("cpu_ram_disk", false).expect_err("unknown symptom must be a usage error");
+    let err = run("cpu_ram_disk", false, false).expect_err("unknown symptom must be a usage error");
     assert!(
         err.to_string().contains("unknown symptom 'cpu_ram_disk'"),
         "{err}"
@@ -55,7 +55,7 @@ fn every_implemented_lane_completes_on_the_live_host() {
     // sample a real 1.0s window each - the wait IS the measurement.
     for symptom in IMPLEMENTED {
         assert!(
-            run(symptom, false).is_ok(),
+            run(symptom, false, false).is_ok(),
             "'{symptom}' must complete Ok on a live host"
         );
     }
@@ -67,7 +67,7 @@ fn the_raw_flag_rides_every_lane() {
     // contract is the flag's contract everywhere.
     for symptom in IMPLEMENTED {
         assert!(
-            run(symptom, true).is_ok(),
+            run(symptom, false, true).is_ok(),
             "'{symptom}' must complete Ok with the drill-down flag"
         );
     }

@@ -338,12 +338,22 @@ fn render_unaccounted(sample: &CpuSample, lines: &mut Vec<String>) {
 
 fn render_verdict(sample: &CpuSample, lines: &mut Vec<String>) {
     lines.push(crate::output::ok_out("Verdict:"));
+    for line in verdict_lines(sample) {
+        lines.push(format!("  {line}"));
+    }
+}
+
+/// The verdict's lines, without the two-space indent and the
+/// header - one source for the text renderer and the JSON lane
+/// (night-badass-5): the fact sentences both surfaces name.
+pub(crate) fn verdict_lines(sample: &CpuSample) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
     match sample.top.first() {
         Some(top) => lines.push(format!(
-            "  The largest CPU consumer is {} ({:.1}% of total CPU in the window).",
+            "The largest CPU consumer is {} ({:.1}% of total CPU in the window).",
             top.comm, top.pct
         )),
-        None => lines.push("  No process burned a measurable CPU tick in the window.".to_owned()),
+        None => lines.push("No process burned a measurable CPU tick in the window.".to_owned()),
     }
     // The stuck finding: load above the core count while the CPU is
     // quiet is the waiting-on-I/O signature. Two measured facts, one
@@ -355,7 +365,7 @@ fn render_verdict(sample: &CpuSample, lines: &mut Vec<String>) {
     };
     if stuck_signature {
         lines.push(format!(
-            "  The load average ({:.2}) is above the core count ({}) while the CPU is quiet \
+            "The load average ({:.2}) is above the core count ({}) while the CPU is quiet \
              ({:.1}% busy) - the load is processes waiting on I/O, not CPU work. The \
              Load/stuck section above names the D-state processes.",
             sample.loadavg_1min.unwrap_or(0.0),
@@ -363,6 +373,7 @@ fn render_verdict(sample: &CpuSample, lines: &mut Vec<String>) {
             sample.busy_pct.unwrap_or(0.0),
         ));
     }
+    lines
 }
 
 /// The drill-down: the verbatim sampled bytes (kept from the two

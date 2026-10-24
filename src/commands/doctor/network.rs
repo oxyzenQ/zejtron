@@ -360,25 +360,36 @@ fn render_unaccounted(sample: &NetworkSample, lines: &mut Vec<String>) {
 
 fn render_verdict(sample: &NetworkSample, lines: &mut Vec<String>) {
     lines.push(crate::output::ok_out("Verdict:"));
+    for line in verdict_lines(sample) {
+        lines.push(format!("  {line}"));
+    }
+}
+
+/// The verdict's lines, without the two-space indent and the
+/// header - one source for the text renderer and the JSON lane
+/// (night-badass-5).
+pub(crate) fn verdict_lines(sample: &NetworkSample) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
     match sample.interfaces.first() {
         Some(top) => lines.push(format!(
-            "  The busiest interface is {} (RX {}, TX {} in the window).",
+            "The busiest interface is {} (RX {}, TX {} in the window).",
             top.name,
             fmt_bytes(top.rx_bytes),
             fmt_bytes(top.tx_bytes)
         )),
-        None => lines.push("  No interface moved a byte or a packet in the window.".to_owned()),
+        None => lines.push("No interface moved a byte or a packet in the window.".to_owned()),
     }
     // The port-exhaustion boundary: a named number, a named risk -
     // the fact the user verifies, never an instruction.
     if sample.sockets.time_wait > PORT_EXHAUSTION_RISK {
         lines.push(format!(
-            "  The TIME_WAIT count ({}) is above {PORT_EXHAUSTION_RISK} - local port \
+            "The TIME_WAIT count ({}) is above {PORT_EXHAUSTION_RISK} - local port \
              exhaustion pressure is the named risk (many short-lived connections are \
              churning; the top holder above is the busiest socket owner).",
             sample.sockets.time_wait
         ));
     }
+    lines
 }
 
 /// The drill-down: the interface table verbatim at render time (the

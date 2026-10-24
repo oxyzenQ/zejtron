@@ -104,11 +104,13 @@ fn parses_doctor_attach_and_detach() {
             detach,
             symptom,
             raw,
+            print_json,
         }) => {
             assert!(attach);
             assert!(!detach);
             assert!(symptom.is_none());
             assert!(!raw);
+            assert!(!print_json);
         }
         other => panic!("unexpected command: {other:?}"),
     }
@@ -120,11 +122,13 @@ fn parses_doctor_attach_and_detach() {
             detach,
             symptom,
             raw,
+            print_json,
         }) => {
             assert!(!attach);
             assert!(detach);
             assert!(symptom.is_none());
             assert!(!raw);
+            assert!(!print_json);
         }
         other => panic!("unexpected command: {other:?}"),
     }
@@ -148,11 +152,13 @@ fn parses_doctor_symptom_and_raw() {
             detach,
             symptom,
             raw,
+            print_json,
         }) => {
             assert!(!attach);
             assert!(!detach);
             assert_eq!(symptom.as_deref(), Some("ram"));
             assert!(!raw);
+            assert!(!print_json);
         }
         other => panic!("unexpected command: {other:?}"),
     }
