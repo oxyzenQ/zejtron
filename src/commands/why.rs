@@ -3,6 +3,7 @@
 
 pub(crate) mod ledger;
 pub(crate) mod raw;
+pub(crate) mod verdict;
 
 use std::error::Error;
 use std::fmt;

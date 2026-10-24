@@ -7,13 +7,19 @@
 //! the one-line law. Wired from src/commands/doctor/json.rs.
 
 use super::super::CheckStatus;
+use super::super::cpu::{CpuRow, CpuSample};
+use super::super::disk::DiskSample;
+use super::super::gpu::GpuSample;
+use super::super::memory::exits::ExitRow;
+use super::super::memory::{MemInfo, MemorySample, ProcessPss, SlabRow, TmpfsFile};
+use super::super::network::NetworkSample;
 use super::*;
 
 // ── Fixtures ─────────────────────────────────────────────────────
 
 fn ram_sample() -> MemorySample {
     MemorySample {
-        meminfo: Some(super::super::memory::MemInfo {
+        meminfo: Some(MemInfo {
             total_kib: 1024,
             free_kib: 512,
             available_kib: 768,
@@ -23,7 +29,7 @@ fn ram_sample() -> MemorySample {
             s_reclaimable_kib: 32,
             s_unreclaim_kib: 4,
         }),
-        pss: vec![super::super::memory::ProcessPss {
+        pss: vec![ProcessPss {
             pid: 42,
             name: "brave".to_owned(),
             pss_kib: 400,
@@ -34,7 +40,7 @@ fn ram_sample() -> MemorySample {
         }],
         pss_permission_refused: 2,
         pss_vanished: 1,
-        tmpfs_files: vec![super::super::memory::TmpfsFile {
+        tmpfs_files: vec![TmpfsFile {
             path: "/dev/shm/x".to_owned(),
             size_bytes: 2048,
             holders: vec![42],
@@ -44,7 +50,7 @@ fn ram_sample() -> MemorySample {
         deleted: Vec::new(),
         memfds: Vec::new(),
         fd_permission_refused: 3,
-        slab: vec![super::super::memory::SlabRow {
+        slab: vec![SlabRow {
             cache: "kmalloc-1k".to_owned(),
             size_kib: 64,
         }],
@@ -252,12 +258,12 @@ fn numbers_stay_numbers_in_the_json_lane() {
 #[test]
 fn the_drained_lane_names_its_rows_and_the_overflow() {
     let lane = ExitLane::Drained(vec![
-        super::super::memory::exits::ExitRow {
+        ExitRow {
             pid: 7,
             comm: "gone".to_owned(),
             timestamp_ns: 2_000_000_000,
         },
-        super::super::memory::exits::ExitRow {
+        ExitRow {
             pid: 8,
             comm: "also-gone".to_owned(),
             timestamp_ns: 3_000_000_000,
