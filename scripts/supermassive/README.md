@@ -219,11 +219,22 @@ processes than the spawner staged (at full spec scale that is the
 the pinned heavy rogue as the listener's owner (the window law:
 --snapshot-only returns instantly, the owner rows resolve from
 /proc either way); `doctor --symptom ram --print-json` must name
-all four heavy rogues with PSS above the 100 MB bar;
+all four heavy rogues with PSS above the 100 MB bar — and the
+harness picks the read's moment: a bounded readiness gate polls
+each heavy rogue's smaps_rollup Pss until all four clear the bar
+(one 0.25s beat at a time, 3s of patience, early exit the beat
+all four are fat — the night-dragon-5 finding: a busy desktop
+boots its interpreters under load, and a rogue mid-allocation is
+a rogue the top table has not met yet);
 `why <io file> --since 2s --print-json` must ride the live lane
 (gated on the `doctor --attach` preflight, the refusal direction
 staying the storm surface's contract) and attribute the writes to
-dd by name and pid — every filter a typed jq check on the flat
+dd by name and pid, the dd actor on the measured state rows and
+the observed provenance on the changes rows ([observed] is the
+kernel lane's event tag and never a state row's — the
+night-dragon-5 finding; the report's snapshot facts and its
+kernel-event facts are different arrays and the asserts read
+each where it lives) — every filter a typed jq check on the flat
 Spec v3 grammar, every lane pure-JSON on stdout and silent on
 stderr. The teardown is a check, not a hope: TERM, a
 grace beat, KILL, a bare wait that reaps every child, and a /proc
