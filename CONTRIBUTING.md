@@ -73,7 +73,7 @@ scripts/
                     LOC caps, name case, language discipline,
                     version sync, ...)
   dev/           — maintainer tooling (version-to.sh)
-  package/       — install-on-my-machine.sh / install.sh / uninstall.sh
+  package/       — install-on-my-machine.sh / uninstall.sh
 docs/            — the docs tree (BRANDING, RULES, VERIFY_RELEASE, ...)
 ```
 

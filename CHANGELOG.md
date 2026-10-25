@@ -1766,6 +1766,17 @@ v11.0.0
   follows the same output, so a prerelease tag can never claim the
   Latest badge.
 
+### Removed
+
+- The gnu-building package installer (night-dragon-1S):
+  `scripts/package/install.sh` ran a bare `cargo build --release
+  --locked` - the host gnu triple, the exact libc shape the
+  night-badass-1 GNU purge bans for every product build. The musl
+  alias installer (`scripts/package/install-on-my-machine.sh`, the
+  parity-gated `pro-linux-amd64-v3/v4-musl` lane) is the one install
+  path now; `scripts/setup.sh`'s menu and `CONTRIBUTING.md`'s tree
+  listing point there.
+
 ## History
 
 The changelog's per-era split, newest era first:
