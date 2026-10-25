@@ -48,7 +48,7 @@ pair).
 
 ```bash
 # One-time: fetch the release key (the key id is on the release page
-# and in docs/BRANDING.md's verification section once configured).
+# and pinned in docs/BRANDING.md, section 8 - the in-repo anchor).
 gpg --keyserver keyserver.ubuntu.com --recv-keys <KEY_FINGERPRINT>
 
 # Verify the detached signature (the .asc rides the same asset list).

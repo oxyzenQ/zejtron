@@ -87,7 +87,7 @@ Concrete classes we care about, with the current posture of each:
 | Terminal escape injection | Guarded — the CWE-150 pass (night-total-lts-3): /proc-derived strings (comm, cmdline), audit comm values, cwd and symlink targets, and scanned filenames cross the trust boundary through the shared neutralizer (`system::sanitize_display`), which renders every control character as its printable `\u{..}` form; the release tag is refused outright (fail-closed); the color ladder degrades to plain text, never renders untrusted bytes as control sequences. Verified live with a `prctl(PR_SET_NAME)` process carrying ESC bytes |
 | Panic surfaces reachable from user input | Pinned by the unit surface — clap-typed arguments and the per-verb target parsers reject malformed targets with labeled errors; `src/` carries zero `unwrap`/`expect`/`panic!` reachable from input |
 | Supply chain (dependency compromise) | Minimal runtime graph - the count and every justification live in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md), the count's one home; `cargo audit` + `cargo deny` in CI, chrono banned |
-| Release artifact tampering | SHA-512 + BLAKE3 + SHAKE256 checksums + GPG detached signatures; verify per [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) |
+| Release artifact tampering | SHA-512 + BLAKE3 + SHAKE256 checksums + GPG detached signatures; the signing key's primary fingerprint is pinned in-repo ([docs/BRANDING.md](docs/BRANDING.md), section 8) — `F5324E0967F104D58CE025F347A50AEF4B65AAC2` — verify per [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) |
 
 The full audit trail — findings, verdicts, and accepted risks — lives
 in the docs tree ([docs/README.md](docs/README.md) indexes it) and is
