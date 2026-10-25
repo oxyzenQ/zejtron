@@ -170,6 +170,36 @@ outside the two families above, for either name. The checker is
 self-clean by construction: every all-caps form is built at runtime
 from the lowercase name.
 
+---
+
+## 8. Release Verification Anchor (GPG)
+
+The release signing key is part of the project's trust identity, so
+its fingerprint is pinned here — an in-repo anchor that travels with
+every clone and every registry tarball, independent of the release
+page and of any keyserver's answer.
+
+- **Primary key fingerprint** (the keyserver lookup key):
+  `F5324E0967F104D58CE025F347A50AEF4B65AAC2`
+- Owner identity: rezky_nightky (oxyzenQ); the same public key is
+  served by the GitHub account's GPG endpoint
+  (`https://api.github.com/users/oxyzenQ/gpg_keys`) — a second
+  retrieval channel a compromised mirror cannot touch.
+- The detached `.asc` signatures on the release archives and the
+  signed release tag are made by EDDSA subkeys of this primary key;
+  `gpg` resolves them automatically once the primary is imported.
+  After fetching, verify the imported primary's fingerprint equals
+  the one above before trusting any signature from it.
+
+```bash
+gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
+gpg --fingerprint F5324E0967F104D58CE025F347A50AEF4B65AAC2   # compare against the line above
+```
+
+The full verification procedure (checksums, signatures, expected
+output) lives in [VERIFY_RELEASE.md](VERIFY_RELEASE.md); the release
+page body carries the same fingerprint for every signed release.
+
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
