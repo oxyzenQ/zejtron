@@ -156,15 +156,19 @@ else
 		check_command codespell
 	fi
 	# The musl rust-std must be present before the first verb, not
-	# discovered mid-gate under cargo's own terse no-std error.
-	# rustup-less distro installs skip the probe and surface
-	# cargo's error verbatim (setup.sh carries the same law).
-	if command -v rustup >/dev/null 2>&1; then
-		if ! rustup target list --installed 2>/dev/null | grep -q '^x86_64-unknown-linux-musl$'; then
-			echo "error: the x86_64-unknown-linux-musl rust-std is missing - the gate builds the musl shape only" >&2
-			echo "hint: run 'rustup target add x86_64-unknown-linux-musl' or ./scripts/setup.sh" >&2
-			exit 1
-		fi
+	# discovered mid-gate under cargo's own terse no-std error. The
+	# probe resolves through the same proxy the verbs will use, so
+	# it checks the ACTIVE toolchain's sysroot (rust-toolchain.toml),
+	# never the rustup default - that mismatch sent the first
+	# musl-gate commit's CI red (rustup target list reports the
+	# default toolchain's targets). A rustup-less distro install
+	# fails the same honest way when its std package set lacks the
+	# musl target (setup.sh carries the same law).
+	std_dir="$(rustc --print target-libdir --target "$GATE_TARGET" 2>/dev/null || true)"
+	if [[ ! -d "${std_dir:-}" ]]; then
+		echo "error: the $GATE_TARGET rust-std is missing for the active toolchain - the gate builds the musl shape only" >&2
+		echo "hint: run 'rustup target add $GATE_TARGET' or ./scripts/setup.sh" >&2
+		exit 1
 	fi
 fi
 
