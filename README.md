@@ -39,14 +39,14 @@ zejtron's output complies with the [Evidence Ledger Specification v3](docs/EVIDE
      The text output is the contract; the captures follow it. -->
 
 <p align="center">
-  <img src="assets/demo-doctor.png"
+  <img src="assets/zejtron-demo-doctor.png"
        alt="zejtron doctor readiness report"
        width="800"
        style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
 </p>
 
 <p align="center">
-  <img src="assets/demo-why.png"
+  <img src="assets/zejtron-demo-why.png"
        alt="zejtron why evidence report for /etc/resolv.conf"
        width="800"
        style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
@@ -287,7 +287,7 @@ containers.
 ```sh
 # The release tag. Every install block below reuses it, so the
 # version lives in one place and a bump is a two-line change.
-TAG=v80.0.0-rc.3
+TAG=v80.0.0-rc.4
 SHAPE=linux-amd64-v3-musl   # or v4-musl
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
