@@ -1752,6 +1752,20 @@ v11.0.0
   to `cancel-in-progress: false` - an in-flight registry upload is
   irreversible and is never cancelled mid-flight.
 
+### Fixed
+
+- Pre-release tags classify as prerelease GitHub releases now
+  (night-dragon-1S): `release.yml`'s validate job picked the FIRST
+  matching bash `case` branch, and the stable glob
+  `v[0-9]*.[0-9]*.[0-9]*` crosses `-` in bash pattern matching - so
+  every `-rc/-alpha/-beta/-nightly` tag fell into the
+  `prerelease=false` branch and the pre-release branch was dead code.
+  v80.0.0-nightly.1 shipped a stable-flagged GitHub release through
+  this hole. The branches are ordered pre-release first (the strict
+  semver grep above the case keeps the shapes bounded); `make_latest`
+  follows the same output, so a prerelease tag can never claim the
+  Latest badge.
+
 ## History
 
 The changelog's per-era split, newest era first:
