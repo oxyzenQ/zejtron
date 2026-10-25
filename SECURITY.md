@@ -198,6 +198,7 @@ hardening is invisible (guards, CI isolation) and the one behavioral
 rule that matters is a clear error message, not a foot-gun
 (`--check-update` tells you to drop sudo instead of failing
 cryptically).
+
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -8,23 +8,6 @@ answered once, with the source of truth named for every claim. The
 sibling project's QA.md owns the format; the answers here are
 zejtron-honest - no borrowed feature claims.
 
-<!-- ZEJTRON-DISCLAIMER -->
-<!--
-  Documentation Disclaimer - read before relying on any data point.
-
-  This document may contain stale data, hardcoded counts, or outdated
-  file paths and symbol names. Maintainers update source code but may
-  forget to sync every doc - perfect sync across every .md file is a
-  known maintenance burden with diminishing returns.
-
-  Source code (`src/**/*.rs`) is the single source of truth. Always
-  cross-check against the actual source files before relying on any
-  specific number, file path, function name, or config key.
-
-  If you find a discrepancy, please open a PR - the doc is wrong, not
-  the source.
--->
-
 ## Q1 - What exactly is zejtron?
 
 A unified, read-only Linux introspection toolkit: where a command
@@ -97,3 +80,21 @@ monitoring. A workload that needs continuous watch (metrics,
 alerting, dashboards) needs a monitoring daemon - a different
 product class. The positioning is on the record at
 [README.md](README.md), "Intended Environments and Users".
+
+<!-- ZEJTRON-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — perfect sync across every .md file is a
+  known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of
+  truth. Always cross-check against the actual source files before
+  relying on any specific number (target count, LOC, rate bound),
+  file path, function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

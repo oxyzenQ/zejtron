@@ -15,23 +15,6 @@ exactly that - the runtime dependency count, restated across the
 estate, went stale the day `libc` joined the graph in
 night-dragon-6 while the graph itself was telling the truth.
 
-<!-- ZEJTRON-DISCLAIMER -->
-<!--
-  Documentation Disclaimer - read before relying on any data point.
-
-  This document may contain stale data, hardcoded counts, or outdated
-  file paths and symbol names. Maintainers update source code but may
-  forget to sync every doc - perfect sync across every .md file is a
-  known maintenance burden with diminishing returns.
-
-  Source code (`src/**/*.rs`) is the single source of truth. Always
-  cross-check against the actual source files before relying on any
-  specific number, file path, function name, or config key.
-
-  If you find a discrepancy, please open a PR - the doc is wrong, not
-  the source.
--->
-
 ## Scope and exemptions
 
 The audit walks every tracked `*.md` in the tree - the repository
@@ -118,3 +101,21 @@ tree agree, and no commit in the series moved a fact without its
 home doc. The name continues the lineage - the infra depth audit
 (night-total-lts-2) and the suite's depth audit (night-improve-43) -
 pointed this time at the whole docs estate.
+
+<!-- ZEJTRON-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — perfect sync across every .md file is a
+  known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of
+  truth. Always cross-check against the actual source files before
+  relying on any specific number (target count, LOC, rate bound),
+  file path, function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

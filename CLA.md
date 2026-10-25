@@ -76,7 +76,8 @@ Git itself run on.
 **Contact:** [with.rezky@gmail.com](mailto:with.rezky@gmail.com)
 
 **Last Updated:** 2026-09-27
-<!-- ZELYNIC-DISCLAIMER -->
+
+<!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
 

@@ -27,9 +27,14 @@ wholesale on every push and every pull request - the same blind posture
 as the fast lane - with every tool it probes installed and pinned
 (version plus sha256, the bytes-are-the-pin contract), because a check
 that silently skips behind a missing tool is a check that does not
-exist. The 18 sections cover the shell quad, the workflow linters, TOML
+exist. The 19 sections cover the shell quad, the workflow linters, TOML
 syntax, the repo-discipline gates (headers, permissions, emoji,
-language, the LOC caps), and the pin-sync guards. Section 16 is the
+language, the LOC caps), the pin-sync guards, the fuzz include law
+(section 18), and the documentation disclaimer's placement (section
+19: every living .md carries the stale-data warning as its bottom
+block - a block pasted mid-file or under a header is relocated to the
+last lines, the sibling's legacy marker migrates to the house marker,
+and CHANGELOG.md with docs/archive/ stay frozen). Section 16 is the
 push-time seat of the prebuilt verdict: the one writer's read-only
 `--check` verdict (`scripts/dev/regenerate-ebpf-prebuilt.sh`) runs
 fail-closed in CI, so the
@@ -372,3 +377,21 @@ readable above the floor), and the below-floor refusal direction
 - a kernel no stock runner can host. Triggers: every push (the
 unfiltered-CI posture), plus `workflow_dispatch`; no
 `pull_request` trigger (the fast lane owns PRs).
+
+<!-- ZEJTRON-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — perfect sync across every .md file is a
+  known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of
+  truth. Always cross-check against the actual source files before
+  relying on any specific number (target count, LOC, rate bound),
+  file path, function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

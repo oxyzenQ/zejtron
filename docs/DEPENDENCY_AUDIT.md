@@ -16,23 +16,6 @@ the SIGPIPE law) - plus one dev dependency (`tempfile`). chrono
 removed in night-improve-13 - the Hinnant civil clock replaced it;
 see `src/info/clock.rs` and the chrono ban in `deny.toml`.
 
-<!-- ZEJTRON-DISCLAIMER -->
-<!--
-  Documentation Disclaimer - read before relying on any data point.
-
-  This document may contain stale data, hardcoded counts, or outdated
-  file paths and symbol names. Maintainers update source code but may
-  forget to sync every doc - perfect sync across every .md file is a
-  known maintenance burden with diminishing returns.
-
-  Source code (`src/**/*.rs`) is the single source of truth. Always
-  cross-check against the actual source files before relying on any
-  specific number, file path, function name, or config key.
-
-  If you find a discrepancy, please open a PR - the doc is wrong, not
-  the source.
--->
-
 ## Direct dependencies
 
 | Dependency | Version | Justification (live call sites) |
@@ -62,3 +45,21 @@ see `src/info/clock.rs` and the chrono ban in `deny.toml`.
 4. `cargo deny check all` (CI) is the enforcement arm; this file is
    the reasoning arm. A ban without a reason string here is a gate
    nobody can debug.
+
+<!-- ZEJTRON-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — perfect sync across every .md file is a
+  known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of
+  truth. Always cross-check against the actual source files before
+  relying on any specific number (target count, LOC, rate bound),
+  file path, function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->
