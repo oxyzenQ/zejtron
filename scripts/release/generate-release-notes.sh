@@ -415,7 +415,7 @@ verification_section() {
 	# parser validates the CLI value, and this second guard keeps the
 	# render layer safe under direct calls (the self-test's own path).
 	case "$gpg_sigs" in
-	""|*[!0-9]*) gpg_sigs="0" ;;
+	"" | *[!0-9]*) gpg_sigs="0" ;;
 	esac
 	echo "## Verification"
 	echo ""
