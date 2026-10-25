@@ -760,7 +760,7 @@ maintain.
 
 ### Stable API
 
-The CLI surface froze at v11.0.0; the road to v80.0.0 lifts that
+The CLI surface froze at v80.0.0 lifts that
 freeze once — the four wrapper subcommands (`env`, `shell`, `git`,
 `service`) are removed, and the surviving nine surfaces keep their
 spellings, flags, and output format. From v80.0.0 the freeze applies
