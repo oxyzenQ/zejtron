@@ -1695,6 +1695,24 @@ v11.0.0
   accumulated bitfield refusal - built on the shared blob table
   the original pins built, now pub(super) for the flatten twin
   module (422 tests, +5).
+- The release lane's tier rustflags no longer poison the host-side
+  gates (the v80.0.0-rc.4 release-lane red). The build matrix's
+  RUSTFLAGS ("-D warnings -C target-cpu=x86-64-v3 -C
+  target-feature=+crt-static") was exported at the build job's env
+  level, so the v3 leg's "Run full checks" step (build.sh check-all)
+  inherited it: check-all's cargo verbs run without --target, the env
+  flags hit the host gnu triple, and cargo refused to produce
+  clap_derive's proc-macro ("does not support these crate types") -
+  the same death scripts/dev/bootstrap-ebpf.sh already documented at
+  the b3sum install (the v80.0.0-alpha.2 and v80.0.0-beta.1 tag runs).
+  The export moved to the Build step's own env (the sibling's
+  NIGHT-improve-22 shape, zelynic release.yml): the tier flags stay
+  the product build contract verbatim (NIGHT-strict-2), now scoped to
+  the musl target units they were written for, while the host gates
+  run flag-free like ci.yml's fast lane. No flag token changed - the
+  arch-baseline tripwire, the release parity gate, and the nested
+  eBPF build's -D warnings inheritance through the poison strip all
+  hold untouched.
 
 ## History
 
