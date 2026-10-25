@@ -106,7 +106,7 @@ Release archives use a flat layout:
 Example release asset flow:
 
 ```sh
-TAG=v80.0.0-rc.3
+TAG=v80.0.0-rc.4
 cargo build --release --locked --target x86_64-unknown-linux-musl
 ```
 
@@ -133,7 +133,7 @@ lane burns on any change, while a publish waits for the owner's tag.
 ## Version Bump Flow
 
 ```sh
-./scripts/dev/version-to.sh v80.0.0-rc.3
+./scripts/dev/version-to.sh v80.0.0-rc.4
 ./scripts/build.sh
 ```
 
@@ -157,13 +157,13 @@ or to stable with no stale `-rc.N` tail on any rewritten surface.
 ## Release Command Flow
 
 ```sh
-./scripts/dev/version-to.sh v80.0.0-rc.3
+./scripts/dev/version-to.sh v80.0.0-rc.4
 ./scripts/build.sh
 git add .
-git commit -m "chore: prepare v80.0.0-rc.3 release"
+git commit -m "chore: prepare v80.0.0-rc.4 release"
 git push origin main
-git tag -a v80.0.0-rc.3 -m "v80.0.0-rc.3"
-git push origin v80.0.0-rc.3
+git tag -a v80.0.0-rc.4 -m "v80.0.0-rc.4"
+git push origin v80.0.0-rc.4
 ```
 
 ## Actions-Pin Health
