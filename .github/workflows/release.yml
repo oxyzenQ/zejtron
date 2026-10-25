@@ -487,7 +487,12 @@ jobs:
           # previous-changelog boundary: pre-releases diff from the
           # nearest prior tag; stables skip pre-releases. awk (never
           # grep) so a zero-match filter is not a failed pipeline
-          # under pipefail.
+          # under pipefail. The pre-release detector is the tag SHAPE
+          # alone (night-dragon-2S): a '-' after the patch segment
+          # marks any vX.Y.Z-<suffix> - no hardcoded suffix list to
+          # rot when the owner coins a new channel (the old
+          # dev|nightly|alpha|beta|rc alternation would have diffed a
+          # future vX.Y.Z-example.1 stable against stable).
           TAGS=$(gh_api --paginate "repos/${GITHUB_REPOSITORY}/tags" --jq '.[].name')
           if [ "${IS_PRERELEASE}" = "true" ]; then
             PREV_TAG=$(printf '%s\n' "${TAGS}" \
@@ -496,7 +501,7 @@ jobs:
           else
             PREV_TAG=$(printf '%s\n' "${TAGS}" \
               | awk -v cur="${TAG}" \
-                '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-(dev|nightly|alpha|beta|rc)[\.-]/' \
+                '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-/' \
               | sort -V | tail -1)
           fi
 

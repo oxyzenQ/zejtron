@@ -1067,6 +1067,15 @@ v11.0.0
 
 ### Changed
 
+- The pre-release classifier reads the tag shape alone
+  (night-dragon-2S): any `vX.Y.Z-<suffix>` is a pre-release - the
+  `-` after the patch segment is the whole detector. The release
+  lane's stable previous-tag boundary now skips every `-`-suffixed
+  tag instead of the hardcoded dev/nightly/alpha/beta/rc
+  alternation, so a future channel the owner coins (say
+  `v1.0.0-example.1`) classifies, diffs, and flags correctly with
+  zero workflow edits.
+
 - The commit gate compiles the musl shape only - the GNU purge
   completion (night-badass-1 lineage): every cargo verb in
   `scripts/build.sh check-all` is pinned to
