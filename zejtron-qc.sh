@@ -37,7 +37,7 @@ if [[ -z "$ZJ" ]]; then
   fi
 fi
 
-die() { printf '%s✗ %s%s\n' "${RED}${BLD}" "$*" "${RST}"; rm -rf "$TMPDIR_QC"; exit 2; }
+die() { printf '%sfatal: %s%s\n' "${RED}${BLD}" "$*" "${RST}"; rm -rf "$TMPDIR_QC"; exit 2; }
 [[ -n "$ZJ" && -x "$ZJ" ]] || die "zejtron binary not found — set ZEJTRON_BIN=/path"
 command -v jq      >/dev/null 2>&1 || die "jq not installed"
 command -v python3 >/dev/null 2>&1 || die "python3 not installed (needed for :9999 test)"
@@ -45,8 +45,8 @@ command -v python3 >/dev/null 2>&1 || die "python3 not installed (needed for :99
 # ─── helpers ─────────────────────────────────────────────────────────
 header()  { printf '\n%s\n' "${BLD}${MAG}━━━ $* ━━━${RST}"; }
 section() { printf '\n%s\n' "${BLD}${CYN}▶ $*${RST}"; }
-ok()      { PASS=$((PASS+1)); printf '  %s %s\n' "${GRN}✓${RST}" "$*"; }
-bad()     { FAIL=$((FAIL+1)); FAILED_TESTS+=("$*"); printf '  %s %s\n' "${RED}✗${RST}" "$*"; }
+ok()      { PASS=$((PASS+1)); printf '  %s %s\n' "${GRN}[ok]${RST}" "$*"; }
+bad()     { FAIL=$((FAIL+1)); FAILED_TESTS+=("$*"); printf '  %s %s\n' "${RED}[fail]${RST}" "$*"; }
 skip()    { SKIP=$((SKIP+1)); printf '  %s %s\n' "${YEL}○${RST}" "$*"; }
 note()    { printf '  %s %s\n' "${DIM}·${RST}" "$*"; }
 
@@ -90,7 +90,7 @@ trap cleanup EXIT INT TERM
 
 # ─── phase 1 ─────────────────────────────────────────────────────────
 phase1() {
-  header "FASE 1 · Typed JSON API"
+  header "PHASE 1 · Typed JSON API"
   local out n pid comm p0
 
   section "path sh --print-json → .active.path"
@@ -155,7 +155,7 @@ phase1() {
 
 # ─── phase 2 ─────────────────────────────────────────────────────────
 phase2() {
-  header "FASE 2 · Evidence Ledger (eBPF & Provenance)"
+  header "PHASE 2 · Evidence Ledger (eBPF & Provenance)"
   local out lane ub gib whyout whyerr row attach_err
 
   attach_err="$TMPDIR_QC/attach.err"
@@ -222,11 +222,11 @@ phase2() {
 
 # ─── phase 3 ─────────────────────────────────────────────────────────
 phase3() {
-  header "FASE 3 · Honesty Test (Graceful Degradation)"
+  header "PHASE 3 · Honesty Test (Graceful Degradation)"
   local out rc mode unacc
 
-  section "why /file/ngasal/yang/nggak/ada --print-json"
-  out=$("$ZJ" why /file/ngasal/yang/nggak/ada --print-json 2>/dev/null); rc=$?
+  section "why /file/bogus/that/does/not/exist --print-json"
+  out=$("$ZJ" why /file/bogus/that/does/not/exist --print-json 2>/dev/null); rc=$?
   if (( rc != 0 )); then
     if jq -e . <<<"$out" >/dev/null 2>&1; then
       ok "exit=$rc, JSON: $(jq -c . <<<"$out" | head -c 120)"
@@ -295,7 +295,7 @@ phase3() {
 
 # ─── phase 4 ─────────────────────────────────────────────────────────
 phase4() {
-  header "FASE 4 · Pipeline (SRE building block)"
+  header "PHASE 4 · Pipeline (SRE building block)"
   local raw keys sample pid bin pkg
 
   section "bootstrap listener on :9999"
@@ -385,9 +385,9 @@ phase4() {
 
 # ─── main ────────────────────────────────────────────────────────────
 main() {
-  printf '%s\n' "${BLD}${BLU}╔══════════════════════════════════════════════╗${RST}"
-  printf '%s\n' "${BLD}${BLU}║   🐉  Zejtron Manual QC — One-Click Runner   ║${RST}"
-  printf '%s\n' "${BLD}${BLU}╚══════════════════════════════════════════════╝${RST}"
+  printf '%s\n' "${BLD}${BLU}╔══════════════════════════════════════════╗${RST}"
+  printf '%s\n' "${BLD}${BLU}║   zejtron Manual QC — One-Click Runner   ║${RST}"
+  printf '%s\n' "${BLD}${BLU}╚══════════════════════════════════════════╝${RST}"
   printf '  binary : %s\n' "$ZJ"
   printf '  user   : %s%s\n' "$(id -un)" "$([[ $EUID -eq 0 ]] && echo ' (root)' || echo '')"
   printf '  jq     : %s (%s)\n' "$(command -v jq)" "$(jq --version 2>/dev/null)"
@@ -406,10 +406,10 @@ main() {
 
   if (( FAIL > 0 )); then
     printf '\n  %s\n' "${RED}${BLD}Failed checks:${RST}"
-    for t in "${FAILED_TESTS[@]}"; do printf '    %s %s\n' "${RED}✗${RST}" "$t"; done
+    for t in "${FAILED_TESTS[@]}"; do printf '    %s %s\n' "${RED}[fail]${RST}" "$t"; done
     exit 1
   fi
-  printf '\n  %s\n' "${GRN}${BLD}All checks passed. Ship it. 🐉${RST}"
+  printf '\n  %s\n' "${GRN}${BLD}All checks passed. Ship it.${RST}"
 }
 
 main "$@"
