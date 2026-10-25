@@ -1066,6 +1066,25 @@ v11.0.0
 
 ### Changed
 
+- The commit gate compiles the musl shape only - the GNU purge
+  completion (night-badass-1 lineage): every cargo verb in
+  `scripts/build.sh check-all` is pinned to
+  `--target x86_64-unknown-linux-musl`, so the host gnu triple no
+  longer exists as a build path anywhere in the repo's gates and
+  `target/release` no longer receives a glibc binary from a gate run
+  (the musl release binary lands in
+  `target/x86_64-unknown-linux-musl/release/zejtron` and the battery
+  exercises it). The pin is also the structural fix for the
+  proc-macro refusal class: with the target held off the host, every
+  proc-macro and build script compiles as a flag-free host unit, so
+  an ambient `RUSTFLAGS=-C target-feature=+crt-static` can no longer
+  kill the gate the way it killed the v80.0.0-rc.4 release run's
+  "Run full checks" (verified on the pinned 1.98.1 toolchain: the
+  host lane reproduces the exact `cannot produce proc-macro for
+  clap_derive` error and the cross lane passes under the same env).
+  The CI fast lane installs the musl rust-std now, and the gate
+  fails fast with a setup hint when the target is missing.
+
 - The core readers survive the ultra-massive scale audit
   (night-dragon-1). The process forest's recursive renderer and
   traversals are explicit stacks now - a 10,000-deep fork chain

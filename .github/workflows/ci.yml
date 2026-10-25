@@ -64,6 +64,10 @@ jobs:
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
           components: rustfmt, clippy
+          # The gate compiles the musl shape only (the night-badass-1
+          # GNU purge completion): every cargo verb in build.sh
+          # check-all is pinned to the release triple.
+          targets: x86_64-unknown-linux-musl
 
       # The ebpf feature is the default (night-improve-5), so the
       # source-built lane runs on every check here - the tree's own

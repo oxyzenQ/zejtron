@@ -20,9 +20,20 @@ check_command() {
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# The only build shape the gate touches (the GNU purge law): the musl
+# triple every release artifact ships as. battery and miri do not
+# compile, so only check-all consults it.
+GATE_TARGET="x86_64-unknown-linux-musl"
+
 # Two modes:
 #   check-all (default) - the full commit gate: toolchain checks, fmt,
 #     clippy, cargo check, tests, release build, then the CLI battery.
+#     Every cargo verb is pinned to --target x86_64-unknown-linux-musl
+#     (the project's single libc shape, the night-badass-1 GNU purge
+#     completion): no verb ever compiles the host gnu triple, the lane
+#     cargo's proc-macro probe refuses under a crt-static RUSTFLAGS
+#     leak - the v80.0.0-rc.4 release run's death - and the gate
+#     exercises the exact static shape the release lane ships.
 #   battery - the CLI runtime battery only, no compile: the binary must
 #     already exist. The supermassive CI lane calls this per matrix leg
 #     (ZEJTRON_BIN_PATH pointing at the leg's freshly built binary),
@@ -101,16 +112,17 @@ fi
 # The binary the battery exercises: an explicit $ZEJTRON_BIN_PATH
 # always wins (cross-shape legs, e.g.
 # ZEJTRON_BIN_PATH=target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron).
-# Without one, check-all exercises the target/release/zejtron binary
-# its own cargo build step produces below, while the standalone
-# battery discovers the binary through the shared resolver
+# Without one, check-all exercises the musl release binary its own
+# cargo build step produces below
+# (target/x86_64-unknown-linux-musl/release/zejtron), while the
+# standalone battery discovers the binary through the shared resolver
 # (scripts/lib/zejtron-bin.sh): the custom cargo profile dirs first
 # (the alias lanes, e.g. target/pro-linux-amd64-v3-musl/zejtron),
 # the basic release/debug lanes last.
 # shellcheck disable=SC1091
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/zejtron-bin.sh"
 if [[ "$MODE" == "check-all" ]]; then
-	ZEJTRON_BIN="${ZEJTRON_BIN_PATH:-target/release/zejtron}"
+	ZEJTRON_BIN="${ZEJTRON_BIN_PATH:-target/x86_64-unknown-linux-musl/release/zejtron}"
 else
 	zejtron_resolve_bin ZEJTRON_BIN "$PWD"
 fi
@@ -142,6 +154,17 @@ else
 	check_command cargo-clippy clippy
 	if [[ "${SKIP_CODESPELL:-0}" != "1" ]]; then
 		check_command codespell
+	fi
+	# The musl rust-std must be present before the first verb, not
+	# discovered mid-gate under cargo's own terse no-std error.
+	# rustup-less distro installs skip the probe and surface
+	# cargo's error verbatim (setup.sh carries the same law).
+	if command -v rustup >/dev/null 2>&1; then
+		if ! rustup target list --installed 2>/dev/null | grep -q '^x86_64-unknown-linux-musl$'; then
+			echo "error: the x86_64-unknown-linux-musl rust-std is missing - the gate builds the musl shape only" >&2
+			echo "hint: run 'rustup target add x86_64-unknown-linux-musl' or ./scripts/setup.sh" >&2
+			exit 1
+		fi
 	fi
 fi
 
@@ -199,16 +222,24 @@ if [[ "$MODE" == "check-all" ]]; then
 	run rustc --version
 	run cargo --version
 	run cargo fmt --all -- --check
-	run cargo check --all-targets --all-features --locked
-	run cargo clippy --all-targets --all-features --locked -- -D warnings
-	run cargo test --all-targets --all-features --locked
+	# The musl pin is structural, not cosmetic: with --target held off
+	# the host, every proc-macro and build script compiles as a
+	# flag-free host unit (verified on the pinned 1.98.1 toolchain: an
+	# ambient RUSTFLAGS=-C target-feature=+crt-static kills the host
+	# lane with clap_derive's proc-macro refusal and passes the cross
+	# lane), so no ambient env can ever re-arm the rc.4 failure here,
+	# and a gnu binary can no longer exist in target/release. The
+	# verbs below are the only cargo entry points the gate owns.
+	run cargo check --all-targets --all-features --locked --target "$GATE_TARGET"
+	run cargo clippy --all-targets --all-features --locked --target "$GATE_TARGET" -- -D warnings
+	run cargo test --all-targets --all-features --locked --target "$GATE_TARGET"
 	# The no-default-features lane: the flag has been a no-op
 	# since the feature toggle was removed (night-weekly-maintenance-1,
 	# the unconditional eBPF law), but the battery keeps running it
 	# so a future feature table cannot silently change the default.
-	run cargo clippy --all-targets --no-default-features --locked -- -D warnings
-	run cargo test --all-targets --no-default-features --locked
-	run cargo build --release --locked
+	run cargo clippy --all-targets --no-default-features --locked --target "$GATE_TARGET" -- -D warnings
+	run cargo test --all-targets --no-default-features --locked --target "$GATE_TARGET"
+	run cargo build --release --locked --target "$GATE_TARGET"
 elif [[ "$MODE" == "miri" ]]; then
 	run_miri
 	exit $?
