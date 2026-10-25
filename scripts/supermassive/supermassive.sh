@@ -143,12 +143,12 @@ if [[ -z "$BIN" ]]; then
 fi
 if [[ -z "$BIN" ]]; then
 	echo "error: no zejtron binary found (searched the repo target/ tree: custom cargo profile dirs, then release/debug)" >&2
-	echo "hint: build it first (cargo build --release --locked or a cargo profile lane), or pass --bin / ZEJTRON_BIN_PATH" >&2
+	echo "hint: build it first (cargo build --release --locked --target x86_64-unknown-linux-musl or a pro-linux-amd64-* alias), or pass --bin / ZEJTRON_BIN_PATH" >&2
 	exit 2
 fi
 if [[ ! -x "$BIN" ]]; then
 	echo "error: binary not found or not executable: $BIN" >&2
-	echo "hint: pass an executable --bin / ZEJTRON_BIN_PATH, or build it first (cargo build --release --locked or a cargo profile lane)" >&2
+	echo "hint: pass an executable --bin / ZEJTRON_BIN_PATH, or build it first (cargo build --release --locked --target x86_64-unknown-linux-musl or a pro-linux-amd64-* alias)" >&2
 	exit 2
 fi
 

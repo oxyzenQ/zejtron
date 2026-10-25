@@ -63,7 +63,7 @@ else
 fi
 if [[ -z "$BIN" || ! -x "$BIN" ]]; then
 	echo "scale-audit: no zejtron binary found" >&2
-	echo "scale-audit: build one first (cargo build --release --locked or a cargo profile lane) or set ZEJTRON_BIN" >&2
+	echo "scale-audit: build one first (cargo build --release --locked --target x86_64-unknown-linux-musl or a pro-linux-amd64-* alias) or set ZEJTRON_BIN" >&2
 	exit 2
 fi
 

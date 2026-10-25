@@ -114,7 +114,7 @@ detect_level() {
 LEVEL="$(detect_level)" || {
 	echo "error: this core is below the x86-64-v3 baseline." >&2
 	echo "  the release shapes are v3/v4 only - on a v1/v2 machine build" >&2
-	echo "  the native dev tier instead: cargo install --path ." >&2
+	echo "  the native dev tier instead: cargo build --release --locked --target x86_64-unknown-linux-musl" >&2
 	exit 1
 }
 echo ">> [1/4] CPU level detected: x86-64-${LEVEL}"

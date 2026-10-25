@@ -1777,6 +1777,25 @@ v11.0.0
   path now; `scripts/setup.sh`'s menu and `CONTRIBUTING.md`'s tree
   listing point there.
 
+### Changed
+
+- Every script build hint names the musl form (night-dragon-1S): the
+  scripts audit (the total-depth sweep the owner ordered after the
+  installer's gnu lane surfaced) found five hint strings telling a
+  user to build the host gnu triple - `build.sh`'s battery hint,
+  `scale-audit.sh`, two `supermassive.sh` hints, `zejtron-sandbox.sh`'s
+  die line, and `install-on-my-machine.sh`'s below-v3-baseline pointer
+  (`cargo install --path .`). All five now name
+  `cargo build --release --locked --target x86_64-unknown-linux-musl`
+  (the alias lanes stay the release-tier path). The executed build
+  surface was already musl-clean: `build.sh`'s gate verbs carry
+  `--target "$GATE_TARGET"`, `setup.sh` builds the `pro-native-musl`
+  alias, the installer uses the parity-gated `pro-linux-amd64-v*`
+  aliases, and the nested eBPF workspace builds its pinned BPF target;
+  the `cargo install` prerequisite tools (b3sum, cargo-fuzz,
+  cargo-audit, cargo-deny) stay host-side by their documented
+  flag-isolation contract.
+
 ## History
 
 The changelog's per-era split, newest era first:
