@@ -88,22 +88,31 @@ jobs:
           key: alpine-smoke
           cache-on-failure: true
 
-      - name: Build the static musl binary
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          cargo build --release --locked --target x86_64-unknown-linux-musl
+      # The exact release shape (supermassive.yml's musl legs ride the
+      # same alias): the arch-baseline alias in .cargo/config.toml IS
+      # the build contract (-D warnings, the v3 codegen level,
+      # +crt-static), it links through rust-lld so no distro
+      # musl-tools install rides this lane, and the profile name lands
+      # the binary in its own target subdirectory so a host build never
+      # clobbers it.
+      - name: Build the static pro-v3 musl shape
+        run: cargo pro-linux-amd64-v3-musl --locked
 
       # The musl claim's first tripwire, before any container runs:
-      # the binary must say "statically linked" itself. A glibc-shape
-      # drift (a target flag dropped, a dependency sneaking in a
+      # the binary must carry no dynamic loader. file(1) words the
+      # fully-static verdict two ways - "statically linked" for the
+      # non-PIE shape, "static-pie linked" for the PIE one (the musl
+      # target's default since the static-pie default landed) - and
+      # BOTH mean the same fact: no interpreter, no dynamic deps.
+      # Anything else (a glibc drift, a dependency sneaking in a
       # dynamic libc) fails HERE, with the file(1) verdict in the log.
       - name: Tripwire - the binary is fully static
         run: |
           set -euo pipefail
-          FILE_OUT=$(file target/x86_64-unknown-linux-musl/release/zejtron)
+          BIN=target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron
+          FILE_OUT=$(file "${BIN}")
           echo "${FILE_OUT}"
-          printf '%s\n' "${FILE_OUT}" | grep -F 'statically linked'
+          printf '%s\n' "${FILE_OUT}" | grep -Eq 'static(ally|-pie) linked'
 
       # The alpine round trip: the binary and the smoke surface ride
       # INTO the digest-pinned alpine:3.20 rootfs (the same substrate
@@ -119,7 +128,7 @@ jobs:
           docker build -t zejtron-alpine-smoke -f- . <<'DOCKERFILE'
           FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
           RUN apk add --no-cache bash jq
-          COPY target/x86_64-unknown-linux-musl/release/zejtron /usr/local/bin/zejtron
+          COPY target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron /usr/local/bin/zejtron
           COPY scripts/supermassive/surfaces/alpine-smoke.sh /usr/local/bin/alpine-smoke.sh
           DOCKERFILE
 
