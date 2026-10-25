@@ -950,6 +950,19 @@ v11.0.0
 
 ### Fixed
 
+- The manual QC runner comes under the repo-wide gates (night-dragon-7
+  aftermath): zejtron-qc.sh was the single root cause of all four red
+  checks on the push and on the rc.3 release commit before it
+  (Gate-keepers wholesale, CI check-all, and both supermassive host
+  legs through their check-all preflight) - the Indonesian phase
+  headers tripped codespell, the check/cross marks and the dragon
+  banner tripped the emoji sweep, the why fixture path tripped the
+  language discipline, and the banner name tripped the lowercase law.
+  The flagged literals move to their English and ASCII equivalents
+  (PHASE, [ok], [fail], fatal:, a bogus-path fixture, a lowercase
+  banner at exact box width); the gates stay strict and every
+  check's logic is byte-identical.
+
 - The supermassive harness normalizes the unreadable-process note
   (night-dragon-7): the volatile-field table (`sm_normalize`) deletes
   the port render's "note: some processes were not readable; try
