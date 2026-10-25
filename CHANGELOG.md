@@ -28,6 +28,17 @@ v11.0.0
 
 ### Added
 
+- The alpine musl smoke lane (night-alpine-proof):
+  `.github/workflows/supermassive-alpine.yml` proves the static-musl
+  and graceful-degradation claims on a real digest-pinned alpine:3.20
+  rootfs - `scripts/supermassive/surfaces/alpine-smoke.sh` runs ten
+  targeted probes inside it (the -V musl identity, the doctor's
+  warn-not-fail degradation without systemctl/journalctl, apk package
+  ownership through `path`, the port/proc/doctor/why JSON lanes, the
+  honest-error path, and a standing panic sweep). A smoke, not a
+  502-probe re-run: the static binary's kernel-facing behavior is
+  identical to the host legs the supermassive lanes already burn.
+
 - The LTS fortress audit document (night-last-total-lts):
   `docs/LTS_FORTRESS_AUDIT.md` records the final pre-release audit -
   the JSON escaper, the ring consumer's bounds, the window parser's
