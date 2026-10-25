@@ -30,6 +30,19 @@ v11.0.0
 
 ### Added
 
+- The documentation disclaimer injector (night-dragon-2S):
+  `scripts/gates/inject-disclaimer.sh` guarantees every living .md
+  file carries the stale-data disclaimer as its bottom block - the
+  last content lines, never mid-file and never under a header. The
+  port upgrades the sibling's reference injector: marker presence
+  was the old done-verdict, so a block hand-pasted mid-file stayed
+  there forever; this port reads PLACEMENT - a misplaced block is
+  stripped and re-appended as the file's final block, the sibling's
+  legacy ZELYNIC marker migrates to the house marker, and
+  CHANGELOG.md / docs/archive/ stay frozen. Idempotent by
+  construction (a second run changes zero bytes), wired as wholesale
+  gate section 19 (--check verifies, --fix-all normalizes).
+
 - The alpine musl smoke lane (night-alpine-proof):
   `.github/workflows/supermassive-alpine.yml` proves the static-musl
   and graceful-degradation claims on a real digest-pinned alpine:3.20
@@ -972,6 +985,15 @@ v11.0.0
   the mechanism across three evidence rounds, and closed it.
 
 ### Fixed
+
+- The disclaimer placement defect (night-dragon-2S): four docs rode
+  the block mid-file (QA.md line 11, docs/DEPENDENCY_AUDIT.md line
+  19, docs/DOC_AUDIT.md line 18, SECURITY.md without its separator
+  blank) and three rode the sibling's legacy ZELYNIC marker
+  (docs/LICENSING_FAQ.md, CLA.md, COMMERCIAL_LICENSE.md); the first
+  injector run relocated the four, migrated the three, and injected
+  the missing 22, so all 29 living .md files now end on the
+  disclaimer.
 
 - The manual QC runner comes under the repo-wide gates (night-dragon-7
   aftermath): zejtron-qc.sh was the single root cause of all four red

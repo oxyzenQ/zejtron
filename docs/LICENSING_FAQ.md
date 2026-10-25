@@ -94,7 +94,8 @@ option — it is the one this warning exists for.
 
 Email [oxyzenQ@proton.me](mailto:oxyzenQ@proton.me) or open an
 issue on [GitHub](https://github.com/oxyzenQ/zejtron).
-<!-- ZELYNIC-DISCLAIMER -->
+
+<!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
 

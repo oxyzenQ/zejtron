@@ -76,7 +76,8 @@ Git itself run on.
 **Contact:** [oxyzenQ@proton.me](mailto:oxyzenQ@proton.me)
 
 **Last Updated:** 2026-09-27
-<!-- ZELYNIC-DISCLAIMER -->
+
+<!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
 

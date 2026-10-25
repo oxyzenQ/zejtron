@@ -91,6 +91,17 @@
 #        with a warning when curl is absent locally (the wholesale
 #        contract); CI always has it)
 #
+#   18.  Fuzz include law (scripts/gates/check-fuzz-includes.sh: a
+#        source the fuzz harness path-includes stays crate-import-
+#        free - the local seat of the fuzz CI lane's law)
+#
+#   19.  Documentation disclaimer (scripts/gates/inject-disclaimer.sh:
+#        every living .md carries the stale-data disclaimer as its
+#        bottom block - a block hand-pasted mid-file or under a
+#        header is relocated, the sibling's legacy ZELYNIC marker is
+#        migrated, CHANGELOG.md and docs/archive/ stay frozen;
+#        --fix-all normalizes, the plain run verifies placement)
+#
 # Pre-commit hook: the first wholesale run on a clone self-installs
 # .githooks/pre-commit (git config core.hooksPath=.githooks - repo-
 # local, never --global), so every future commit on that clone
@@ -524,6 +535,32 @@ if bash scripts/gates/check-fuzz-includes.sh; then
 	pass "18. fuzz include law"
 else
 	fail "18. fuzz include law"
+fi
+
+# ── 19. Documentation disclaimer ────────────────────────────────────
+header "19. Documentation disclaimer (bottom-of-file placement)"
+# Every living .md file carries the stale-data disclaimer as its
+# bottom block (night-dragon-2S). Marker presence was never the
+# verdict - a block hand-pasted mid-file or under a header stayed
+# there forever (the exact defect the owner flagged: QA.md line 11,
+# DEPENDENCY_AUDIT.md line 19, DOC_AUDIT.md line 18). The injector
+# reads PLACEMENT: a misplaced block is stripped and re-appended as
+# the file's final block, the sibling's legacy ZELYNIC marker
+# migrates to the house marker, and CHANGELOG.md / docs/archive/
+# stay frozen. --fix-all normalizes; the plain run verifies and
+# points at the one-command fix.
+if [ "${FIX_ALL}" = true ]; then
+	if bash scripts/gates/inject-disclaimer.sh; then
+		pass "19. documentation disclaimer (normalized)"
+	else
+		fail "19. documentation disclaimer (auto-fix failed)"
+	fi
+else
+	if bash scripts/gates/inject-disclaimer.sh --check; then
+		pass "19. documentation disclaimer"
+	else
+		fail "19. documentation disclaimer (run: bash scripts/gates/inject-disclaimer.sh)"
+	fi
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────
