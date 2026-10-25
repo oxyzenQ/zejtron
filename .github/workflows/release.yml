@@ -190,19 +190,21 @@ jobs:
 
       # NIGHT-strict-2's tier rustflags are the product build contract,
       # STEP-scoped here - never job-level (the sibling's NIGHT-improve-22
-      # shape, zelynic release.yml). A job-level export leaks the flags
-      # into the host-side gates: check-all's cargo verbs run without
-      # --target, so the env flags hit the host triple, and cargo refuses
-      # to produce clap_derive's proc-macro for a crt-static host triple
-      # ("does not support these crate types") - the exact death the
-      # v80.0.0-alpha.2 and v80.0.0-beta.1 tag runs already documented at
-      # the b3sum install (scripts/dev/bootstrap-ebpf.sh), and the reason
-      # the v80.0.0-rc.4 release run went red in "Run full checks" before
-      # a single crate compiled. With --target passed, env rustflags stay
-      # scoped to the musl target units - host proc-macros and build
-      # scripts compile flag-free - and the nested eBPF build still
-      # inherits the leg's -D warnings through build/ebpf.rs's poison
-      # strip (the lint token survives it verbatim).
+      # shape, zelynic release.yml). History: when these flags rode the
+      # job env, the host-side gate died before a single crate compiled -
+      # cargo refuses to produce clap_derive's proc-macro for a
+      # crt-static host triple ("does not support these crate types") -
+      # the exact death the v80.0.0-alpha.2 and v80.0.0-beta.1 tag runs
+      # documented at the b3sum install (scripts/dev/bootstrap-ebpf.sh)
+      # and the v80.0.0-rc.4 release run repeated in "Run full checks".
+      # The gate itself is musl-pinned now (build.sh check-all passes
+      # --target on every cargo verb, the GNU purge completion), but the
+      # scoping stays step-level by contract: env rustflags ride the
+      # musl target units only, host proc-macros and build scripts
+      # compile flag-free (verified on the pinned 1.98.1 toolchain),
+      # and the nested eBPF build still inherits the leg's -D warnings
+      # through build/ebpf.rs's poison strip (the lint token survives
+      # it verbatim).
       - name: Build
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}

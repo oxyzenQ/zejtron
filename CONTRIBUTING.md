@@ -136,10 +136,15 @@ docs/            — the docs tree (BRANDING, RULES, VERIFY_RELEASE, ...)
 ./scripts/gate-keepers.sh
 ```
 
-`build.sh check-all` runs the Rust-side gates: toolchain check,
+`build.sh check-all` runs the Rust-side gates on the musl shape only
+(every cargo verb pinned to `--target x86_64-unknown-linux-musl`, the
+project's single libc shape - no gnu lane exists): toolchain check,
 cargo fmt --check, cargo clippy --all-targets --all-features
 -D warnings, cargo test, the release build, and the CLI runtime
-battery. `gate-keepers.sh` runs the non-code sections wholesale: the
+battery. The musl rust-std target is required
+(`rustup target add x86_64-unknown-linux-musl` or
+`./scripts/setup.sh`). `gate-keepers.sh` runs the non-code sections
+wholesale: the
 shell quad (bash -n + shellcheck + shfmt + source resolution) on
 shell scripts, yamllint + actionlint on workflows, TOML validation,
 codespell, markdownlint, SPDX license headers (check-headers.sh), the
