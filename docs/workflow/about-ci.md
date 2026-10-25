@@ -114,21 +114,25 @@ The release workflow uploads `zejtron-${TAG}-linux-amd64-{v3,v4}-musl.tar.gz` (t
 
 ## crates.io (the registry lane)
 
-`zejtron - crates.io publish` is the registry arm: it runs the ship-set
-verification (`cargo package --list --locked` inventory plus a full
-`cargo package` dry run) against the exact tree a release tag names.
-Triggers: the owner-pushed `v*` tag - the same filter `release.yml`
-carries - plus a manual `workflow_dispatch`, because zejtron is
-pre-publication and the first publish is the owner's deliberate act:
-dispatch with `publish=true` and the `CRATES_IO_TOKEN` secret
-configured (the cargo-side variable the lane derives from it is
-`CARGO_REGISTRY_TOKEN` - the mapping lives in the workflow). Without
-the explicit flag and secret the publish step
-refuses to run, so the dry-run lane is the default posture.
-Code-surface pushes and pull requests never wake this lane - the fast
-lane (`zejtron - CI`) owns those. The publish lanes are the estate's
-one deliberate exception to the unfiltered-CI posture: every other
-lane burns on any change, while a publish waits for the owner's tag.
+`zejtron - crates.io publish` is the registry arm (the sibling's
+tag-means-publish contract, night-improve-58): the owner-pushed `v*`
+tag - the same filter `release.yml` carries - IS the publish command.
+The ship-set verification runs first (`cargo package --list --locked`
+inventory plus a full `cargo package` dry run against the exact tree
+the tag names), and the publish job uploads straight after: the tag
+must match Cargo.toml's version (`scripts/dev/version-to.sh` is the
+bump tool), the `CRATES_IO_TOKEN` repository secret must be set (the
+cargo-side variable the lane derives from it is `CARGO_REGISTRY_TOKEN`
+- the mapping lives in the workflow), and an already-published version
+skips the upload instead of failing - the idempotency probe, because
+crates.io rejects duplicate versions and a re-pushed tag or re-run
+must stay safe. The manual dispatch lane is retired (the manual
+first-publish instruction with it): pushing a tag is the owner's
+deliberate act. Code-surface pushes and pull requests never wake this
+lane - the fast lane (`zejtron - CI`) owns those. The publish lanes
+are the estate's one deliberate exception to the unfiltered-CI
+posture: every other lane burns on any change, while a publish waits
+for the owner's tag.
 
 ## Version Bump Flow
 

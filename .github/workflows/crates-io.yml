@@ -1,67 +1,62 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
-# The crates.io lane (the sibling's ship-set discipline, zejtron's
-# pre-publication shape).
+# The crates.io lane (the sibling's tag-means-publish contract,
+# zelynic's NIGHT-ask-1 shape).
 #
-# zejtron is NOT published to the registry yet - the manifest's
-# `documentation` field is withheld until the crate exists and the
-# docs.rs tree is verified live (the sibling's rule: never pre-claim
-# a link). This workflow owns the two things that stay true before
-# and after publication:
-#   1. The ship-set verification on the release tag:
-#      `cargo package --list --locked` inventory + a full
-#      `cargo package` dry run against the exact tree a release tag
-#      names - the tarball is proven at the tree that would ship,
-#      never against a moving branch head.
-#   2. The on-demand publish: `workflow_dispatch` with publish=true
-#      and CARGO_REGISTRY_TOKEN configured. The publish step refuses
-#      to run without the explicit flag and the secret, so the dry-run
-#      lane is the default posture and the actual publish stays the
-#      owner's deliberate act.
+# night-improve-58: one trigger, one act - the owner-pushed release
+# tag IS the publish command. The same 'v*' filter release.yml
+# carries wakes this lane; the ship-set verification runs first
+# (the `cargo package --list --locked` inventory plus a full
+# `cargo package` dry run against the exact tree the tag names -
+# the tarball is proven at the tree that ships, never against a
+# moving branch head), and the publish job uploads straight after.
+# The manual workflow_dispatch lane is retired: pushing a tag is
+# the owner's deliberate act, and the idempotency probe below
+# makes every accidental re-entry safe (crates.io rejects
+# duplicate versions, so an already-published version skips the
+# upload instead of failing).
 #
-# Trigger discipline (night-improve-33, the sibling's NIGHT-ask-1
-# shape): the registry lane is a release artifact, not a per-push CI
-# lane. It triggers on the owner-pushed release tag - the same `v*`
-# filter release.yml carries - and never on code-surface pushes or
-# pull requests: the fast lane (ci.yml) already owns those, and the
-# estate-wide spelling this file briefly carried (night-improve-32)
-# blurred the two lanes' contracts.
+# Safety properties (the sibling's ship-set):
+#   - Fails fast if the tag does not match Cargo.toml's version
+#     (./scripts/dev/version-to.sh is the bump tool).
+#   - Fails fast without the CRATES_IO_TOKEN repository secret
+#     (the cargo-side variable the lane derives from it is
+#     CARGO_REGISTRY_TOKEN - the mapping lives in the workflow).
+#   - Idempotent: a re-pushed tag or a re-run skips an
+#     already-published version.
+#   - --locked: the published dependency set is exactly the tagged
+#     Cargo.lock, the same tree every other CI job validated.
+#   - cancel-in-progress: false - an in-flight registry upload is
+#     never cancelled mid-flight.
+#
+# One-time setup (owner): create a crates.io API token
+# (crates.io -> Account Settings -> API Tokens, "publish-new"
+# scope is enough) and add it as the CRATES_IO_TOKEN repository
+# secret (repo Settings -> Secrets and variables -> Actions).
+#
+# Code-surface pushes and pull requests never wake this lane - the
+# fast lane (ci.yml) owns those.
 
 name: zejtron - crates.io publish
 
 'on':
   push:
     tags:
-      # night-improve-33 (the sibling's NIGHT-ask-1 shape): the
-      # registry lane wakes on the owner-pushed release tag - the
-      # same 'v*' filter release.yml carries - so the ship-set
-      # verification proves the tarball at the exact tree that
-      # would publish. Code-surface pushes and pull requests are
-      # the fast lane's territory (ci.yml); the estate-wide
-      # spelling this file briefly carried (night-improve-32) was
-      # a publish contract blurred into a build lane.
+      # The registry lane wakes on the owner-pushed release tag -
+      # the same 'v*' filter release.yml carries - and the tag
+      # itself is the publish command (night-improve-58).
       - 'v*'
-  # The manual lane stays (zejtron's pre-publication posture): the
-  # FIRST publish cannot wait for a tag the crate name does not
-  # back yet - the owner dispatches with publish=true once the
-  # registry token is configured. The publish job's own guards
-  # (the explicit input flag plus the configured secret) keep the
-  # dry-run the default posture of every run.
-  workflow_dispatch:
-    inputs:
-      publish:
-        description: 'Actually publish to crates.io (requires CARGO_REGISTRY_TOKEN secret)'
-        required: false
-        default: 'false'
-        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A registry upload is irreversible (a bad version can only be
+  # yanked, never replaced): a second tag landing mid-publish must
+  # wait its turn, never kill the in-flight one.
+  cancel-in-progress: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -122,11 +117,10 @@ jobs:
         run: cargo package --locked --allow-dirty
 
   publish:
-    name: Publish to crates.io (owner-gated)
+    name: Publish to crates.io (${{ github.ref_name }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     needs: [ship-set]
-    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
@@ -138,6 +132,20 @@ jobs:
         with:
           toolchain: "1.98.1"
 
+      # The tag names the version: drift between the pushed tag and
+      # the manifest fails the lane before anything is uploaded.
+      - name: Verify tag matches Cargo.toml version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CARGO_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          if [ "${TAG_VERSION}" != "${CARGO_VERSION}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${CARGO_VERSION}"
+            echo "Bump the package version before tagging: ./scripts/dev/version-to.sh ${TAG_VERSION}"
+            exit 1
+          fi
+          echo "Publishing zejtron ${CARGO_VERSION} to crates.io"
+
       - name: Publish
         env:
           # The repository secret is CRATES_IO_TOKEN (the zelynic
@@ -146,10 +154,26 @@ jobs:
           # nowhere else.
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
+          set -euo pipefail
           if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
             echo "::error::CRATES_IO_TOKEN repository secret is not set."
             echo "Create a crates.io API token (crates.io -> Account Settings -> API Tokens)"
             echo "and add it under repo Settings -> Secrets and variables -> Actions."
             exit 1
+          fi
+          VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          # Idempotency probe: crates.io rejects duplicate versions, so
+          # a re-pushed tag (or a re-run) must not attempt a second
+          # upload. The API requires a custom User-Agent (plain curl
+          # gets 403) and the retry contract - a transient 5xx reading
+          # as "not published" would fall through to cargo publish and
+          # die as a duplicate-version error, the exact
+          # infra-flake-looks-like-code-failure trap the sibling's
+          # NIGHT-dinner-12 closed.
+          if curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+              -A "zejtron-ci-publish-check" \
+              "https://crates.io/api/v1/crates/zejtron/${VERSION}" >/dev/null 2>&1; then
+            echo "zejtron ${VERSION} is already published on crates.io - nothing to do."
+            exit 0
           fi
           cargo publish --locked
