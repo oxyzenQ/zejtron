@@ -287,6 +287,26 @@ sm_assert_json() {
 #                unreadable count moves with it; found live by the
 #                storm aftermath determinism check on a shared
 #                runner, night-dragon-4)
+#   <NOTE>       the unreadable-process note - DELETED, not tokenized,
+#                because its presence is the volatile bit. The port
+#                render's "note: some processes were not readable; try
+#                sudo for complete owner details" and proc's "note:
+#                ...try sudo for a complete tree" ride as standalone
+#                letter-led lines, so they enter the structural
+#                skeleton; the why/holds verdict lines carry the same
+#                family inline as the first joined segment ("some
+#                processes were not readable (try sudo) - the
+#                explanation may be incomplete", the holder-list
+#                sibling, and the "complete explanation" wording), and
+#                the why evidence report carries it as a standalone
+#                unaccounted row. Live process churn on a desktop host
+#                toggles /proc readability between two adjacent runs,
+#                so the note appears in one run and vanishes in the
+#                next (found live by the owner-host supermassive low
+#                leg: 501 pass, the single failure being port
+#                determinism (structural), night-dragon-7). The
+#                deletion never touches the structural data - ports,
+#                states, pids and counters stay under the diff.
 sm_normalize() {
 	local in_file="$1" out_file="$2"
 	sed -E \
@@ -312,6 +332,10 @@ sm_normalize() {
 		-e 's/[0-9]+ processes \(unreadable/<COUNTER> processes (unreadable/g' \
 		-e 's/[0-9]+ maps \(unreadable/<COUNTER> maps (unreadable/g' \
 		-e 's/\(delta [0-9]+ ticks/(delta <COUNTER> ticks/g' \
+		-e 's/some processes were not readable \(try sudo\) - the (explanation|holder list) may be incomplete; //g' \
+		-e 's/some processes were not readable; try sudo for complete explanation; //g' \
+		-e '/note: some processes were not readable/d' \
+		-e '/some processes were not readable; try sudo for complete explanation/d' \
 		"$in_file" >"$out_file"
 }
 

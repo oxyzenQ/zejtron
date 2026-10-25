@@ -126,6 +126,78 @@ else
 	sm_fail "selftest: normalizer absorbs the unreadable-accounting gauges" "normalized fixtures differ"
 fi
 
+# 3d. The unreadable-process note family (night-dragon-7): /proc
+# readability toggles between two adjacent runs on a churny desktop
+# host, so the note's PRESENCE is volatile. The port/proc render notes
+# ride as standalone letter-led lines (they enter the structural
+# skeleton), the why/holds verdict lines carry the wording inline as
+# the first joined segment, and the why evidence report carries it as
+# a standalone unaccounted row. The normalizer deletes the note and
+# strips the inline segment; the structural data behind it stays
+# under the diff.
+printf 'Sockets: 42\nnote: some processes were not readable; try sudo for complete owner details\n' >"$SM_SCRATCH/un1"
+printf 'Sockets: 42\n' >"$SM_SCRATCH/un2"
+sm_normalize "$SM_SCRATCH/un1" "$SM_SCRATCH/un1.norm"
+sm_normalize "$SM_SCRATCH/un2" "$SM_SCRATCH/un2.norm"
+if cmp -s "$SM_SCRATCH/un1.norm" "$SM_SCRATCH/un2.norm"; then
+	sm_pass "selftest: normalizer deletes the port unreadable-process note"
+else
+	sm_fail "selftest: normalizer deletes the port unreadable-process note" "normalized fixtures differ"
+fi
+
+printf 'proc tree:\n  └─ note: some processes were not readable; try sudo for a complete tree\n' >"$SM_SCRATCH/un3"
+printf 'proc tree:\n' >"$SM_SCRATCH/un4"
+sm_normalize "$SM_SCRATCH/un3" "$SM_SCRATCH/un3.norm"
+sm_normalize "$SM_SCRATCH/un4" "$SM_SCRATCH/un4.norm"
+if cmp -s "$SM_SCRATCH/un3.norm" "$SM_SCRATCH/un4.norm"; then
+	sm_pass "selftest: normalizer deletes the proc unreadable-process note"
+else
+	sm_fail "selftest: normalizer deletes the proc unreadable-process note" "normalized fixtures differ"
+fi
+
+printf 'cannot name: some processes were not readable (try sudo) - the explanation may be incomplete; changes older than the window\nsome processes were not readable (try sudo) - the holder list may be incomplete; changes older than the window\n' >"$SM_SCRATCH/un5"
+printf 'cannot name: changes older than the window\nchanges older than the window\n' >"$SM_SCRATCH/un6"
+sm_normalize "$SM_SCRATCH/un5" "$SM_SCRATCH/un5.norm"
+sm_normalize "$SM_SCRATCH/un6" "$SM_SCRATCH/un6.norm"
+if cmp -s "$SM_SCRATCH/un5.norm" "$SM_SCRATCH/un6.norm"; then
+	sm_pass "selftest: normalizer strips the inline unreadable verdict segments"
+else
+	sm_fail "selftest: normalizer strips the inline unreadable verdict segments" "normalized fixtures differ"
+fi
+
+printf 'cannot name: some processes were not readable; try sudo for complete explanation; any file-level change\n' >"$SM_SCRATCH/un7"
+printf 'cannot name: any file-level change\n' >"$SM_SCRATCH/un8"
+sm_normalize "$SM_SCRATCH/un7" "$SM_SCRATCH/un7.norm"
+sm_normalize "$SM_SCRATCH/un8" "$SM_SCRATCH/un8.norm"
+if cmp -s "$SM_SCRATCH/un7.norm" "$SM_SCRATCH/un8.norm"; then
+	sm_pass "selftest: normalizer strips the why port-cannot unreadable segment"
+else
+	sm_fail "selftest: normalizer strips the why port-cannot unreadable segment" "normalized fixtures differ"
+fi
+
+printf 'Unaccounted:\n  process reads  some processes were not readable; try sudo for complete explanation\n' >"$SM_SCRATCH/un9"
+printf 'Unaccounted:\n' >"$SM_SCRATCH/un10"
+sm_normalize "$SM_SCRATCH/un9" "$SM_SCRATCH/un9.norm"
+sm_normalize "$SM_SCRATCH/un10" "$SM_SCRATCH/un10.norm"
+if cmp -s "$SM_SCRATCH/un9.norm" "$SM_SCRATCH/un10.norm"; then
+	sm_pass "selftest: normalizer deletes the why unaccounted unreadable row"
+else
+	sm_fail "selftest: normalizer deletes the why unaccounted unreadable row" "normalized fixtures differ"
+fi
+
+# The anti-fake twin: the note's deletion must never swallow real
+# structural data - a changed socket count still diffs after
+# normalization (the port determinism test's remaining teeth).
+printf 'Sockets: 42\n' >"$SM_SCRATCH/un11"
+printf 'Sockets: 43\n' >"$SM_SCRATCH/un12"
+sm_normalize "$SM_SCRATCH/un11" "$SM_SCRATCH/un11.norm"
+sm_normalize "$SM_SCRATCH/un12" "$SM_SCRATCH/un12.norm"
+if cmp -s "$SM_SCRATCH/un11.norm" "$SM_SCRATCH/un12.norm"; then
+	sm_fail "selftest: normalizer keeps structural data under the diff" "the normalized structural fixtures were byte-equal"
+else
+	sm_pass "selftest: normalizer keeps structural data under the diff"
+fi
+
 # 4. The escape detector: a file with CSI is caught, clean text is not.
 printf 'plain line\n' >"$SM_SCRATCH/clean"
 printf 'colored \033[38;2;255;90;90mred\033[0m line\n' >"$SM_SCRATCH/dirty"

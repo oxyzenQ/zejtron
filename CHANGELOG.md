@@ -950,6 +950,22 @@ v11.0.0
 
 ### Fixed
 
+- The supermassive harness normalizes the unreadable-process note
+  (night-dragon-7): the volatile-field table (`sm_normalize`) deletes
+  the port render's "note: some processes were not readable; try
+  sudo for complete owner details" footer and proc's "for a complete
+  tree" sibling, strips the why/holds inline verdict segments (the
+  "(try sudo) - the explanation / holder list may be incomplete"
+  family and the "complete explanation" wording), and drops the why
+  unaccounted row carrying the same wording. The note's presence
+  toggles with the host's own /proc readability between two adjacent
+  runs, which cost the owner-host supermassive low leg its single
+  failure out of 502 (port determinism (structural)) - a live-host
+  artifact, not a binary bug. The deletion never touches the
+  structural data: ports, states and pids stay under the diff, and
+  the harness selftest pins the deletion per shape plus the anti-fake
+  twin (a changed socket count still diffs).
+
 - A non-root run no longer dies at the pinned map (night-hunter-5):
   when the pins exist (a root `doctor --attach` session planted
   them) but the caller may not open them, the first BPF_OBJ_GET

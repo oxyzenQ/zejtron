@@ -110,7 +110,12 @@ surface_port() {
 
 	# Determinism: the socket table is live kernel state, so the
 	# honest determinism claim is the stable skeleton (headers and
-	# verdict lines), not the moving rows.
+	# verdict lines), not the moving rows. The unreadable-process
+	# footer note is a volatile presence artifact (night-dragon-7):
+	# live process churn on a desktop host toggles /proc readability
+	# between the two runs, so the volatile-field table deletes the
+	# note before the skeleton compare - the structural data (ports,
+	# states, pids) stays under the diff.
 	sm_deterministic_structural "port determinism (structural)" 5 -- \
 		"$SM_DEFAULT_BIN" port --snapshot-only --numeric
 
