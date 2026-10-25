@@ -1733,6 +1733,24 @@ v11.0.0
   eBPF build's -D warnings inheritance through the poison strip all
   hold untouched.
 
+### Changed
+
+- The registry lane publishes on the tag itself (night-improve-58):
+  `crates-io.yml` retired the manual `workflow_dispatch` lane and its
+  `publish=true` flag - the owner-pushed `v*` release tag (the same
+  filter `release.yml` carries) is now the publish command, the
+  sibling zelynic's NIGHT-ask-1 shape. The ship-set verification
+  (the `cargo package --list --locked` inventory plus the full
+  `cargo package` dry run) still gates the upload, and the publish
+  job adds three guards before `cargo publish --locked`: the tag must
+  match Cargo.toml's version, the `CRATES_IO_TOKEN` repository secret
+  must be set, and the idempotency probe skips an already-published
+  version instead of dying as a duplicate-version error (a re-pushed
+  tag or a re-run is safe; the probe carries the retry contract so a
+  transient 5xx never reads as "not published"). `concurrency` moved
+  to `cancel-in-progress: false` - an in-flight registry upload is
+  irreversible and is never cancelled mid-flight.
+
 ## History
 
 The changelog's per-era split, newest era first:
