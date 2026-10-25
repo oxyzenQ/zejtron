@@ -142,7 +142,7 @@ Detects the x86-64 level, builds the release tier, and installs to `/usr/bin`. L
 The release matrix ships two shapes: x86-64-v3 and v4, both fully static musl (v3 covers Haswell 2013+; v4 covers AVX-512 2017+). One libc, zero runtime dependencies — runs on glibc distros, Alpine, and scratch containers.
 
 ```sh
-TAG=v80.0.0-nightly.3
+TAG=v80.0.0
 SHAPE=linux-amd64-v3-musl   # or v4-musl
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz"
 curl -LO "https://github.com/oxyzenQ/zejtron/releases/download/${TAG}/zejtron-${TAG}-${SHAPE}.tar.gz.sha512sum"
