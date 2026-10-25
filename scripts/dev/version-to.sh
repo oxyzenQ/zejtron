@@ -24,8 +24,10 @@
 # The input gate carries the release lane's full tag contract
 # (night-improve-9): release.yml validates a v-prefixed semver with an
 # OPTIONAL pre-release suffix (vX.Y.Z or vX.Y.Z-prerelease - the
-# rc/alpha/beta/dev shapes its previous-tag boundary and --prerelease
-# lanes consume), so the version manager accepts the same shape and
+# '-' after the patch segment alone marks a pre-release; the
+# previous-tag boundary and the --prerelease lane read the shape,
+# never a suffix list), so the version manager accepts the same
+# shape and
 # every rewrite lane below consumes an optional OLD-version suffix:
 # a tree sitting on v12.0.0-rc.1 bumps to v12.0.0-rc.2 or to v12.0.0
 # with no stale -rc.N tail riding the rewritten surfaces.
