@@ -19,6 +19,13 @@
 #   configured - a detached ASCII-armored signature, imported, signed,
 #   and verified inside the build job (the least-privilege placement:
 #   the private key never enters the publishing job's environment).
+# - The release body renders from the ACTUAL dist/ inventory
+#   (night-dragon-3S): the publish job passes the .asc count its
+#   inventory tripwire counted, and the generator emits the GPG
+#   instructions only when signatures really ship - a checksums-only
+#   page names the checksums, never verify commands for assets that
+#   do not exist (the v80.0.0-nightly.2 page advertised .asc files
+#   the pipeline never uploaded).
 # - The release body renders through scripts/release/
 #   generate-release-notes.sh (single source of truth, self-tested
 #   before the body renders), with the asset-inventory tripwire ahead
@@ -422,6 +429,7 @@ jobs:
       # a red pipeline with the precise missing file named, never a
       # silently asset-less release.
       - name: Assert release asset inventory
+        id: inventory
         run: |
           set -euo pipefail
           TARBALLS=$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)
@@ -448,6 +456,10 @@ jobs:
           if [ "${BROKEN}" -ne 0 ]; then
             exit 1
           fi
+          # The count the release body renders from (night-dragon-3S):
+          # the generator emits the GPG instructions only when this is
+          # nonzero - a checksums-only page never advertises .asc.
+          echo "gpg_sigs=${SIGS}" >> "$GITHUB_OUTPUT"
           echo "dist/ inventory verified: ${TARBALLS} tarballs, ${SIGS} GPG signatures,"
           echo "$(( TARBALLS * 3 )) checksum files"
 
@@ -524,6 +536,7 @@ jobs:
             --prerelease "${IS_PRERELEASE}" \
             --compare-json "${COMPARE_JSON}" \
             --prev-tag "${PREV_TAG}" \
+            --gpg-sigs "${{ steps.inventory.outputs.gpg_sigs }}" \
             > release-body.md
 
           # Release title: the bare tag name (the family convention) -

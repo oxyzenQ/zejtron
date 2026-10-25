@@ -79,14 +79,26 @@
 #                    a stable release carries no distance (LAST_STABLE
 #                    == PREV_TAG by construction) and an initial
 #                    release has no stable tag yet.
+#   --gpg-sigs N     the .asc signature sibling count the caller's
+#                    dist/ inventory actually counted (the workflow's
+#                    inventory tripwire passes the number it saw).
+#                    N > 0 renders the GPG verification block; N = 0
+#                    (also absent or empty - the honest default)
+#                    renders the checksums-only block. A release page
+#                    must never instruct a user to verify an asset it
+#                    does not ship (the v80.0.0-nightly.2 page
+#                    advertised .asc files the pipeline never
+#                    uploaded - night-dragon-3S).
 #   --self-test      run the pinned classifier + shape + parse
 #                    battery, no network, no jq input, exit nonzero on
 #                    any drift.
 #
 #   Value contract: --tag, --prerelease, and --repo-url must carry a
-#   non-empty value; the four boundary flags above accept an empty
-#   value (their "not applicable" states) while still requiring the
-#   argument to exist. The parser section below enforces both classes.
+#   non-empty value; the boundary flags above (--compare-json,
+#   --prev-tag, --last-stable, --since-stable, --gpg-sigs) accept an
+#   empty value (their "not applicable" states) while still requiring
+#   the argument to exist. The parser section below enforces both
+#   classes.
 #
 # Dependencies: bash 4+, jq (the GitHub runner image carries both;
 # the workflow step already depended on jq before this script existed).
@@ -99,6 +111,9 @@ COMPARE_JSON=""
 PREV_TAG=""
 LAST_STABLE=""
 SINCE_STABLE=""
+# night-dragon-3S: the .asc sibling count the caller's dist/ inventory
+# actually saw. 0 (the default) = the honest checksums-only page.
+GPG_SIGS="0"
 REPO_URL="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-oxyzenQ/zejtron}"
 SELF_TEST=0
 
@@ -123,7 +138,7 @@ MAX_SUBJECT_CHARS=240
 usage() {
 	echo "Usage: $0 --tag TAG --prerelease true|false [--compare-json PATH]" >&2
 	echo "            [--prev-tag TAG] [--last-stable TAG] [--since-stable N]" >&2
-	echo "            [--repo-url URL] [--self-test]" >&2
+	echo "            [--gpg-sigs N] [--repo-url URL] [--self-test]" >&2
 }
 
 # ── CLI parsing (two value classes — a contract, not a style) ────────
@@ -202,6 +217,25 @@ while [ $# -gt 0 ]; do
 			exit 1
 		fi
 		SINCE_STABLE="$2"
+		shift 2
+		;;
+	# Legal-empty: empty N = no signatures shipped (the checksums-only
+	# body). A non-integer value is a usage error, never a silent zero.
+	--gpg-sigs)
+		if [ $# -lt 2 ]; then
+			echo "--gpg-sigs needs a value" >&2
+			usage
+			exit 1
+		fi
+		case "$2" in
+		"") GPG_SIGS="0" ;;
+		*[!0-9]*)
+			echo "--gpg-sigs needs a non-negative integer, got '$2'" >&2
+			usage
+			exit 1
+			;;
+		*) GPG_SIGS="$2" ;;
+		esac
 		shift 2
 		;;
 	--repo-url)
@@ -370,21 +404,43 @@ body_bytes() {
 # compose the FINAL body (this block included) before deciding how
 # many changelog bullets fit; the emitted text is byte-identical to
 # the inline block it replaced. It renders last, and the budget
-# layers above guarantee it survives to the STORED page.
+# layers above guarantee it survives to the STORED page. Two shapes
+# (night-dragon-3S): signatures present renders the family GPG block,
+# zero renders the honest checksums-only block - the page describes
+# the assets that actually ship.
 verification_section() {
 	local tag="$1"
+	local gpg_sigs="${2:-0}"
+	# A non-integer or empty count degrades to the honest zero: the
+	# parser validates the CLI value, and this second guard keeps the
+	# render layer safe under direct calls (the self-test's own path).
+	case "$gpg_sigs" in
+	""|*[!0-9]*) gpg_sigs="0" ;;
+	esac
 	echo "## Verification"
 	echo ""
-	echo "Every archive includes a GPG detached signature (\`.asc\`) and three checksum files (SHA-512, BLAKE3, SHAKE256)."
-	echo ""
-	echo "### GPG signature"
-	echo ""
-	echo '```bash'
-	echo "gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2"
-	echo "gpg --verify zejtron-${tag}-linux-amd64-v3-musl.tar.gz.asc"
-	echo '```'
-	echo ""
-	echo "Expected: \`Good signature from \"Rezky Cahya Sahputra (cosmic dragon)\"\`"
+	if [ "$gpg_sigs" -gt 0 ]; then
+		echo "Every archive includes a GPG detached signature (\`.asc\`) and three checksum files (SHA-512, BLAKE3, SHAKE256)."
+		echo ""
+		echo "### GPG signature"
+		echo ""
+		echo '```bash'
+		echo "gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2"
+		echo "gpg --verify zejtron-${tag}-linux-amd64-v3-musl.tar.gz.asc"
+		echo '```'
+		echo ""
+		echo "Expected: \`Good signature from \"Rezky Cahya Sahputra (cosmic dragon)\"\`"
+	else
+		echo "Every archive includes three checksum files (SHA-512, BLAKE3, SHAKE256)."
+		echo ""
+		echo "### Checksums"
+		echo ""
+		echo '```bash'
+		echo "sha512sum -c zejtron-${tag}-linux-amd64-v3-musl.tar.gz.sha512sum"
+		echo '```'
+		echo ""
+		echo "GPG signatures are not configured for this release yet - verify integrity with the checksums above."
+	fi
 	echo ""
 	echo "Full verification instructions: [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)"
 }
@@ -435,19 +491,40 @@ self_test() {
 
 	# Shape contract on a synthetic initial-release render: the
 	# stability callout, the initial-release marker, and the
-	# verification section must all appear.
+	# verification section must all appear. The default render (no
+	# --gpg-sigs) is the honest checksums-only shape (night-dragon-3S):
+	# the page names the checksums and NEVER an .asc instruction for
+	# assets the pipeline did not upload.
 	local out
 	out="$(render_body "" "" "" "" "")"
 	local want
-	for want in "> [!TIP]" "Initial release." "## Verification" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2"; do
+	for want in "> [!TIP]" "Initial release." "## Verification" "### Checksums" "sha512sum -c"; do
 		if ! printf '%s' "$out" | grep -qF "$want"; then
 			echo "  FAIL shape: body render is missing '$want'" >&2
 			failures=$((failures + 1))
 		fi
 	done
+	for banned in ".asc" "recv-keys" "### GPG signature"; do
+		if printf '%s' "$out" | grep -qF "$banned"; then
+			echo "  FAIL shape: checksums-only render must not advertise '$banned'" >&2
+			failures=$((failures + 1))
+		fi
+	done
+
+	# The signed shape (--gpg-sigs > 0) pins the family verification
+	# block: the keyserver fetch and the .asc verify command - the
+	# mature sibling's release-page parity.
+	local gpg_out
+	gpg_out="$(render_body "" "v80.0.0-nightly.2" "" "" "" 2)"
+	for want in "### GPG signature" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2" "gpg --verify zejtron-v80.0.0-nightly.2-linux-amd64-v3-musl.tar.gz.asc"; do
+		if ! printf '%s' "$gpg_out" | grep -qF "$want"; then
+			echo "  FAIL shape: signed render is missing '$want'" >&2
+			failures=$((failures + 1))
+		fi
+	done
 
 	# Parse contract (NIGHT-dinner-26, the v11.0.0 stable incident):
-	# the four legal-empty flags must accept present-but-empty values
+	# the five legal-empty flags must accept present-but-empty values
 	# through the REAL CLI path — parser plus render, no fixture, no
 	# network. The shape probe above calls render_body directly and
 	# never touches the parser, which is exactly the gap the v11.0.0
@@ -462,7 +539,8 @@ self_test() {
 		--compare-json "" \
 		--prev-tag "" \
 		--last-stable "" \
-		--since-stable "" 2>&1)" || parse_rc=$?
+		--since-stable "" \
+		--gpg-sigs "" 2>&1)" || parse_rc=$?
 	if [ "$parse_rc" -ne 0 ] || ! printf '%s' "$parse_out" | grep -qF "Initial release."; then
 		echo "  FAIL parse: legal-empty flag values rejected (rc=${parse_rc})" >&2
 		failures=$((failures + 1))
@@ -500,7 +578,8 @@ self_test() {
 		--compare-json "$z11_json" \
 		--prev-tag v0.0.0-z11-prev \
 		--last-stable "" \
-		--since-stable "" 2>&1)" || z11_rc=$?
+		--since-stable "" \
+		--gpg-sigs 2 2>&1)" || z11_rc=$?
 	rm -f "$z11_json"
 	z11_len="$(body_bytes "$z11_out")"
 	if [ "$z11_rc" -ne 0 ]; then
@@ -536,6 +615,7 @@ render_body() {
 	local prev_tag="$3"
 	local last_stable="$4"
 	local since_stable="$5"
+	local gpg_sigs="${6:-0}" # absent = the honest checksums-only default
 
 	local commits=""
 	local total=0
@@ -583,7 +663,7 @@ render_body() {
 	# — byte-identical to the inline block it replaces (one
 	# implementation, factored for measurement, not forked).
 	local verification_block
-	verification_block="$(verification_section "$tag")"
+	verification_block="$(verification_section "$tag" "$gpg_sigs")"
 
 	emit "## What's Changed"
 	emit ""
@@ -760,7 +840,7 @@ if [ -z "$TAG" ]; then
 	exit 1
 fi
 
-release_body="$(render_body "$COMPARE_JSON" "$TAG" "$PREV_TAG" "$LAST_STABLE" "$SINCE_STABLE")"
+release_body="$(render_body "$COMPARE_JSON" "$TAG" "$PREV_TAG" "$LAST_STABLE" "$SINCE_STABLE" "$GPG_SIGS")"
 
 # NIGHT-hunt-Z11 layer 3 — the hard refusal. The subject cap and the
 # changelog trim make this unreachable by construction; it exists so
