@@ -33,7 +33,9 @@ simulation):
    end of the run — the honest gap report, never a silent skip.
 5. **Determinism.** Same host state + same invocation = same bytes,
    modulo a documented volatile-field table (timestamps, PIDs,
-   durations, gauges). Live kernel surfaces (port, proc, net,
+   durations, gauges, the presence-volatile unreadable-process note
+   that live process churn toggles between two adjacent runs). Live
+   kernel surfaces (port, proc, net,
    doctor) use structural determinism: the stable skeleton of
    top-level labeled lines plus the report frame's furniture (the
    heavy-bar banner, bracket-led section headers, indented colon-key
