@@ -114,6 +114,17 @@ jobs:
           targets: ${{ matrix.targets }}
           components: ${{ matrix.targets == '' && 'rustfmt, clippy' || '' }}
 
+      # The host legs run the same check-all as CI's fast lane, and the
+      # gate compiles the musl shape only (the GNU purge completion).
+      # The target is installed for the toolchain the gate actually
+      # resolves in the checkout (rust-toolchain.toml), not for the
+      # rustup default - the same active-vs-default rule the dtolnay
+      # targets input cannot express for a pinned checkout. Idempotent
+      # when the target is already present.
+      - name: Install the musl rust-std (host-leg gate target)
+        if: matrix.targets == ''
+        run: rustup target add --toolchain "$(rustup show active-toolchain | sed 's/ .*//')" x86_64-unknown-linux-musl
+
       # The ebpf feature is the default (night-improve-5): every leg
       # (host and musl) source-builds the kernel object host-side, so
       # each leg installs the prerequisites (the zylaxion CI
