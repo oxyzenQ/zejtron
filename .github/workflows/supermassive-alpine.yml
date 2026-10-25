@@ -1,0 +1,127 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+#
+# zejtron - SUPERMASSIVE ALPINE (the musl smoke lane; night-alpine-proof).
+#
+# The contract: the README ships two claims this lane proves on a
+# real musl-native rootfs before the v80.0.0 LTS tag - "one binary,
+# statically linked in the musl shape" and honest degradation where
+# systemd is absent (alpine runs OpenRC, so systemctl and journalctl
+# do not exist there). The proof is scripts/supermassive/surfaces/
+# alpine-smoke.sh, a TEN-probe smoke surface executed INSIDE the
+# digest-pinned alpine:3.20 rootfs: identity (-V names the musl
+# shape), help, the doctor's warn-not-fail degradation, apk package
+# ownership through `path`, the JSON lanes (port, proc, doctor
+# --symptom ram, why), the honest-error path, and a standing panic
+# sweep across every captured stream.
+#
+# Scope law (the same directive): this is NOT a 502-probe
+# supermassive re-run. The binary is static - the kernel-facing
+# behavior (/proc, sockets, eBPF) is identical to the host legs the
+# supermassive lanes already burn, so re-running the full battery
+# here would test the same kernel twice. The alpine lane exists for
+# the claims only a musl-native, systemd-free rootfs can prove.
+#
+# Why docker run and not the `container:` job keyword: JavaScript
+# actions cannot execute inside a musl container (the runner's node
+# runtime is glibc-linked), so a `container: alpine` job cannot
+# checkout, cache, or upload anything. The estate's existing answer
+# (supermassive-container.yml) builds on the host runner and steps
+# INTO the pinned rootfs with docker - this lane rides the same
+# proven shape, and the alpine environment under test is exactly as
+# real: the same manifest digest, the same musl libc, the same
+# busybox userland.
+#
+# Trigger: every push, every pull request, and the manual dispatch
+# (the owner's night-alpine-proof directive: the proof rides the PR
+# path too - the lane stays PR-cheap because the smoke itself is
+# seconds and the musl build is cache-warmed after the first run).
+
+name: zejtron - Supermassive Alpine
+
+'on':
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  alpine-smoke:
+    name: Alpine smoke proof - alpine:3.20 (musl static)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain (pinned)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
+
+      # The ebpf feature is the default (night-improve-5): the build is
+      # the source-built lane host-side (the musl target does not
+      # change the build script's host), so the prerequisites ride the
+      # tree's bootstrap (the zylaxion CI precedent).
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          key: alpine-smoke
+          cache-on-failure: true
+
+      - name: Build the static musl binary
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          cargo build --release --locked --target x86_64-unknown-linux-musl
+
+      # The musl claim's first tripwire, before any container runs:
+      # the binary must say "statically linked" itself. A glibc-shape
+      # drift (a target flag dropped, a dependency sneaking in a
+      # dynamic libc) fails HERE, with the file(1) verdict in the log.
+      - name: Tripwire - the binary is fully static
+        run: |
+          set -euo pipefail
+          FILE_OUT=$(file target/x86_64-unknown-linux-musl/release/zejtron)
+          echo "${FILE_OUT}"
+          printf '%s\n' "${FILE_OUT}" | grep -F 'statically linked'
+
+      # The alpine round trip: the binary and the smoke surface ride
+      # INTO the digest-pinned alpine:3.20 rootfs (the same substrate
+      # pin discipline as supermassive-container.yml - refresh the
+      # digest deliberately with `docker manifest inspect alpine:3.20`
+      # and update it in this same commit, never by tag drift). The
+      # smoke surface runs inside the rootfs where /etc/alpine-release,
+      # busybox, apk, and the ABSENCE of systemd are the real facts
+      # the ten probes assert against.
+      - name: Run the night-alpine-proof smoke inside alpine
+        run: |
+          set -euo pipefail
+          docker build -t zejtron-alpine-smoke -f- . <<'DOCKERFILE'
+          FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+          RUN apk add --no-cache bash jq
+          COPY target/x86_64-unknown-linux-musl/release/zejtron /usr/local/bin/zejtron
+          COPY scripts/supermassive/surfaces/alpine-smoke.sh /usr/local/bin/alpine-smoke.sh
+          DOCKERFILE
+
+          docker run --rm zejtron-alpine-smoke \
+            bash /usr/local/bin/alpine-smoke.sh /usr/local/bin/zejtron

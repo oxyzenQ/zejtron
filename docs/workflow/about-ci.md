@@ -261,6 +261,28 @@ CI seat in the kernel-floor lane below). Triggers: every push and
 every pull request (no filters - this lane is cheap enough for the
 PR path), plus `workflow_dispatch`.
 
+## Supermassive Alpine (the musl smoke lane)
+
+`zejtron - Supermassive Alpine` proves the two claims only a
+musl-native, systemd-free rootfs can prove: the shipped shape is a
+fully static musl binary (a file(1) tripwire runs before any
+container does), and the tool degrades honestly where systemd is
+absent - alpine runs OpenRC, so `systemctl` and `journalctl` do not
+exist there, and the doctor must warn, never fail and never fake.
+The proof is `scripts/supermassive/surfaces/alpine-smoke.sh`, a
+standalone ten-probe surface (deliberately NOT in the harness's
+ALL_SURFACES - the glibc host legs would fail T0 by definition)
+executed inside the digest-pinned alpine:3.20 rootfs: the -V musl
+identity, help, the doctor's warn-not-fail readiness, apk package
+ownership through `path`, the JSON lanes (port, proc, doctor
+--symptom ram, why), the honest-error path, and a standing panic
+sweep. The lane is a smoke, not a 502-probe re-run: the binary is
+static, so the kernel-facing behavior is already covered by the host
+legs. The rootfs is stepped INTO with docker (the container lane's
+proven shape - JavaScript actions cannot run inside a musl
+container). Triggers: every push and every pull request, plus
+`workflow_dispatch`.
+
 ## Supermassive Kernel Floor (the micro-VM lane)
 
 `zejtron - Supermassive Kernel Floor` boots the REAL documented
