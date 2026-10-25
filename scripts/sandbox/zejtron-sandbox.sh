@@ -287,7 +287,7 @@ if [ -n "${BINARY}" ] && [ -x "${BINARY}" ]; then
 		esac
 	fi
 else
-	die "no zejtron binary — build one (cargo build --release --locked) or pass --binary PATH"
+	die "no zejtron binary — build one (cargo build --release --locked --target x86_64-unknown-linux-musl) or pass --binary PATH"
 fi
 note "binary: ${BINARY}"
 

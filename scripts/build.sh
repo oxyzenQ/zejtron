@@ -134,7 +134,7 @@ if [[ "$MODE" == "battery" ]]; then
 		else
 			echo "error: battery mode needs a built binary - none at $ZEJTRON_BIN" >&2
 		fi
-		echo "hint: build it first (cargo build --release --locked or a cargo profile lane) or run the full check-all" >&2
+		echo "hint: build it first (cargo build --release --locked --target x86_64-unknown-linux-musl or a pro-linux-amd64-* alias) or run the full check-all" >&2
 		exit 1
 	fi
 elif [[ "$MODE" == "miri" ]]; then
