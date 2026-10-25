@@ -78,15 +78,20 @@ jobs:
             echo "::error::tag ${TAG} is not a strict v-prefixed semver (vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
+          # Bash case: FIRST match wins, and a glob * crosses '-'. The
+          # pre-release branch must therefore come FIRST - the reversed
+          # order classified every -rc/-alpha/-beta/-nightly tag stable
+          # (night-dragon-1S: v80.0.0-nightly.1 shipped a stable-flagged
+          # GitHub release through this hole).
           case "${TAG}" in
-            v[0-9]*.[0-9]*.[0-9]*)
-              echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-              echo "prerelease=false" >> "$GITHUB_OUTPUT"
-              echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-              ;;
             v[0-9]*.[0-9]*.[0-9]*-*)
               echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
               echo "prerelease=true" >> "$GITHUB_OUTPUT"
+              echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+              ;;
+            v[0-9]*.[0-9]*.[0-9]*)
+              echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
               echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
               ;;
             *)
