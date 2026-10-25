@@ -28,6 +28,16 @@ v11.0.0
 
 ### Added
 
+- The LTS fortress audit document (night-last-total-lts):
+  `docs/LTS_FORTRESS_AUDIT.md` records the final pre-release audit -
+  the JSON escaper, the ring consumer's bounds, the window parser's
+  saturation, the path-privilege contract, the eBPF read helpers,
+  the teardown's zombie law, the secrets and injection surfaces, and
+  the build-script rerun triggers, each with the verifier that
+  proves it. The verdict: every audited sub-task already at its
+  peak, zero source changes landed, the document is the only
+  artifact.
+
 - The doctor speaks JSON (night-badass-5): `--print-json` lands on
   the doctor - the readiness report (the user context, all twelve
   checks with lowercase statuses, the summary counts, and the eBPF
