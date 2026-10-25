@@ -15,6 +15,7 @@ frozen verbatim.
 
 ## [Released]
 
+v80.0.0-nightly.1
 v80.0.0-rc.4
 v80.0.0-rc.3
 v80.0.0-rc.2
