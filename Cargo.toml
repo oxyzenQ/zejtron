@@ -3,7 +3,7 @@
 
 [package]
 name = "zejtron"
-version = "80.0.1-zejtron.2"
+version = "80.0.1-zejtron.3"
 edition = "2024"
 description = "Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious."
 authors = ["rezky_nightky (oxyzenQ)"]

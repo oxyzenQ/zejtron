@@ -618,4 +618,4 @@ jobs:
             gh release edit "${TAG}" --draft=false --prerelease=false --latest=true
           fi
           echo "--- Published release ---"
-          gh release view "${TAG}" --json url,isDraft,isPrerelease,isLatest --jq '.'
+          gh release view "${TAG}" --json url,isDraft,isPrerelease,isImmutable --jq '.'

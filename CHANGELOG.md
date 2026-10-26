@@ -15,6 +15,7 @@ frozen verbatim.
 
 ## [Released]
 
+v80.0.1-zejtron.3
 v80.0.1-zejtron.2
 v80.0.1-zejtron.1
 v80.0.0-nightly.3

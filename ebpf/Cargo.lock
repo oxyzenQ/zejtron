@@ -278,7 +278,7 @@ dependencies = [
 
 [[package]]
 name = "zejtron-ebpf"
-version = "80.0.1-zejtron.2"
+version = "80.0.1-zejtron.3"
 dependencies = [
  "aya-ebpf",
 ]
