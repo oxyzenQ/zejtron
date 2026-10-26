@@ -55,11 +55,16 @@
 #     the burst.
 #   - a socket storm: a bounded loop of localhost connects (open and
 #     close against the heavy rogues' listeners), counted into a
-#     sidecar.
+#     sidecar. A liveness gate reads that sidecar before the
+#     detection (night-T-1): a host that starves every connect
+#     never earns the "under fire" claim - the label suffix is the
+#     gate's verdict, and a zero tally skips with the reason named
+#     (the fd storm's honest lane direction), never fails.
 #
-#   The detection, under fire (the chaos runs through every assert;
+#   The detection, fire-gated (the chaos runs through every assert;
 #   every JSON lane is typed — pure stdout, silent stderr, jq filters
-#   on the flat Spec v3 grammar):
+#   on the flat Spec v3 grammar; the "under fire" suffix on each
+#   label is the storm liveness gate's verdict, not a constant):
 #   - `proc --me --print-json` must finish in < 1 second (measured
 #     with EPOCHREALTIME — bash 5's forkless clock; a forked `date`
 #     lies under fork pressure, the night-dragon-1 lesson) and must
@@ -102,8 +107,8 @@
 # The massive-scale report: the surface ends with one line carrying
 # the real tallies (dummies, rogues by class, the staged buffer per
 # light rogue, fds staged, socket connects, the measured proc latency
-# under fire) — the CI log's massive-scale badge, computed from
-# sidecars, never asserted from constants.
+# under the fire the storm gate proved) — the CI log's massive-scale
+# badge, computed from sidecars, never asserted from constants.
 
 surface_simulation() {
 	local rc
@@ -118,7 +123,7 @@ surface_simulation() {
 	local -a rogue_pids=() dummy_pids=()
 	local -a chaos_pids=()
 	local pinned_port=${rogue_ports[3]}
-	local mem_avail_kb fd_opened storm_conns proc_ms
+	local mem_avail_kb fd_opened storm_conns proc_ms fire_suffix grace_end
 	local pss_bytes rogues_named fat_rows stat_line state comm
 	local zombies residue pid dummy_alive rogue_alive
 	local tasks_max tasks_now free_tasks fleet_budget heavy_mb light_budget
@@ -459,9 +464,37 @@ while time.time() < end:
 	# The fire settles one beat before the responder walks in.
 	sleep 1
 
+	# The storm liveness gate (night-T-1): the socket storm's tally
+	# sidecar is written after every landed connect, so a bounded
+	# poll reads whether the socket fire actually churns on this
+	# host. A runner that starves every localhost connect (backlog
+	# drops under the inferno's own load) must never earn the
+	# "under fire" claim: the detection labels below carry the
+	# suffix computed here, once, from the sidecar's own evidence,
+	# never from constants. On a healthy host the first connect is
+	# already in the sidecar and the poll costs one read; its
+	# patience is spent only where the storm cannot churn.
+	storm_conns=0
+	grace_end=$((SECONDS + 8))
+	while ((SECONDS < grace_end)); do
+		storm_conns="$(cat "$SM_SCRATCH/storm-conns.txt" 2>/dev/null || echo 0)"
+		[[ "$storm_conns" =~ ^[0-9]+$ ]] || storm_conns=0
+		((storm_conns > 0)) && break
+		sleep 0.2
+	done
+	if ((storm_conns > 0)); then
+		fire_suffix=" under fire"
+	else
+		fire_suffix=" under partial fire (the socket storm did not churn)"
+	fi
+
 	# ------------------------------------------------------------------
-	# The detection, under fire. Every JSON lane: pure stdout, silent
-	# stderr, typed filters on the flat Spec v3 grammar.
+	# The detection. Every JSON lane: pure stdout, silent stderr,
+	# typed filters on the flat Spec v3 grammar. The fire suffix on
+	# every label is the storm liveness gate's verdict: the suite
+	# claims the fire only when the socket storm landed its
+	# connects (the honesty law the fd storm and the why lane
+	# already live by).
 	# ------------------------------------------------------------------
 
 	# Proc, timed: the forkless clock around the run, the < 1s law,
@@ -472,15 +505,15 @@ while time.time() < end:
 		"$SM_DEFAULT_BIN" proc --me --print-json
 	t1=${EPOCHREALTIME/./}
 	proc_ms=$(((t1 - t0) / 1000))
-	sm_assert_rc 0 "$rc" "simulation: proc --print-json exits 0 under fire"
+	sm_assert_rc 0 "$rc" "simulation: proc --print-json exits 0${fire_suffix}"
 	sm_assert_silent_stderr "$SM_SCRATCH/proc.err" \
-		"simulation: the proc lane keeps stderr silent under fire"
+		"simulation: the proc lane keeps stderr silent${fire_suffix}"
 	sm_assert_pure_json "$SM_SCRATCH/proc.json" \
-		"simulation: the proc lane is pure JSON under fire"
+		"simulation: the proc lane is pure JSON${fire_suffix}"
 	if [[ "$proc_ms" =~ ^[0-9]+$ ]] && ((proc_ms < proc_bar_ms)); then
-		sm_pass "simulation: proc finishes under the 1s law under fire (${proc_ms} ms)"
+		sm_pass "simulation: proc finishes under the 1s law${fire_suffix} (${proc_ms} ms)"
 	else
-		sm_fail "simulation: proc finishes under the 1s law under fire" \
+		sm_fail "simulation: proc finishes under the 1s law${fire_suffix}" \
 			"the proc run measured ${proc_ms:-unknown} ms (want < $proc_bar_ms)"
 	fi
 	sm_assert_json "$SM_SCRATCH/proc.json" \
@@ -496,20 +529,20 @@ while time.time() < end:
 	sm_run "$SM_SCRATCH/port.json" "$SM_SCRATCH/port.err" rc 10 -- \
 		"$SM_DEFAULT_BIN" port "$pinned_port" --print-json --snapshot-only
 	sm_assert_rc 0 "$rc" \
-		"simulation: port $pinned_port --print-json --snapshot-only exits 0 under fire"
+		"simulation: port $pinned_port --print-json --snapshot-only exits 0${fire_suffix}"
 	sm_assert_silent_stderr "$SM_SCRATCH/port.err" \
-		"simulation: the port lane keeps stderr silent under fire"
+		"simulation: the port lane keeps stderr silent${fire_suffix}"
 	sm_assert_pure_json "$SM_SCRATCH/port.json" \
-		"simulation: the port lane is pure JSON under fire"
+		"simulation: the port lane is pure JSON${fire_suffix}"
 	sm_assert_json "$SM_SCRATCH/port.json" \
 		".subject == \":$pinned_port\"" \
 		"simulation: the port report pins the subject :$pinned_port"
 	sm_assert_json "$SM_SCRATCH/port.json" \
 		'.ports | length > 0' \
-		"simulation: the socket table carries the pinned port under fire"
+		"simulation: the socket table carries the pinned port${fire_suffix}"
 	sm_assert_json "$SM_SCRATCH/port.json" \
 		'.ports[0].state == "LISTEN"' \
-		"simulation: the pinned socket renders the listening state under fire"
+		"simulation: the pinned socket renders the listening state${fire_suffix}"
 	sm_assert_json "$SM_SCRATCH/port.json" \
 		".ports[0].owners[0].pid == $rogue_pin_pid and .ports[0].owners[0].process == \"python3\"" \
 		"simulation: the port report names the pinned heavy rogue as owner (pid $rogue_pin_pid)"
@@ -560,14 +593,14 @@ while time.time() < end:
 	# the bar by pid (the assert after the census).
 	sm_run "$SM_SCRATCH/ram.json" "$SM_SCRATCH/ram.err" rc 10 -- \
 		"$SM_DEFAULT_BIN" doctor --symptom ram --print-json
-	sm_assert_rc 0 "$rc" "simulation: doctor --symptom ram --print-json exits 0 under fire"
+	sm_assert_rc 0 "$rc" "simulation: doctor --symptom ram --print-json exits 0${fire_suffix}"
 	sm_assert_silent_stderr "$SM_SCRATCH/ram.err" \
-		"simulation: the ram lane keeps stderr silent under fire"
+		"simulation: the ram lane keeps stderr silent${fire_suffix}"
 	sm_assert_pure_json "$SM_SCRATCH/ram.json" \
-		"simulation: the ram lane is pure JSON under fire"
+		"simulation: the ram lane is pure JSON${fire_suffix}"
 	sm_assert_json "$SM_SCRATCH/ram.json" \
 		'.symptom == "ram"' \
-		"simulation: the ram report names the ram symptom under fire"
+		"simulation: the ram report names the ram symptom${fire_suffix}"
 	fat_rows="$(jq -r '[.processes[] | select(.pss_bytes > 100000000)] | length' \
 		"$SM_SCRATCH/ram.json" 2>/dev/null || echo 0)"
 	if ! [[ "$fat_rows" =~ ^[0-9]+$ ]]; then
@@ -588,17 +621,17 @@ while time.time() < end:
 		fi
 	done
 	if ((fat_rows >= heavy_count)); then
-		sm_pass "simulation: the RAM census carries the heavy fleet above the bar under fire"
+		sm_pass "simulation: the RAM census carries the heavy fleet above the bar${fire_suffix}"
 		printf '  note  the ram census named %s of %s heavy rogues by pid; %s rows sit above the %s MB bar (the top-10 census can crowd a rogue on a fat desktop)\n' \
 			"$rogues_named" "$heavy_count" "$fat_rows" "$((rogue_bar / 1000000))"
 	else
-		sm_fail "simulation: the RAM census carries the heavy fleet above the bar under fire" \
+		sm_fail "simulation: the RAM census carries the heavy fleet above the bar${fire_suffix}" \
 			"$fat_rows of $heavy_count rows carry PSS > 100 MB (the ram lane missed the inferno's footprint?)"
 	fi
 	if [[ "$pss_bytes" =~ ^[0-9]+$ ]] && ((pss_bytes > rogue_bar)); then
-		sm_pass "simulation: the heavy rogue's PSS clears the 100 MB bar under fire ($pss_bytes bytes)"
+		sm_pass "simulation: the heavy rogue's PSS clears the 100 MB bar${fire_suffix} ($pss_bytes bytes)"
 	else
-		sm_fail "simulation: the heavy rogue's PSS clears the 100 MB bar under fire" \
+		sm_fail "simulation: the heavy rogue's PSS clears the 100 MB bar${fire_suffix}" \
 			"the first named heavy rogue's PSS is ${pss_bytes:-missing} bytes (want > $rogue_bar)"
 	fi
 
@@ -612,20 +645,20 @@ while time.time() < end:
 	if [[ "$probe_lane" -eq 1 ]]; then
 		sm_run "$SM_SCRATCH/why.json" "$SM_SCRATCH/why.err" rc 15 -- \
 			"$SM_DEFAULT_BIN" why "$SM_SCRATCH/io-test.bin" --since 2s --print-json
-		sm_assert_rc 0 "$rc" "simulation: why --since 2s --print-json exits 0 under fire"
+		sm_assert_rc 0 "$rc" "simulation: why --since 2s --print-json exits 0${fire_suffix}"
 		sm_assert_silent_stderr "$SM_SCRATCH/why.err" \
-			"simulation: the why lane keeps stderr silent under fire"
+			"simulation: the why lane keeps stderr silent${fire_suffix}"
 		sm_assert_pure_json "$SM_SCRATCH/why.json" \
-			"simulation: the why lane is pure JSON under fire"
+			"simulation: the why lane is pure JSON${fire_suffix}"
 		sm_assert_json "$SM_SCRATCH/why.json" \
 			'.mode == "live"' \
-			"simulation: the why report declares the live lane under fire"
+			"simulation: the why report declares the live lane${fire_suffix}"
 		sm_assert_json "$SM_SCRATCH/why.json" \
 			'.measured | type == "array" and length > 0' \
-			"simulation: the why report carries measured rows under fire"
+			"simulation: the why report carries measured rows${fire_suffix}"
 		sm_assert_json "$SM_SCRATCH/why.json" \
 			'.changes.rows | any(.provenance == "observed")' \
-			"simulation: the why report carries observed rows under fire"
+			"simulation: the why report carries observed rows${fire_suffix}"
 		sm_assert_json "$SM_SCRATCH/why.json" \
 			".measured | any(.actor != null and .actor.pid == $io_pid and .actor.name == \"dd\")" \
 			"simulation: the why report attributes the writes to dd (pid $io_pid)"
@@ -653,14 +686,21 @@ while time.time() < end:
 		fi
 	fi
 
-	# The storm's own tally: the connects it actually landed.
+	# The storm's own tally: the connects it actually landed. The
+	# sidecar's final word is read here, after the teardown - the
+	# gate's earlier read was the liveness verdict, this one is the
+	# count. A zero tally is an environmental ceiling, never a
+	# binary defect: the host starved the socket fire while every
+	# other lane burned. The honest verdict is the named skip (the
+	# fd storm's lane direction) - a fire claim the host never paid
+	# for is the same lie class as a fake PASS.
 	storm_conns="$(cat "$SM_SCRATCH/storm-conns.txt" 2>/dev/null || echo 0)"
 	[[ "$storm_conns" =~ ^[0-9]+$ ]] || storm_conns=0
 	if ((storm_conns > 0)); then
 		sm_pass "simulation: the socket storm churned ($storm_conns connects landed)"
 	else
-		sm_fail "simulation: the socket storm churned ($storm_conns connects landed)" \
-			"zero localhost connects succeeded against the rogues' listeners"
+		sm_skip "simulation: the socket storm churned ($storm_conns connects landed)" \
+			"zero localhost connects succeeded against the rogues' listeners (the host starved the socket fire; the honest lane direction is the fd storm's)"
 	fi
 	fd_opened="$(cat "$SM_SCRATCH/fd-staged.txt" 2>/dev/null || echo 0)"
 	[[ "$fd_opened" =~ ^[0-9]+$ ]] || fd_opened=0
@@ -673,11 +713,11 @@ while time.time() < end:
 
 	# The massive-scale report: the CI log's badge, computed from
 	# the sidecars and the measured latency, never from constants.
-	printf '  scale massive-scale: %s/%s dummies | %s/%s rogues (%s heavy x 200 MiB on :%s-:%s, %s light x %s MiB on random ports) | %s/%s fds | dd io burst 500 MiB (stdin-paced) | %s socket connects | proc under fire: %s ms\n' \
+	printf '  scale massive-scale: %s/%s dummies | %s/%s rogues (%s heavy x 200 MiB on :%s-:%s, %s light x %s MiB on random ports) | %s/%s fds | dd io burst 500 MiB (stdin-paced) | %s socket connects | proc%s: %s ms\n' \
 		"$dummy_alive" "$dummy_count" "$rogue_alive" "$rogue_count" \
 		"$heavy_count" "${rogue_ports[0]}" "$pinned_port" \
 		"$light_count" "$light_buf_mb" \
-		"$fd_opened" "$fd_target" "$storm_conns" "${proc_ms:-?}"
+		"$fd_opened" "$fd_target" "$storm_conns" "$fire_suffix" "${proc_ms:-?}"
 
 	# Flag registry: the manifest flag this surface exercised.
 	sm_flag_used "doctor --symptom"

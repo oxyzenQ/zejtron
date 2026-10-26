@@ -248,8 +248,15 @@ grace beat, KILL, a bare wait that reaps every child, and a /proc
 sweep asserting zero zombies among the tracked pids. The surface
 ends with the massive-scale report — one line carrying the real
 tallies (dummies, rogues, fds staged, socket connects, the measured
-proc latency under fire), computed from sidecars, never from
-constants — the CI log's badge for the leg. Every staged actor is
+proc latency under the fire the storm gate proved), computed from
+sidecars, never from constants — the CI log's badge for the leg.
+The socket fire is gated on its own evidence (night-T-1): a
+liveness gate reads the storm's tally sidecar before the
+detection, every "under fire" label carries the gate's verdict,
+and a zero-connect tally skips with the reason named (the fd
+storm's honest lane direction) instead of failing - a host that
+starves every localhost connect under the inferno's load cannot
+be held against the suite. Every staged actor is
 self-bounded by its own sleep or loop bound; a host without python3
 or dd, under the staging memory bar, under a task budget below the
 fleet floor, with a rogue port already bound, or under an fd ceiling
