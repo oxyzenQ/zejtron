@@ -31,6 +31,15 @@
 #   before the body renders), with the asset-inventory tripwire ahead
 #   of the publish step - a green pipeline can never ship an
 #   asset-less release (the sibling's NIGHT-dinner-3 lesson).
+# - IMMUTABLE-RELEASE REPOS: the Create Release step runs with
+#   draft: true, and a follow-up "Publish Release (un-draft)" step
+#   flips the draft to published AFTER every asset has uploaded.
+#   GitHub's immutable-release feature locks assets the moment a
+#   release is published; softprops/action-gh-release publishes on
+#   creation, so on an immutable repo the tail assets get rejected
+#   mid-upload (the v80.0.1-zejtron.1 incident: 7 of 10 assets
+#   landed, 3 rejected because the publish event had already fired).
+#   Draft-then-publish is the shape that survives immutability.
 
 name: zejtron - Release
 
@@ -560,6 +569,15 @@ jobs:
             exit 1
           fi
 
+      # IMMUTABLE-RELEASE FIX: create as a DRAFT. GitHub's immutable-
+      # release feature locks assets the moment the release becomes
+      # published, and softprops/action-gh-release publishes on
+      # creation - so on an immutable repo the tail of a multi-asset
+      # upload gets rejected once the first asset trips the publish
+      # event (v80.0.1-zejtron.1: 7/10 assets landed, 3 rejected).
+      # With draft: true the release stays mutable for the whole
+      # upload, and the next step publishes it atomically after every
+      # asset is in place.
       - name: Create Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3, SHA pin
         with:
@@ -573,10 +591,31 @@ jobs:
           # diagnosis; this makes the third-party action itself refuse
           # the silent path.
           fail_on_unmatched_files: true
-          draft: false
+          draft: true
           # Pre-releases are never marked "latest" - the latest pointer
           # only tracks stable releases.
           prerelease: ${{ needs.validate.outputs.prerelease }}
           make_latest: ${{ needs.validate.outputs.prerelease != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The un-draft half of the immutable-release fix: flip the draft
+      # to published only AFTER every asset has uploaded, setting the
+      # prerelease and latest flags explicitly so the post-publish
+      # state is exactly what the pre-fix workflow intended. The
+      # post-condition read is the tripwire - a release that is still
+      # a draft here is a red pipeline, never a silent half-publish.
+      - name: Publish Release (un-draft)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            gh release edit "${TAG}" --draft=false --prerelease=true --latest=false
+          else
+            gh release edit "${TAG}" --draft=false --prerelease=false --latest=true
+          fi
+          echo "--- Published release ---"
+          gh release view "${TAG}" --json url,isDraft,isPrerelease,isLatest --jq '.'
