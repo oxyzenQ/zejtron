@@ -425,13 +425,19 @@ while time.time() < end:
 	io_pid=$!
 	chaos_pids+=("$io_pid")
 
-	# The socket storm: bounded localhost connects against heavy
-	# rogue 0's listener, paced and counted into a sidecar.
+	# The socket storm: bounded localhost connects against the heavy
+	# rogues' listeners in rotation, paced and counted into a sidecar.
 	inferno_storm() {
 		local conns=0
 		local end=$((SECONDS + 12))
+		local rport
 		while ((SECONDS < end)) && ((conns < 400)); do
-			if (exec 3<>"/dev/tcp/127.0.0.1/${rogue_ports[0]}") 2>/dev/null; then
+			# The rotation (night-T-1): every heavy rogue's
+			# listener takes the hit in turn - one starved
+			# listener cannot starve the whole fire, and the
+			# deterministic table keeps the targets assertable.
+			rport="${rogue_ports[conns % ${#rogue_ports[@]}]}"
+			if (exec 3<>"/dev/tcp/127.0.0.1/$rport") 2>/dev/null; then
 				conns=$((conns + 1))
 				# The tally lands after every connect: the
 				# teardown kills this loop mid-window, and
