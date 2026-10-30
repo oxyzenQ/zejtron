@@ -9,6 +9,31 @@ configured - one detached ASCII-armored GPG signature per archive.
 Verify at least one checksum before trusting a downloaded binary, and
 the signature whenever one ships.
 
+## The Build: line names the artifact (night-dragon-maintenance-T1)
+
+`zejtron -V` answers which exact artifact you are holding, through
+the estate-wide build-label contract:
+
+- `Build: pro-linux-amd64-v3-musl (...)` - a release binary from the
+  download page: the `pro-` prefix plus the platform id, the same id
+  the tarball name encodes, and never the `local-` marker (a release
+  binary is not a local build).
+- `Build: local-pro-native-musl (...)` - built on this machine
+  through the `cargo pro-native-musl` alias (the alias name under
+  the `local-` marker); likewise `local-pro-linux-amd64-v3-musl` /
+  `local-pro-linux-amd64-v4-musl` for the arch-baseline aliases.
+- `Build: local-linux-amd64-gnu (...)` - a plain local build (a
+  `cargo build`, a `cargo install --path .`, a crates.io install):
+  the compile-time arch+os+libc detection under the `local-` marker.
+
+The parenthesized token is the commit sha (the three-step chain in
+`build.rs`: git, `GITHUB_SHA`, then the registry tarball's
+`.cargo_vcs_info.json` - a registry install recovers the real commit,
+never an `unknown`). The `Signature:` line states the eBPF lane's
+honest claim ("Pure eBPF builtin" - the objects ride inside the
+binary on both lanes). The release lane's own Verify step greps these
+literals as bytes out of every matrix artifact before it ships.
+
 ## Checksum files
 
 | File | Algorithm | Family | Quantum-safe? |

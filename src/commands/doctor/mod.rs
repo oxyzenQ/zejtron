@@ -249,8 +249,9 @@ fn mode_row(uid: Option<u32>) -> String {
 
 fn build_label(git_hash: &str) -> String {
     format!(
-        "zejtron v{} ({})",
+        "zejtron v{} {} ({})",
         env!("CARGO_PKG_VERSION"),
+        crate::info::build_label(),
         short_hash(git_hash)
     )
 }

@@ -34,6 +34,24 @@ fn main() {
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs/heads");
 
+    // Forward the ZEJTRON_BUILD label into the compile-time env
+    // src/info consumes (night-dragon-maintenance-T1, the estate
+    // build-label contract, the zelynic T1 lineage). The label is
+    // set by the cargo aliases through `--config
+    // env.ZEJTRON_BUILD="local-pro-<alias>"` (cargo's [env] config
+    // applies to build scripts AND rustc invocations, but
+    // option_env! in the crate only sees what build.rs re-emits as
+    // rustc-env) and by the release lane through the workflow env
+    // (`ZEJTRON_BUILD: pro-<platform>` - a downloaded release
+    // binary names its shape with the estate pro- prefix, never
+    // the local- one). Unset (a plain `cargo build`, a crates.io
+    // install): the crate falls back to the `local-` prefixed
+    // compile-time arch+libc detection.
+    println!("cargo:rerun-if-env-changed=ZEJTRON_BUILD");
+    if let Ok(label) = std::env::var("ZEJTRON_BUILD") {
+        println!("cargo:rustc-env=ZEJTRON_BUILD={label}");
+    }
+
     // Commit-sha resolution chain (the sibling's NIGHT-ask-1
     // cosmostrix lineage), first hit wins:
     //   1. `git rev-parse --short=7 HEAD` - local/git checkouts.

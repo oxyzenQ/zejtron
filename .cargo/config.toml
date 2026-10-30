@@ -9,13 +9,16 @@
 # the project's only libc shape (night-badass-1, the GNU purge):
 # zero gnu builds ship and the host dev lane is static too. No
 # feature flags ride the alias - zejtron is feature-free by design.
-# No build-label env is needed either: version.rs's build_label()
-# detects arch + libc at compile time, so `-V` names the shape
-# ("linux-amd64-musl") the same way the release matrix's Build: line
-# does. The separate profile name (see the [profile.pro-native-musl]
-# block in Cargo.toml) lands the binary in
-# target/x86_64-unknown-linux-musl/pro-native-musl/zejtron so a
-# native build never clobbers target/release/zejtron.
+#
+# night-dragon-maintenance-T1 (the estate-wide build-label contract):
+# the alias stamps ZEJTRON_BUILD = "local-pro-native-musl" (the alias
+# name under the `local-` marker) through cargo's [env] config, so
+# `-V` names the exact alias that produced the binary instead of the
+# detection fallback (which can only say local-linux-amd64-musl - it
+# cannot self-detect the native codegen or the alias lane). build.rs
+# forwards the env into the compile-time option_env! src/info reads
+# (cargo's [env] reaches build scripts and rustc alike, but the
+# crate's option_env! only sees what build.rs re-emits).
 #
 # Precedence note (verified live on cargo 1.98.1, the sibling
 # config's rule): target-level rustflags SHADOW build-level
@@ -46,6 +49,8 @@ pro-native-musl = [
   "--profile",
   "pro-native-musl",
   "--config",
+  "env.ZEJTRON_BUILD=\"local-pro-native-musl\"",
+  "--config",
   "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"target-feature=+crt-static\"]",
   "--config",
   "target.x86_64-unknown-linux-musl.linker=\"rust-lld\"",
@@ -61,11 +66,16 @@ pro-native-musl = [
 # musl only, and the native v1 baseline stays a local dev-only
 # build via the pro-native alias above). Each alias carries its own
 # profile so the two artifacts land in separate target dirs and
-# never clobber each other or target/release/zejtron. No build-label
-# env: version.rs's build_label() detects arch + libc at compile
-# time (the night-improve-11 contract); the x86-64 level is the one
-# dimension -V cannot self-detect at runtime, and it is documented
-# by the artifact name the release page ships.
+# never clobber each other or target/release/zejtron.
+#
+# night-dragon-maintenance-T1 (the estate-wide build-label contract):
+# each alias stamps ZEJTRON_BUILD = "local-pro-<alias name>" (the
+# alias name under the `local-` marker), so `-V` names the shape the
+# same way the release Build: line does, arch and microarch level
+# included - the detection fallback cannot self-detect the x86-64
+# v3/v4 level, which is exactly why the label is stamped and not
+# guessed. build.rs forwards the env into the compile-time
+# option_env! src/info reads.
 #
 # The aliases set the target-level rustflags directly (the SHADOW
 # rule documented above): a file-level target musl contract would
@@ -80,6 +90,8 @@ pro-linux-amd64-v3-musl = [
   "--profile",
   "pro-linux-amd64-v3-musl",
   "--config",
+  "env.ZEJTRON_BUILD=\"local-pro-linux-amd64-v3-musl\"",
+  "--config",
   "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=x86-64-v3\",\"-C\",\"target-feature=+crt-static\"]",
   "--target",
   "x86_64-unknown-linux-musl",
@@ -88,6 +100,8 @@ pro-linux-amd64-v4-musl = [
   "build",
   "--profile",
   "pro-linux-amd64-v4-musl",
+  "--config",
+  "env.ZEJTRON_BUILD=\"local-pro-linux-amd64-v4-musl\"",
   "--config",
   "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=x86-64-v4\",\"-C\",\"target-feature=+crt-static\"]",
   "--target",

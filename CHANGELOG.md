@@ -1112,6 +1112,32 @@ v11.0.0
 
 ### Changed
 
+- The estate-wide build-label contract lands
+  (night-dragon-maintenance-T1, the zelynic T1 lineage): `-V`'s
+  `Build:` line now carries the canonical label instead of the bare
+  detection - `local-pro-<alias>` for local alias builds (each
+  alias in .cargo/config.toml stamps `ZEJTRON_BUILD` through
+  cargo's [env] config, build.rs forwards it into the compile-time
+  env), `pro-<platform id>` for release binaries (release.yml stamps
+  the env on every matrix leg), and `local-<os>-<arch>-<libc>` for
+  plain local builds including a crates.io install (the detection
+  fallback, now an ingredient rather than the label). The version
+  report also carries the `Signature:` line - "Pure eBPF builtin -
+  Official Build by rezky_nightky (oxyzenQ)" - as ONE contiguous
+  literal, lane-honest through ZEJTRON_EBPF_LANE (both real lanes
+  embed the objects; a missing stamp degrades to the honest
+  unstamped line instead of claiming purity). The doctor's
+  build_meta row carries the same variant (the documented -V
+  parity). release.yml grows a Verify step that closes the loop on
+  the artifact: the v3 legs execute `-V` and grep the Build line,
+  the v4 legs byte-grep the embedded label, Signature, License, and
+  version literals without executing (the AVX-512 runner may
+  SIGILL), and every leg proves the musl binary static through ldd.
+  Verified live: `cargo pro-native-musl` reports
+  `Build: local-pro-native-musl (<sha>)`, a plain build reports
+  `Build: local-linux-amd64-gnu (<sha>)`. docs/VERIFY_RELEASE.md
+  owns the user-facing contract.
+
 - The pre-release classifier reads the tag shape alone
   (night-dragon-2S): any `vX.Y.Z-<suffix>` is a pre-release - the
   `-` after the patch segment is the whole detector. The release

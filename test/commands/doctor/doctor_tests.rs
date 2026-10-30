@@ -60,6 +60,11 @@ fn build_metadata_row() {
     assert_eq!(check.check, "build_meta");
     assert!(check.message.contains("zejtron v"));
     assert!(check.message.contains("(abcdef1)"));
+    // night-dragon-maintenance-T1 parity: the doctor's build row
+    // carries the SAME canonical variant the -V Build: line does
+    // (the documented parity contract on check_build_metadata), so
+    // the two surfaces can never drift apart.
+    assert!(check.message.contains(&crate::info::build_label()));
 }
 
 #[test]
