@@ -264,6 +264,53 @@ fn numbers_stay_numbers_in_the_json_lane() {
     assert!(!line.contains("\"busy_pct\":\""));
 }
 
+/// night-dragon-maintenance-T1, the JSON-validity guard: a
+/// non-finite f64 must never reach the document as the three
+/// letters `NaN`/`inf` - they are not JSON, and one such token
+/// makes every consumer (jq, python json.loads) reject the WHOLE
+/// document. write_pct degrades a non-finite value to JSON null
+/// (the typed-absence law: a reading that is not a finite number
+/// is not a reading), and the document-level pin proves a poisoned
+/// sample still renders a document a strict parser accepts.
+#[test]
+fn non_finite_percentages_degrade_to_json_null_never_invalid_tokens() {
+    // The emission guard, pinned directly through the private
+    // writer the module owns (the tests ride super::*).
+    for poisoned in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let mut out = String::new();
+        write_pct(&mut out, poisoned);
+        assert_eq!(out, "null", "a non-finite pct must serialize as null");
+    }
+    let mut finite = String::new();
+    write_pct(&mut finite, 47.25);
+    assert_eq!(finite, "47.2", "the finite shape is unchanged");
+
+    // The document-level guard: a sample whose top row carries a
+    // NaN pct (the kind a future unguarded division could produce)
+    // still renders one valid JSON line - the pct field degrades
+    // to null and no NaN/Inf token rides the bytes.
+    let mut sample = cpu_sample();
+    sample.top[0].pct = f64::NAN;
+    sample.busy_pct = Some(f64::INFINITY);
+    let line = json_cpu(&sample);
+    assert!(
+        !line.contains("NaN"),
+        "NaN token must never ride the JSON: {line}"
+    );
+    assert!(
+        !line.contains("inf"),
+        "inf token must never ride the JSON: {line}"
+    );
+    assert!(
+        line.contains("\"pct\":null,"),
+        "the poisoned row's pct degrades to typed null: {line}"
+    );
+    assert!(
+        line.contains("\"busy_pct\":null,"),
+        "the poisoned busy_pct degrades to typed null: {line}"
+    );
+}
+
 // ── The exit lane's three truths ─────────────────────────────────
 
 #[test]

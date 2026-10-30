@@ -274,8 +274,12 @@ pub(crate) fn verdict_lines(sample: &DiskSample) -> Vec<String> {
     }
     // The iowait finding: a high iowait share with a named top
     // consumer is two facts the reader ties - the verdict states
-    // both, never the instruction htop would give.
+    // both, never the instruction htop would give. The is_finite
+    // gate (night-dragon-maintenance-T1) is the write_pct guard's
+    // prose twin: an infinite share is nonsense data, not a high
+    // measurement, and must not fire the sentence as "inf%".
     if let (Some(pct), Some(top)) = (sample.iowait_pct, sample.top.first())
+        && pct.is_finite()
         && pct > 20.0
     {
         lines.push(format!(

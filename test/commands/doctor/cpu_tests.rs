@@ -220,3 +220,23 @@ fn the_empty_window_is_a_named_finding() {
         "{report}"
     );
 }
+
+/// night-dragon-maintenance-T1, the non-finite loadavg filter:
+/// Rust's f64 FromStr accepts "NaN", "inf", and "infinity" as
+/// successfully parsed values, and an unfiltered parse would ride
+/// the JSON lane as an invalid NaN token (the incident class the
+/// write_pct guard holds at emission; this filter holds it at the
+/// source). A non-finite load average is not a fact - it is None.
+#[test]
+fn parse_loadavg_rejects_non_finite_and_garbage_tokens() {
+    // The kernel's real shape parses.
+    assert_eq!(parse_loadavg("0.52 0.58 0.65 1/487 12345"), Some(0.52));
+    // The tokens Rust's f64 parser would accept but a load average
+    // can never honestly be.
+    assert_eq!(parse_loadavg("NaN 0.58 0.65 1/487 12345"), None);
+    assert_eq!(parse_loadavg("inf 0.58 0.65 1/487 12345"), None);
+    assert_eq!(parse_loadavg("infinity 0.58 0.65 1/487 12345"), None);
+    // Garbage and emptiness stay None (the pre-guard behavior).
+    assert_eq!(parse_loadavg("not-a-number at all"), None);
+    assert_eq!(parse_loadavg(""), None);
+}
