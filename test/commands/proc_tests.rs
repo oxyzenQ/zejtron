@@ -8,8 +8,8 @@
 //! inline tests did.
 
 use super::*;
+use crate::test_tempdir::TempDir;
 use std::collections::BTreeSet;
-use tempfile::TempDir;
 
 fn target() -> TargetUser {
     TargetUser {

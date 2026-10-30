@@ -9,8 +9,8 @@
 
 use super::procfs::{classify_proc_error, parse_proc_net_line, parse_socket_inode};
 use super::*;
+use crate::test_tempdir::TempDir;
 use std::os::unix::fs::symlink;
-use tempfile::TempDir;
 
 #[test]
 fn target_detection_valid_port() {

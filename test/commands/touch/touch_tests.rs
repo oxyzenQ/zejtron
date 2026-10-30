@@ -8,8 +8,8 @@
 //! inline tests did.
 
 use super::*;
+use crate::test_tempdir::TempDir;
 use std::os::unix::fs::symlink;
-use tempfile::TempDir;
 
 #[test]
 fn accepts_directory_metadata() {

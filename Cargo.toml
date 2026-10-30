@@ -152,8 +152,15 @@ aya = { version = "0.14" }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
-[dev-dependencies]
-tempfile = "3.20.0"
+# tempfile dropped (night-dragon-maintenance-T1): the single
+# dev-dependency, and its whole transitive subtree (fastrand,
+# getrandom, rustix, linux-raw-sys, errno, r-efi - seven lockfile
+# entries) existed for nothing else. The test tree now rides the
+# std-only guard (test/support/tempdir.rs): a unique directory
+# under std::env::temp_dir() with RAII cleanup, the same
+# new()/path() surface the 22 call sites consumed, zero
+# dependencies - the reference project's own shape. The dev graph
+# is empty; the lockfile is the runtime graph plus proc-macros.
 
 [profile.release]
 opt-level = 3
