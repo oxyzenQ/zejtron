@@ -1574,6 +1574,20 @@ v11.0.0
 
 ### Removed
 
+- The `tempfile` dev-dependency (night-dragon-maintenance-T1): the
+  single dev-dependency, retired for the independence law - its
+  whole transitive subtree (fastrand, getrandom, rustix,
+  linux-raw-sys, errno, r-efi - seven lockfile entries) existed
+  for nothing else, and the consumed surface was two methods
+  (`new()` and `path()`, 22 call sites across seven test files).
+  The test tree now rides the std-only guard
+  (`test/support/tempdir.rs`): a unique directory under
+  `std::env::temp_dir()` created exclusive (pid + nanos + counter,
+  retry on AlreadyExists) with RAII cleanup on drop - the
+  reference project's own shape. Call sites stay byte-identical.
+  The dev graph is empty; the lockfile drops from 49 to 41
+  packages together with the regex-lite removal.
+
 - The dead `regex-lite` runtime dependency
   (night-dragon-maintenance-T1): the dependency audit found ZERO
   imports across the tree. The stale justification row claimed

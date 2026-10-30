@@ -8,8 +8,8 @@
 //! inline tests did.
 
 use super::*;
+use crate::test_tempdir::TempDir;
 use std::fs::File;
-use tempfile::TempDir;
 
 #[test]
 fn parses_minutes_hours_and_days() {

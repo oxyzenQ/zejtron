@@ -8,7 +8,7 @@
 //! inline tests did.
 
 use super::*;
-use tempfile::TempDir;
+use crate::test_tempdir::TempDir;
 
 #[test]
 fn missing_systemctl_is_warn_not_fail() {

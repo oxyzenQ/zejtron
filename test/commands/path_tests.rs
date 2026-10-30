@@ -8,9 +8,9 @@
 //! inline tests did.
 
 use super::*;
+use crate::test_tempdir::TempDir;
 use std::fs::File;
 use std::os::unix::fs::symlink;
-use tempfile::TempDir;
 
 fn make_executable(path: &Path) {
     let mut permissions = fs::metadata(path).unwrap().permissions();

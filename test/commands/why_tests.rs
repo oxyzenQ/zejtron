@@ -8,9 +8,9 @@
 //! the inline tests did.
 
 use super::*;
+use crate::test_tempdir::TempDir;
 use std::fs;
 use std::os::unix::fs::symlink;
-use tempfile::TempDir;
 
 #[test]
 fn target_detection_valid_port() {
