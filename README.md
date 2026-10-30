@@ -172,6 +172,8 @@ cd zejtron
 cargo install --path .
 ```
 
+Every binary names its own build shape in `zejtron -V`: `Build: local-...` for anything built on the machine you are standing on (the alias name under the `local-` marker for alias builds, the detected arch-libc shape for plain builds), `Build: pro-...` for a binary downloaded from the release page. [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) owns the full contract.
+
 ### eBPF & The Lazy Camera
 
 The eBPF event lane ships in every binary. No program loads until you attach.

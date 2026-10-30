@@ -228,8 +228,66 @@ jobs:
       # it verbatim).
       - name: Build
         env:
+          # night-dragon-maintenance-T1 (the estate-wide build-label
+          # contract): release binaries report "pro-" + the platform
+          # id in their Build: line - the download page ships the
+          # pro- shapes, so -V names the same shape the tarball name
+          # encodes, prefix included, and never the "local-" marker
+          # (a release binary is not a local build by construction).
+          # build.rs forwards the env into the compile-time
+          # option_env! src/info's build_label() reads; the verify
+          # step below closes the loop on the artifact bytes.
+          ZEJTRON_BUILD: pro-${{ matrix.platform }}
           RUSTFLAGS: ${{ matrix.rustflags }}
         run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # night-dragon-maintenance-T1: the artifact-level label check.
+      # The v4 legs verify WITHOUT executing the artifact (the
+      # runner may lack the AVX-512 baseline; executing it could
+      # SIGILL) - the embedded ZEJTRON_BUILD label and the
+      # version-report literals are grepped as BYTES straight
+      # against the binary (grep -aFq, no encoding layer - the
+      # sibling's v11.0.0-rc.1 lesson: strings(1) defaults to
+      # 7-bit ASCII runs and silently split a Signature literal at
+      # its UTF-8 em-dash, so the byte-grep is the only honest
+      # probe). The v3 legs execute the artifact: every x86_64
+      # runner since Haswell runs the AVX2 baseline.
+      - name: Verify binary
+        run: |
+          set -euo pipefail
+          BIN="target/${{ matrix.target }}/release/zejtron"
+          PLATFORM="${{ matrix.platform }}"
+          LABEL="pro-${PLATFORM}"
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "=== ${PLATFORM} (Build: ${LABEL}) ==="
+          case "${PLATFORM}" in
+            *-v4-*)
+              grep -aFq "${LABEL}" "${BIN}" \
+                || { echo "::error::Expected embedded build label ${LABEL}"; exit 1; }
+              grep -aFq "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)" "${BIN}" \
+                || { echo "::error::Expected embedded version-report literals"; exit 1; }
+              grep -aFq "License: GPL-3.0-only" "${BIN}" \
+                || { echo "::error::Expected embedded license literal"; exit 1; }
+              grep -aFq "${VERSION}" "${BIN}" \
+                || { echo "::error::Binary does not embed tag version '${VERSION}' (Cargo.toml/tag drift)"; exit 1; }
+              echo "embedded build metadata verified (execution skipped: AVX-512 baseline)"
+              ;;
+            *-v3-*)
+              "${BIN}" -V
+              "${BIN}" -V | grep -F "Build: ${LABEL}" \
+                || { echo "::error::Expected 'Build: ${LABEL}' in -V"; exit 1; }
+              "${BIN}" -V | grep -F "zejtron: v${VERSION}" \
+                || { echo "::error::Expected 'zejtron: v${VERSION}' in -V (Cargo.toml/tag drift)"; exit 1; }
+              ;;
+          esac
+          # Static proof: ldd must deny dynamic dependencies - it
+          # exits non-zero exactly then, so capture instead of fail.
+          # Both spellings are accepted: glibc ldd says "not a
+          # dynamic executable", musl ldd says "statically linked".
+          LDD_OUT="$(ldd "${BIN}" 2>&1 || true)"
+          grep -Eq "not a dynamic executable|statically linked" <<<"${LDD_OUT}" \
+            || { echo "::error::musl binary is not static: ${LDD_OUT}"; exit 1; }
+          echo "static: yes"
 
       - name: Package
         run: |
