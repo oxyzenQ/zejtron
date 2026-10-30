@@ -1025,6 +1025,29 @@ v11.0.0
 
 ### Fixed
 
+- The non-finite float class in the JSON lane
+  (night-dragon-maintenance-T1, found by the differential
+  round-trip hunt): `write_pct` formatted any f64 with `{:.1}`, and
+  Rust formats NaN as `NaN` and infinity as `inf` - three letters
+  that are NOT JSON, so one poisoned value would have made every
+  consumer (jq, python json.loads) reject the WHOLE document. Three
+  guards now hold the class at every layer: `write_pct` degrades a
+  non-finite value to JSON null (the typed-absence law: a reading
+  that is not a finite number is not a reading), `parse_loadavg`
+  rejects the "NaN"/"inf"/"infinity" tokens Rust's f64 FromStr
+  happily accepts, and the verdict prose states the raw CPU ticks
+  instead of a "NaN%"/"inf%" share (the disk iowait finding gains
+  the same is_finite gate before firing its sentence). Every
+  arithmetic caller was already guarded (division-by-zero `.then()`
+  gates) - the guards are defense in depth so ONE future caller
+  cannot ship an invalid document. Pinned by three new tests, and
+  verified live by the differential round-trip: every --print-json
+  surface (proc, port, net, path, doctor, holds, touch, why,
+  recent) driven with pathological fixtures - filenames carrying
+  control bytes, quotes, backslashes, newlines, tabs, DEL, and
+  unicode including the em-dash - renders lines Python's strict
+  json parser accepts, 27 documents, zero failures.
+
 - The disclaimer placement defect (night-dragon-2S): four docs rode
   the block mid-file (QA.md line 11, docs/DEPENDENCY_AUDIT.md line
   19, docs/DOC_AUDIT.md line 18, SECURITY.md without its separator

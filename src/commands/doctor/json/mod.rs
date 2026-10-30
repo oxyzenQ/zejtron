@@ -60,8 +60,22 @@ fn kib_to_bytes(kib: u64) -> u64 {
 
 /// One fixed-point number with one decimal, the text ledger's own
 /// percentage shape ("47.2") - deterministic bytes, no float drift.
+///
+/// JSON-validity guard (night-dragon-maintenance-T1): a non-finite
+/// f64 (NaN, +/-inf) formats as `NaN`/`inf` - three letters that
+/// are NOT JSON - and every consumer (jq, python json.loads) would
+/// reject the whole document. The guard degrades a non-finite value
+/// to JSON null instead, the lane's own typed-absence law ("the
+/// absent fact stays absent, never zero"): a reading that is not a
+/// finite number is not a reading. Today every caller guards its
+/// arithmetic (division-by-zero `.then()` gates); the guard exists
+/// so ONE future caller cannot ship an invalid document.
 fn write_pct(out: &mut String, pct: f64) {
-    let _ = write!(out, "{pct:.1}");
+    if pct.is_finite() {
+        let _ = write!(out, "{pct:.1}");
+    } else {
+        out.push_str("null");
+    }
 }
 
 /// The array framing every writer below rides on: `[a,b,c]` with

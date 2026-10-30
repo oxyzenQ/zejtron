@@ -196,7 +196,19 @@ pub(crate) fn collect() -> CpuSample {
 
 /// The 1-minute load average from the first /proc/loadavg field.
 fn parse_loadavg(contents: &str) -> Option<f64> {
-    contents.split_whitespace().next()?.parse().ok()
+    // The is_finite filter (night-dragon-maintenance-T1): Rust's
+    // f64 FromStr accepts "NaN", "inf", and "infinity" as
+    // successfully parsed values, and a non-finite load average is
+    // not a fact - it would ride the JSON lane as an invalid
+    // `NaN` token without the filter. /proc/loadavg's kernel
+    // format is fixed decimal, so the filter is defense in depth
+    // against every future reader of a less trustworthy source.
+    contents
+        .split_whitespace()
+        .next()?
+        .parse::<f64>()
+        .ok()
+        .filter(|value| value.is_finite())
 }
 
 /// The report: collect, render, one String, exit - the command's
@@ -349,6 +361,17 @@ fn render_verdict(sample: &CpuSample, lines: &mut Vec<String>) {
 pub(crate) fn verdict_lines(sample: &CpuSample) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     match sample.top.first() {
+        // night-dragon-maintenance-T1: a non-finite share (the
+        // class write_pct guards on the JSON number lane) must not
+        // reach the prose as "NaN%"/"inf%" - the honest sentence
+        // states the raw ticks, the number that is always real.
+        // The real collector cannot produce a non-finite pct
+        // (delta_rows guards the division); this is the same
+        // defense-in-depth the emission guard carries.
+        Some(top) if !top.pct.is_finite() => lines.push(format!(
+            "The largest CPU consumer is {} ({} CPU ticks in the window).",
+            top.comm, top.ticks
+        )),
         Some(top) => lines.push(format!(
             "The largest CPU consumer is {} ({:.1}% of total CPU in the window).",
             top.comm, top.pct
