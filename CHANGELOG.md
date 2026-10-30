@@ -1574,6 +1574,19 @@ v11.0.0
 
 ### Removed
 
+- The dead `regex-lite` runtime dependency
+  (night-dragon-maintenance-T1): the dependency audit found ZERO
+  imports across the tree. The stale justification row claimed
+  "pattern filters", but the actual pattern filter (proc's
+  `--find`) is std-only substring matching
+  (`to_lowercase().contains()`), and the one regex-shaped call
+  site (touch's `journalctl --grep` argument) escapes its argument
+  for an EXTERNAL command's engine through the hand-written
+  `escape_journal_regex` - no regex crate on this side of the
+  process boundary. The runtime graph is three crates now: clap,
+  aya, libc. No code change; README's dependency doctrine and
+  docs/DEPENDENCY_AUDIT.md updated in lockstep.
+
 - The four wrapper subcommands: `env` (`--filter` was `env | grep`;
   `save`/`delete` wrote files - the only writes zejtron ever made;
   `diff` required persisted state a stateless tool does not carry),

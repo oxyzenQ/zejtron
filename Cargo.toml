@@ -106,7 +106,14 @@ autoexamples = false
 # crate, std only, UTC with an explicit marker. The deny.toml bans
 # section (night-improve-12) blocks re-adding it in CI.
 clap = { version = "4.5.40", features = ["derive"] }
-regex-lite = "0.1"
+# regex-lite dropped (night-dragon-maintenance-T1): the dependency
+# audit found ZERO imports - the pattern filter (proc's --find) is
+# std-only substring matching (to_lowercase().contains(), the
+# reference project's own shape), and the one regex-shaped call site
+# (touch's journalctl --grep argument) escapes through the
+# hand-written escape_journal_regex for an EXTERNAL command's engine,
+# which needs no regex crate on this side. The runtime graph is
+# three crates now: clap, aya, libc.
 # night-improve-1, the eBPF lane: aya 0.14 is the userspace loader,
 # and since night-weekly-maintenance-1 it rides UNCONDITIONALLY (no
 # feature toggle) - the registry install lands the full-featured
