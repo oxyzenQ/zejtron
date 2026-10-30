@@ -37,6 +37,22 @@ v11.0.0
 
 ### Added
 
+- The user FAQ (night-dragon-maintenance-T1): `docs/FAQ.md` answers
+  the questions a serious reader asks before trusting the tool on a
+  real host - root and privileges (the one-shot attach, the
+  non-root snapshot lane), kernel support (the 5.15 floor, BTF,
+  lockdown, the static musl shapes), where the eBPF objects come
+  from (embedded on both lanes, no nightly at install), the JSON
+  lane, privacy (the one opt-in network call), colors (NO_COLOR and
+  friends), release verification - and the deployment shapes the
+  owner asked for: desktop, server, and ultra scale (the
+  scale-audit's tested 500 ms worst-of-three budgets, its
+  ZEJTRON_SCALE_* knobs, and the Lazy Camera's bounded rings that
+  keep a busy host paying nothing until a window is drained), with
+  the honest boundary stated (an investigative CLI, not a
+  monitoring daemon). Linked from README's documentation index and
+  docs/README.md.
+
 - The maintenance record and the python bytecode guard
   (night-dragon-maintenance-T1): the family field report (a
   non-root `rm -rf` dying on root-owned `__pycache__/*.pyc`, the

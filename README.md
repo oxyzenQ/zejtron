@@ -301,12 +301,14 @@ zejtron writes nothing. Its attack surface is the network lane (`--check-update`
 ## Documentation
 
 - [docs/USAGE.md](docs/USAGE.md) — the usage playbook: investigation scenarios and how to read the Evidence Ledger
+- [docs/FAQ.md](docs/FAQ.md) — the FAQ: root and privileges, kernel support, where the eBPF objects come from, and the deployment shapes (desktop, server, ultra scale)
 - [docs/BRANDING.md](docs/BRANDING.md) — the brand and color system
 - [docs/RULES.md](docs/RULES.md) — the engineering rules
 - [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/ROADMAP-current.md](docs/ROADMAP-current.md) — direction
 - [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) — release verification
 - [docs/FREEZE.md](docs/FREEZE.md) — the v80.0.0 LTS freeze declaration
 - [docs/LICENSING_FAQ.md](docs/LICENSING_FAQ.md) — licensing questions
+- [docs/MAINTENANCE.md](docs/MAINTENANCE.md) — the maintenance record: armed incident classes and their recoveries
 - [docs/workflow/about-ci.md](docs/workflow/about-ci.md) — the CI estate
 
 ## Test Results
