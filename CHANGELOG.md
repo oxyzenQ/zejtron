@@ -68,6 +68,12 @@ v11.0.0
   command for an already-poisoned checkout, and the second armed
   class (the unknown commit id on registry builds, the
   `build.rs` git -> `GITHUB_SHA` -> `.cargo_vcs_info.json` chain).
+  The provisioner rode the scripts LOC cap at exactly 1000 lines,
+  so the guard's lines pushed it over: it now carries the
+  `# LOC_EXEMPT:` marker with the structural reason (splitting it
+  into local modules would create the imported-under-sudo class
+  the guard exists to prevent) - tracked migration debt, recorded
+  in docs/MAINTENANCE.md.
 
 - The documentation disclaimer injector (night-dragon-2S):
   `scripts/gates/inject-disclaimer.sh` guarantees every living .md

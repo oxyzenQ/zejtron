@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# LOC_EXEMPT: the kernel-floor provisioner rides the 1000-line cap
+# (it sat at exactly 1000 before the night-dragon-maintenance-T1
+# bytecode guard added its lines); it cannot split into local
+# modules without creating the imported-under-sudo __pycache__
+# class that very guard exists to prevent.
 """zejtron sandbox provisioner (night-improve-43, the kernel-floor
 lane) - the rootless builder for the local KVM micro-VM that boots
 the REAL documented floor kernel and runs the supermassive suite
@@ -61,11 +66,10 @@ the orchestration; these subcommands are its legs):
 
 # Bytecode guard (night-dragon-maintenance-T1, the zelynic root-owned
 # __pycache__ class): this provisioner is documented to run as root
-# inside the sandbox lane, and CPython writes __pycache__/*.pyc beside
-# every imported module with the invoking user's ownership - root-owned
-# caches that later block a normal non-root teardown with Permission
-# denied. No repo-local bytecode is written at any privilege level; a
-# future repo-local import MUST sit below this guard, never above it.
+# inside the sandbox lane, and no repo-local bytecode is written at
+# any privilege level - docs/MAINTENANCE.md owns the class and its
+# recovery command. A future repo-local import MUST sit below this
+# guard, never above it.
 import sys
 
 sys.dont_write_bytecode = True

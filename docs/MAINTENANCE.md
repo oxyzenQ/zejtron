@@ -47,6 +47,17 @@ sudo find . -name __pycache__ -type d -prune -exec rm -rf {} +
 after that the tree is normal-user-owned again and the guard keeps it
 that way.
 
+One structural note: `scripts/sandbox/rootfs-pack.py` (the
+kernel-floor provisioner) sat at exactly the 1000-line scripts cap
+before the guard landed, so the guard's lines pushed it over and the
+file now carries the `# LOC_EXEMPT:` marker — tracked migration debt,
+visible at the file's top. The exemption is not laziness: splitting
+the provisioner into local modules would create the exact
+imported-under-sudo `__pycache__` class the guard exists to prevent,
+so the one-file shape IS the fix for that class. The marker retires
+the day the provisioner learns a split that imports nothing
+repo-local (or the cap discipline demands it).
+
 ## The unknown commit id class (armed since night-improve-5)
 
 A binary that cannot name its commit prints `unknown` in the version
