@@ -45,9 +45,19 @@ they document).
 
 from __future__ import annotations
 
+# Bytecode guard (night-dragon-maintenance-T1, the zelynic root-owned
+# __pycache__ class): this entry point may run under sudo, and CPython
+# writes __pycache__/*.pyc beside every imported module with the
+# invoking user's ownership - root-owned caches that later block a
+# normal non-root teardown with Permission denied. No repo-local
+# bytecode is written at any privilege level; a future repo-local
+# import MUST sit below this guard, never above it.
+import sys
+
+sys.dont_write_bytecode = True
+
 import re
 import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]

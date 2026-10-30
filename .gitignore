@@ -26,4 +26,13 @@ worklog.md
 codex/
 agent/
 other ai/
+
+# Python bytecode (night-dragon-maintenance-T1, the zelynic
+# root-owned __pycache__ class): the interpreter writes caches beside
+# imported sources with the invoking user's ownership; a root-run
+# harness leaves root-owned .pyc files a later non-root teardown
+# cannot remove. Ignored at both shapes - the directory and the
+# bare file.
+__pycache__/
 __pycache__
+*.pyc

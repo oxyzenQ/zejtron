@@ -59,6 +59,17 @@ the orchestration; these subcommands are its legs):
   python3 scripts/sandbox/rootfs-pack.py self-test
 """
 
+# Bytecode guard (night-dragon-maintenance-T1, the zelynic root-owned
+# __pycache__ class): this provisioner is documented to run as root
+# inside the sandbox lane, and CPython writes __pycache__/*.pyc beside
+# every imported module with the invoking user's ownership - root-owned
+# caches that later block a normal non-root teardown with Permission
+# denied. No repo-local bytecode is written at any privilege level; a
+# future repo-local import MUST sit below this guard, never above it.
+import sys
+
+sys.dont_write_bytecode = True
+
 import argparse
 import gzip
 import io
@@ -67,7 +78,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tarfile
 import tempfile
 import urllib.request

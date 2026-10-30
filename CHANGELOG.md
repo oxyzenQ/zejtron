@@ -37,6 +37,22 @@ v11.0.0
 
 ### Added
 
+- The maintenance record and the python bytecode guard
+  (night-dragon-maintenance-T1): the family field report (a
+  non-root `rm -rf` dying on root-owned `__pycache__/*.pyc`, the
+  zelynic 2026-10-30 incident) is now fixed at the cause in this
+  tree - every python entry point under `scripts/`
+  (`scripts/gates/check-name-case.py`,
+  `scripts/sandbox/rootfs-pack.py`) sets
+  `sys.dont_write_bytecode = True` before any repo-local import, so
+  no repo-local bytecode is written at any privilege level and a
+  sudo-run harness can no longer leave root-owned caches behind;
+  `.gitignore` now ignores both artifact shapes (`__pycache__/` and
+  `*.pyc`). `docs/MAINTENANCE.md` records the class, the recovery
+  command for an already-poisoned checkout, and the second armed
+  class (the unknown commit id on registry builds, the
+  `build.rs` git -> `GITHUB_SHA` -> `.cargo_vcs_info.json` chain).
+
 - The documentation disclaimer injector (night-dragon-2S):
   `scripts/gates/inject-disclaimer.sh` guarantees every living .md
   file carries the stale-data disclaimer as its bottom block - the
