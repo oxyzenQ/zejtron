@@ -1061,6 +1061,34 @@ v11.0.0
 
 ### Fixed
 
+- The night-dragon-lts-T1 epoch law: pre-epoch timestamps were a
+  fact the pipeline could name and the plumbing threw away, and one
+  ctime construction could panic the whole binary. Three defects,
+  one root - the signed second count the row model (`Option<i64>`)
+  and the clock module (`format_unix_secs`, i64 floor-division
+  civil math, pre-epoch format pins dating to the 1600-02-29 test
+  constant) were built to carry was dropped at the last hop by
+  `duration_since(UNIX_EPOCH).ok()`:
+  a touch/why ledger row for a file with a pre-epoch mtime (a tar
+  restoring a 1969 stamp, `touch -d` setting one by hand) rendered
+  `unknown modified` while touch's own header - one function call
+  away, through the same clock module - printed the true date;
+  the formatter's pre-epoch Err arm was dead code no caller could
+  reach. stamp_of now rides the clock module's shared signed
+  conversion (unix_secs, extracted from format_system_time so the
+  two cannot drift), so `touch`/`why` on a 1969-dated file name
+  `1969-12-31 23:59:59 (UTC)` in both the text rows and the JSON
+  `unix_secs` field (a negative number, the typed shape the row
+  model always carried). The same audit found the panic path:
+  `changed: UNIX_EPOCH + Duration::from_secs(ctime as u64)` in
+  touch, and twice in recent, wrapped a negative ctime (a host
+  whose clock stepped back past 1970) through `as u64` to a value
+  near u64::MAX whose SystemTime addition panics in release builds
+  too - all three now construct through the clock module's
+  saturating, panic-free inverse (system_time_from_unix_secs),
+  round-trip- and edge-pinned in the clock tests. recent's JSON
+  `modified` field keeps its documented epoch-saturating u64
+  clamp: that one is a written contract, not a lost sign.
 - The night-dragon-lts-2 audit: the net surface's flags lane was
   dormant from birth. /sys/class/net/<if>/flags is written by the
   kernel in hex with the 0x prefix ("0x9" on loopback) and

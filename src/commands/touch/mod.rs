@@ -11,7 +11,7 @@ use std::fs;
 use std::io;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use audit::{try_audit_log, try_journalctl};
 
@@ -170,7 +170,12 @@ fn build_file_meta(
         dev: m.dev(),
         modified: m.modified().unwrap_or(UNIX_EPOCH),
         accessed: m.accessed().unwrap_or(UNIX_EPOCH),
-        changed: SystemTime::UNIX_EPOCH + Duration::from_secs(m.ctime() as u64),
+        // The panic-free signed construction (night-dragon-lts-T1):
+        // a negative ctime (clock skew) used to wrap through `as u64`
+        // into a SystemTime-addition overflow panic; the clock
+        // module's saturating inverse cannot panic in either
+        // direction.
+        changed: crate::info::clock::system_time_from_unix_secs(m.ctime()),
         is_symlink,
         symlink_target,
     }

@@ -139,3 +139,39 @@ fn time_of_day_core_wraps_negative_offsets_like_the_epoch_math() {
         "23:59:00 UTC"
     );
 }
+
+#[test]
+fn signed_seconds_round_trip_through_system_time() {
+    // night-dragon-lts-T1: the shared signed conversion and its
+    // panic-free inverse. Ground truth via `date -u -d @-1`:
+    // 1969-12-31 23:59:59 UTC; @-11_670_955_200 is the 1600-02-29
+    // noon pin the format tests already carry.
+    for secs in [0_i64, 1, 1_785_857_400, -1, -11_670_955_200] {
+        let time = system_time_from_unix_secs(secs);
+        assert_eq!(unix_secs(time), secs, "round-trip lost {secs}");
+    }
+}
+
+#[test]
+fn pre_epoch_system_times_format_through_the_wall_wrapper() {
+    // The integration shape night-dragon-lts-T1 repaired: a
+    // pre-epoch SystemTime reaches the formatter with its sign
+    // intact. The pre-fix plumbing dropped these to `None`/`unknown`
+    // one hop before this function, so its Err arm was dead code.
+    let pre_epoch = system_time_from_unix_secs(-1);
+    assert_eq!(format_system_time(pre_epoch), "1969-12-31 23:59:59 (UTC)");
+    assert_eq!(
+        format_system_time(system_time_from_unix_secs(-11_670_955_200)),
+        "1600-02-29 12:00:00 (UTC)"
+    );
+}
+
+#[test]
+fn system_time_from_unix_secs_saturates_at_the_i64_edges() {
+    // The panic-free law: neither direction may panic (the pre-fix
+    // `UNIX_EPOCH + Duration::from_secs(x as u64)` shape panicked on
+    // the wrapped negative side), and the i64 edges clamp through
+    // the round trip as saturating values.
+    let _far_future = system_time_from_unix_secs(i64::MAX);
+    let _far_past = system_time_from_unix_secs(i64::MIN);
+}

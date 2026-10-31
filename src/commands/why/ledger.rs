@@ -367,9 +367,10 @@ fn push_metadata_rows(
 }
 
 fn stamp_of(t: SystemTime) -> Option<i64> {
-    t.duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .ok()
+    // The signed conversion (night-dragon-lts-T1): a pre-epoch
+    // timestamp is a reportable fact, named through the clock
+    // module's shared converter - never dropped to `unknown`.
+    Some(crate::info::clock::unix_secs(t))
 }
 
 fn unix_now() -> i64 {

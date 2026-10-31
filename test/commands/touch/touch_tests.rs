@@ -10,6 +10,7 @@
 use super::*;
 use crate::test_tempdir::TempDir;
 use std::os::unix::fs::symlink;
+use std::time::Duration;
 
 #[test]
 fn accepts_directory_metadata() {

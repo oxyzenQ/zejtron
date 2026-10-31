@@ -192,11 +192,12 @@ fn metadata_rows(
             EvidenceActor::none(),
             Provenance::Measured,
         ));
-        let stamp = |t: SystemTime| {
-            t.duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .ok()
-        };
+        // The signed stamp (night-dragon-lts-T1): pre-epoch times
+        // ride the clock module's signed conversion instead of
+        // collapsing to `None` - the row model and the formatter are
+        // both signed, and `unknown` was the pre-fix loss of a fact
+        // the clock could name.
+        let stamp = |t: SystemTime| Some(crate::info::clock::unix_secs(t));
         rows.push(EvidenceRow::new(
             stamp(meta.modified),
             EvidenceKind::Modified { via: None },
@@ -227,9 +228,10 @@ fn metadata_rows(
 }
 
 fn stamp_of(t: SystemTime) -> Option<i64> {
-    t.duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .ok()
+    // The signed conversion (night-dragon-lts-T1): a pre-epoch
+    // timestamp is a reportable fact, named through the clock
+    // module's shared converter - never dropped to `unknown`.
+    Some(crate::info::clock::unix_secs(t))
 }
 
 fn unix_now() -> i64 {

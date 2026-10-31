@@ -283,3 +283,18 @@ fn the_cannot_line_names_the_live_and_log_gaps() {
     let nothing = path_cannot_line(&quiet, Mode::SnapshotJournal, 0, 0);
     assert!(nothing.contains("no evidence was collected for this target"));
 }
+
+#[test]
+fn stamp_of_names_pre_epoch_times_instead_of_unknown() {
+    // night-dragon-lts-T1: the why ledger's stamp rode the same
+    // lossy Err-arm drop the touch ledger's did - a pre-epoch mtime
+    // rendered `unknown` in the evidence rows while the JSON row
+    // model (`Option<i64>`) and the clock formatter are both signed.
+    // The shared signed conversion keeps the fact.
+    let pre_epoch = UNIX_EPOCH - Duration::from_secs(1);
+    assert_eq!(stamp_of(pre_epoch), Some(-1));
+    assert_eq!(
+        crate::info::clock::format_unix_secs(stamp_of(pre_epoch).unwrap()),
+        "1969-12-31 23:59:59 (UTC)"
+    );
+}
