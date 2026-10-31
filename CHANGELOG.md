@@ -569,8 +569,9 @@ v11.0.0
   the no-fake-[observed]-rows rule in snapshot mode, the [eBPF]
   Feature/Lane declarations, and the honest event-window header.
   Every contract the suite pins was verified against the real
-  binary first, including the honest exception that `path
-  <missing>` is a report (exit 0), not a failure.
+  binary first, including the family contract that `path
+  <missing>` answers 1 for an absent target like every sibling
+  surface (the night-improve-61 contract, Fixed below).
 
 - The README now names the current version twice: once as the
   canonical current-release line near the top, once as the TAG
@@ -1072,6 +1073,15 @@ v11.0.0
   line and the found:false JSON wire keep their shapes
   byte-for-byte; stdout is flushed before the exit), so a scripted
   `if zejtron path tool >/dev/null` finally branches on the truth.
+- The battery's path surface caught up with the night-improve-61
+  contract (the split's missed leg): the <missing> check still
+  pinned the old exit-0 report, and that single stale assertion
+  failed every CI leg that runs the full suite - the four kernel
+  witnesses, both e2e legs, and the kernel-floor micro-VM. The leg
+  now asserts the family answer (exit 1, the miss named on stdout)
+  and pins the JSON lane's typed absence for the first time
+  (found:false, silent stderr, exit 1); the suite's landing entry
+  above no longer calls the exit-0 report the pinned contract.
 - The night-improve-61 post-mortem attribution for the live file
   lanes: an event whose pid had no /proc entry fell into the
   Unaccounted block ("no visible PID - namespace boundary or

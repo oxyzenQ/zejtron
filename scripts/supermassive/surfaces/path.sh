@@ -7,10 +7,11 @@
 #
 # Depth: success shape (the active resolution and the duplicates
 # section both render), the runtime error path (a command that is not
-# on PATH), the clap error path (a missing argument), determinism,
-# and the color tri-test. Pure PATH surgery - no eBPF lane, so no
-# dormant variant exists to check (documented in the README).
-# Exercised flags: the positional COMMAND (no options on this verb).
+# on PATH, both lanes), the clap error path (a missing argument),
+# determinism, and the color tri-test. Pure PATH surgery - no eBPF
+# lane, so no dormant variant exists to check (documented in the
+# README). Exercised flags: the positional COMMAND (no options on
+# this verb).
 
 surface_path() {
 	local rc
@@ -47,14 +48,31 @@ surface_path() {
 	sm_flag_used "path --print-json"
 
 	# Runtime error path: a command that cannot exist on PATH. The
-	# honest contract (verified against the binary): this is a REPORT,
-	# not a failure - exit 0, the miss named on stdout, so scripts can
-	# tell a miss from a crash.
+	# honest contract (night-improve-61, verified against the binary):
+	# the family answer - why/holds/touch and the POSIX which table
+	# all answer nonzero for an absent target - so exit 1, the miss
+	# still named on stdout: a scripted `if zejtron path tool`
+	# branches on the truth, and a miss still reads apart from a
+	# crash (the crash shapes exit 2/101, not 1).
 	sm_run "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" rc 20 -- \
 		"$SM_DEFAULT_BIN" path "definitely-not-a-command-3f9a"
-	sm_assert_rc 0 "$rc" "path <missing> reports honestly with exit 0"
+	sm_assert_rc 1 "$rc" "path <missing> exits 1"
 	sm_assert_contains "$SM_SCRATCH/miss.out" "command not found in PATH" \
 		"path <missing> names the miss on stdout"
+
+	# The JSON lane's typed absence (the same night-improve-61
+	# contract, the wire side): found:false on the wire, silent
+	# stderr, exit 1 - the text lane's answer, typed for automation.
+	sm_run "$SM_SCRATCH/miss-json.out" "$SM_SCRATCH/miss-json.err" rc 20 -- \
+		"$SM_DEFAULT_BIN" path "definitely-not-a-command-3f9a" --print-json
+	sm_assert_rc 1 "$rc" "path <missing> --print-json exits 1"
+	sm_assert_silent_stderr "$SM_SCRATCH/miss-json.err" \
+		"path <missing> --print-json keeps stderr silent"
+	sm_assert_pure_json "$SM_SCRATCH/miss-json.out" \
+		"path <missing> --print-json stdout is pure JSON"
+	sm_assert_json "$SM_SCRATCH/miss-json.out" \
+		'.command == "definitely-not-a-command-3f9a" and .found == false' \
+		"path <missing> --print-json names the typed absence"
 
 	# Clap error path: the verb without its argument is a usage
 	# error, so the contract is exit 2.
