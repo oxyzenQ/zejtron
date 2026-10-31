@@ -262,12 +262,41 @@ pub(crate) fn parse_smaps_rollup(contents: &str) -> Option<(u64, u64, u64, u64, 
     Some((pss?, anon?, file?, shmem?, rss?))
 }
 
+/// The rollup's no-mm discriminator (night-dragon-lts-4): a task's
+/// status carries a VmSize line exactly when it has a user memory
+/// map - kernel threads never do, zombies lose theirs at exit, and
+/// a userspace process holds its VmSize until the last exit step.
+pub(crate) fn has_vm_size(status: &str) -> bool {
+    status.lines().any(|line| line.starts_with("VmSize:"))
+}
+
+/// The verdict for one absent rollup whose read failed a no-mm
+/// shape (ENOENT or ESRCH): what the status read says decides the
+/// class. A readable status with no VmSize is a kernel thread or
+/// zombie - steady state, no user memory to attribute; an
+/// unreadable status is a pid that vanished mid-scan; a readable
+/// status still carrying VmSize is a userspace task caught in the
+/// exit window between mm release and pid cleanup - its memory
+/// honestly rides the residual, so vanished is its class.
+enum RollupAbsence {
+    NoMemoryMap,
+    Vanished,
+}
+
+fn classify_rollup_absence(status_read: Result<String, std::io::Error>) -> RollupAbsence {
+    match status_read {
+        Ok(status) if !has_vm_size(&status) => RollupAbsence::NoMemoryMap,
+        _ => RollupAbsence::Vanished,
+    }
+}
+
 /// The per-process PSS table: every pid whose rollup this invocation
 /// can read. Refusals are counted by class - the read error names
 /// which: PermissionDenied is the boundary (another user's process,
-/// or hidepid), everything else (ENOENT races, empty parses) is a
-/// process that vanished mid-scan. Both classes ride the Unaccounted
-/// block; neither is ever silently dropped.
+/// or hidepid), the no-mm shapes are steady-state kernel threads and
+/// zombies, and everything else is a process that vanished
+/// mid-scan. Both classes ride the Unaccounted block; neither is
+/// ever silently dropped.
 fn collect_pss(pids: &[u32], sample: &mut MemorySample) {
     for pid in pids {
         match fs::read_to_string(format!("/proc/{pid}/smaps_rollup")) {
@@ -279,7 +308,9 @@ fn collect_pss(pids: &[u32], sample: &mut MemorySample) {
                 // walk. Counting them as "exited mid-scan" printed a
                 // false race claim for a steady-state population of
                 // 80-200 kthreads on a normal host; they carry no
-                // user memory, so nothing was missed.
+                // user memory, so nothing was missed. (This shape is
+                // the 4.14-4.18 kernel form; the 4.19+ form fails the
+                // read with ESRCH and rides the arm below.)
                 if contents.trim().is_empty() {
                     sample.pss_kernel_threads += 1;
                 } else if let Some((pss, anon, file, shmem, rss)) = parse_smaps_rollup(&contents) {
@@ -298,6 +329,25 @@ fn collect_pss(pids: &[u32], sample: &mut MemorySample) {
             }
             Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
                 sample.pss_permission_refused += 1;
+            }
+            // The no-mm error shapes (night-dragon-lts-4): a task
+            // without a user memory map fails the rollup read ESRCH
+            // on every 4.19+ kernel (commit 258f669e7e88 - the read
+            // path has no mm to walk; the proposal to return an
+            // empty file instead was declined on-list), while 6.x
+            // zombies fail the open with ENOENT. The pre-fix walk
+            // filed them all as "exited or truncated mid-scan" - a
+            // false race claim for a steady-state population of
+            // 100+ kthreads on every host. The status read
+            // discriminates: no VmSize line, no user memory map.
+            Err(e)
+                if e.kind() == std::io::ErrorKind::NotFound
+                    || e.raw_os_error() == Some(libc::ESRCH) =>
+            {
+                match classify_rollup_absence(fs::read_to_string(format!("/proc/{pid}/status"))) {
+                    RollupAbsence::NoMemoryMap => sample.pss_kernel_threads += 1,
+                    RollupAbsence::Vanished => sample.pss_vanished += 1,
+                }
             }
             Err(_) => sample.pss_vanished += 1,
         }

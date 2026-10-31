@@ -319,3 +319,57 @@ fn holders_label_collapses_long_lists() {
     let label = holders_label(&held);
     assert!(label.contains("and 2 more"), "{label}");
 }
+
+#[test]
+fn rollup_absence_classifies_by_the_status_discriminator() {
+    // A kernel thread's status carries no VmSize line (no mm); a
+    // userspace task carries one until its last exit step. The 4.19+
+    // kernel fails a no-mm task's smaps_rollup read with ESRCH and
+    // 6.x zombies fail the open with ENOENT - both shapes ride this
+    // one discriminator instead of the false "exited mid-scan" claim.
+    let kthread_status = "\
+Name:\tkthreadd
+State:\tS (sleeping)
+Tgid:\t2
+Pid:\t2
+PPid:\t0
+Threads:\t1
+";
+    let zombie_status = "\
+Name:\tdefunct-child
+State:\tZ (zombie)
+Tgid:\t4242
+Pid:\t4242
+PPid:\t1
+";
+    let userspace_status = "\
+Name:\tbash
+State:\tS (sleeping)
+Tgid:\t1000
+Pid:\t1000
+VmSize:\t  1234 kB
+VmRSS:\t   500 kB
+";
+    assert!(!has_vm_size(kthread_status));
+    assert!(!has_vm_size(zombie_status));
+    assert!(has_vm_size(userspace_status));
+    // A zero-sized map is still a map: the line's presence is the
+    // discriminator, never its value.
+    assert!(has_vm_size("VmSize:\t  0 kB\n"));
+
+    // The classifier: readable no-VmSize status is the no-mm class;
+    // an unreadable status (pid gone) and a status still carrying
+    // VmSize (mid-exit window) are the vanished class.
+    assert!(matches!(
+        classify_rollup_absence(Ok(kthread_status.to_owned())),
+        super::RollupAbsence::NoMemoryMap
+    ));
+    assert!(matches!(
+        classify_rollup_absence(Ok(userspace_status.to_owned())),
+        super::RollupAbsence::Vanished
+    ));
+    assert!(matches!(
+        classify_rollup_absence(Err(std::io::Error::from_raw_os_error(2))),
+        super::RollupAbsence::Vanished
+    ));
+}
