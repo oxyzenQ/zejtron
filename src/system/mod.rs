@@ -58,6 +58,46 @@ pub fn uid_to_user(uid: u32, users: &HashMap<u32, String>) -> String {
     users.get(&uid).cloned().unwrap_or_else(|| uid.to_string())
 }
 
+/// Group names by GID from one /etc/group read
+/// (night-dragon-lts-1). The uid and gid namespaces are DISTINCT:
+/// a gid names a group in /etc/group, not a user in /etc/passwd,
+/// and the two maps only coincide where a user's primary group
+/// carries its own number (root:root). Every owner row that renders
+/// a group resolves through this map, never through the passwd one.
+/// The pre-fix ledgers looked gids up in the uid map, so any gid
+/// that numerically collided with a differently-named uid rendered
+/// that USER's name as the group (the classic 100 = first user vs
+/// gid 100 = "users" on Arch-style hosts).
+pub fn group_users() -> io::Result<HashMap<u32, String>> {
+    parse_group_users(&fs::read_to_string("/etc/group")?)
+}
+
+/// The pure parser behind [`group_users`]: group format
+/// `name:password:gid:member,list`, empty names and unparsable gids
+/// skipped. Mirrors [`parse_passwd_users`] field for field.
+pub fn parse_group_users(contents: &str) -> io::Result<HashMap<u32, String>> {
+    let mut groups = HashMap::new();
+    for line in contents.lines() {
+        let mut fields = line.split(':');
+        let Some(name) = fields.next().filter(|name| !name.is_empty()) else {
+            continue;
+        };
+        fields.next();
+        let Some(gid) = fields.next().and_then(|gid| gid.parse::<u32>().ok()) else {
+            continue;
+        };
+        groups.insert(gid, name.to_owned());
+    }
+    Ok(groups)
+}
+
+/// The display name for a gid: the group entry, or the numeric
+/// string when the map has no entry - the gid-side mirror of
+/// [`uid_to_user`], callers degrade, never guess.
+pub fn gid_to_group(gid: u32, groups: &HashMap<u32, String>) -> String {
+    groups.get(&gid).cloned().unwrap_or_else(|| gid.to_string())
+}
+
 /// The real UID of the current process, read from /proc/self/status
 /// (the Uid: row's second field is the effective uid). `None` when
 /// procfs is unreadable - callers degrade, never guess.

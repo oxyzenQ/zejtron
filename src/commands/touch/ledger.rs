@@ -24,7 +24,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{EvidenceReport, UnaccountedEntry, Verdict};
 
-use super::{TouchError, TouchInfo, inspect_path, parse_passwd};
+use super::{TouchError, TouchInfo, inspect_path, parse_group, parse_passwd};
 use crate::commands::lane::{self, LaneQuery, OpFilter, device_token_from_stat};
 
 /// Build the full report for a path. The lane runs first (a live
@@ -51,6 +51,10 @@ pub fn build_report(
     let device = device_token_from_stat(metadata.dev());
 
     let users = parse_passwd().unwrap_or_default();
+    // The group map rides beside the user map
+    // (night-dragon-lts-1): a gid resolves through /etc/group, not
+    // through the uid namespace - see system::group_users.
+    let groups = parse_group().unwrap_or_default();
     let lookup = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     let query = LaneQuery {
         display_path: path,
@@ -69,7 +73,7 @@ pub fn build_report(
     let info = inspect_path(path)?;
     let scan_instant = unix_now();
 
-    let measured = metadata_rows(&info, scan_instant, &users);
+    let measured = metadata_rows(&info, scan_instant, &users, &groups);
 
     let supports = supports_line(&parts, &window_label);
     let cannot = cannot_line(&parts);
@@ -119,6 +123,7 @@ fn metadata_rows(
     info: &TouchInfo,
     scan_instant: i64,
     users: &std::collections::HashMap<u32, String>,
+    groups: &std::collections::HashMap<u32, String>,
 ) -> Vec<EvidenceRow> {
     let mut rows = Vec::new();
     if let Some(meta) = &info.meta {
@@ -152,10 +157,13 @@ fn metadata_rows(
             .get(&meta.uid)
             .cloned()
             .unwrap_or_else(|| meta.uid.to_string());
-        let gname = users
-            .get(&meta.gid)
-            .cloned()
-            .unwrap_or_else(|| meta.gid.to_string());
+        // The gid resolves through the GROUP map
+        // (night-dragon-lts-1): the pre-fix lookup ran it through
+        // the uid map, so a gid numerically colliding with a
+        // differently-named uid rendered that user's name as the
+        // group (Arch-style hosts: gid 100 is "users", uid 100 is
+        // the first login).
+        let gname = crate::system::gid_to_group(meta.gid, groups);
         rows.push(EvidenceRow::new(
             Some(scan_instant),
             EvidenceKind::Owner {
