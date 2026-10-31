@@ -26,6 +26,19 @@ fn rejects_invalid_duration() {
 }
 
 #[test]
+fn rejects_multibyte_units_without_panicking() {
+    // night-dragon-lts-1: the pre-fix parser split the input at
+    // len() - 1 BYTES, and str::split_at panics when that index
+    // lands inside a multibyte character - a `--since 5分` age ask
+    // crashed the CLI with a byte-index panic instead of the clean
+    // usage error. Every multibyte-final input must be a rejection.
+    for bad in ["é", "日", "5分", "2日", "🦀", "1d分"] {
+        assert!(parse_duration(bad).is_err(), "must reject {bad:?}");
+    }
+    assert!(parse_duration("分d").is_err());
+}
+
+#[test]
 fn huge_amounts_saturate_instead_of_overflowing() {
     // night-total-lts-1: the pre-fix arithmetic (amount * 60 * 60 and
     // friends) panicked in debug and wrapped in release - the hour

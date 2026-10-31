@@ -99,11 +99,19 @@ pub fn run(
 }
 
 pub fn parse_duration(input: &str) -> Result<Duration, String> {
-    if input.len() < 2 {
+    // The unit is the final CHARACTER, never the final byte
+    // (night-dragon-lts-1, the same law the port window parser
+    // carries): str::split_at panics when its index lands inside a
+    // multibyte character, so a `--since 5分` - any input whose
+    // last byte is not a char boundary - crashed the CLI instead
+    // of being rejected. Peeling the last char off through chars()
+    // keeps every multibyte unit a clean parse error, and an empty
+    // or one-char input fails structurally (no last char, or an
+    // empty amount that parse() refuses).
+    let Some(unit) = input.chars().next_back() else {
         return Err(format!("invalid duration: {input}"));
-    }
-
-    let (amount, unit) = input.split_at(input.len() - 1);
+    };
+    let amount = &input[..input.len() - unit.len_utf8()];
     let amount: u64 = amount
         .parse()
         .map_err(|_| format!("invalid duration: {input}"))?;
@@ -118,11 +126,11 @@ pub fn parse_duration(input: &str) -> Result<Duration, String> {
     // the fix. The port window parser (window.rs) carries the same
     // law for the same reason.
     match unit {
-        "m" => Ok(Duration::from_secs(amount.saturating_mul(60))),
-        "h" => Ok(Duration::from_secs(
+        'm' => Ok(Duration::from_secs(amount.saturating_mul(60))),
+        'h' => Ok(Duration::from_secs(
             amount.saturating_mul(60).saturating_mul(60),
         )),
-        "d" => Ok(Duration::from_secs(
+        'd' => Ok(Duration::from_secs(
             amount
                 .saturating_mul(24)
                 .saturating_mul(60)

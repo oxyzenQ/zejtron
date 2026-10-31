@@ -64,10 +64,21 @@ pub const WINDOW_DEFAULT: Duration = Duration::from_secs(60);
 /// lowest-common denominator that serves neither.
 pub fn parse_window(input: &str) -> Result<Duration, PortError> {
     let invalid = || PortError(format!("invalid duration: {input}"));
-    if input.len() < 2 {
+    // The unit is the final CHARACTER, never the final byte
+    // (night-dragon-lts-1): str::split_at panics when its index
+    // lands inside a multibyte character, so a `--since 5分` or a
+    // bare `é` - any input whose last byte is not a char boundary -
+    // crashed the CLI instead of being rejected. Peeling the last
+    // char off through chars() keeps every multibyte unit a clean
+    // parse error: the amount slice ends on a char boundary by
+    // construction, and the unit arm comparison moves from &str to
+    // char. The two-char minimum the old len() check enforced
+    // survives structurally: an empty input has no last char, and a
+    // bare unit leaves an empty amount that parse() refuses.
+    let Some(unit) = input.chars().next_back() else {
         return Err(invalid());
-    }
-    let (amount, unit) = input.split_at(input.len() - 1);
+    };
+    let amount = &input[..input.len() - unit.len_utf8()];
     let amount: u64 = amount.parse().map_err(|_| invalid())?;
     // Saturating on purpose (night-total-lts-1): a parsed u64 times
     // the unit multiplier can overflow (an absurd "18446744073709551h"
@@ -78,9 +89,9 @@ pub fn parse_window(input: &str) -> Result<Duration, PortError> {
     // then shapes into the honest 1h maximum; debug builds (the
     // test lane) panicked on the same input before the fix.
     match unit {
-        "s" => Ok(Duration::from_secs(amount)),
-        "m" => Ok(Duration::from_secs(amount.saturating_mul(60))),
-        "h" => Ok(Duration::from_secs(amount.saturating_mul(3600))),
+        's' => Ok(Duration::from_secs(amount)),
+        'm' => Ok(Duration::from_secs(amount.saturating_mul(60))),
+        'h' => Ok(Duration::from_secs(amount.saturating_mul(3600))),
         _ => Err(invalid()),
     }
 }
