@@ -229,7 +229,7 @@ fn snapshot_only_is_the_phase_one_renderer_whatever_the_lane() {
 mod live {
     use super::*;
     use crate::ebpf::events::{
-        AF_INET, AF_INET6, IPPROTO_TCP, IPPROTO_UDP, SockEvent, TCP_CLOSE, TCP_LISTEN,
+        AF_INET, IPPROTO_TCP, IPPROTO_UDP, SockEvent, TCP_CLOSE, TCP_LISTEN,
     };
 
     fn live_event(
@@ -253,10 +253,6 @@ mod live {
             _pad2: 0,
             pid,
         }
-    }
-
-    fn self_pid() -> u32 {
-        std::process::id()
     }
 
     #[test]
