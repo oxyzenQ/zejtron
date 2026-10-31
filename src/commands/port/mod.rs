@@ -60,7 +60,16 @@ pub fn parse_options(port: Option<&str>, flags: PortFlags) -> Result<PortOptions
     }
 
     let window = match flags.since.as_deref() {
-        Some(raw) => window::clamp_window(window::parse_window(raw)?),
+        Some(raw) => {
+            let parsed = window::parse_window(raw)?;
+            // The same truncation note the window surfaces speak
+            // (night-dragon-lts-T1 residual): one stderr line when
+            // the ask exceeded the ceiling, stdout byte-clean.
+            if let Some(note) = window::truncation_note(raw, parsed) {
+                eprintln!("{note}");
+            }
+            window::clamp_window(parsed)
+        }
         None => WINDOW_DEFAULT,
     };
 

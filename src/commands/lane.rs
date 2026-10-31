@@ -44,11 +44,21 @@ pub const WINDOW_DEFAULT: Duration = Duration::from_secs(10);
 /// port surface's own grammar (`s`/`m`/`h`, clamped [1s, 1h] - one
 /// grammar, two surfaces, imported rather than duplicated), with
 /// the 10s default when the flag is absent. Every surface resolves
-/// through here so the default can never drift between them.
+/// through here so the default can never drift between them. An
+/// above-ceiling ask rides one stderr warning (the truncation note,
+/// night-dragon-lts-T1 residual) and never touches stdout.
 pub fn resolve_window(since: Option<&str>) -> Result<(Duration, String), String> {
-    use crate::commands::port::window::{clamp_window, parse_window, window_label};
+    use crate::commands::port::window::{
+        clamp_window, parse_window, truncation_note, window_label,
+    };
     let window = match since {
-        Some(raw) => clamp_window(parse_window(raw).map_err(|e| format!("{e}"))?),
+        Some(raw) => {
+            let parsed = parse_window(raw).map_err(|e| format!("{e}"))?;
+            if let Some(note) = truncation_note(raw, parsed) {
+                eprintln!("{note}");
+            }
+            clamp_window(parsed)
+        }
         None => WINDOW_DEFAULT,
     };
     let label = window_label(window);

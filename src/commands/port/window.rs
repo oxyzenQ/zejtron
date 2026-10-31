@@ -108,6 +108,22 @@ pub fn clamp_window(window: Duration) -> Duration {
     window.clamp(WINDOW_FLOOR, WINDOW_CEILING)
 }
 
+/// The truncation note (night-dragon-lts-T1 residual): the clamp
+/// used to answer an above-ceiling ask in silence - the user's
+/// `--since 18446744073709551h` quietly became 1h, and the one-hour
+/// wait read as a tool failure. The note names the ask and the
+/// ceiling so the truncation is a fact the user sees, not a
+/// surprise they diagnose. The caller emits it on stderr (never
+/// stdout: the report stays byte-clean for pipes), once per
+/// invocation, and only when the parsed ask actually exceeds the
+/// ceiling - in-bounds asks, the below-floor direction, and an
+/// absent `--since` all stay word-free. Pure: the string is the
+/// contract, and the tests pin it byte-for-byte.
+pub fn truncation_note(raw: &str, parsed: Duration) -> Option<String> {
+    (parsed > WINDOW_CEILING)
+        .then(|| format!("warning: --since {raw} exceeds the 1h maximum — clamped to 1h"))
+}
+
 /// The window as a compact label: whole hours as `1h`, whole
 /// minutes above a minute as `5m`, everything else in seconds -
 /// and the 60s default stays `60s` (the shape the spec's locked

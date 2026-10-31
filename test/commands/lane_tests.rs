@@ -41,11 +41,22 @@ fn resolve_window_maps_the_grammar() {
 #[test]
 fn resolve_window_clamps_the_same_range_as_port() {
     // 0s floors to 1s; 2h ceilings to 1h - one grammar, two surfaces.
+    // The absurd ask (u64::MAX/1000 hours, the audit's own token)
+    // saturates through the same ceiling: every window surface that
+    // resolves through here truncates to the honest 1h maximum.
     let (w, l) = resolve_window(Some("0s")).unwrap();
     assert_eq!(w, Duration::from_secs(1));
     assert_eq!(l, "1s");
 
     let (w, l) = resolve_window(Some("2h")).unwrap();
+    assert_eq!(w, Duration::from_secs(3600));
+    assert_eq!(l, "1h");
+
+    let (w, l) = resolve_window(Some("999999h")).unwrap();
+    assert_eq!(w, Duration::from_secs(3600));
+    assert_eq!(l, "1h");
+
+    let (w, l) = resolve_window(Some("18446744073709551h")).unwrap();
     assert_eq!(w, Duration::from_secs(3600));
     assert_eq!(l, "1h");
 }
