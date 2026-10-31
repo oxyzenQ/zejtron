@@ -1061,6 +1061,190 @@ v11.0.0
 
 ### Fixed
 
+- The night-dragon-lts-4 one-identity law for `why`: the report
+  statted the queried path three times - the opening stat keyed the
+  event lane, the holder walk statted again inside itself, the
+  metadata rows statted a third time - with a full /proc walk and a
+  journal probe between them, so a path replaced in that gap (the
+  logrotate rename dance, an editor's atomic write) matched holders
+  against one inode while the metadata rows described another.
+  Proven live with a rename dance flipping a target between a held
+  1111-byte file and an unheld 99999-byte one: three of 45 reports
+  rendered "held via fd 3 (r) python3" directly above "size 99999
+  bytes" and the unheld file's inode - a holder of one inode
+  presented as the holder of another, in silence. The opening stat
+  is now THE anchor: `scan_path_holders_for_file_id` keys the fd
+  and map walk to it (the standalone `holds` command keeps its own
+  stat), so a deleted-but-open holder stays visible after a
+  mid-scan vanish - the pre-fix flow could error the whole report
+  out at its second stat at exactly the moment the leak evidence
+  appeared - and a replacement's holders stay out. The coherence
+  check compares the metadata rows' identity against the anchor: a
+  coherent scan renders exactly as before, a split renders the
+  leading unaccounted entry ("1 path identity (the path was
+  replaced during the scan (inode A at scan start, inode B
+  rendered): holder and event rows are keyed to the scan-start
+  inode, metadata rows to the rendered one - a holder of the
+  scan-start inode survives as deleted-but-open)", with a
+  cross-device split named too), and the mid-scan vanish names its
+  own boundary. Re-run against the fix: 60 runs, 24 split reports,
+  every one carrying the boundary, zero silent blends. The JSON
+  lane carries it through the shared unaccounted writer.
+
+- The night-dragon-lts-4 observer boundary in the exit lane: a
+  watch loop running zejtron once per second - the monitoring-cron
+  shape, the exactly-recommended-usage shape - filled the drain
+  window with the observer's own exits, and the lane rendered them
+  as host facts: "PID 12345 (zejtron) exited" printed inside a
+  zejtron report, the observer accusing itself. `ExitLane::Drained`
+  now carries the rows and the count of the observer's own
+  invocations the window cut: the render names it in a grey
+  boundary line ("2 exits of this tool excluded - the observer's
+  own invocations, not host facts"), the JSON lane carries
+  `observer_excluded` beside `overflow`, and a zero count renders
+  nothing - the cut is never silent. The observer's name is read
+  from the kernel's own record - /proc/self/comm is the exact
+  string bpf_get_current_comm() will attach to this process's own
+  exit event, so the comparison matches by construction where the
+  current_exe basename guess does not: a symlink alias invocation
+  (comm rides the alias, current_exe resolves the link) and a
+  watch loop holding the binary across a rebuild (current_exe
+  grows the kernel's " (deleted)" marker, comm keeps the bare
+  name) are the two shapes this lane exists for, and both break
+  the guess - verified live on this host, with the marker stripped
+  in the fallback lane before the 15-character TASK_COMM_LEN cut.
+
+- The night-dragon-lts-4 language gate over a locally-grown fuzz
+  corpus: running the fuzz lane locally (the documented workflow)
+  left the language gate with 83 findings over 1580 files - every
+  one a saved libFuzzer input, arbitrary bytes tripping the
+  Indonesian word detector as byte-noise prose. CI never sees this
+  (the fuzz job runs on a fresh checkout and does not run the
+  gates), but the local developer who follows the fuzz docs and
+  then runs the gatekeeper gets a wall of false positives and
+  learns to ignore the gate - the worst outcome a gate can have.
+  The walk now skips corpus/ and artifacts/ directories with the
+  class named in the header; the lane's hand-written sources
+  (fuzz/fuzz_targets/, fuzz/seeds/) stay checked. Verified against
+  a live 3,469-input corpus: 279 files checked, 0 findings, the
+  same count the tree had before the fuzz lane ever ran. The
+  fuzz lane itself ran its first local sessions on this pass: the
+  three targets (btf_parser, proc_parser, sanitize_display) at the
+  CI-parity 60-second budget plus a 420-second-per-target deep
+  session - 31 million executions over the accumulated corpus,
+  zero crashes, zero hangs, zero artifact files.
+
+- The night-dragon-lts-4 GPU verdict and the per-process memory
+  ranking: the gpu symptom's verdict named the FIRST row of a
+  pid-ascending holder list - "The GPU is held by systemd (PID 1,
+  devices: /dev/dri/card0)" - and on every desktop systemd holds
+  the card node by design (seat management, DRM master handoff),
+  so the verdict systematically attributed the GPU to the one
+  process that consumes none of it, while the sharpest fact on the
+  page (VRAM at 89 percent of total) rendered unranked and
+  unmentioned. The drm fdinfo lane the kernel exports for exactly
+  this question now rides the symptom: drm-memory-vram and
+  drm-memory-gtt (KiB, per Documentation/gpu/drm-usage-stats.rst)
+  parsed from every GPU device fd's fdinfo, one pass per holder,
+  and a "Per-process GPU memory" section renders the ranking,
+  VRAM descending. The verdict ladder speaks it: the ranking head
+  is the first line when the driver exported rows, the holder
+  fallback names the count and the lowest pid with the explicit
+  boundary ("holding a device node is not memory use; no driver
+  exported per-process memory here"), and the VRAM pressure
+  finding (85 percent of the card's own total) rides behind. The
+  JSON lane carries the ranking as gpu_memory (pid, comm,
+  vram_bytes, gtt_bytes); a driver without the keys yields an
+  absent section, never a zero dressed up as measured.
+
+- The night-dragon-lts-4 IPv4 interface lane: the reader walked
+  /proc/net/fib_trie with an off-by-one - for every "32 host
+  LOCAL" marker at line i+1 it read its candidate from line i-1,
+  one line above the address line - harvesting trie-branch
+  fragments and network addresses while the host's real addresses
+  rode past unread (on this project's own 5.10 host the walker
+  returned nothing while eth0 carried 21.0.4.77), and fib_trie
+  carries no interface names at all, so the walker's iface
+  parameter was ignored and every interface would have received
+  the same global list. net/addr.rs replaces the heuristic with
+  the source iproute2 itself reads: one RTM_GETADDR dump on a
+  NETLINK_ROUTE socket, parsed into (ifindex, address) rows -
+  IFA_LOCAL preferred over IFA_ADDRESS (the peer's address on
+  point-to-point links, the host's own on normal interfaces),
+  AF_INET rows only, NLMSG_DONE the clean end, NLMSG_ERROR named
+  rather than swallowed. The socket carries CLOEXEC, a 1-second
+  receive timeout, and a 64-packet cap; a refused dump leaves the
+  interface's IPv4 list empty, never guessed.
+
+- The night-dragon-lts-4 IPv6 rendering: the if_inet6 reader
+  spliced colons into the kernel's 32 hex digits and shipped that
+  - fe80:0000:0000:0000:2cb5:4eff:fe35:20c9 for a link-local
+  address, thirty-two characters where the world writes at most
+  four, with the interface identifier drowned in zero noise and
+  every address column blown out on dual-stack hosts.
+  format_ipv6 renders the RFC 5952 form: leading zeros dropped per
+  group in lowercase hex, the single longest run of two or more
+  all-zero groups compressed to "::" (leftmost on ties, never a
+  lone zero group, exactly one compression per address); any input
+  that is not exactly 32 hex digits is refused and the malformed
+  kernel row dropped rather than guessed at.
+
+- The night-dragon-lts-4 memfd lane: the fd walk's memfd
+  classification was dead from birth - the kernel renders a
+  memfd's fd magic link as "/memfd:<name> (deleted)" (leading
+  slash and deleted suffix both unconditional since 3.17, proven
+  live on this project's 5.10 and 6.12 hosts), and the walk tested
+  neither shape: target.starts_with("memfd:") can never match the
+  leading slash, and the deleted-suffix branch ran first anyway,
+  so the deleted lane absorbed them all. The observable lie on a
+  stock desktop: "Memfd files: (none observed)" while every
+  pulseaudio, pipewire, and chromium memfd sat in the
+  deleted-but-open list rendered as "/memfd:..." rows - the
+  in-memory file class the section exists to name, invisible since
+  the section was written. is_memfd_target strips one leading
+  slash before the prefix match and the branch order now tests
+  memfd before deleted.
+
+- The night-dragon-lts-4 deleted-but-open arithmetic: the total
+  summed one row per fd walk hit - one file held through several
+  fds by one process (dup(2), SCM_RIGHTS, two plain opens of one
+  inode) rendered as several identical rows, and one file shared
+  across processes counted its full size once per holder (the
+  live audit's shape: one 40 MiB memfd plus one dup(2) printed
+  80 MiB; three holders would have printed 120). The magic-link
+  stat the size already rode on carries the file's kernel
+  identity (dev, ino); the rows carry it as their identity field,
+  dedupe_by_pid_file collapses rows to one per (pid, file), and
+  deleted_unique - the verdict's deleted total and the JSON lane's
+  deleted_open_unique_bytes - counts each distinct (dev, ino)
+  once. Identity-refused rows ride undeduped (a guessed dedupe
+  would be a silently dropped row).
+
+- The night-dragon-lts-4 kthread discriminator: the PSS walk's
+  error arms knew two classes - permission refused, and vanished -
+  and every modern kernel's kernel threads fell into the second
+  (the rollup read of a task without a user memory map fails ESRCH
+  on every 4.19+ kernel; 6.x zombies fail the open with ENOENT),
+  rendering a steady-state population of 100+ kthreads as
+  "processes exited or truncated mid-scan" - a false race claim on
+  every host, every scan, since the lane was written. The status
+  read discriminates: a task whose /proc/<pid>/status carries no
+  VmSize line has no user memory map at all (kernel thread or
+  zombie, steady state, nothing to attribute), while a userspace
+  task caught in the exit window still shows its VmSize.
+  classify_rollup_absence encodes the three-way verdict over the
+  status read result; the ENOENT and ESRCH arms route through it.
+
+- The night-dragon-lts-4 count-noun agreement: fourteen render
+  sites printed a count beside a hard-coded plural - "1 processes
+  exited or truncated mid-scan", "1 tmpfs directories could not be
+  read", "2 processes are running on 1 cores" - the blunt edge a
+  detective tool cannot afford, firing on every low-count host and
+  every quiet check run. noun_for(count, singular, plural) joins
+  the output family and every count-noun site speaks it; sites
+  that provably never see a count of one keep their plain plurals
+  - no cargo-cult agreement on shapes that cannot misfire.
+
 - The night-dragon-lts-T1 epoch law: pre-epoch timestamps were a
   fact the pipeline could name and the plumbing threw away, and one
   ctime construction could panic the whole binary. Three defects,
