@@ -188,11 +188,23 @@ pub(crate) fn collect() -> NetworkSample {
     let dev_a = read_net_dev();
     delta::sample_gap();
     let dev_b = read_net_dev();
+    let (sockets, holders, refused) = collect_now_facts();
+    from_pair(
+        &dev_a,
+        &dev_b,
+        sockets,
+        holders,
+        refused,
+        delta::collect_exits_overlay(),
+    )
+}
 
-    let interfaces = interface_deltas(&dev_a, &dev_b);
-
-    // The socket census and the holder walk: instants after the
-    // window (the states and holders are the "now" facts).
+/// The post-window "now" facts (night-dragon-lts-2): the socket
+/// census across /proc/net/tcp{,6} and the fd-table holders walk,
+/// lifted verbatim out of [`collect`] - the instants-after-the-window
+/// reads the umbrella symptom (`slow`) shares so one window feeds
+/// every lane. Nothing here sleeps; the walk is the cost.
+pub(crate) fn collect_now_facts() -> (SocketStates, Vec<HolderRow>, usize) {
     let mut sockets = SocketStates::default();
     for table in ["/proc/net/tcp", "/proc/net/tcp6"] {
         if let Ok(contents) = std::fs::read_to_string(table) {
@@ -227,19 +239,39 @@ pub(crate) fn collect() -> NetworkSample {
             .then(left.pid.cmp(&right.pid))
     });
     holders.truncate(TOP_N);
+    (sockets, holders, refused)
+}
 
+/// The network sample from a shared pair of instants
+/// (night-dragon-lts-2): the interface deltas and the now-facts
+/// assembled, verbatim, out of [`collect`] so the umbrella symptom
+/// (`slow`) can compute this lane from the SAME t0/t1 pair its cpu
+/// and disk numbers ride on - one window, simultaneous evidence,
+/// one sleep for the whole report family. Nothing here reads the
+/// host; a synthetic pair pins every number the render carries.
+pub(crate) fn from_pair(
+    dev_a: &BTreeMap<String, IfRow>,
+    dev_b: &BTreeMap<String, IfRow>,
+    sockets: SocketStates,
+    holders: Vec<HolderRow>,
+    fd_permission_refused: usize,
+    exit_lane: ExitLane,
+) -> NetworkSample {
+    let interfaces = interface_deltas(dev_a, dev_b);
     NetworkSample {
         sampled_at: crate::info::clock::format_system_time(SystemTime::now()),
         interfaces,
         sockets,
         holders,
-        fd_permission_refused: refused,
-        exit_lane: delta::collect_exits_overlay(),
+        fd_permission_refused,
+        exit_lane,
     }
 }
 
-/// Read /proc/net/dev into the interface map.
-fn read_net_dev() -> BTreeMap<String, IfRow> {
+/// Read /proc/net/dev into the interface map. pub(crate) since
+/// night-dragon-lts-2: the umbrella symptom reads the same pair
+/// this lane rides on, one source of parse truth.
+pub(crate) fn read_net_dev() -> BTreeMap<String, IfRow> {
     let contents = std::fs::read_to_string("/proc/net/dev").unwrap_or_default();
     let mut map = BTreeMap::new();
     for line in contents.lines().skip(2) {

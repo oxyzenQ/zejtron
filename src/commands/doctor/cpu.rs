@@ -127,7 +127,9 @@ fn delta_rows(
 /// verbatim - the --raw drill-down prints the sampled bytes, not a
 /// later re-read) and the core count (the "cpuN" lines). None when
 /// the file is unreadable - the honest degradation, never a guess.
-fn read_cpu_facts() -> Option<(delta::CpuTicks, usize, String)> {
+/// pub(crate) since night-dragon-lts-2: the umbrella symptom reads
+/// the same pair its own lane rides on, one source of parse truth.
+pub(crate) fn read_cpu_facts() -> Option<(delta::CpuTicks, usize, String)> {
     let contents = std::fs::read_to_string("/proc/stat").ok()?;
     let mut first: Option<(delta::CpuTicks, &str)> = None;
     let mut ncpu = 0usize;
@@ -154,7 +156,57 @@ pub(crate) fn collect() -> CpuSample {
     delta::sample_gap();
     let (ticks_b, _, raw_stat_b) = read_cpu_facts().unwrap_or_default();
     let pid_b = delta::read_pid_sample(&pids);
+    from_pair(CpuPair {
+        ncpu,
+        loadavg: &raw_loadavg,
+        ticks_a,
+        ticks_b,
+        pid_a: &pid_a,
+        pid_b: &pid_b,
+        stat_a: &raw_stat_a,
+        stat_b: &raw_stat_b,
+        exit_lane: delta::collect_exits_overlay(),
+    })
+}
 
+/// The shared-window inputs to [`from_pair`] (night-dragon-lts-2):
+/// the two instants every cpu number computes from - the ticks
+/// (parsed), the per-process samples, the verbatim aggregate lines
+/// the --raw drill-down re-prints, the loadavg bytes, the core
+/// count, and the exit lane one drain filled. Bundled so the
+/// umbrella symptom (`slow`) hands over the SAME pair every delta
+/// lane rides on without an arity ladder.
+pub(crate) struct CpuPair<'a> {
+    pub ncpu: usize,
+    pub loadavg: &'a str,
+    pub ticks_a: delta::CpuTicks,
+    pub ticks_b: delta::CpuTicks,
+    pub pid_a: &'a delta::PidSample,
+    pub pid_b: &'a delta::PidSample,
+    pub stat_a: &'a str,
+    pub stat_b: &'a str,
+    pub exit_lane: ExitLane,
+}
+
+/// The cpu sample from a shared pair of instants (night-dragon-lts-2):
+/// the delta arithmetic, verbatim, lifted out of [`collect`] so the
+/// umbrella symptom (`slow`) can compute this lane from the SAME
+/// t0/t1 pair its disk and network numbers ride on - one window,
+/// simultaneous evidence, one sleep for the whole report family.
+/// [`collect`] remains this lane's own reader; nothing here reads the
+/// host, so a synthetic pair pins every number the render carries.
+pub(crate) fn from_pair(pair: CpuPair<'_>) -> CpuSample {
+    let CpuPair {
+        ncpu,
+        loadavg: raw_loadavg,
+        ticks_a,
+        ticks_b,
+        pid_a,
+        pid_b,
+        stat_a: raw_stat_a,
+        stat_b: raw_stat_b,
+        exit_lane,
+    } = pair;
     let total_delta = ticks_b.total().saturating_sub(ticks_a.total());
     let busy_delta = ticks_b.busy().saturating_sub(ticks_a.busy());
     let busy_pct = (total_delta != 0).then(|| (busy_delta as f64) * 100.0 / total_delta as f64);
@@ -178,7 +230,7 @@ pub(crate) fn collect() -> CpuSample {
     CpuSample {
         sampled_at: crate::info::clock::format_system_time(SystemTime::now()),
         ncpu,
-        loadavg_1min: parse_loadavg(&raw_loadavg),
+        loadavg_1min: parse_loadavg(raw_loadavg),
         busy_pct,
         total_ticks_delta: total_delta,
         top: rows,
@@ -187,10 +239,10 @@ pub(crate) fn collect() -> CpuSample {
         stuck_overflow,
         started_in_window: started,
         vanished_between_reads: vanished,
-        exit_lane: delta::collect_exits_overlay(),
-        raw_stat_a,
-        raw_stat_b,
-        raw_loadavg,
+        exit_lane,
+        raw_stat_a: raw_stat_a.to_owned(),
+        raw_stat_b: raw_stat_b.to_owned(),
+        raw_loadavg: raw_loadavg.to_owned(),
     }
 }
 
