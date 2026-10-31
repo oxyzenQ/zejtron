@@ -493,7 +493,16 @@ fn collect_fds(pids: &[u32], sample: &mut MemorySample) {
 }
 
 /// One /proc/slabinfo row: name, num_objs, objsize are columns 0, 2,
-/// and 4 of the data lines (after the two header lines).
+/// and 3 of the data lines (after the two header lines). The real
+/// kernel header (mm/slab_common.c) is
+/// `# name <active_objs> <num_objs> <objsize> <objperslab>
+/// <pagesperslab> : tunables ... : slabdata ...` - objsize is the
+/// per-object byte size at column 3; column 4 is objperslab, the
+/// objects-per-slab packing count. night-dragon-lts-1: this parser
+/// read column 4 as the size, so every cache's footprint computed
+/// as num_objs * objperslab - up to two orders of magnitude off in
+/// either direction (kmalloc-8 overstated 64x, typical 1 KiB+ caches
+/// understated 10-100x).
 pub(crate) fn parse_slabinfo(contents: &str) -> Vec<SlabRow> {
     let mut rows = Vec::new();
     for line in contents.lines().skip(2) {
@@ -504,7 +513,7 @@ pub(crate) fn parse_slabinfo(contents: &str) -> Vec<SlabRow> {
         let Ok(num_objs) = fields[2].parse::<u64>() else {
             continue;
         };
-        let Ok(objsize) = fields[4].parse::<u64>() else {
+        let Ok(objsize) = fields[3].parse::<u64>() else {
             continue;
         };
         rows.push(SlabRow {
