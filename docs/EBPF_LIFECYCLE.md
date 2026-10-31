@@ -112,7 +112,14 @@ The lane's whole life, boot to boot:
    of the same ring as their sampling overlay - wide enough to
    cover their own 1.0-second sampling window plus the drain's own
    skew, narrow enough that every [observed] row is one of the
-   freshest facts on the host. A ring read CONSUMES:
+   freshest facts on the host. The live file lanes drain the exit
+   ring too (night-improve-61): a short-lived writer - a cron
+   one-shot, a logrotate run, a shell redirect - is gone from
+   /proc before the query renders, and the exit record that names
+   it (pid and comm) is the only survivor; the lane drains the
+   exit ring ONLY when some event's /proc read came back empty, so
+   a fully-live window never consumes the doctor's exit stream. A
+   ring read CONSUMES:
    advancing the reader advances the consumer position stored in
    the kernel map, so each drain sees what accumulated since the
    previous drain (or since attach, for the first). The window
@@ -127,8 +134,10 @@ The lane's whole life, boot to boot:
    same state a host that never attached has.
 
 The doctor's `[eBPF]` section reports the lane's state in every
-run, attached or not: the kernel, BTF, lockdown, and capability
-verdicts, the lane, and the camera's own posture - `Mode: Lazy
+run, attached or not: the kernel, BTF, lockdown, capability, and
+tracefs verdicts (night-improve-61 added the Tracefs row - the
+mount the tracepoint attaches resolve through), the lane, and the
+camera's own posture - `Mode: Lazy
 Camera (Kernel: recording | CLI: asleep)` when the probe is
 attached, `Mode: Lazy Camera (Kernel: not recording | CLI:
 asleep)` when it is not. One probe, one verdict, no drift between
