@@ -381,3 +381,23 @@ fn green_and_grey_stay_distinguishable_at_the_16color_floor() {
         "\x1b[90m"
     );
 }
+
+#[test]
+fn count_nouns_agree_with_their_count() {
+    // One process, two processes; zero is plural (the count is not
+    // one); irregular plurals pass through verbatim.
+    assert_eq!(noun_for(1, "process", "processes"), "process");
+    assert_eq!(noun_for(2, "process", "processes"), "processes");
+    assert_eq!(noun_for(0, "process", "processes"), "processes");
+    assert_eq!(
+        noun_for(1, "tmpfs directory", "tmpfs directories"),
+        "tmpfs directory"
+    );
+    assert_eq!(
+        noun_for(3, "tmpfs directory", "tmpfs directories"),
+        "tmpfs directories"
+    );
+    // The verb agreement rides the same helper where a site needs it.
+    assert_eq!(noun_for(1, "carries", "carry"), "carries");
+    assert_eq!(noun_for(2, "carries", "carry"), "carry");
+}

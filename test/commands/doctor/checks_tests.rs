@@ -48,7 +48,7 @@ fn proc_net_parse_count_formatting() {
 
     assert_eq!(check.status, CheckStatus::Warn);
     assert_eq!(check.check, "proc_net");
-    assert!(check.message.contains("1 sockets parsed"));
+    assert!(check.message.contains("1 socket parsed"));
 }
 
 #[test]

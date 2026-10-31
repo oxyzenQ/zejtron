@@ -335,11 +335,11 @@ fn permission_boundaries_are_named_when_they_fired() {
     gated.fd_permission_refused = 3;
     let report = render(&gated, false);
     assert!(
-        report.contains("7 processes' smaps_rollup unreadable (permission)"),
+        report.contains("7 processes with an unreadable smaps_rollup (permission)"),
         "{report}"
     );
     assert!(
-        report.contains("3 processes' fd tables unreadable (permission)"),
+        report.contains("3 processes with unreadable fd tables (permission)"),
         "{report}"
     );
 }

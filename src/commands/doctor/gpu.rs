@@ -23,6 +23,7 @@
 use super::delta;
 use super::memory::exits::ExitLane;
 use super::memory::pid_dirs;
+use crate::output::noun_for;
 use std::collections::BTreeSet;
 use std::time::SystemTime;
 
@@ -262,10 +263,11 @@ fn render_unaccounted(sample: &GpuSample, lines: &mut Vec<String>) {
         lines.push(format!(
             "  {} {}  {}",
             sample.fd_permission_refused,
-            crate::output::grey_out(
-                "processes' fd tables unreadable (permission) - the holder list names \
-                 only the holders visible to this user"
-            ),
+            crate::output::grey_out(&format!(
+                "{} with unreadable fd tables (permission) - the holder list names \
+                 only the holders visible to this user",
+                noun_for(sample.fd_permission_refused, "process", "processes")
+            )),
             crate::output::grey_out("[unaccounted]")
         ));
     }

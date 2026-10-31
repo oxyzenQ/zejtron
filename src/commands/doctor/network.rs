@@ -17,6 +17,7 @@
 use super::delta::{self, SAMPLE_WINDOW_DESC};
 use super::memory::exits::ExitLane;
 use super::memory::pid_dirs;
+use crate::output::noun_for;
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 
@@ -352,11 +353,12 @@ fn render_interfaces(sample: &NetworkSample, lines: &mut Vec<String>) {
 fn render_socket_states(sample: &NetworkSample, lines: &mut Vec<String>) {
     lines.push(crate::output::ok_out("Socket states:"));
     lines.push(format!(
-        "  ESTABLISHED {}  TIME_WAIT {}  CLOSE_WAIT {}  (of {} sockets)  {}",
+        "  ESTABLISHED {}  TIME_WAIT {}  CLOSE_WAIT {}  (of {} {})  {}",
         sample.sockets.established,
         sample.sockets.time_wait,
         sample.sockets.close_wait,
         sample.sockets.total,
+        noun_for(sample.sockets.total, "socket", "sockets"),
         crate::output::ok_out("[measured]")
     ));
     lines.push(String::new());
@@ -371,10 +373,11 @@ fn render_holders(sample: &NetworkSample, lines: &mut Vec<String>) {
     }
     for row in &sample.holders {
         lines.push(format!(
-            "  PID {} ({})  {} sockets open  {}",
+            "  PID {} ({})  {} {} open  {}",
             row.pid,
             row.comm,
             row.sockets,
+            noun_for(row.sockets, "socket", "sockets"),
             crate::output::ok_out("[measured]")
         ));
     }
