@@ -47,6 +47,22 @@ fn window_grammar_rejects_the_shapes_it_does_not_speak() {
 }
 
 #[test]
+fn window_grammar_rejects_multibyte_units_without_panicking() {
+    // night-dragon-lts-1: the pre-fix parser split the input at
+    // len() - 1 BYTES, and str::split_at panics when that index
+    // lands inside a multibyte character - `--since 5分` (or a bare
+    // `é`) crashed the CLI with a byte-index panic instead of the
+    // clean usage error. Every multibyte-final input must be a
+    // rejection, never a panic.
+    for bad in ["é", "日", "5分", "60秒", "🦀", "5s分"] {
+        assert!(parse_window(bad).is_err(), "must reject {bad:?}");
+    }
+    // An ASCII unit after a multibyte amount stays a rejection too
+    // (the amount is not a number).
+    assert!(parse_window("分s").is_err());
+}
+
+#[test]
 fn huge_amounts_saturate_instead_of_overflowing() {
     // night-total-lts-1: the pre-fix arithmetic (amount * 3600)
     // panicked in debug and wrapped in release - 5124095576030432h
