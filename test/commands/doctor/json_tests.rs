@@ -207,7 +207,7 @@ fn the_ram_json_pins_its_shape() {
 \"kernel_buckets\":{\"page_cache_bytes\":122880,\"buffers_bytes\":16384,\
 \"shmem_bytes\":8192},\
 \"slab\":{\"readable\":true,\"caches\":[{\"cache\":\"kmalloc-1k\",\"size_bytes\":65536}]},\
-\"residual_bytes\":0,\"exits\":{\"lane\":\"not-attached\"},\
+\"residual_bytes\":155648,\"exits\":{\"lane\":\"not-attached\"},\
 \"unaccounted\":[{\"count\":1,\"category\":\"exited processes\",\"reason\":\"eBPF is not \
 attached - processes that exited before this snapshot are invisible\"},\
 {\"count\":2,\"category\":\"processes\",\"reason\":\"smaps_rollup unreadable (permission) - \
