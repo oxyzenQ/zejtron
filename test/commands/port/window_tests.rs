@@ -503,3 +503,33 @@ mod live {
         crate::info::clock::monotonic_now_ns().unwrap()
     }
 }
+
+#[test]
+fn udp_only_event_window_names_the_kernel_truth() {
+    // night-improve-61, the micro-VM census: the sock probe's
+    // tracepoint never fires for a UDP lifecycle, so a UDP-only
+    // event window is empty by construction - and the note says so
+    // instead of pretending the window listened and heard nothing.
+    let mut udp_only = options();
+    udp_only.udp = true;
+    assert!(udp_events_only(&udp_only));
+
+    let mut tcp_only = options();
+    tcp_only.tcp = true;
+    assert!(!udp_events_only(&tcp_only));
+
+    let mut both = options();
+    both.tcp = true;
+    both.udp = true;
+    assert!(!udp_events_only(&both));
+
+    assert!(
+        !udp_events_only(&options()),
+        "the unfiltered window is not UDP-only"
+    );
+
+    assert_eq!(
+        udp_event_lane_note(),
+        "note: the kernel fires no lifecycle events for UDP sockets - this event lane is TCP-only; UDP sockets ride the snapshot"
+    );
+}
