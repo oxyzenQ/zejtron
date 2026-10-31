@@ -7,7 +7,7 @@ use std::time::Duration;
 pub(crate) type OwnerMap = std::collections::HashMap<u64, Vec<ProcessInfo>>;
 pub(crate) type ProcScan = (Vec<SocketEntry>, OwnerMap, ScanStats);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Protocol {
     Tcp,
     Udp,
@@ -50,7 +50,7 @@ pub(crate) struct SocketGroup {
     pub(crate) count: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct GroupKey {
     pub(crate) protocol: Protocol,
     pub(crate) address: String,
@@ -59,7 +59,7 @@ pub(crate) struct GroupKey {
     pub(crate) owners: Vec<OwnerIdentity>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct OwnerIdentity {
     pub(crate) pid: u32,
     pub(crate) name: String,
