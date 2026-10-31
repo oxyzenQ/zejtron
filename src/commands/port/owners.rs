@@ -84,8 +84,13 @@ pub(crate) fn map_socket_owners(
         }
 
         let mut process = read_process_info(&process_dir, pid, &users);
-        // Read cmdline once per process to share across all its sockets
-        process.cmdline = crate::system::read_cmdline(Path::new("/proc"), pid);
+        // Read cmdline once per process to share across all its
+        // sockets, through the same proc_root seam every other read
+        // in this scan rides (night-dragon-lts-1: this call site
+        // hardcoded /proc, so a fixture-root caller - the seam's
+        // whole purpose - silently read cmdlines from the live
+        // host's /proc instead of its fixture).
+        process.cmdline = crate::system::read_cmdline(proc_root, pid);
 
         for (inode, fd) in matched_inodes {
             let mut entry = process.clone();
