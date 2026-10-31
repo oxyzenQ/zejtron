@@ -123,6 +123,12 @@ fn read_interfaces() -> Vec<InterfaceEntry> {
         let mac = read_sysfs_str(&iface_path, "address");
         let flags = read_sysfs_u32(&iface_path, "flags");
         let iftype = read_sysfs_u32(&iface_path, "type");
+        // The state zejtron renders (night-dragon-lts-2): loopback's
+        // operstate is "unknown" on every host (RFC 2863 exempts it
+        // from operstate reporting), so for lo the flags' own IFF_UP
+        // bit carries the administrative truth instead - "up", the
+        // word the reader expects beside traffic counters that move.
+        let state = resolved_state(&name, state, flags);
 
         // Stats
         let rx_bytes = read_sysfs_u64(&iface_path, "statistics/rx_bytes");
@@ -163,6 +169,27 @@ fn read_interfaces() -> Vec<InterfaceEntry> {
     entries
 }
 
+/// IFF_UP from linux/if.h - the administrative up bit the flags
+/// file carries (hex, no 0x prefix). Loopback's operstate is
+/// "unknown" by kernel design, so this bit is the truth zejtron
+/// renders for lo (night-dragon-lts-2).
+const IFF_UP: u32 = 0x1;
+
+/// The state zejtron renders for an interface: the kernel's own
+/// operstate word, except loopback - RFC 2863 exempts lo from
+/// operstate reporting (it reads "unknown" on every host), so the
+/// flags' IFF_UP bit carries the administrative truth there
+/// instead. An unreadable flags file never guesses: the kernel's
+/// own word rides through untouched.
+fn resolved_state(name: &str, operstate: Option<String>, flags: Option<u32>) -> Option<String> {
+    match (name, operstate.as_deref(), flags) {
+        ("lo", Some("unknown"), Some(bits)) => {
+            Some(if bits & IFF_UP != 0 { "up" } else { "down" }.to_owned())
+        }
+        _ => operstate,
+    }
+}
+
 fn read_sysfs_str(iface_path: &Path, file: &str) -> Option<String> {
     let path = iface_path.join(file);
     let content = fs::read_to_string(path).ok()?;
@@ -177,7 +204,25 @@ fn read_sysfs_str(iface_path: &Path, file: &str) -> Option<String> {
 fn read_sysfs_u32(iface_path: &Path, file: &str) -> Option<u32> {
     let path = iface_path.join(file);
     let content = fs::read_to_string(path).ok()?;
-    content.trim().parse::<u32>().ok()
+    parse_sysfs_u32(content.trim())
+}
+
+/// One sysfs u32, in both shapes the kernel writes: decimal with
+/// no prefix (mtu "65536", type "772") and hex with the 0x prefix
+/// (flags "0x9"). The hex arm (night-dragon-lts-2) repairs a
+/// dormant-from-birth lane: `flags` was read on every host and
+/// parsed on none - Rust's plain `str::parse` rejects the 0x
+/// prefix - so the decoded flags row and the promiscuous-mode
+/// warning that rides IFF_PROMISC never once rendered. Separated
+/// from the file read so the two shapes are unit-pinnable.
+fn parse_sysfs_u32(trimmed: &str) -> Option<u32> {
+    match trimmed
+        .strip_prefix("0x")
+        .or_else(|| trimmed.strip_prefix("0X"))
+    {
+        Some(hex_digits) => u32::from_str_radix(hex_digits, 16).ok(),
+        None => trimmed.parse::<u32>().ok(),
+    }
 }
 
 fn read_sysfs_u64(iface_path: &Path, file: &str) -> Option<u64> {
