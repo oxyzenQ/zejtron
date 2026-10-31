@@ -25,9 +25,22 @@ pub fn run(command: &str, print_json: bool) -> Result<(), Box<dyn std::error::Er
 
     // The renderer branch (night-badass-9): the JSON lane speaks the
     // same resolution - the same match set, the same owner lookup -
-    // as one typed line; the text lane renders the tree.
+    // as one typed line; the text lane renders the tree. Both lanes
+    // answer absence the same way (night-improve-61): a command no
+    // PATH entry names is the target-absent case, and every sibling
+    // surface (why/holds/touch on a path that does not exist) exits
+    // 1 for it - the README's own table names `which <cmd>` as the
+    // replaced tool, and the POSIX lookup contract (which, `command
+    // -v`, type) is a nonzero status for an absent command, the
+    // branch point every scripted consumer writes against. The
+    // rendered verdict line keeps its shape byte-for-byte - the grey
+    // stdout class for the text lane, the found:false wire for the
+    // JSON lane - only the exit status joins the family contract.
     if print_json {
         println!("{}", path_json(command, &matches, &package_owner_multi));
+        if matches.is_empty() {
+            flush_and_exit_not_found();
+        }
         return Ok(());
     }
 
@@ -40,7 +53,7 @@ pub fn run(command: &str, print_json: bool) -> Result<(), Box<dyn std::error::Er
             "{} {command}",
             crate::output::grey_out("command not found in PATH:")
         );
-        return Ok(());
+        flush_and_exit_not_found();
     }
 
     let report = format_path_report(command, &matches);
@@ -286,6 +299,18 @@ fn display_match_path(path_match: &PathMatch) -> String {
 
 fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
+}
+
+/// The absent-command exit (night-improve-61): stdout is flushed
+/// first - the verdict line must land even though the exit skips
+/// every destructor - then the process answers 1, the status every
+/// POSIX path lookup gives an absent command and the one the
+/// target-absent siblings (why/holds/touch) already carry. Returns
+/// `!` so the caller reads as a branch, not a fallthrough.
+fn flush_and_exit_not_found() -> ! {
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    std::process::exit(1);
 }
 
 /// Multi-backend package owner lookup. Tries each backend in order of
