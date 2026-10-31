@@ -37,6 +37,34 @@ fn known_unix_epochs_render_exactly() {
 }
 
 #[test]
+fn four_hundred_divisible_leap_days_render_as_feb_29() {
+    // night-dragon-lts-1: the year-of-era computation was missing
+    // Hinnant's final - doe/146096 term, and Feb 29 of every
+    // 400-divisible year (the era's last day, doe = 146096) rolled
+    // forward to Mar 01. Verified against `date -u -d @951782400`:
+    // Tue Feb 29 00:00:00 UTC 2000. The pins below walk the whole
+    // boundary: the day before, both edges of the day itself, and
+    // the day after.
+    assert_eq!(format_unix_secs(951_782_399), "2000-02-28 23:59:59 (UTC)");
+    assert_eq!(format_unix_secs(951_782_400), "2000-02-29 00:00:00 (UTC)");
+    assert_eq!(format_unix_secs(951_868_799), "2000-02-29 23:59:59 (UTC)");
+    assert_eq!(format_unix_secs(951_868_800), "2000-03-01 00:00:00 (UTC)");
+
+    // The next 400-divisible leap day, one full era (146097 days)
+    // later: 2400-02-29 00:00:00 UTC = 13_574_563_200.
+    assert_eq!(
+        format_unix_secs(13_574_563_200),
+        "2400-02-29 00:00:00 (UTC)"
+    );
+    // And the previous one, pre-epoch: 1600-02-29 12:00:00 UTC =
+    // -11_670_955_200 (proleptic Gregorian, the signed lane).
+    assert_eq!(
+        format_unix_secs(-11_670_955_200),
+        "1600-02-29 12:00:00 (UTC)"
+    );
+}
+
+#[test]
 fn sub_second_precision_is_truncated_not_rounded() {
     // 1_709_210_096.999 = 2024-02-29 12:34:56 UTC: the sub-second
     // remainder is dropped (second precision), never rounded up.
