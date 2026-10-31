@@ -35,7 +35,8 @@ mod fixture {
 mod live {
     use super::*;
     use crate::ebpf::events::{
-        AF_INET, AF_INET6, IPPROTO_TCP, IPPROTO_UDP, SockEvent, TCP_CLOSE, TCP_LISTEN,
+        AF_INET, AF_INET6, IPPROTO_TCP, IPPROTO_UDP, ProcExitEvent, SockEvent, TCP_CLOSE,
+        TCP_LISTEN,
     };
     use std::time::Duration;
 
@@ -188,6 +189,150 @@ mod live {
         );
         assert!(row.contains("ENTERED LISTEN"), "{row}");
         assert!(row.contains("(zejtron") || row.ends_with(')'), "{row}");
+    }
+
+    /// One synthetic exit record: the comm rides as the kernel's
+    /// bpf_get_current_comm would have written it, NUL-padded (the
+    /// lane_tests fixture shape, local so both suites stay hermetic).
+    fn exit_at(timestamp_ns: u64, pid: u32, comm: &str) -> ProcExitEvent {
+        let mut bytes = [0u8; 16];
+        bytes[..comm.len()].copy_from_slice(comm.as_bytes());
+        ProcExitEvent {
+            timestamp_ns,
+            pid,
+            _pad: 0,
+            comm: bytes,
+        }
+    }
+
+    fn dead_left_listen(pid: u32, event_ts: u64) -> SockEvent {
+        let mut event = live_event(pid, 9999, IPPROTO_TCP, AF_INET, TCP_LISTEN, TCP_CLOSE);
+        event.timestamp_ns = event_ts;
+        event
+    }
+
+    #[test]
+    fn a_left_listen_with_a_teardown_lag_exit_is_observed_with_the_note() {
+        // The residual's first branch: the process died 87ms before
+        // its socket's teardown recorded - the strict rule refuses
+        // (the exit is BEFORE the event), the bounded lag fallback
+        // names it, and the row rides [observed] with the measured
+        // lag and the recorded actor.
+        let event_ts = 10_000_000_000;
+        let events = vec![dead_left_listen(4242, event_ts)];
+        let exits = vec![exit_at(event_ts - 87_000_000, 4242, "shortlisten")];
+        let section =
+            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        let row = section.lines().nth(1).unwrap();
+        assert!(row.starts_with("[observed]  "), "the weaker tier: {row}");
+        assert!(row.contains("TCP4  *:9999  LEFT LISTEN"), "{row}");
+        assert!(row.contains("PID 4242"), "{row}");
+        assert!(row.contains("(shortlisten)"), "{row}");
+        assert!(
+            row.contains(
+                "attribution from post-mortem exit ring (socket teardown lag: exit fired 87ms before LEFT LISTEN)"
+            ),
+            "{row}"
+        );
+        // The unaccounted block carries zero: the event IS accounted.
+        assert!(section.contains("0 events in the window"), "{section}");
+        assert!(
+            !section.contains("race window by kernel ordering"),
+            "{section}"
+        );
+    }
+
+    #[test]
+    fn a_sub_millisecond_lag_reads_under_1ms() {
+        let event_ts = 10_000_000_000;
+        let events = vec![dead_left_listen(4242, event_ts)];
+        let exits = vec![exit_at(event_ts - 400_000, 4242, "fast")];
+        let section =
+            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        assert!(
+            section
+                .lines()
+                .nth(1)
+                .unwrap()
+                .contains("exit fired under 1ms before LEFT LISTEN"),
+            "{section}"
+        );
+    }
+
+    #[test]
+    fn a_left_listen_the_ring_cannot_name_rides_the_race_note() {
+        // The residual's second branch: no exit record names the
+        // event at all - no invented actor, the race note says the
+        // kernel's ordering plainly, and the count stays honest.
+        let event_ts = 10_000_000_000;
+        let events = vec![dead_left_listen(4242, event_ts)];
+        let section =
+            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&[]));
+        let note = section
+            .lines()
+            .find(|l| l.contains("[unaccounted]") && l.contains("LEFT LISTEN"))
+            .expect("the race note row: {section}");
+        assert!(
+            note.contains("no matching exit event (process exited before teardown; race window by kernel ordering)"),
+            "{note}"
+        );
+        assert!(note.contains("TCP4  *:9999"), "{note}");
+        // The count still counts it - one miss, named and counted.
+        assert!(section.contains("  1 events in the window"), "{section}");
+        // No [observed] row was invented.
+        assert!(!section.contains("[observed]"), "{section}");
+    }
+
+    #[test]
+    fn an_exit_beyond_the_envelope_is_a_prior_life_not_the_actor() {
+        // 400ms before: outside the bounded envelope, the record is
+        // a recycled pid's prior life again - the race note, not a
+        // fabricated attribution.
+        let event_ts = 10_000_000_000;
+        let events = vec![dead_left_listen(4242, event_ts)];
+        let exits = vec![exit_at(event_ts - 400_000_000, 4242, "oldlife")];
+        let section =
+            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        assert!(!section.contains("[observed]"), "{section}");
+        assert!(
+            section.contains("race window by kernel ordering"),
+            "{section}"
+        );
+    }
+
+    #[test]
+    fn the_teardown_lag_branch_belongs_to_left_listen_alone() {
+        // The relaxation is LEFT LISTEN's alone: an ENTERED LISTEN
+        // (and every other transition) keeps the strict at-or-after
+        // rule - an exit stamped before the event stays unaccounted,
+        // never [observed].
+        let event_ts = 10_000_000_000;
+        let mut entered = live_event(4242, 9999, IPPROTO_TCP, AF_INET, TCP_CLOSE, TCP_LISTEN);
+        entered.timestamp_ns = event_ts;
+        let events = vec![entered];
+        let exits = vec![exit_at(event_ts - 87_000_000, 4242, "eager")];
+        let section =
+            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        assert!(!section.contains("[observed]"), "{section}");
+        assert!(section.contains("  1 events in the window"), "{section}");
+    }
+
+    #[test]
+    fn an_exit_after_the_left_listen_stays_the_plain_event_row() {
+        // The strict rule still owns the at-or-after case: the row
+        // rides [event] (the strongest tier), no lag note - the lag
+        // fallback never hijacks what night-improve-61 already
+        // attributes.
+        let event_ts = 10_000_000_000;
+        let events = vec![dead_left_listen(4242, event_ts)];
+        let exits = vec![exit_at(event_ts + 3_000_000, 4242, "slowclose")];
+        let section =
+            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        let row = section.lines().nth(1).unwrap();
+        assert!(row.starts_with("[event]  "), "{row}");
+        assert!(!row.contains("[observed]"), "{row}");
+        assert!(!section.contains("teardown lag"), "{section}");
+        assert!(row.contains("(slowclose)"), "{row}");
     }
 }
 

@@ -1062,6 +1062,31 @@ v11.0.0
 
 ### Fixed
 
+- The LEFT LISTEN teardown race now speaks both truths
+  (night-dragon-lts-T1 residual): a short-lived listener's LEFT
+  LISTEN event arrived with a socket cookie but no PID, and the
+  post-mortem exit-ring pass refused the very record that named it
+  - the matcher is "first exit at-or-after the event's stamp, same
+  pid", and socket teardown trails the process's own death (the
+  close is deferred through the exit path's cleanup ordering and
+  the RCU grace period), so the actor's exit record landed a beat
+  BEFORE the event and the row rendered unaccounted. Two branches,
+  one principle - never lie about attribution, never abandon an
+  honest opportunity: an exit stamped strictly before the event but
+  within a bounded 250ms envelope (the typical grace-period shape;
+  near enough that a recycled pid's prior life cannot reach it)
+  now attributes the row as [observed] with the measured lag named
+  - "attribution from post-mortem exit ring (socket teardown lag:
+  exit fired 87ms before LEFT LISTEN)" - while a LEFT LISTEN the
+  ring cannot name at all renders its own race note under the
+  unaccounted count instead of hiding in it: "no matching exit
+  event (process exited before teardown; race window by kernel
+  ordering)". The strict at-or-after rule is untouched for every
+  other transition and every other surface (the file lanes keep
+  night-improve-61 exactly as landed), the at-or-after case still
+  rides [event], and the count still counts every miss. The
+  matcher, the envelope boundary, and both row shapes are pinned
+  in the unit suite (567 green).
 - The silent `--since` clamp now speaks (night-dragon-lts-T1
   residual): `--since 18446744073709551h` quietly became a 1h window
   with no word, and a user waiting an hour for "no events in window"

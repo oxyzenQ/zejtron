@@ -214,6 +214,40 @@ pub fn exit_names_event(
         .find(|exit| exit.pid == pid && exit.timestamp_ns >= event_timestamp_ns)
 }
 
+/// The teardown-lag envelope for LEFT LISTEN attribution (the
+/// night-dragon-lts-T1 residual): a socket's teardown can trail the
+/// process's own death - the close is deferred through the exit
+/// path's cleanup ordering and the RCU grace period the sock
+/// probe's records ride - so the exit record that names a LEFT
+/// LISTEN event may land a beat BEFORE the event's own stamp.
+/// 250ms is the bounded guard: near enough that a recycled pid's
+/// prior life cannot reach it (a prior life is a DIFFERENT process,
+/// dead long before), far enough for the teardown ordering.
+pub const TEARDOWN_LAG_NANOS: u64 = 250_000_000;
+
+/// The LEFT LISTEN-only post-mortem fallback: the exit record with
+/// the same pid stamped strictly BEFORE the event but within the
+/// teardown-lag envelope, returned with the measured lag in
+/// nanoseconds (the number the row's note renders). An exit at or
+/// after the event is refused here - that case belongs to the
+/// strict rule above, and a lag of zero would make the note a lie.
+/// Only the port surface's LEFT LISTEN branch consults this rule;
+/// every other surface (and the file lanes) keep the strict
+/// at-or-after answer as their first and only match.
+pub fn exit_names_event_after_teardown(
+    exits: &[ProcExitEvent],
+    pid: u32,
+    event_timestamp_ns: u64,
+) -> Option<(&ProcExitEvent, u64)> {
+    exits.iter().find_map(|exit| {
+        if exit.pid != pid || exit.timestamp_ns >= event_timestamp_ns {
+            return None;
+        }
+        let lag_ns = event_timestamp_ns - exit.timestamp_ns;
+        (lag_ns <= TEARDOWN_LAG_NANOS).then_some((exit, lag_ns))
+    })
+}
+
 #[cfg(test)]
 #[path = "../../test/ebpf/ringbuf_tests.rs"]
 mod tests;
