@@ -36,7 +36,14 @@
 # Excluded from both checks: .git/, target/, assets/, dist/,
 # node_modules/, __pycache__/ (build output, binary assets, and
 # compiled bytecode — a .pyc embeds its source's UTF-8 string
-# constants and would re-flag them as prose), *.lock, the CHANGELOG
+# constants and would re-flag them as prose), corpus/ and
+# artifacts/ (the fuzz lane's generated outputs — a saved libFuzzer
+# input is arbitrary bytes the harness itself fed the parser, not
+# prose anyone wrote; running the fuzz lane locally then running
+# this gate is the documented workflow, and the binary corpus
+# would flood the detector with byte-noise findings — the lane's
+# hand-written sources in fuzz/fuzz_targets/ and fuzz/seeds/ stay
+# checked), *.lock, the CHANGELOG
 # root files (frozen historical records — archive content is
 # never rewritten, the same exclusion policy as every other gate;
 # the v20-era root file joined the class in NIGHT-improve-43),
@@ -118,6 +125,9 @@ SKIP_DIRS = {
     "dist",
     "node_modules",
     "__pycache__",  # compiled bytecode embeds source string constants
+    "corpus",       # the fuzz lane's generated inputs: arbitrary bytes,
+                    # not prose - see the header note
+    "artifacts",    # the fuzz lane's crash/leak outputs, same class
 }
 SKIP_FILES = {
     "CHANGELOG.md",  # frozen historical record
