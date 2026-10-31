@@ -160,7 +160,14 @@ pub fn format_port_output(
 /// The `--events-only` shape: the live event section, or the refusal.
 fn events_only_output(options: &PortOptions) -> String {
     match capture_window(options) {
-        Some(events) => format_event_section(&events, options.window, options.no_pid),
+        Some(events) => {
+            let mut section = format_event_section(&events, options.window, options.no_pid);
+            if udp_events_only(options) {
+                section.push('\n');
+                section.push_str(&udp_event_lane_note());
+            }
+            section
+        }
         None => unavailability_line(options.window),
     }
 }
@@ -327,6 +334,33 @@ fn event_pid_name(pid: u32) -> Option<String> {
     line.split_whitespace().nth(1).map(ToOwned::to_owned)
 }
 
+/// True when the event window is filtered to UDP alone (--udp
+/// without --tcp): the shape whose emptiness is a kernel fact, not
+/// an observation.
+fn udp_events_only(options: &PortOptions) -> bool {
+    options.udp && !options.tcp
+}
+
+/// The UDP-only event window's kernel truth (night-improve-61, the
+/// micro-VM census): the sock probe rides the
+/// sock/inet_sock_set_state tracepoint, and the kernel's UDP path
+/// never routes through it - a UDP socket's state changes bypass
+/// inet_sk_state_store, so a UDP lifecycle (open, send, close)
+/// leaves no record on this lane (verified empirically on the
+/// Alpine 6.12 floor kernel: zero tracepoint records for a full
+/// UDP lifecycle with the event enabled). A UDP-only event window
+/// is therefore empty by construction, and the honest shape says
+/// so instead of rendering "(no events in the window)" as if the
+/// window had listened and heard nothing. The snapshot lane still
+/// carries UDP sockets (the /proc/net/udp parse) - the event lane
+/// is the half the kernel does not offer.
+fn udp_event_lane_note() -> String {
+    format!(
+        "{} the kernel fires no lifecycle events for UDP sockets - this event lane is TCP-only; UDP sockets ride the snapshot",
+        crate::output::grey_out("note:")
+    )
+}
+
 /// The transition label for an event row: what the row says
 /// happened. `None` when the record is not a port-surface
 /// transition (the kernel-side filter is the same predicate - the
@@ -382,6 +416,10 @@ fn format_window_report(
     lines.extend(snapshot_rows(sockets, owners, options));
     lines.push(String::new());
     lines.push(format_event_section(events, options.window, options.no_pid));
+    if udp_events_only(options) {
+        lines.push(String::new());
+        lines.push(udp_event_lane_note());
+    }
     append_note(&mut lines, stats);
     lines.join("\n")
 }
