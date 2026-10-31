@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 // NON_LATIN_FIXTURE: the multibyte rejection pins deliberately
-// exercise CJK, kana-style seconds, and accented units - the exact
-// inputs the pre-fix parser panicked on.
+// exercise CJK, kana-style seconds, accented units, and a
+// four-byte CJK Extension B ideograph - the exact inputs the
+// pre-fix parser panicked on.
 //
 //! The port window pins. Lives under the single test/ tree
 //! (night-improve-18, the discipline contract) and is #[path]-wired
@@ -53,11 +54,15 @@ fn window_grammar_rejects_the_shapes_it_does_not_speak() {
 fn window_grammar_rejects_multibyte_units_without_panicking() {
     // night-dragon-lts-1: the pre-fix parser split the input at
     // len() - 1 BYTES, and str::split_at panics when that index
-    // lands inside a multibyte character - `--since 5分` (or a bare
-    // `é`) crashed the CLI with a byte-index panic instead of the
-    // clean usage error. Every multibyte-final input must be a
-    // rejection, never a panic.
-    for bad in ["é", "日", "5分", "60秒", "🦀", "5s分"] {
+    // lands inside a multibyte character - `--since 5分` (or a
+    // bare `é`) crashed the CLI with a byte-index panic instead of
+    // the clean usage error. Every multibyte-final input must be a
+    // rejection, never a panic. The four-byte CJK Extension B
+    // ideograph (U+20000) rides beside the two- and three-byte
+    // shapes: it exercises the widest char the boundary can land
+    // inside without carrying an emoji-class codepoint (the owner
+    // law bans those from every text file, fixtures included).
+    for bad in ["é", "日", "5分", "60秒", "\u{20000}", "5s分"] {
         assert!(parse_window(bad).is_err(), "must reject {bad:?}");
     }
     // An ASCII unit after a multibyte amount stays a rejection too
