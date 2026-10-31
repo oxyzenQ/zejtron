@@ -3,7 +3,6 @@
 
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
-use std::io;
 use std::path::Path;
 
 use super::model::{OwnerMap, ProcessInfo, ScanStats};
@@ -31,7 +30,16 @@ pub(crate) fn map_socket_owners(
         let fd_dir = process_dir.join("fd");
         let fd_entries = match fs::read_dir(&fd_dir) {
             Ok(entries) => entries,
-            Err(error) if is_permission_or_disappeared(&error) => {
+            // PermissionDenied is the honest unreadable: the note
+            // advises sudo for it. NotFound is a pid that exited
+            // between the /proc listing and this read - the same
+            // race the holds scanner classifies as Gone and skips
+            // silently (holds/procfs.rs), because sudo cannot
+            // resurrect an exited process. Counting it here drove
+            // the spurious "try sudo" note on virtually every busy
+            // host (night-dragon-lts-1).
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
                 stats.unreadable_processes += 1;
                 continue;
             }
@@ -46,7 +54,14 @@ pub(crate) fn map_socket_owners(
             };
             let target = match fs::read_link(fd_entry.path()) {
                 Ok(target) => target,
-                Err(error) if is_permission_or_disappeared(&error) => {
+                // The same Gone-vs-refused split as the fd directory:
+                // NotFound is the fd closing between the listing and
+                // this read (normal churn on a busy host - the socket
+                // it pointed at is closing with it, so no owner is
+                // being missed), PermissionDenied is a genuinely
+                // unreadable owner the sudo note exists for.
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
                     stats.unreadable_fds += 1;
                     continue;
                 }
@@ -83,13 +98,6 @@ pub(crate) fn map_socket_owners(
         processes.sort_by_key(|process| process.pid);
     }
     (owners, stats)
-}
-
-fn is_permission_or_disappeared(error: &io::Error) -> bool {
-    matches!(
-        error.kind(),
-        io::ErrorKind::PermissionDenied | io::ErrorKind::NotFound
-    )
 }
 
 fn parse_socket_inode(path: &Path) -> Option<u64> {
