@@ -120,7 +120,11 @@ fn main() {
             user_or_uid.as_deref(),
             commands::proc::ProcFlags {
                 me,
-                depth,
+                // The clap range gate (night-dragon-lts-T1) parses
+                // depth as a u64 bounded to 1.. - the tree's own
+                // depth is a usize, and the widening cast is
+                // lossless on every tier this crate builds for.
+                depth: depth.map(|d| d as usize),
                 find,
                 no_pid,
                 no_color,

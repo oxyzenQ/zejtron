@@ -158,25 +158,23 @@ pub enum Commands {
         print_json: bool,
     },
     #[command(about = "What is running, and under whom?")]
+    #[command(group = clap::ArgGroup::new("proc_target").required(true).multiple(false).args(["user_or_uid", "me"]))]
     Proc {
         #[arg(
             value_name = "USER_OR_UID",
             help = "Username or numeric UID to inspect"
         )]
         user_or_uid: Option<String>,
-        #[arg(
-            long,
-            conflicts_with = "user_or_uid",
-            help = "Show processes owned by the current user"
-        )]
+        #[arg(long, help = "Show processes owned by the current user")]
         me: bool,
         #[arg(
             long,
             allow_hyphen_values = true,
             value_name = "N",
-            help = "Limit rendered tree depth"
+            value_parser = clap::value_parser!(u64).range(1..),
+            help = "Limit rendered tree depth (minimum 1)"
         )]
-        depth: Option<usize>,
+        depth: Option<u64>,
         #[arg(
             long,
             value_name = "PATTERN",

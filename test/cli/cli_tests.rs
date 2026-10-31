@@ -374,3 +374,37 @@ fn pro_mode_covers_every_clap_flag() {
         "the walk must have checked the real estate, got {checked}"
     );
 }
+
+#[test]
+fn proc_without_a_target_is_a_usage_error() {
+    // night-dragon-lts-T1: the required-operand law every other
+    // verb already rides (path, holds, touch, why) - a bare `proc`
+    // used to fall through to the runtime lane and exit 1 with a
+    // hand-rolled message instead of clap's usage error. The
+    // ArgGroup makes the requirement a parse-time fact: exit 2,
+    // the honest usage line, the same family as its siblings.
+    assert!(Cli::try_parse_from(["zejtron", "proc"]).is_err());
+    // Flags alone do not satisfy the group.
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--find", "sh"]).is_err());
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--depth", "2"]).is_err());
+    // Either selection shape parses.
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--me"]).is_ok());
+    assert!(Cli::try_parse_from(["zejtron", "proc", "root"]).is_ok());
+    // Both at once stays the conflict it always was.
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--me", "root"]).is_err());
+}
+
+#[test]
+fn proc_depth_zero_is_a_usage_error() {
+    // night-dragon-lts-T1: --depth 0 used to parse (a valid usize)
+    // and render "0 roots · 0 processes" - an honest-looking lie
+    // that says the user owns nothing. One is the floor a tree can
+    // render; zero is a usage error now, named by the range parser.
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--me", "--depth", "0"]).is_err());
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--me", "--depth", "-1"]).is_err());
+    let cli = Cli::try_parse_from(["zejtron", "proc", "--me", "--depth", "1"]).unwrap();
+    match cli.command {
+        Some(Commands::Proc { depth, .. }) => assert_eq!(depth, Some(1)),
+        other => panic!("unexpected command: {other:?}"),
+    }
+}

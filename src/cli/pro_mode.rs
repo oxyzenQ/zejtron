@@ -102,7 +102,7 @@ const GROUPS: &[(&str, &[Row])] = &[
         "proc:",
         &[
             ("--me", "Show processes owned by the current user"),
-            ("--depth N", "Limit rendered tree depth"),
+            ("--depth N", "Limit rendered tree depth (minimum 1)"),
             (
                 "--find PATTERN",
                 "Show process families matching a case-insensitive name substring",
