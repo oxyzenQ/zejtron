@@ -18,8 +18,9 @@
 
 use std::fmt::Write as _;
 
+use super::events::{protocol_family_label, transition_label};
 use super::model::{OwnerMap, PortOptions, ScanStats, SocketEntry};
-use super::window::{protocol_family_label, transition_label, window_label};
+use super::window::window_label;
 use crate::ebpf::events::SockEvent;
 use crate::evidence::json::{write_array, write_opt_string, write_string};
 

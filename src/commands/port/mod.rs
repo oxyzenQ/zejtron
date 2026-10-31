@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+mod events;
 mod json;
 mod model;
 mod owners;
