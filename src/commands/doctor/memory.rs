@@ -199,8 +199,10 @@ pub(crate) fn comm_of(pid: u32) -> String {
         .unwrap_or_else(|| "unknown".to_owned())
 }
 
-/// One "Field:  N kB" line of /proc/meminfo, in KiB.
-fn meminfo_field(contents: &str, field: &str) -> Option<u64> {
+/// One "Field:  N kB" line of /proc/meminfo, in KiB. pub(crate)
+/// since night-dragon-lts-2: the umbrella symptom reads its swap
+/// headline fields from the same bytes this parser rides on.
+pub(crate) fn meminfo_field(contents: &str, field: &str) -> Option<u64> {
     let prefix = format!("{field}:");
     let line = contents.lines().find(|line| line.starts_with(&prefix))?;
     line.split_whitespace().nth(1)?.parse().ok()

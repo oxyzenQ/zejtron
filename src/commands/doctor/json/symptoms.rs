@@ -18,8 +18,8 @@ use super::super::memory::{
 };
 use super::super::network::{NetworkSample, verdict_lines as network_verdict_lines};
 use super::{
-    kib_to_bytes, symptom_header, write_array, write_exits, write_opt_pct, write_opt_u64,
-    write_pct, write_unaccounted_entries, write_verdict,
+    kib_to_bytes, sampling_entry, symptom_header, write_array, write_exits, write_opt_pct,
+    write_opt_u64, write_pct, write_unaccounted_entries, write_verdict,
 };
 use crate::evidence::UnaccountedEntry;
 use crate::evidence::json::write_string;
@@ -338,30 +338,6 @@ pub(super) fn cpu_unaccounted(sample: &CpuSample) -> Vec<UnaccountedEntry> {
         ));
     }
     entries
-}
-
-/// The sampling-boundary entry, the delta lanes' shared sentence -
-/// the same three truths the shared text builder phrases.
-fn sampling_entry(lane: &ExitLane) -> UnaccountedEntry {
-    match lane {
-        ExitLane::NotAttached => UnaccountedEntry::new(
-            1,
-            "process lifecycles",
-            "processes that started and exited within the 1.0s sampling window: not attributed (zejtron samples, it does not watch)",
-        ),
-        ExitLane::Drained(_) => UnaccountedEntry::new(
-            1,
-            "process lifecycles",
-            "processes that started and exited within the 1.0s sampling window: named [observed] in the exits section above (the eBPF drain holds the last 2s)",
-        ),
-        ExitLane::DrainFailed(error) => UnaccountedEntry::new(
-            1,
-            "process lifecycles",
-            format!(
-                "processes that started and exited within the 1.0s sampling window: not attributed (the eBPF exit drain failed: {error})"
-            ),
-        ),
-    }
 }
 
 // ── disk ─────────────────────────────────────────────────────────

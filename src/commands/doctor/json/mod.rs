@@ -304,23 +304,40 @@ fn symptom_header(out: &mut String, symptom: &str, window: Option<&str>) {
     }
 }
 
-/// The `slow` deferral as JSON - the named absence, the same
-/// honesty the text line carries: not implemented, and the list of
-/// what is.
-pub(super) fn slow_json(implemented: &[&str]) -> String {
-    let mut out = String::with_capacity(128);
-    symptom_header(&mut out, "slow", None);
-    out.push_str(",\"implemented\":false,\"implemented_symptoms\":");
-    write_str_array(&mut out, implemented);
-    out.push('}');
-    out
-}
-
+mod slow;
 mod symptoms;
 
+pub(super) use slow::json_slow;
 #[cfg(test)]
 use symptoms::{cpu_unaccounted, gpu_unaccounted};
 pub(super) use symptoms::{json_cpu, json_disk, json_gpu, json_network, json_ram};
+
+/// The sampling-boundary entry, the delta lanes' shared sentence -
+/// the same three truths the shared text builder phrases. Lives in
+/// the parent (night-dragon-lts-2) so the per-lane Unaccounted
+/// builders and the umbrella's slow/slow.rs both import the one
+/// source - a child can always see its parent's own items.
+fn sampling_entry(lane: &ExitLane) -> UnaccountedEntry {
+    match lane {
+        ExitLane::NotAttached => UnaccountedEntry::new(
+            1,
+            "process lifecycles",
+            "processes that started and exited within the 1.0s sampling window: not attributed (zejtron samples, it does not watch)",
+        ),
+        ExitLane::Drained(_) => UnaccountedEntry::new(
+            1,
+            "process lifecycles",
+            "processes that started and exited within the 1.0s sampling window: named [observed] in the exits section above (the eBPF drain holds the last 2s)",
+        ),
+        ExitLane::DrainFailed(error) => UnaccountedEntry::new(
+            1,
+            "process lifecycles",
+            format!(
+                "processes that started and exited within the 1.0s sampling window: not attributed (the eBPF exit drain failed: {error})"
+            ),
+        ),
+    }
+}
 
 #[cfg(test)]
 #[path = "../../../../test/commands/doctor/json_tests.rs"]

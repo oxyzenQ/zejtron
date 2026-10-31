@@ -27,7 +27,18 @@ const TOP_N: usize = 10;
 /// are the named risk (a named boundary, not a mood - the ephemeral
 /// port range is c. 28 thousand wide, and a thousand-plus sockets
 /// parked in TIME_WAIT is the shape of a churning connector).
-const PORT_EXHAUSTION_RISK: usize = 1024;
+/// pub(crate) since night-dragon-lts-2: the umbrella symptom's
+/// socket-churn finding rides the same named boundary, one number,
+/// no drift.
+pub(crate) const PORT_EXHAUSTION_RISK: usize = 1024;
+
+/// The CLOSE_WAIT pile boundary the umbrella symptom rides: sockets
+/// parked in CLOSE_WAIT are ones the remote end closed and a local
+/// process never did - a handful is a race, a pile is an app not
+/// closing its sockets. 32 is the named boundary (a power of two
+/// far above the close() racing floor, far below the fd table's
+/// usual 1024 ceiling).
+pub(crate) const CLOSE_WAIT_PILE: usize = 32;
 
 /// One interface's window delta.
 #[derive(Debug, Clone, PartialEq, Eq)]

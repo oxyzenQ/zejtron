@@ -206,6 +206,7 @@ the closure the ledger exists to provide.
 zejtron doctor                      # readiness: what can this host answer right now
 zejtron doctor --attach             # root, one-shot: arm the kernel probes
 zejtron doctor --detach             # unpin everything, idempotent
+zejtron doctor --symptom slow       # why is everything slow: one window, ranked findings
 zejtron doctor --symptom ram        # the memory ghosts, holders named
 zejtron why /etc/hosts --since 60s  # who changed this, with the evidence tier stated
 zejtron holds /path/or/443          # who holds this file or port open

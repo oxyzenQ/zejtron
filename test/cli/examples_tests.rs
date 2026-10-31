@@ -73,7 +73,7 @@ fn help_closes_with_quick_examples() {
         "# who is listening on port 22?\n  zejtron port 22",
         "# what is running under my user?\n  zejtron proc --me",
         "# evidence report for a file\n  zejtron why /etc/passwd",
-        "# why is my RAM eaten?\n  zejtron doctor --symptom ram",
+        "# why is everything slow?\n  zejtron doctor --symptom slow",
     ] {
         assert!(
             help.contains(pair),

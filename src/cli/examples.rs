@@ -60,7 +60,7 @@ const QUICK_EXAMPLES: &[(&str, VerbExample)] = &[
     ("who is listening on port 22?", ("port", "22")),
     ("what is running under my user?", ("proc", "--me")),
     ("evidence report for a file", ("why", "/etc/passwd")),
-    ("why is my RAM eaten?", ("doctor", "--symptom ram")),
+    ("why is everything slow?", ("doctor", "--symptom slow")),
 ];
 
 /// One example invocation, unpainted: the exact plain bytes the Mono

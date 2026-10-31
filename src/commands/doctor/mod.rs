@@ -133,6 +133,7 @@ mod gpu;
 mod json;
 mod memory;
 mod network;
+mod slow;
 mod symptom;
 
 use checks::{
