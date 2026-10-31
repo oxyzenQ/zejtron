@@ -334,6 +334,36 @@ fn event_pid_name(pid: u32) -> Option<String> {
     line.split_whitespace().nth(1).map(ToOwned::to_owned)
 }
 
+/// One event row: the [event] tag, the wall-clock time, the
+/// protocol token, the wildcard address with the source port, the
+/// transition label, the pid token, and the actor's name - one
+/// renderer for the live-attributed and the post-mortem-attributed
+/// rows alike, so a row named from the exit ring renders the same
+/// shape a live-attributed row does.
+fn event_row(event: &SockEvent, label: &str, proto: &str, name: String, no_pid: bool) -> String {
+    let pid_part = if no_pid {
+        String::new()
+    } else {
+        format!("  {} {}", crate::output::grey_out("PID"), event.pid)
+    };
+    // Roles: the [event] tag rides green (the kernel-recorded
+    // transition, the strongest evidence this surface carries),
+    // the event time rides grey (a timestamp), the protocol,
+    // port, transition label, pid, and name stay unwrapped (the
+    // values).
+    format!(
+        "{}  {}  {}  {}:{}  {}{}  ({})",
+        crate::output::ok_out("[event]"),
+        crate::output::grey_out(&event_time_of_day(event)),
+        proto,
+        "*",
+        event.sport,
+        label,
+        pid_part,
+        name
+    )
+}
+
 /// True when the event window is filtered to UDP alone (--udp
 /// without --tcp): the shape whose emptiness is a kernel fact, not
 /// an observation.
@@ -543,9 +573,13 @@ fn snapshot_row(
 /// The full event-window section: the Changes header, one row per
 /// attributed event (ascending), and the unaccounted block that
 /// names what neither source can see. Every event whose pid has no
-/// visible /proc entry at render time counts toward the unaccounted
-/// block - a namespace boundary or an exit between the change and
-/// the query.
+/// visible /proc entry at render time is a post-mortem candidate
+/// (night-improve-61): the exit ring may still name it - a
+/// short-lived listener (an nc one-shot, a health-check bind, a
+/// cron-opened socket) is gone from /proc before the query renders,
+/// and the exit record that names it is the only survivor. Only an
+/// event the exit ring cannot name either counts toward the
+/// unaccounted block.
 pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool) -> String {
     let mut lines = Vec::new();
     // The Changes header rides green (the section header).
@@ -555,7 +589,12 @@ pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool
     )));
 
     let mut unaccounted: usize = 0;
-    let mut rows: Vec<String> = Vec::new();
+    // The rows keep the capture's ascending order (the renderer
+    // never reorders), so each attributed event lands in a SLOT and
+    // a post-mortem candidate parks its slot as None - the exit-ring
+    // pass below fills the gaps IN PLACE.
+    let mut slots: Vec<Option<String>> = Vec::new();
+    let mut post_mortem: Vec<(usize, &SockEvent)> = Vec::new();
     for event in events {
         let Some(label) = transition_label(event.protocol, event.oldstate, event.newstate) else {
             // Not a port-surface transition (the ring contract says
@@ -567,31 +606,46 @@ pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool
             continue;
         };
         let Some(name) = event_pid_name(event.pid) else {
-            unaccounted += 1;
+            post_mortem.push((slots.len(), event));
+            slots.push(None);
             continue;
         };
-        let pid_part = if no_pid {
-            String::new()
-        } else {
-            format!("  {} {}", crate::output::grey_out("PID"), event.pid)
-        };
-        // Roles: the [event] tag rides green (the kernel-recorded
-        // transition, the strongest evidence this surface carries),
-        // the event time rides grey (a timestamp), the protocol,
-        // port, transition label, pid, and name stay unwrapped (the
-        // values).
-        rows.push(format!(
-            "{}  {}  {}  {}:{}  {}{}  ({})",
-            crate::output::ok_out("[event]"),
-            crate::output::grey_out(&event_time_of_day(event)),
-            proto,
-            "*",
-            event.sport,
-            label,
-            pid_part,
-            name
-        ));
+        slots.push(Some(event_row(event, label, proto, name, no_pid)));
     }
+
+    // The exit-ring pass (night-improve-61): the same post-mortem
+    // attribution the file lanes carry, the same shared match rule
+    // (ebpf::ringbuf::exit_names_event) and the same comm shaper.
+    // Drained ONLY when some event needs it: a fully-live window
+    // never consumes the exit stream.
+    if !post_mortem.is_empty() {
+        let exits = match crate::ebpf::ringbuf::drain_proc_exits() {
+            Ok(exits) => exits,
+            Err(error) => {
+                crate::output::verbose::vlog!(
+                    "port",
+                    "exit ring unavailable for post-mortem attribution: {error}"
+                );
+                Vec::new()
+            }
+        };
+        for (slot, event) in post_mortem {
+            match crate::ebpf::ringbuf::exit_names_event(&exits, event.pid, event.timestamp_ns) {
+                Some(exit) => {
+                    let name = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                    let label = transition_label(event.protocol, event.oldstate, event.newstate);
+                    let proto = protocol_family_label(event.protocol, event.family);
+                    if let (Some(label), Some(proto)) = (label, proto) {
+                        slots[slot] = Some(event_row(event, label, proto, name, no_pid));
+                    } else {
+                        unaccounted += 1;
+                    }
+                }
+                None => unaccounted += 1,
+            }
+        }
+    }
+    let rows: Vec<String> = slots.into_iter().flatten().collect();
 
     if rows.is_empty() {
         // The empty-window line rides grey (the locked scheme names

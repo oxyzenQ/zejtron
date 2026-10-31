@@ -259,7 +259,7 @@ fn collect_live(
             );
         }
         for (slot, event) in post_mortem {
-            match exit_names_event(&exits, event) {
+            match crate::ebpf::ringbuf::exit_names_event(&exits, event.pid, event.timestamp_ns) {
                 Some(exit) => {
                     let comm = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
                     slots[slot] = Some(EvidenceRow::new(
@@ -323,20 +323,6 @@ fn event_kind(op: u8) -> EvidenceKind {
         },
         _ => EvidenceKind::Wrote { via: None },
     }
-}
-
-/// The exit record that names the event's writer: the FIRST exit at
-/// or after the event's own timestamp - the writer did the work,
-/// then died. A record carrying the same pid but stamped BEFORE the
-/// event is a prior life of a recycled pid naming a different
-/// process; the first at-or-after record is this writer's own death.
-fn exit_names_event<'a>(
-    exits: &'a [crate::ebpf::events::ProcExitEvent],
-    event: &crate::ebpf::events::FileEvent,
-) -> Option<&'a crate::ebpf::events::ProcExitEvent> {
-    exits
-        .iter()
-        .find(|exit| exit.pid == event.pid && exit.timestamp_ns >= event.timestamp_ns)
 }
 
 /// The pid's Name and Uid (real) from /proc, resolved to a username.

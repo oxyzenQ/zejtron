@@ -196,6 +196,24 @@ pub fn drain_proc_exits() -> Result<Vec<ProcExitEvent>, String> {
     Ok(window)
 }
 
+/// The post-mortem attribution rule (night-improve-61), the one
+/// matcher every live lane shares - the file lanes (holds/touch/
+/// why) and the port window alike: the exit record that names an
+/// event's actor is the FIRST exit carrying the same pid stamped
+/// at or after the event's own timestamp - the actor did the work,
+/// then died. A record carrying the same pid but stamped BEFORE
+/// the event is a prior life of a recycled pid naming a different
+/// process; the first at-or-after record is this actor's own death.
+pub fn exit_names_event(
+    exits: &[ProcExitEvent],
+    pid: u32,
+    event_timestamp_ns: u64,
+) -> Option<&ProcExitEvent> {
+    exits
+        .iter()
+        .find(|exit| exit.pid == pid && exit.timestamp_ns >= event_timestamp_ns)
+}
+
 #[cfg(test)]
 #[path = "../../test/ebpf/ringbuf_tests.rs"]
 mod tests;
