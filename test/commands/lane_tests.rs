@@ -146,3 +146,91 @@ fn the_pin_denial_fallback_names_the_window_in_unaccounted() {
         parts.mode
     );
 }
+
+// ── night-improve-61: the post-mortem attribution pins ──────────────
+
+/// One synthetic file event: only the fields the attribution match
+/// reads are shaped (timestamp, pid, op); the pads stay zeroed the
+/// way the ring contract writes them.
+fn file_event_at(timestamp_ns: u64, pid: u32, op: u8) -> crate::ebpf::events::FileEvent {
+    crate::ebpf::events::FileEvent {
+        timestamp_ns,
+        op,
+        _pad: [0; 7],
+        inode: 598,
+        device: 2,
+        pid,
+        _pad2: 0,
+    }
+}
+
+/// One synthetic exit record: the comm rides as the kernel's
+/// bpf_get_current_comm would have written it, NUL-padded.
+fn exit_at(timestamp_ns: u64, pid: u32, comm: &str) -> crate::ebpf::events::ProcExitEvent {
+    let mut bytes = [0u8; 16];
+    bytes[..comm.len()].copy_from_slice(comm.as_bytes());
+    crate::ebpf::events::ProcExitEvent {
+        timestamp_ns,
+        pid,
+        _pad: 0,
+        comm: bytes,
+    }
+}
+
+#[test]
+fn an_exit_after_the_write_names_the_writer() {
+    // The common server shape: a short-lived writer (a cron one-shot,
+    // a shell redirect) writes at t=10 and dies at t=11 - the exit
+    // record at or after the event names it.
+    let write = file_event_at(10_000_000_000, 4242, crate::ebpf::events::FILE_OP_WRITE);
+    let exits = [exit_at(11_000_000_000, 4242, "logrotate")];
+    let named = exit_names_event(&exits, &write);
+    assert_eq!(named.map(|e| e.pid), Some(4242));
+    assert_eq!(
+        named.map(|e| crate::commands::doctor::memory::exits::comm_string(&e.comm)),
+        Some("logrotate".to_owned())
+    );
+}
+
+#[test]
+fn an_exit_before_the_write_is_a_prior_life_not_the_writer() {
+    // A recycled pid: the pid's earlier process died BEFORE this
+    // event happened - that record names a different process, and
+    // the attribution must refuse it (the writer is still unaccounted).
+    let write = file_event_at(10_000_000_000, 4242, crate::ebpf::events::FILE_OP_WRITE);
+    let exits = [exit_at(3_000_000_000, 4242, "oldcron")];
+    assert!(
+        exit_names_event(&exits, &write).is_none(),
+        "an exit stamped before the write cannot name the writer"
+    );
+}
+
+#[test]
+fn the_first_at_or_after_exit_wins_over_a_recycled_later_one() {
+    // pid 4242 writes at t=10, dies at t=12 ("cron"); the pid is
+    // recycled at t=20 and that process dies at t=25 ("bash"). The
+    // FIRST at-or-after record is the writer's own death.
+    let write = file_event_at(10_000_000_000, 4242, crate::ebpf::events::FILE_OP_WRITE);
+    let exits = [
+        exit_at(12_000_000_000, 4242, "cron"),
+        exit_at(25_000_000_000, 4242, "bash"),
+    ];
+    let named = exit_names_event(&exits, &write);
+    assert_eq!(
+        named.map(|e| crate::commands::doctor::memory::exits::comm_string(&e.comm)),
+        Some("cron".to_owned()),
+        "the first at-or-after exit is the writer, not the recycled later life"
+    );
+}
+
+#[test]
+fn a_foreign_pids_exit_never_names_the_writer() {
+    // The ring holds every exit since attach; only the event's own
+    // pid's death can attribute it.
+    let write = file_event_at(10_000_000_000, 4242, crate::ebpf::events::FILE_OP_WRITE);
+    let exits = [
+        exit_at(11_000_000_000, 7, "systemd"),
+        exit_at(12_000_000_000, 99, "sshd"),
+    ];
+    assert!(exit_names_event(&exits, &write).is_none());
+}

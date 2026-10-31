@@ -131,7 +131,7 @@ mod disk;
 mod ebpf;
 mod gpu;
 mod json;
-mod memory;
+pub(crate) mod memory;
 mod network;
 mod slow;
 mod symptom;
