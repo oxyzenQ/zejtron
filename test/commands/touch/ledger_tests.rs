@@ -216,3 +216,23 @@ fn lane_parts_empty() -> lane::LaneParts {
         raw: Vec::new(),
     }
 }
+
+#[test]
+fn stamp_of_names_pre_epoch_times_instead_of_unknown() {
+    // night-dragon-lts-T1: a pre-epoch mtime is a reportable fact.
+    // The pre-fix stamp dropped duration_since(UNIX_EPOCH)'s Err arm
+    // to `None`, and the ledger rendered `unknown modified` for a
+    // file whose mtime the clock module can name exactly. The signed
+    // conversion keeps the fact: -1 renders 1969-12-31 23:59:59 UTC.
+    let pre_epoch = UNIX_EPOCH - Duration::from_secs(1);
+    assert_eq!(stamp_of(pre_epoch), Some(-1));
+    assert_eq!(
+        crate::info::clock::format_unix_secs(stamp_of(pre_epoch).unwrap()),
+        "1969-12-31 23:59:59 (UTC)"
+    );
+    // The post-epoch lane is unchanged.
+    assert_eq!(
+        stamp_of(UNIX_EPOCH + Duration::from_secs(1_767_225_600)),
+        Some(1_767_225_600)
+    );
+}

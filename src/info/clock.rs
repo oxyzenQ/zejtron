@@ -25,7 +25,7 @@
 //! timestamps (negative seconds) ride the same floor-division math
 //! without unsigned underflow.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Format a wall-clock timestamp as `YYYY-MM-DD HH:MM:SS (UTC)`.
 /// Sub-second precision is truncated (never rounded). Pre-epoch
@@ -34,14 +34,40 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// feature-gated doctor and the test pins; a default non-test build
 /// has none - the nested allow is the honest count of that split.
 pub(crate) fn format_system_time(time: SystemTime) -> String {
-    let total_secs: i64 = match time.duration_since(UNIX_EPOCH) {
+    format_unix_secs(unix_secs(time))
+}
+
+/// Signed unix-epoch seconds for any SystemTime, pre-epoch included
+/// (night-dragon-lts-T1). The conversion the ledgers' row stamps and
+/// the formatter now share: a pre-epoch time returns its negative
+/// second count instead of collapsing to `None`/0, because the row
+/// model (`Option<i64>`) and `format_unix_secs` are both signed all
+/// the way down - the pre-fix plumbing dropped the sign at the last
+/// hop and rendered `unknown` for a fact the clock could have named.
+/// Saturating at the i64 edges: a SystemTime beyond the seconds a
+/// signed count can name clamps instead of wrapping.
+pub(crate) fn unix_secs(time: SystemTime) -> i64 {
+    match time.duration_since(UNIX_EPOCH) {
         Ok(delta) => i64::try_from(delta.as_secs()).unwrap_or(i64::MAX),
-        Err(error) => {
-            let before = error.duration();
-            -i64::try_from(before.as_secs()).unwrap_or(i64::MAX)
-        }
-    };
-    format_unix_secs(total_secs)
+        Err(error) => -i64::try_from(error.duration().as_secs()).unwrap_or(i64::MAX),
+    }
+}
+
+/// The panic-free inverse of [`unix_secs`] (night-dragon-lts-T1):
+/// signed unix-epoch seconds back to a SystemTime. Every caller that
+/// used to spell `UNIX_EPOCH + Duration::from_secs(x as u64)` on an
+/// i64 seconds field (ctime and friends) rode a wrap-then-overflow
+/// panic path: a negative second count cast to u64 lands near
+/// u64::MAX, and `SystemTime + Duration` panics on overflow in
+/// release builds too. The saturating shape can never panic - the
+/// input is an i64 by construction, and both arithmetic directions
+/// stay inside the platform's i64-backed SystemTime range.
+pub(crate) fn system_time_from_unix_secs(secs: i64) -> SystemTime {
+    if secs >= 0 {
+        UNIX_EPOCH + Duration::from_secs(secs as u64)
+    } else {
+        UNIX_EPOCH - Duration::from_secs(secs.unsigned_abs())
+    }
 }
 
 /// Pure formatting core: unix-epoch seconds (signed) to

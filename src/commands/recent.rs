@@ -182,7 +182,10 @@ fn scan_path(path: &Path, files: &mut Vec<RecentFile>, is_root: bool) -> io::Res
 
     if metadata.is_file() {
         if let Ok(modified) = metadata.modified() {
-            let changed = SystemTime::UNIX_EPOCH + Duration::from_secs(metadata.ctime() as u64);
+            // The panic-free signed construction (night-dragon-lts-T1):
+            // a negative ctime used to wrap through `as u64` into a
+            // SystemTime-addition overflow panic.
+            let changed = crate::info::clock::system_time_from_unix_secs(metadata.ctime());
             files.push(RecentFile {
                 path: path.to_path_buf(),
                 modified,
@@ -226,7 +229,10 @@ fn scan_path(path: &Path, files: &mut Vec<RecentFile>, is_root: bool) -> io::Res
             let Ok(modified) = metadata.modified() else {
                 continue;
             };
-            let changed = SystemTime::UNIX_EPOCH + Duration::from_secs(metadata.ctime() as u64);
+            // The panic-free signed construction (night-dragon-lts-T1):
+            // a negative ctime used to wrap through `as u64` into a
+            // SystemTime-addition overflow panic.
+            let changed = crate::info::clock::system_time_from_unix_secs(metadata.ctime());
             files.push(RecentFile {
                 path: entry_path,
                 modified,
