@@ -298,3 +298,109 @@ fn stamp_of_names_pre_epoch_times_instead_of_unknown() {
         "1969-12-31 23:59:59 (UTC)"
     );
 }
+
+// ── The one-identity law (night-dragon-lts-4) ────────────────────
+
+/// A FileMeta fixture with the two identity fields overridable -
+/// the rest is the shape of any plain file.
+fn meta_with(dev: u64, inode: u64) -> FileMeta {
+    FileMeta {
+        file_type: "file".to_owned(),
+        size: 1234,
+        uid: 0,
+        gid: 0,
+        perms_octal: "0644".to_owned(),
+        inode,
+        dev,
+        modified: UNIX_EPOCH + Duration::from_secs(1_767_225_600),
+        accessed: UNIX_EPOCH + Duration::from_secs(1_767_225_700),
+        changed: UNIX_EPOCH + Duration::from_secs(1_767_225_800),
+        is_symlink: false,
+        symlink_target: None,
+    }
+}
+
+#[test]
+fn the_coherent_scan_yields_no_identity_boundary() {
+    // Nothing moved between the opening stat and the metadata
+    // stat - the overwhelming case. No entry, no line, no noise.
+    let entry = identity_entry(2050, 12345, Some(&meta_with(2050, 12345)), || true);
+    assert!(entry.is_none(), "a coherent scan names nothing: {entry:?}");
+}
+
+#[test]
+fn the_replaced_scan_names_both_identities() {
+    // The logrotate shape: the path was replaced between the
+    // opening stat and the metadata stat. The entry must name BOTH
+    // inodes, attribute each half of the report to its own object,
+    // and name the survivor fact (a holder of the scan-start inode
+    // survives as deleted-but-open) - the pre-fix report rendered
+    // one inode's holders beside another inode's metadata in
+    // silence, two objects blended into one evidence list.
+    let entry = identity_entry(2050, 100, Some(&meta_with(2050, 200)), || true).unwrap();
+    assert_eq!(entry.count, 1);
+    assert_eq!(entry.category, "path identity");
+    assert!(
+        entry.reason.contains("replaced during the scan"),
+        "{entry:?}"
+    );
+    assert!(
+        entry.reason.contains("inode 100 at scan start"),
+        "{entry:?}"
+    );
+    assert!(entry.reason.contains("inode 200 rendered"), "{entry:?}");
+    assert!(
+        entry
+            .reason
+            .contains("holder and event rows are keyed to the scan-start inode"),
+        "{entry:?}"
+    );
+    assert!(entry.reason.contains("deleted-but-open"), "{entry:?}");
+    assert!(
+        !entry.reason.contains("different devices"),
+        "same device: no device clause: {entry:?}"
+    );
+}
+
+#[test]
+fn the_cross_device_replacement_names_the_devices() {
+    // A dev change mid-scan is exotic (a mount flip) but the check
+    // must catch it - and the entry names it.
+    let entry = identity_entry(2050, 100, Some(&meta_with(3001, 100)), || true).unwrap();
+    assert!(
+        entry.reason.contains("different devices"),
+        "the dev split is named: {entry:?}"
+    );
+}
+
+#[test]
+fn the_vanished_scan_names_the_absence() {
+    // The path answered the opening stat and nothing after it:
+    // deleted mid-scan. The holder rows still answer for the anchor
+    // (deleted-but-open), so the vanish is named - the pre-fix
+    // flow could error the whole report out at its second stat,
+    // losing exactly the holders the operator was hunting.
+    let entry = identity_entry(2050, 100, None, || false).unwrap();
+    assert_eq!(entry.category, "path identity");
+    assert!(
+        entry.reason.contains("vanished during the scan"),
+        "{entry:?}"
+    );
+    assert!(
+        entry.reason.contains("metadata rows are absent"),
+        "{entry:?}"
+    );
+    assert!(entry.reason.contains("deleted-but-open"), "{entry:?}");
+}
+
+#[test]
+fn the_listable_failure_is_not_an_identity_split() {
+    // No metadata rows but the path still answers a stat: the
+    // metadata read failed for a readability reason, not an
+    // identity one - this entry is not the place to name it.
+    let entry = identity_entry(2050, 100, None, || true);
+    assert!(
+        entry.is_none(),
+        "a readability failure is not a split: {entry:?}"
+    );
+}

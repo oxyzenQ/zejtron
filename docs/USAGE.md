@@ -45,7 +45,15 @@ surface, so you learn it once. The pieces, top to bottom:
 - **The Unaccounted block.** Always present, even when empty. Read it
   before trusting anything: it names every boundary the evidence
   crossed (a pid that exited before attribution, a record older than
-  the window, an event window this user could not have).
+  the window, an event window this user could not have). Its leading
+  entry, when a path was replaced or deleted while the scan ran
+  (the logrotate rename dance, an editor's atomic write), is the
+  identity split: `1 path identity (the path was replaced during the
+  scan (inode A at scan start, inode B rendered): holder and event
+  rows are keyed to the scan-start inode, metadata rows to the
+  rendered one - a holder of the scan-start inode survives as
+  deleted-but-open)`. Holder rows never silently describe a
+  different file than the metadata rows beside them.
 - **The two-line verdict.** What the evidence supports, and - just as
   important - what it cannot support. A sparse window gets a sparse
   verdict, never a confident line the rows do not back.
