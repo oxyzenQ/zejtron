@@ -162,11 +162,15 @@ fn slabinfo_top_five_cap_applies() {
 }
 
 #[test]
-fn residual_is_used_minus_kernel_buckets_minus_pss_sum() {
-    // A 16 GiB host: 4 GiB used (total - available), 1 GiB of
-    // page cache (cached - shmem), 0.2 buffers, 0.4 slab -> the
-    // readable processes carry 1.5 GiB PSS; the residual is the
-    // rest: 2.9 GiB.
+fn residual_is_unavailable_minus_process_anon_and_shmem() {
+    // night-dragon-lts-1 rewrite: the base is the kernel's
+    // unavailable set (total - MemAvailable), and only the
+    // process-owned parts that genuinely sit inside it (Pss_Anon,
+    // Pss_Shmem) come off. A 16 GiB host with a 4 GiB unavailable
+    // set: the readable processes carry 1.5 GiB of anon/shmem
+    // (plus 0.5 GiB of file-backed PSS, which the kernel mostly
+    // counts as available and which must NOT be subtracted) -> the
+    // residual is 2.5 GiB.
     let mut sample = MemorySample {
         meminfo: Some(MemInfo {
             total_kib: 16 * 1024 * 1024,
@@ -184,35 +188,81 @@ fn residual_is_used_minus_kernel_buckets_minus_pss_sum() {
         ProcessPss {
             pid: 1,
             name: "a".to_owned(),
-            pss_kib: 1024 * 1024,
-            anon_kib: 0,
-            file_kib: 0,
+            pss_kib: 1280 * 1024,
+            anon_kib: 1024 * 1024,
+            file_kib: 256 * 1024,
             shmem_kib: 0,
             rss_kib: 0,
         },
         ProcessPss {
             pid: 2,
             name: "b".to_owned(),
-            pss_kib: 512 * 1024,
-            anon_kib: 0,
+            pss_kib: 704 * 1024,
+            anon_kib: 256 * 1024,
             file_kib: 0,
-            shmem_kib: 0,
+            shmem_kib: 256 * 1024,
             rss_kib: 0,
         },
     ];
-    let used_kib = 16 * 1024 * 1024 - 12 * 1024 * 1024;
-    let kernel_kib = (1280 - 256) * 1024 + 200 * 1024 + 300 * 1024 + 100 * 1024;
-    let expected = used_kib - kernel_kib - 1536 * 1024;
+    // 4 GiB unavailable - (1 GiB + 256 MiB anon + 256 MiB shmem)
+    // = 2.5 GiB. The 256 MiB of file-backed PSS stays in the
+    // residual: it was never in the unavailable base.
+    let expected = 4 * 1024 * 1024 - (1024 + 256 + 256) * 1024;
     assert_eq!(residual_kib(&sample), Some(expected));
+}
+
+#[test]
+fn residual_survives_a_cache_rich_host_instead_of_saturating_to_zero() {
+    // The pre-fix regression (night-dragon-lts-1): this shape is a
+    // live reading from a real host - the reclaimable buckets
+    // (page cache, buffers, SReclaimable, SUnreclaim) total 2.7 GiB
+    // while the unavailable set is only 540 MiB. The old formula
+    // subtracted the buckets from a base that never contained them
+    // (MemAvailable already counts reclaimable memory as
+    // available), so the residual saturated to 0 B on every
+    // cache-rich host and the 15% verdict threshold could never
+    // fire. The honest residual here: 540 MiB unavailable minus the
+    // processes' 384 MiB anon/shmem = 156 MiB of kernel-side and
+    // unattributed memory.
+    let mut sample = MemorySample {
+        meminfo: Some(MemInfo {
+            total_kib: 4_138_560,
+            free_kib: 300_000,
+            available_kib: 3_597_696,
+            cached_kib: 2_644_676,
+            buffers_kib: 21_936,
+            shmem_kib: 60_000,
+            s_reclaimable_kib: 136_732,
+            s_unreclaim_kib: 17_964,
+        }),
+        ..Default::default()
+    };
+    sample.pss = vec![ProcessPss {
+        pid: 1,
+        name: "a".to_owned(),
+        pss_kib: 500 * 1024,
+        anon_kib: 320 * 1024,
+        file_kib: 100 * 1024,
+        shmem_kib: 64 * 1024,
+        rss_kib: 0,
+    }];
+    let unavailable = 4_138_560 - 3_597_696;
+    let expected = unavailable - (320 + 64) * 1024;
+    assert_eq!(residual_kib(&sample), Some(expected));
+    assert!(
+        expected > 0,
+        "the cache-rich host must report a real residual"
+    );
 }
 
 #[test]
 fn residual_never_underflows_and_needs_meminfo() {
     // No meminfo: no residual - the named absence, not a zero.
     assert_eq!(residual_kib(&MemorySample::default()), None);
-    // Buckets larger than used: the saturating floor is 0 - a
-    // negative residual would be a number the report cannot defend.
-    let sample = MemorySample {
+    // Process-owned anon/shmem larger than the unavailable set: the
+    // saturating floor is 0 - a negative residual would be a number
+    // the report cannot defend.
+    let mut sample = MemorySample {
         meminfo: Some(MemInfo {
             total_kib: 1000,
             free_kib: 0,
@@ -225,6 +275,15 @@ fn residual_never_underflows_and_needs_meminfo() {
         }),
         ..Default::default()
     };
+    sample.pss = vec![ProcessPss {
+        pid: 1,
+        name: "a".to_owned(),
+        pss_kib: 500,
+        anon_kib: 500,
+        file_kib: 0,
+        shmem_kib: 500,
+        rss_kib: 0,
+    }];
     assert_eq!(residual_kib(&sample), Some(0));
 }
 

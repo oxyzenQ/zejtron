@@ -585,25 +585,41 @@ pub(crate) fn collect() -> MemorySample {
     sample
 }
 
-/// The residual arithmetic, stated once: used (the
-/// total-minus-available shape every modern memory tool reports)
-/// minus the kernel-level buckets (page cache net of shmem, buffers,
-/// slab) minus the readable per-process PSS sum. The tmpfs, memfd,
-/// and deleted-but-open views attribute pages those buckets already
-/// carry, so they stay OUT of the subtraction - summing them again
-/// would double-count and push the residual negative on every
-/// normal host. The permission-refused processes' memory rides the
-/// residual by construction, and the Unaccounted block names that.
+/// The residual arithmetic, stated once (night-dragon-lts-1
+/// rewrite): the kernel's unavailable set minus what the readable
+/// processes provably own inside it.
+///
+/// The unavailable set is total - MemAvailable: everything the
+/// kernel does not count as readily reclaimable - process anon,
+/// shmem, unreclaimable slab, kernel stacks, page tables, reserved
+/// regions, and the non-reclaimable tail of the cache. This base
+/// deliberately does NOT subtract the reclaimable buckets (page
+/// cache, buffers, SReclaimable): MemAvailable already counts them
+/// as available, so they are not in the base to begin with - the
+/// pre-fix formula subtracted them anyway (double subtraction),
+/// which saturated the residual to a permanent 0 B on every
+/// cache-rich host and made the 15% verdict threshold unreachable.
+///
+/// From that base, only the process-owned parts that are genuinely
+/// INSIDE the unavailable set come off: Pss_Anon and Pss_Shmem.
+/// Pss_File (mapped file pages) is mostly counted as available by
+/// the kernel, so subtracting it would double-subtract in the other
+/// direction; a file page the kernel pinned as unavailable stays in
+/// the residual, honestly. The tmpfs, memfd, and deleted-but-open
+/// views attribute pages separately and stay OUT of the arithmetic
+/// (their walks are bounded and partial - subtracting a partial sum
+/// would make the residual irreproducible). The
+/// permission-refused processes' memory rides the residual by
+/// construction, and the Unaccounted block names that.
 pub(crate) fn residual_kib(sample: &MemorySample) -> Option<u64> {
     let meminfo = sample.meminfo.as_ref()?;
-    let used = meminfo.total_kib.saturating_sub(meminfo.available_kib);
-    let page_cache = meminfo.cached_kib.saturating_sub(meminfo.shmem_kib);
-    let kernel_buckets = page_cache
-        .saturating_add(meminfo.buffers_kib)
-        .saturating_add(meminfo.s_reclaimable_kib)
-        .saturating_add(meminfo.s_unreclaim_kib);
-    let pss_sum: u64 = sample.pss.iter().map(|p| p.pss_kib).sum();
-    Some(used.saturating_sub(kernel_buckets).saturating_sub(pss_sum))
+    let unavailable = meminfo.total_kib.saturating_sub(meminfo.available_kib);
+    let process_owned: u64 = sample
+        .pss
+        .iter()
+        .map(|p| p.anon_kib.saturating_add(p.shmem_kib))
+        .sum();
+    Some(unavailable.saturating_sub(process_owned))
 }
 
 /// The deterministic holders label for a tmpfs file: the pids with
