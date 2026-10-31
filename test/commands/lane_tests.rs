@@ -11,6 +11,7 @@
 
 use super::*;
 use crate::commands::touch::{ProcessEvidence, TouchInfo};
+use crate::ebpf::ringbuf::exit_names_event;
 use std::time::Duration;
 
 #[test]
@@ -184,7 +185,7 @@ fn an_exit_after_the_write_names_the_writer() {
     // record at or after the event names it.
     let write = file_event_at(10_000_000_000, 4242, crate::ebpf::events::FILE_OP_WRITE);
     let exits = [exit_at(11_000_000_000, 4242, "logrotate")];
-    let named = exit_names_event(&exits, &write);
+    let named = exit_names_event(&exits, write.pid, write.timestamp_ns);
     assert_eq!(named.map(|e| e.pid), Some(4242));
     assert_eq!(
         named.map(|e| crate::commands::doctor::memory::exits::comm_string(&e.comm)),
@@ -200,7 +201,7 @@ fn an_exit_before_the_write_is_a_prior_life_not_the_writer() {
     let write = file_event_at(10_000_000_000, 4242, crate::ebpf::events::FILE_OP_WRITE);
     let exits = [exit_at(3_000_000_000, 4242, "oldcron")];
     assert!(
-        exit_names_event(&exits, &write).is_none(),
+        exit_names_event(&exits, write.pid, write.timestamp_ns).is_none(),
         "an exit stamped before the write cannot name the writer"
     );
 }
@@ -215,7 +216,7 @@ fn the_first_at_or_after_exit_wins_over_a_recycled_later_one() {
         exit_at(12_000_000_000, 4242, "cron"),
         exit_at(25_000_000_000, 4242, "bash"),
     ];
-    let named = exit_names_event(&exits, &write);
+    let named = exit_names_event(&exits, write.pid, write.timestamp_ns);
     assert_eq!(
         named.map(|e| crate::commands::doctor::memory::exits::comm_string(&e.comm)),
         Some("cron".to_owned()),
@@ -232,5 +233,5 @@ fn a_foreign_pids_exit_never_names_the_writer() {
         exit_at(11_000_000_000, 7, "systemd"),
         exit_at(12_000_000_000, 99, "sshd"),
     ];
-    assert!(exit_names_event(&exits, &write).is_none());
+    assert!(exit_names_event(&exits, write.pid, write.timestamp_ns).is_none());
 }
