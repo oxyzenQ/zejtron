@@ -407,6 +407,24 @@ fn collect_tmpfs(sample: &mut MemorySample) {
     sample.tmpfs_files = files;
 }
 
+/// The fd walk's rare-shape accumulator (night-dragon-lts-1): the
+/// deleted and memfd lists ride one borrow bundle with the per-pid
+/// comm cache, so the walk pays one /proc/<pid>/comm read per pid
+/// that needs a name - not one per qualifying fd - and
+/// attribute_fd_target stays under the argument-count law.
+struct FdShapes<'a> {
+    deleted: &'a mut Vec<DeletedOpenFile>,
+    memfds: &'a mut Vec<MemfdFile>,
+    comm: Option<String>,
+}
+
+impl FdShapes<'_> {
+    /// The pid's comm, read at most once per pid for the whole walk.
+    fn comm(&mut self, pid: u32) -> String {
+        self.comm.get_or_insert_with(|| comm_of(pid)).clone()
+    }
+}
+
 /// Attribute one fd link target: deleted files, memfd files, and
 /// tmpfs holders. The magic link's stat follows to the underlying
 /// file even when the directory entry is gone - the only size source
@@ -418,16 +436,19 @@ fn attribute_fd_target(
     pid: u32,
     target: &str,
     fd_path: &Path,
+    shapes: &mut FdShapes<'_>,
     tmpfs_index: &HashMap<String, Vec<usize>>,
     tmpfs_files: &mut [TmpfsFile],
-    deleted: &mut Vec<DeletedOpenFile>,
-    memfds: &mut Vec<MemfdFile>,
 ) {
     if target.ends_with(" (deleted)") {
         let size = fs::metadata(fd_path).ok().map(|m| m.len());
-        deleted.push(DeletedOpenFile {
+        // The comm rides the pid, not the fd: this branch fires per
+        // deleted fd, and a Chromium-style process holds hundreds -
+        // the bundle's cache reads /proc/<pid>/comm once.
+        let name = shapes.comm(pid);
+        shapes.deleted.push(DeletedOpenFile {
             pid,
-            name: comm_of(pid),
+            name,
             path: target.to_owned(),
             size_bytes: size,
         });
@@ -435,9 +456,10 @@ fn attribute_fd_target(
     }
     if target.starts_with("memfd:") {
         let size = fs::metadata(fd_path).ok().map(|m| m.len());
-        memfds.push(MemfdFile {
+        let name = shapes.comm(pid);
+        shapes.memfds.push(MemfdFile {
             pid,
-            name: comm_of(pid),
+            name,
             target: target.to_owned(),
             size_bytes: size,
         });
@@ -482,6 +504,14 @@ fn collect_fds(pids: &[u32], sample: &mut MemorySample) {
                 continue;
             }
         };
+        // The per-pid accumulator bundle (night-dragon-lts-1): the
+        // comm read stays lazy - exactly one /proc/<pid>/comm open
+        // per pid that needs it, instead of one per qualifying fd.
+        let mut shapes = FdShapes {
+            deleted: &mut deleted,
+            memfds: &mut memfds,
+            comm: None,
+        };
         for entry in entries.flatten() {
             let Ok(target) = fs::read_link(entry.path()) else {
                 continue;
@@ -491,10 +521,9 @@ fn collect_fds(pids: &[u32], sample: &mut MemorySample) {
                 *pid,
                 &target,
                 &entry.path(),
+                &mut shapes,
                 &tmpfs_index,
                 &mut sample.tmpfs_files,
-                &mut deleted,
-                &mut memfds,
             );
         }
     }
