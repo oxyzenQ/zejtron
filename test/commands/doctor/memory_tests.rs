@@ -99,31 +99,46 @@ tmpfs /run tmpfs rw,mode=755 0 0
 
 #[test]
 fn slabinfo_parses_top_caches_by_num_objs_times_objsize() {
+    // The real kernel layout (mm/slab_common.c): name active_objs
+    // num_objs objsize objperslab pagesperslab : tunables : slabdata.
+    // night-dragon-lts-1: this fixture previously carried a phantom
+    // <objperpad> column and identical values at columns 3 and 4, so
+    // it could not discriminate objsize from objperslab - the parser
+    // read the packing count as the size and every slab footprint
+    // was wrong. The columns now differ (dentry: objsize 192,
+    // objperslab 24), so the pin bites in both directions.
     let contents = "\
 slabinfo - version: 2.1
-# name            <active_objs> <num_objs> <objperpad> <objsize> <objperslab> <pagesperslab> : tunables : slabdata
-dentry           234561 234561    192  192    12 : tunables    0   0   0 : slabdata   4512 4512  0
-inode_cache      123456 123456    640  640    16 : tunables    0   0   0 : slabdata   3024 3024  0
-tiny_cache            8      8     32   32     1 : tunables    0   0   0 : slabdata      1    1  0
+# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables : slabdata
+dentry           234561 234561    192  24     1 : tunables    0   0   0 : slabdata   9774 9774  0
+inode_cache      123456 123456    640  12     2 : tunables    0   0   0 : slabdata  10288 10288  0
+tiny_cache            8      8     32  512    4 : tunables    0   0   0 : slabdata      1    1  0
 ";
     let rows = parse_slabinfo(contents);
     // dentry: 234561 * 192 = 45,035,712 B = 43,980 KiB; inode: 77,160
-    // KiB; tiny: 0 KiB. Descending by size, name tiebreak.
+    // KiB; tiny: 8 * 32 = 256 B = 0 KiB. Descending by size, name
+    // tiebreak. (The pre-fix parser computed dentry as 234561 * 24
+    // = 5,496 KiB and tiny as 8 * 512 = 4 KiB - both wrong.)
     assert_eq!(rows.len(), 3);
     assert_eq!(rows[0].cache, "inode_cache");
     assert_eq!(rows[0].size_kib, 123456 * 640 / 1024);
     assert_eq!(rows[1].cache, "dentry");
+    assert_eq!(rows[1].size_kib, 234561 * 192 / 1024);
     assert_eq!(rows[2].cache, "tiny_cache");
+    assert_eq!(rows[2].size_kib, 0);
 }
 
 #[test]
 fn slabinfo_top_five_cap_applies() {
     let mut contents = String::from("slabinfo - version: 2.1\n# header\n");
-    // num_objs * objsize with objsize = 1024 keeps the sizes distinct
-    // (100..107 KiB), so no tiebreak rides this pin.
+    // Real layout: num_objs * objsize with objsize = 1024 keeps the
+    // sizes distinct (100..107 KiB); objperslab = 8 and
+    // pagesperslab = 4 differ from objsize so the pin discriminates
+    // the columns (the pre-fix parser read column 4 and computed
+    // 0 KiB rows for every cache here).
     for i in 0..8u64 {
         contents.push_str(&format!(
-            "cache{i} 1 {objs} 8 1024 1 : tunables 0 0 0 : slabdata 1 1 0\n",
+            "cache{i} 1 {objs} 1024 8 4 : tunables 0 0 0 : slabdata 1 1 0\n",
             objs = 100 + i
         ));
     }
