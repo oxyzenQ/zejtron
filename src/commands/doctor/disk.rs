@@ -105,24 +105,47 @@ fn delta_rows(
 /// reads, one sleep - the wait IS the measurement.
 pub(crate) fn collect() -> DiskSample {
     let pids = pid_dirs(std::path::Path::new("/proc"));
-    let stat_a = delta::parse_cpu_line(
-        &std::fs::read_to_string("/proc/stat")
-            .ok()
-            .and_then(|contents| contents.lines().next().map(str::to_owned))
-            .unwrap_or_default(),
-    )
-    .unwrap_or_default();
+    let stat_a = read_stat_ticks();
     let pid_a = delta::read_pid_sample(&pids);
     delta::sample_gap();
-    let stat_b = delta::parse_cpu_line(
+    let stat_b = read_stat_ticks();
+    let pid_b = delta::read_pid_sample(&pids);
+    from_pair(
+        stat_a,
+        stat_b,
+        &pid_a,
+        &pid_b,
+        delta::collect_exits_overlay(),
+    )
+}
+
+/// The aggregate /proc/stat tick read this lane rides on - the
+/// first line only, parsed. Split out of [`collect`] (night-dragon-
+/// lts-2) so the shape is one named read, not an inline chain.
+fn read_stat_ticks() -> delta::CpuTicks {
+    delta::parse_cpu_line(
         &std::fs::read_to_string("/proc/stat")
             .ok()
             .and_then(|contents| contents.lines().next().map(str::to_owned))
             .unwrap_or_default(),
     )
-    .unwrap_or_default();
-    let pid_b = delta::read_pid_sample(&pids);
+    .unwrap_or_default()
+}
 
+/// The disk sample from a shared pair of instants (night-dragon-lts-2):
+/// the delta arithmetic, verbatim, lifted out of [`collect`] so the
+/// umbrella symptom (`slow`) can compute this lane from the SAME
+/// t0/t1 pair its cpu and network numbers ride on - one window,
+/// simultaneous evidence, one sleep for the whole report family.
+/// [`collect`] remains this lane's own reader; nothing here reads
+/// the host, so a synthetic pair pins every number the render carries.
+pub(crate) fn from_pair(
+    stat_a: delta::CpuTicks,
+    stat_b: delta::CpuTicks,
+    pid_a: &delta::PidSample,
+    pid_b: &delta::PidSample,
+    exit_lane: ExitLane,
+) -> DiskSample {
     let total_delta = stat_b.total().saturating_sub(stat_a.total());
     let iowait_delta = stat_b.iowait.saturating_sub(stat_a.iowait);
     let iowait_pct = (total_delta != 0).then(|| (iowait_delta as f64) * 100.0 / total_delta as f64);
@@ -137,7 +160,7 @@ pub(crate) fn collect() -> DiskSample {
         started_in_window: started,
         vanished_between_reads: vanished,
         io_permission_refused: pid_b.io_permission_refused,
-        exit_lane: delta::collect_exits_overlay(),
+        exit_lane,
     }
 }
 
