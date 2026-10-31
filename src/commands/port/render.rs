@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 use super::model::{
     GroupKey, OwnerIdentity, OwnerMap, PortOptions, ProcessInfo, ScanStats, SocketEntry,
@@ -115,33 +115,45 @@ fn format_grouped_report(
 }
 
 pub(crate) fn group_sockets(sockets: &[SocketEntry], owners: &OwnerMap) -> Vec<SocketGroup> {
-    let mut groups: Vec<(GroupKey, SocketGroup)> = Vec::new();
+    // The hash-indexed shape (night-dragon-lts-1): the old form
+    // linearly scanned every existing group per socket to find its
+    // key - O(N*G) multi-field String comparisons, ~N^2/2 on a
+    // connection-heavy `--all` host where nearly every socket is its
+    // own group - and cloned the full owner Vec per socket even when
+    // the group already existed and the clone was discarded. The
+    // HashMap resolves each socket's group in O(1), the Vec keeps
+    // first-seen order (the output stays byte-identical: the map is
+    // an index, never an iteration order), and the ProcessInfo clone
+    // happens only when a NEW group is pushed.
+    let mut index: HashMap<GroupKey, usize> = HashMap::new();
+    let mut groups: Vec<SocketGroup> = Vec::new();
 
     for socket in sockets {
-        let group_owners = owners.get(&socket.inode).cloned().unwrap_or_default();
         let key = GroupKey {
             protocol: socket.protocol,
             address: socket.address.clone(),
             port: socket.port,
             state: socket.state.clone(),
-            owners: group_owners.iter().map(OwnerIdentity::from).collect(),
+            owners: owners
+                .get(&socket.inode)
+                .map(|list| list.iter().map(OwnerIdentity::from).collect())
+                .unwrap_or_default(),
         };
 
-        if let Some((_, group)) = groups.iter_mut().find(|(existing, _)| existing == &key) {
-            group.count += 1;
+        if let Some(&position) = index.get(&key) {
+            groups[position].count += 1;
         } else {
-            groups.push((
-                key,
-                SocketGroup {
-                    socket: socket.clone(),
-                    owners: group_owners,
-                    count: 1,
-                },
-            ));
+            let group_owners = owners.get(&socket.inode).cloned().unwrap_or_default();
+            index.insert(key, groups.len());
+            groups.push(SocketGroup {
+                socket: socket.clone(),
+                owners: group_owners,
+                count: 1,
+            });
         }
     }
 
-    groups.into_iter().map(|(_, group)| group).collect()
+    groups
 }
 
 fn unique_owner_count(sockets: &[SocketEntry], owners: &OwnerMap) -> usize {
