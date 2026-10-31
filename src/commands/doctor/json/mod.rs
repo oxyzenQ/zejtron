@@ -261,7 +261,7 @@ pub(super) fn readiness_json(
     out
 }
 
-/// The eBPF section's typed facts - the nine text rows held as
+/// The eBPF section's typed facts - the ten text rows held as
 /// data, the pin set's state named beside its names.
 fn write_ebpf_facts(out: &mut String, facts: &ebpf::EbpfFactsJson) {
     out.push_str("{\"feature\":");
@@ -274,6 +274,8 @@ fn write_ebpf_facts(out: &mut String, facts: &ebpf::EbpfFactsJson) {
     write_string(out, facts.lockdown);
     out.push_str(",\"caps\":");
     write_string(out, &facts.caps);
+    out.push_str(",\"tracefs\":");
+    write_string(out, &facts.tracefs);
     out.push_str(",\"lane\":");
     write_string(out, facts.lane);
     out.push_str(",\"lane_attached\":");

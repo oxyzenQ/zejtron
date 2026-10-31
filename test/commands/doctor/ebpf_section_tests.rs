@@ -17,6 +17,7 @@ fn section_shape_pins_every_row() {
         "present (/sys/kernel/btf/vmlinux exists)",
         "none",
         "CAP_BPF + CAP_PERFMON present",
+        "present (/sys/kernel/tracing)",
         "live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))",
         "Lazy Camera (Kernel: recording | CLI: asleep)",
         "sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter",
@@ -31,6 +32,7 @@ probe, sock_probe, open_probe, write_probe, stats, sock_events, tracked_inodes, 
          BTF:         present (/sys/kernel/btf/vmlinux exists)\n  \
          Lockdown:    none\n  \
          Caps:        CAP_BPF + CAP_PERFMON present\n  \
+         Tracefs:     present (/sys/kernel/tracing)\n  \
          Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))\n  \
          Mode:        Lazy Camera (Kernel: recording | CLI: asleep)\n  \
          Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter\n  \
@@ -43,15 +45,15 @@ file_events, offsets)"
 #[test]
 fn live_section_renders_the_separated_block() {
     // The live section (host-probing) still renders the contract
-    // shape: one blank line, the indented header, then exactly nine
+    // shape: one blank line, the indented header, then exactly ten
     // rows, whatever the host says - a broken renderer cannot hide
     // behind host variance.
     let section = section();
     let lines: Vec<&str> = section.lines().collect();
     assert_eq!(
         lines.len(),
-        11,
-        "the section is the blank line + header + 9 rows"
+        12,
+        "the section is the blank line + header + 10 rows"
     );
     assert_eq!(lines[0], "", "one blank line separates the section");
     assert_eq!(lines[1], "  [eBPF]", "the header rides the KV indent");
@@ -59,15 +61,19 @@ fn live_section_renders_the_separated_block() {
         assert!(row.starts_with("  "), "every row is indented: {row}");
     }
     assert!(
-        lines[8].starts_with("  Mode:        Lazy Camera (Kernel: "),
+        lines[7].starts_with("  Tracefs:     "),
+        "the tracefs row rides between Caps and Lane: {section}"
+    );
+    assert!(
+        lines[9].starts_with("  Mode:        Lazy Camera (Kernel: "),
         "the mode row rides between Lane and Probes: {section}"
     );
     assert!(
-        lines[8].ends_with("| CLI: asleep)"),
+        lines[9].ends_with("| CLI: asleep)"),
         "the CLI half is the standing truth: {section}"
     );
     assert_eq!(
-        lines[9],
+        lines[10],
         "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, vfs_writev, sched_process_exit",
         "the probes row is the binary's contract, host-independent"
     );
@@ -143,5 +149,28 @@ fn pins_row_lists_every_pin_in_planting_order() {
             "file_events",
             "offsets"
         ]
+    );
+}
+
+#[test]
+fn tracefs_row_names_both_states_with_their_verdicts() {
+    // night-improve-61: the mount the tracepoint attaches resolve
+    // through. Present names the seat; absent names the remedy
+    // (a privileged attach mounts it - the ensure pair).
+    assert_eq!(
+        tracefs_row(ebpf::mounts::TracefsState::Mounted(
+            ebpf::mounts::TRACEFS_PRIMARY
+        )),
+        "present (/sys/kernel/tracing)"
+    );
+    assert_eq!(
+        tracefs_row(ebpf::mounts::TracefsState::Mounted(
+            ebpf::mounts::TRACEFS_FALLBACK
+        )),
+        "present (/sys/kernel/debug/tracing)"
+    );
+    assert_eq!(
+        tracefs_row(ebpf::mounts::TracefsState::Absent),
+        "absent (attach mounts it under CAP_SYS_ADMIN)"
     );
 }

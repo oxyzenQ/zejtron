@@ -377,6 +377,10 @@ const CAP_BPF: u32 = 39;
 /// CAP_PERFMON, capability bit 38 (Linux 5.8+).
 const CAP_PERFMON: u32 = 38;
 
+/// CAP_SYS_ADMIN, capability bit 21: the capability a mount(2)
+/// needs (night-improve-61, the mounts module's ensure pair).
+pub(crate) const CAP_SYS_ADMIN: u32 = 21;
+
 /// Read the kernel release from /proc/sys/kernel/osrelease (the same
 /// string `uname -r` prints, without the subprocess).
 fn read_kernel_release() -> Option<String> {
@@ -418,7 +422,7 @@ fn probe_lockdown() -> LockdownMode {
 /// True when `bit` is set in the process's effective capability set
 /// (the CapEff line of /proc/self/status, the kernel's own truth
 /// about what this process may do - not a guess from euid).
-fn cap_bit_present(bit: u32) -> bool {
+pub(crate) fn cap_bit_present(bit: u32) -> bool {
     let Ok(status) = std::fs::read_to_string("/proc/self/status") else {
         return false;
     };
@@ -457,6 +461,10 @@ pub mod fileprobe;
 /// readers, the BTF offsets parser, the filter-map writer, and the
 /// file-window capture.
 pub mod loader;
+/// The mount prerequisites (night-improve-61): the tracefs and
+/// bpffs seats the estate rides on, ensured at attach time and
+/// probed for the doctor's Tracefs row.
+pub mod mounts;
 mod plant;
 pub mod readback;
 pub mod ringbuf;

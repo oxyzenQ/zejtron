@@ -21,6 +21,7 @@
 //!   BTF:         present (/sys/kernel/btf/vmlinux exists)
 //!   Lockdown:    none
 //!   Caps:        CAP_BPF + CAP_PERFMON present
+//!   Tracefs:     present (/sys/kernel/tracing)
 //!   Lane:        live (attached, N=5 events since 2026-10-19 03:11:22 (UTC))
 //!   Mode:        Lazy Camera (Kernel: recording | CLI: asleep)
 //!   Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, vfs_writev
@@ -38,7 +39,7 @@ use std::path::Path;
 use crate::ebpf::{self, LaneVerdict};
 
 /// Render the live section: probe once, classify once, print the
-/// nine rows. Feature builds additionally read the counter and the
+/// ten rows. Feature builds additionally read the counter and the
 /// attach moment when (and only when) the probe is attached.
 pub(super) fn section() -> String {
     let facts = ebpf::probe_kernel();
@@ -49,6 +50,7 @@ pub(super) fn section() -> String {
         &btf_row(facts.btf_present),
         &lockdown_row(facts.lockdown.label()),
         &facts.caps_label(),
+        &tracefs_row(ebpf::mounts::tracefs_state()),
         &lane_row(&verdict),
         &mode_row(&verdict),
         &probes_row(),
@@ -66,6 +68,9 @@ pub(super) struct EbpfFactsJson {
     pub btf: &'static str,
     pub lockdown: &'static str,
     pub caps: String,
+    /// The Tracefs row's verdict token: `present (<seat>)` or
+    /// `absent (...)` (night-improve-61).
+    pub tracefs: String,
     /// The lane verdict's base word: `live` or `snapshot`.
     pub lane: &'static str,
     /// True only for the attached live lane.
@@ -105,6 +110,7 @@ pub(super) fn facts_json() -> EbpfFactsJson {
         },
         lockdown: facts.lockdown.label(),
         caps: facts.caps_label(),
+        tracefs: tracefs_row(ebpf::mounts::tracefs_state()),
         lane,
         lane_attached,
         lane_detail,
@@ -148,6 +154,24 @@ fn btf_row(present: bool) -> String {
         )
     } else {
         crate::output::warn_bold_out("absent")
+    }
+}
+
+/// The Tracefs row (night-improve-61): the mount the tracepoint
+/// attaches resolve through, probed by statfs magic at the two
+/// seats aya walks. Present is the affirmative verdict (bold green)
+/// with the seat named; absent degrades to the attention seat with
+/// the remedy - a privileged attach mounts it (the ensure pair in
+/// the loader), an unprivileged one refuses with the command.
+fn tracefs_row(state: ebpf::mounts::TracefsState) -> String {
+    match state {
+        ebpf::mounts::TracefsState::Mounted(seat) => {
+            format!("{} ({seat})", crate::output::ok_bold_out("present"))
+        }
+        ebpf::mounts::TracefsState::Absent => format!(
+            "{} (attach mounts it under CAP_SYS_ADMIN)",
+            crate::output::warn_bold_out("absent")
+        ),
     }
 }
 
@@ -292,7 +316,7 @@ fn pin_names() -> Vec<&'static str> {
 /// keys), the verdict tokens inside the values ride the bold tiers
 /// their rows paint, and the remaining facts stay unwrapped (white).
 /// In Mono every wrap is the identity - the plain bytes the shape
-/// shipped with. Nine rows is the contract; the allow is the honest
+/// shipped with. Ten rows is the contract; the allow is the honest
 /// count, not an escape hatch.
 #[allow(clippy::too_many_arguments)]
 fn format_section(
@@ -301,6 +325,7 @@ fn format_section(
     btf: &str,
     lockdown: &str,
     caps: &str,
+    tracefs: &str,
     lane: &str,
     mode: &str,
     probes: &str,
@@ -319,6 +344,7 @@ fn format_section(
         ("  BTF:         ", btf),
         ("  Lockdown:    ", lockdown),
         ("  Caps:        ", caps),
+        ("  Tracefs:     ", tracefs),
         ("  Lane:        ", lane),
         ("  Mode:        ", mode),
         ("  Probes:      ", probes),
