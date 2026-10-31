@@ -60,7 +60,10 @@ fn fs_magic(path: &str) -> Option<i64> {
     if rc != 0 {
         return None;
     }
-    Some(buffer.f_type)
+    // f_type is c_long (i64) on glibc targets and unsigned long (u64)
+    // on musl - the magic numbers are small positive constants either
+    // way, and the bit-preserving cast reads both shapes as i64.
+    Some(buffer.f_type as i64)
 }
 
 /// The tracefs seat state: which path carries a mounted tracefs (or
