@@ -81,6 +81,7 @@ pub fn run(print_json: bool) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+mod addr;
 mod json;
 mod render;
 
@@ -113,6 +114,13 @@ fn read_interfaces() -> Vec<InterfaceEntry> {
         Err(_) => return vec![],
     };
 
+    // The kernel's own IPv4 address table, one RTM_GETADDR dump for
+    // the whole scan (night-dragon-lts-4): per-interface truth from
+    // the same source iproute2 reads, replacing the fib_trie
+    // heuristic that read its candidates one line off and carried
+    // no interface names at all.
+    let addr_table = addr::read_addr_table();
+
     let mut entries: Vec<InterfaceEntry> = Vec::new();
     for entry in dir.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
@@ -140,9 +148,14 @@ fn read_interfaces() -> Vec<InterfaceEntry> {
         let rx_dropped = read_sysfs_u64(&iface_path, "statistics/rx_dropped");
         let tx_dropped = read_sysfs_u64(&iface_path, "statistics/tx_dropped");
 
-        // Addresses — try IPv4 via /proc/net/fib_trie is complex; use if_inet6 for v6
-        // For IPv4, fall back to parsing /proc/net/fib_trie (local IPs marked LOCAL)
-        let ipv4 = read_ipv4_addresses(&name);
+        // Addresses: IPv4 from the kernel's netlink table keyed by
+        // this interface's own ifindex, IPv6 from if_inet6's
+        // per-interface rows.
+        let ifindex = read_sysfs_u32(&iface_path, "ifindex");
+        let ipv4 = ifindex
+            .and_then(|index| addr_table.get(&index))
+            .cloned()
+            .unwrap_or_default();
         let ipv6 = read_ipv6_addresses(&name);
 
         entries.push(InterfaceEntry {
@@ -313,65 +326,6 @@ fn read_ipv6_addresses(iface_name: &str) -> Vec<String> {
         }
     }
     addrs
-}
-
-/// Parse /proc/net/fib_trie to extract IPv4 addresses assigned to interfaces.
-/// This is a best-effort heuristic: the file's structure is a tree of leaf
-/// nodes with /32 host addresses marked "LOCAL". We pick unique LOCAL IPs.
-fn read_ipv4_addresses(_iface_name: &str) -> Vec<String> {
-    let mut addrs = Vec::new();
-    let Ok(content) = fs::read_to_string("/proc/net/fib_trie") else {
-        return addrs;
-    };
-    // Walk lines looking for "32 host LOCAL" preceded by an IP-like string.
-    // This is fragile but works on Linux 4.x+.
-    let lines: Vec<&str> = content.lines().collect();
-    let mut i = 0;
-    while i + 1 < lines.len() {
-        let _cur = lines[i].trim();
-        let next = lines[i + 1].trim();
-        // Pattern: "32 host LOCAL" follows an IP-containing line.
-        // We look for the IP in the line *before* the "32 host LOCAL" line.
-        if next.contains("32 host") && next.contains("LOCAL") {
-            // Walk backwards to find a line that looks like an IP
-            if i > 0 {
-                let candidate = lines[i - 1].trim();
-                if let Some(ip) = extract_ip_from_fib_line(candidate)
-                    && !addrs.contains(&ip)
-                    && ip != "127.0.0.1"
-                    && ip != "0.0.0.0"
-                {
-                    addrs.push(ip);
-                }
-            }
-        }
-        i += 1;
-    }
-    addrs
-}
-
-fn extract_ip_from_fib_line(line: &str) -> Option<String> {
-    // Lines look like: "|--127.0.0.1" or "127.0.0.1" or just an IP
-    let trimmed = line
-        .trim_start_matches("|--")
-        .trim_start_matches("|")
-        .trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    // Take first whitespace-separated token
-    let token = trimmed.split_whitespace().next()?;
-    // Validate it's an IPv4
-    let parts: Vec<&str> = token.split('.').collect();
-    if parts.len() != 4 {
-        return None;
-    }
-    for p in parts {
-        if p.parse::<u8>().is_err() {
-            return None;
-        }
-    }
-    Some(token.to_owned())
 }
 
 /// Read /proc/net/arp for L2 neighbors.
