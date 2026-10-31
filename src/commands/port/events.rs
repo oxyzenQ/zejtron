@@ -122,15 +122,83 @@ fn teardown_lag_row(
     )
 }
 
+/// The lag in whole milliseconds - the one number both lanes render:
+/// this file's "Xms"/"under 1ms" note and the JSON row's typed
+/// `lag_ms` integer. One arithmetic, two renderings, no drift
+/// between the formats.
+pub(super) fn lag_whole_ms(lag_ns: u64) -> u64 {
+    lag_ns / 1_000_000
+}
+
 /// The lag as the note reads it: whole milliseconds from 1 up,
 /// "under 1ms" below that - the truth without false-precision
 /// decimals.
 fn format_lag(lag_ns: u64) -> String {
-    match lag_ns / 1_000_000 {
+    match lag_whole_ms(lag_ns) {
         0 => "under 1ms".to_owned(),
         ms => format!("{ms}ms"),
     }
 }
+
+/// The post-mortem verdict for one parked event, decided ONCE for
+/// both renderers (the night-dragon-lts-T1 residual, now shared):
+/// the text section and the JSON lane consume the same decision, so
+/// the two outputs cannot tell different stories about the same
+/// evidence. The matchers themselves stay in ebpf::ringbuf,
+/// untouched - this is the order they are consulted in and the
+/// envelope they are consulted under, in one place.
+pub(super) enum PostMortemVerdict<'a> {
+    /// The strict at-or-after rule names the actor (the
+    /// night-improve-61 rule every live lane keeps).
+    AtOrAfter(&'a ProcExitEvent),
+    /// The LEFT LISTEN-only teardown-lag envelope names the actor,
+    /// with the measured lag in nanoseconds - the number both lanes
+    /// render ([observed] in text, `lag_ms` in JSON).
+    TeardownLag(&'a ProcExitEvent, u64),
+    /// No exit record names the event under either rule. The flag
+    /// carries whether the prose note applies - the teardown race
+    /// story is LEFT LISTEN's alone; every other transition is a
+    /// bare count.
+    Miss { left_listen: bool },
+}
+
+/// The verdict for one post-mortem candidate: the strict rule
+/// first, the LEFT LISTEN-only teardown-lag fallback second, the
+/// honest miss otherwise. The single source of truth behind the
+/// parity law - same events, same exits, same verdict in text and
+/// JSON. The exit-ring slice comes in pre-drained (the callers'
+/// seam forms carry it) so the decision itself never touches I/O.
+pub(super) fn post_mortem_verdict<'a>(
+    exits: &'a [ProcExitEvent],
+    event: &SockEvent,
+) -> PostMortemVerdict<'a> {
+    if let Some(exit) = crate::ebpf::ringbuf::exit_names_event(exits, event.pid, event.timestamp_ns)
+    {
+        return PostMortemVerdict::AtOrAfter(exit);
+    }
+    let is_left_listen =
+        transition_label(event.protocol, event.oldstate, event.newstate) == Some("LEFT LISTEN");
+    if is_left_listen
+        && let Some((exit, lag_ns)) = crate::ebpf::ringbuf::exit_names_event_after_teardown(
+            exits,
+            event.pid,
+            event.timestamp_ns,
+        )
+    {
+        return PostMortemVerdict::TeardownLag(exit, lag_ns);
+    }
+    PostMortemVerdict::Miss {
+        left_listen: is_left_listen,
+    }
+}
+
+/// The honest miss's prose - the one sentence both lanes speak: the
+/// text note appends it after "LEFT LISTEN — ", the JSON row carries
+/// it typed as `race_note`. One constant, byte-identical in both
+/// outputs (the parity law: same evidence, same words, whatever the
+/// output format).
+pub(super) const LEFT_LISTEN_RACE_NOTE: &str = "no matching exit event \
+(process exited before teardown; race window by kernel ordering)";
 
 /// The honest LEFT LISTEN miss (the residual's second branch): the
 /// exit ring holds no record that names the event even within the
@@ -139,8 +207,7 @@ fn format_lag(lag_ns: u64) -> String {
 /// One grey row per miss, under the count.
 fn left_listen_miss_note(event: &SockEvent, proto: &str) -> String {
     format!(
-        "  {}  {}  {}  {}:{}  LEFT LISTEN — no matching exit event \
-         (process exited before teardown; race window by kernel ordering)",
+        "  {}  {}  {}  {}:{}  LEFT LISTEN — {LEFT_LISTEN_RACE_NOTE}",
         crate::output::grey_out("[unaccounted]"),
         crate::output::grey_out(&event_time_of_day(event)),
         proto,
@@ -302,8 +369,11 @@ pub fn format_event_section_with_exits(
     let exits: &[ProcExitEvent] = exits.unwrap_or(&[]);
     let mut left_listen_misses: Vec<String> = Vec::new();
     for (slot, event) in post_mortem {
-        match crate::ebpf::ringbuf::exit_names_event(exits, event.pid, event.timestamp_ns) {
-            Some(exit) => {
+        // The shared verdict (the parity law): the same decision the
+        // JSON lane renders, in one place - this pass only shapes the
+        // row the verdict names.
+        match post_mortem_verdict(exits, event) {
+            PostMortemVerdict::AtOrAfter(exit) => {
                 let name = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
                 let label = transition_label(event.protocol, event.oldstate, event.newstate);
                 let proto = protocol_family_label(event.protocol, event.family);
@@ -313,30 +383,19 @@ pub fn format_event_section_with_exits(
                     unaccounted += 1;
                 }
             }
-            None => {
-                let is_left_listen =
-                    transition_label(event.protocol, event.oldstate, event.newstate)
-                        == Some("LEFT LISTEN");
-                match (is_left_listen, proto_family_of(event)) {
-                    (true, Some(proto)) => {
-                        match crate::ebpf::ringbuf::exit_names_event_after_teardown(
-                            exits,
-                            event.pid,
-                            event.timestamp_ns,
-                        ) {
-                            Some((exit, lag_ns)) => {
-                                let name =
-                                    crate::commands::doctor::memory::exits::comm_string(&exit.comm);
-                                slots[slot] =
-                                    Some(teardown_lag_row(event, proto, &name, no_pid, lag_ns));
-                            }
-                            None => {
-                                unaccounted += 1;
-                                left_listen_misses.push(left_listen_miss_note(event, proto));
-                            }
-                        }
+            PostMortemVerdict::TeardownLag(exit, lag_ns) => {
+                let name = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                match proto_family_of(event) {
+                    Some(proto) => {
+                        slots[slot] = Some(teardown_lag_row(event, proto, &name, no_pid, lag_ns));
                     }
-                    _ => unaccounted += 1,
+                    None => unaccounted += 1,
+                }
+            }
+            PostMortemVerdict::Miss { left_listen } => {
+                unaccounted += 1;
+                if left_listen && let Some(proto) = proto_family_of(event) {
+                    left_listen_misses.push(left_listen_miss_note(event, proto));
                 }
             }
         }

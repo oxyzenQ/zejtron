@@ -1062,6 +1062,40 @@ v11.0.0
 
 ### Fixed
 
+- The port JSON lane now reads the same exit ring the text lane
+  reads (night-dragon-lts-T1 residual, the text/JSON parity fix):
+  `port --since 30s` attributed a short-lived listener from the
+  post-mortem exit ring, but `port --since 30s --print-json` counted
+  the very same event as a bare `unaccounted` number without ever
+  touching the ring - same tool, same underlying evidence, two
+  verdicts depending on the output format, and the automated
+  consumers (the audience the JSON lane exists for) saw the worse
+  one. The ring decision is now one shared verdict
+  (`port::events::post_mortem_verdict`) both renderers consume -
+  the strict at-or-after rule first, the LEFT LISTEN-only 250ms
+  teardown envelope second, the honest miss otherwise - so the two
+  formats cannot drift again; the ring matchers themselves are
+  untouched, and the 250ms envelope keeps its exact value. The JSON
+  events row now carries the verdict typed: `attribution:
+  "post-mortem"` with the actor's pid and comm filled from the ring
+  (plus `lag_ms`, a whole-millisecond integer - 0 under 1ms - from
+  the same arithmetic the text note renders, present only when the
+  teardown branch fired), `attribution: "unaccounted"` with the text
+  lane's race note word-for-word as `race_note` when the ring cannot
+  name the actor (LEFT LISTEN's story alone, as in text), and no
+  attribution field at all on rows a live /proc read named - absence
+  IS the "not a post-mortem case" verdict, clean rows stay clean.
+  Unattributable rows are no longer dropped from the events array:
+  they ride it with their verdict, so an automated consumer sees
+  every event the window recorded and the same story a human reads,
+  and the `unaccounted` count keeps its exact meaning in both
+  formats - every miss counted, none hidden. The byte-count question
+  does not arise: this schema never carried byte fields and the exit
+  ring carries no byte counters, so nothing was invented to fill
+  them. The parity is pinned hermetically - the same synthetic event
+  and exit fixture through both renderers, all three branches, the
+  `lag_ms` integer matched against the figure the text note renders,
+  the `race_note` byte-identical to the text prose (575 green).
 - The LEFT LISTEN teardown race now speaks both truths
   (night-dragon-lts-T1 residual): a short-lived listener's LEFT
   LISTEN event arrived with a socket cookie but no PID, and the

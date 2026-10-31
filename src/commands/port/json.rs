@@ -18,22 +18,65 @@
 
 use std::fmt::Write as _;
 
-use super::events::{protocol_family_label, transition_label};
+use super::events::{PostMortemVerdict, protocol_family_label, transition_label};
 use super::model::{OwnerMap, PortOptions, ScanStats, SocketEntry};
 use super::window::window_label;
-use crate::ebpf::events::SockEvent;
+use crate::ebpf::events::{ProcExitEvent, SockEvent};
 use crate::evidence::json::{write_array, write_opt_string, write_string};
 
 /// The port report as one JSON line. `events` is `Some` only when the
 /// event window actually ran (the lane captured); `None` is every
 /// snapshot-only shape, and the `changes` block carries the named
 /// reason instead of invented rows.
+///
+/// The exit ring is drained ONLY when some event needs it (the text
+/// section's own rule, the parity law's consumption half): a fully
+/// live window never consumes the exit stream. The seam form below
+/// carries the drained records so the tests can pin the text/JSON
+/// parity hermetically.
 pub(super) fn port_report_json(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
     stats: &ScanStats,
     options: &PortOptions,
     events: Option<&[SockEvent]>,
+) -> String {
+    let needs_exit_ring = events.is_some_and(|events| {
+        events
+            .iter()
+            .any(|event| event_pid_name(event.pid).is_none())
+    });
+    let exits = if needs_exit_ring {
+        match crate::ebpf::ringbuf::drain_proc_exits() {
+            Ok(exits) => Some(exits),
+            Err(error) => {
+                crate::output::verbose::vlog!(
+                    "port",
+                    "exit ring unavailable for post-mortem attribution: {error}"
+                );
+                Some(Vec::new())
+            }
+        }
+    } else {
+        None
+    };
+    port_report_json_with_exits(sockets, owners, stats, options, events, exits.as_deref())
+}
+
+/// The seam form: the same JSON line with the drained exit records
+/// injected - the text lane's format_event_section_with_exits
+/// pattern, so the parity tests can feed BOTH lanes the same fixture
+/// (same events, same exits) and pin the verdicts equal. `None`
+/// means the caller never needed the ring; an empty slice means the
+/// ring was drained and held nothing - the two are the same
+/// attribution outcome but different consumption contracts.
+pub(super) fn port_report_json_with_exits(
+    sockets: &[SocketEntry],
+    owners: &OwnerMap,
+    stats: &ScanStats,
+    options: &PortOptions,
+    events: Option<&[SockEvent]>,
+    exits: Option<&[ProcExitEvent]>,
 ) -> String {
     let mut out = String::with_capacity(512);
     out.push_str("{\"subject\":");
@@ -69,12 +112,16 @@ pub(super) fn port_report_json(
     let mut unaccounted = 0usize;
     match events {
         Some(events) => {
+            let exits: &[ProcExitEvent] = exits.unwrap_or(&[]);
             let mut rows: Vec<String> = Vec::new();
             for event in events {
                 // The same row contract the text section renders: a
                 // non-transition or an unreadable protocol never
                 // becomes a row; a pid the kernel no longer shows is
-                // the honest unaccounted gap.
+                // the post-mortem candidate the exit ring may still
+                // name - the same shared verdict the text renders
+                // (the parity law: same evidence, same verdict,
+                // whatever the output format).
                 let Some(kind) = event_kind(event.protocol, event.oldstate, event.newstate) else {
                     continue;
                 };
@@ -82,28 +129,57 @@ pub(super) fn port_report_json(
                     continue;
                 };
                 let Some(name) = event_pid_name(event.pid) else {
-                    unaccounted += 1;
+                    match super::events::post_mortem_verdict(exits, event) {
+                        PostMortemVerdict::AtOrAfter(exit) => {
+                            let comm =
+                                crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                            rows.push(event_row_json(
+                                event,
+                                kind,
+                                proto,
+                                Some(&comm),
+                                Some("post-mortem"),
+                                None,
+                                None,
+                            ));
+                        }
+                        PostMortemVerdict::TeardownLag(exit, lag_ns) => {
+                            let comm =
+                                crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                            rows.push(event_row_json(
+                                event,
+                                kind,
+                                proto,
+                                Some(&comm),
+                                Some("post-mortem"),
+                                Some(super::events::lag_whole_ms(lag_ns)),
+                                None,
+                            ));
+                        }
+                        PostMortemVerdict::Miss { left_listen } => {
+                            unaccounted += 1;
+                            rows.push(event_row_json(
+                                event,
+                                kind,
+                                proto,
+                                None,
+                                Some("unaccounted"),
+                                None,
+                                left_listen.then_some(super::events::LEFT_LISTEN_RACE_NOTE),
+                            ));
+                        }
+                    }
                     continue;
                 };
-                let mut row = String::new();
-                row.push_str("{\"kind\":");
-                write_string(&mut row, kind);
-                row.push_str(",\"protocol\":");
-                let lowered = proto.to_ascii_lowercase();
-                write_string(&mut row, &lowered);
-                row.push_str(",\"port\":");
-                let _ = write!(row, "{}", event.sport);
-                row.push_str(",\"pid\":");
-                let _ = write!(row, "{}", event.pid);
-                row.push_str(",\"process\":");
-                write_string(&mut row, &name);
-                row.push_str(",\"time_utc\":");
-                write_string(
-                    &mut row,
-                    &crate::info::clock::time_of_day_from_monotonic_ns(event.timestamp_ns),
-                );
-                row.push('}');
-                rows.push(row);
+                rows.push(event_row_json(
+                    event,
+                    kind,
+                    proto,
+                    Some(&name),
+                    None,
+                    None,
+                    None,
+                ));
             }
             write_array(&mut out, rows.len(), |out, index| {
                 out.push_str(&rows[index]);
@@ -168,6 +244,62 @@ fn event_kind(protocol: u8, oldstate: u8, newstate: u8) -> Option<&'static str> 
         Some("CLOSED") => Some("closed"),
         _ => None,
     }
+}
+
+/// One typed event row, shared by every branch: the live shape
+/// (kind, protocol, port, pid, process, time) with the post-mortem
+/// fields appended only when a post-mortem case produced the row.
+/// The field laws: `attribution` rides only rows the exit-ring
+/// verdict produced ("post-mortem" | "unaccounted" - its absence on
+/// a live row IS the contract: not a post-mortem case, nothing to
+/// say); `lag_ms` rides only the teardown-lag branch, always an
+/// integer, never null (absent means the branch did not fire);
+/// `race_note` rides only the unaccounted LEFT LISTEN branch, the
+/// text note's own words; `process` is null when no source can name
+/// the actor (the lane's absence law - nulls, not empty strings).
+pub(super) fn event_row_json(
+    event: &SockEvent,
+    kind: &str,
+    proto: &str,
+    process: Option<&str>,
+    attribution: Option<&str>,
+    lag_ms: Option<u64>,
+    race_note: Option<&str>,
+) -> String {
+    let mut row = String::new();
+    row.push_str("{\"kind\":");
+    write_string(&mut row, kind);
+    row.push_str(",\"protocol\":");
+    let lowered = proto.to_ascii_lowercase();
+    write_string(&mut row, &lowered);
+    row.push_str(",\"port\":");
+    let _ = write!(row, "{}", event.sport);
+    row.push_str(",\"pid\":");
+    let _ = write!(row, "{}", event.pid);
+    row.push_str(",\"process\":");
+    match process {
+        Some(name) => write_string(&mut row, name),
+        None => row.push_str("null"),
+    }
+    row.push_str(",\"time_utc\":");
+    write_string(
+        &mut row,
+        &crate::info::clock::time_of_day_from_monotonic_ns(event.timestamp_ns),
+    );
+    if let Some(attribution) = attribution {
+        row.push_str(",\"attribution\":");
+        write_string(&mut row, attribution);
+    }
+    if let Some(ms) = lag_ms {
+        row.push_str(",\"lag_ms\":");
+        let _ = write!(row, "{ms}");
+    }
+    if let Some(note) = race_note {
+        row.push_str(",\"race_note\":");
+        write_string(&mut row, note);
+    }
+    row.push('}');
+    row
 }
 
 /// Why the event window did not run - the stable reason token the
