@@ -179,6 +179,28 @@ pub fn attach() -> Result<String, String> {
         "writev attach symbol verified from BTF: {writev_symbol} (arg0: struct file)"
     );
 
+    // 1.8. The mount prerequisites (night-improve-61): the tracepoint
+    //      attaches resolve through tracefs and the pins live on
+    //      bpffs, and a fresh server mounts NEITHER by default. The
+    //      gate above already refused every host that cannot attach,
+    //      so by this point a privileged process is expected - the
+    //      ensure pair mounts what is missing (the bpftool precedent
+    //      for pinned loads) and an unprivileged one gets the exact
+    //      mount command in the refusal, not a library's "tracefs
+    //      not found" after three programs were already planted.
+    //      Refusals above this line touched no mount; a failure here
+    //      leaves nothing behind either (the mounts are the kernel's
+    //      own seats, not the pin estate).
+    let tracefs_seat = super::mounts::ensure_tracefs().map_err(|e| {
+        format!("attach refused: {e}. The three tracepoint probes resolve their attach points through tracefs")
+    })?;
+    vlog!("engine", "tracefs seat: {tracefs_seat}");
+    super::mounts::ensure_bpffs().map_err(|e| {
+        format!(
+            "attach refused: {e}. The probe estate pins its programs, links, and maps into bpffs"
+        )
+    })?;
+
     // 2. Self-heal: a partial pin set (a crashed attach, a manual rm)
     //    is cleaned before replanting; a stale pin directory (a prior
     //    mkdir that failed before planting) is removed the same way.
