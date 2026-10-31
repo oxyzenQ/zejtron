@@ -246,3 +246,52 @@ fn a_foreign_pids_exit_never_names_the_writer() {
     ];
     assert!(exit_names_event(&exits, write.pid, write.timestamp_ns).is_none());
 }
+
+#[test]
+fn teardown_lag_names_an_exit_within_the_envelope() {
+    // The night-dragon-lts-T1 residual: socket teardown trails the
+    // process's death, so the exit record that names a LEFT LISTEN
+    // event lands BEFORE the event's stamp. An exit 87ms ahead is
+    // inside the bounded envelope, returned with the measured lag.
+    use crate::ebpf::ringbuf::exit_names_event_after_teardown;
+    let event_ts = 10_000_000_000;
+    let exits = [exit_at(event_ts - 87_000_000, 4242, "shortlisten")];
+    let named = exit_names_event_after_teardown(&exits, 4242, event_ts);
+    assert_eq!(named.map(|(e, _)| e.pid), Some(4242));
+    assert_eq!(named.map(|(_, lag)| lag), Some(87_000_000));
+    assert_eq!(
+        named.map(|(e, _)| crate::commands::doctor::memory::exits::comm_string(&e.comm)),
+        Some("shortlisten".to_owned())
+    );
+}
+
+#[test]
+fn teardown_lag_envelope_is_inclusive_and_bounded() {
+    use crate::ebpf::ringbuf::{TEARDOWN_LAG_NANOS, exit_names_event_after_teardown};
+    let event_ts = 10_000_000_000;
+    // Exactly the envelope: inside (the boundary is the guard's
+    // edge, not past it).
+    let at_edge = [exit_at(event_ts - TEARDOWN_LAG_NANOS, 4242, "edge")];
+    assert!(exit_names_event_after_teardown(&at_edge, 4242, event_ts).is_some());
+    // One nanosecond past it: refused - beyond the envelope the
+    // record is a prior life again, and the race note is the
+    // honest answer instead.
+    let past_edge = [exit_at(event_ts - TEARDOWN_LAG_NANOS - 1, 4242, "gone")];
+    assert!(exit_names_event_after_teardown(&past_edge, 4242, event_ts).is_none());
+}
+
+#[test]
+fn teardown_lag_refuses_what_the_strict_rule_owns() {
+    use crate::ebpf::ringbuf::exit_names_event_after_teardown;
+    let event_ts = 10_000_000_000;
+    // An exit at or after the event belongs to the strict at-or-
+    // after rule; the lag fallback returning it would zero the lag
+    // and make the note a lie.
+    let after = [exit_at(event_ts, 4242, "samebeat")];
+    assert!(exit_names_event_after_teardown(&after, 4242, event_ts).is_none());
+    let later = [exit_at(event_ts + 5_000_000, 4242, "later")];
+    assert!(exit_names_event_after_teardown(&later, 4242, event_ts).is_none());
+    // A foreign pid's death never names anything.
+    let foreign = [exit_at(event_ts - 10_000_000, 7, "systemd")];
+    assert!(exit_names_event_after_teardown(&foreign, 4242, event_ts).is_none());
+}

@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use super::model::PortOptions;
 use super::window::{capture_window, unavailability_line, window_label};
-use crate::ebpf::events::SockEvent;
+use crate::ebpf::events::{ProcExitEvent, SockEvent};
 
 /// The `--events-only` shape: the live event section, or the refusal.
 pub(super) fn events_only_output(options: &PortOptions) -> String {
@@ -76,6 +76,76 @@ fn event_row(event: &SockEvent, label: &str, proto: &str, name: String, no_pid: 
         label,
         pid_part,
         name
+    )
+}
+
+/// The protocol+family token for the teardown branch's rows: the
+/// same token the event rows render, recomputed for a parked
+/// post-mortem event (the first pass already proved it readable).
+fn proto_family_of(event: &SockEvent) -> Option<&'static str> {
+    protocol_family_label(event.protocol, event.family)
+}
+
+/// The teardown-lag row (the night-dragon-lts-T1 residual): the
+/// event_row shape riding [observed] - grey, the exit ring's record
+/// is the evidence, not the kernel's live /proc answer - with the
+/// measured lag named in grey after the actor. The lag is the
+/// truth this row exists to carry: the exit fired first, the
+/// socket's teardown trailed it, and the number says by how much.
+fn teardown_lag_row(
+    event: &SockEvent,
+    proto: &str,
+    name: &str,
+    no_pid: bool,
+    lag_ns: u64,
+) -> String {
+    let pid_part = if no_pid {
+        String::new()
+    } else {
+        format!("  {} {}", crate::output::grey_out("PID"), event.pid)
+    };
+    format!(
+        "{}  {}  {}  {}:{}  {}{}  ({})  {}",
+        crate::output::grey_out("[observed]"),
+        crate::output::grey_out(&event_time_of_day(event)),
+        proto,
+        "*",
+        event.sport,
+        "LEFT LISTEN",
+        pid_part,
+        name,
+        crate::output::grey_out(&format!(
+            "attribution from post-mortem exit ring (socket teardown lag: \
+             exit fired {} before LEFT LISTEN)",
+            format_lag(lag_ns)
+        ))
+    )
+}
+
+/// The lag as the note reads it: whole milliseconds from 1 up,
+/// "under 1ms" below that - the truth without false-precision
+/// decimals.
+fn format_lag(lag_ns: u64) -> String {
+    match lag_ns / 1_000_000 {
+        0 => "under 1ms".to_owned(),
+        ms => format!("{ms}ms"),
+    }
+}
+
+/// The honest LEFT LISTEN miss (the residual's second branch): the
+/// exit ring holds no record that names the event even within the
+/// teardown envelope - the process exited before the teardown could
+/// be recorded against it, and inventing an actor would be a lie.
+/// One grey row per miss, under the count.
+fn left_listen_miss_note(event: &SockEvent, proto: &str) -> String {
+    format!(
+        "  {}  {}  {}  {}:{}  LEFT LISTEN — no matching exit event \
+         (process exited before teardown; race window by kernel ordering)",
+        crate::output::grey_out("[unaccounted]"),
+        crate::output::grey_out(&event_time_of_day(event)),
+        proto,
+        "*",
+        event.sport,
     )
 }
 
@@ -150,6 +220,42 @@ pub fn protocol_family_label(protocol: u8, family: u16) -> Option<&'static str> 
 /// event the exit ring cannot name either counts toward the
 /// unaccounted block.
 pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool) -> String {
+    // The ring is drained ONLY when some event needs it: a fully
+    // live window never consumes the exit stream. The seam form
+    // below carries the drained records so the tests can pin the
+    // attribution paths hermetically.
+    let needs_exit_ring = events
+        .iter()
+        .any(|event| event_pid_name(event.pid).is_none());
+    let exits = if needs_exit_ring {
+        match crate::ebpf::ringbuf::drain_proc_exits() {
+            Ok(exits) => Some(exits),
+            Err(error) => {
+                crate::output::verbose::vlog!(
+                    "port",
+                    "exit ring unavailable for post-mortem attribution: {error}"
+                );
+                Some(Vec::new())
+            }
+        }
+    } else {
+        None
+    };
+    format_event_section_with_exits(events, window, no_pid, exits.as_deref())
+}
+
+/// The seam form: the same section with the drained exit records
+/// injected (the test seam, the format_path_report_with pattern).
+/// `None` means the caller never needed the ring; an empty slice
+/// means the ring was drained and held nothing - the two are the
+/// same attribution outcome (nothing to name) but different
+/// consumption contracts.
+pub fn format_event_section_with_exits(
+    events: &[SockEvent],
+    window: Duration,
+    no_pid: bool,
+    exits: Option<&[ProcExitEvent]>,
+) -> String {
     let mut lines = Vec::new();
     // The Changes header rides green (the section header).
     lines.push(crate::output::ok_out(&format!(
@@ -185,32 +291,53 @@ pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool
     // The exit-ring pass (night-improve-61): the same post-mortem
     // attribution the file lanes carry, the same shared match rule
     // (ebpf::ringbuf::exit_names_event) and the same comm shaper.
-    // Drained ONLY when some event needs it: a fully-live window
-    // never consumes the exit stream.
-    if !post_mortem.is_empty() {
-        let exits = match crate::ebpf::ringbuf::drain_proc_exits() {
-            Ok(exits) => exits,
-            Err(error) => {
-                crate::output::verbose::vlog!(
-                    "port",
-                    "exit ring unavailable for post-mortem attribution: {error}"
-                );
-                Vec::new()
-            }
-        };
-        for (slot, event) in post_mortem {
-            match crate::ebpf::ringbuf::exit_names_event(&exits, event.pid, event.timestamp_ns) {
-                Some(exit) => {
-                    let name = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
-                    let label = transition_label(event.protocol, event.oldstate, event.newstate);
-                    let proto = protocol_family_label(event.protocol, event.family);
-                    if let (Some(label), Some(proto)) = (label, proto) {
-                        slots[slot] = Some(event_row(event, label, proto, name, no_pid));
-                    } else {
-                        unaccounted += 1;
-                    }
+    // The LEFT LISTEN branch adds the teardown-lag fallback (the
+    // night-dragon-lts-T1 residual): socket teardown can trail the
+    // process's own death, so an exit stamped a beat BEFORE the
+    // event - within the bounded 250ms envelope - still names the
+    // row, as [observed] with the measured lag; a LEFT LISTEN the
+    // ring cannot name at all renders the race note instead of a
+    // bare count. Every other transition keeps the strict rule: no
+    // exit at or after the event, no attribution.
+    let exits: &[ProcExitEvent] = exits.unwrap_or(&[]);
+    let mut left_listen_misses: Vec<String> = Vec::new();
+    for (slot, event) in post_mortem {
+        match crate::ebpf::ringbuf::exit_names_event(exits, event.pid, event.timestamp_ns) {
+            Some(exit) => {
+                let name = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                let label = transition_label(event.protocol, event.oldstate, event.newstate);
+                let proto = protocol_family_label(event.protocol, event.family);
+                if let (Some(label), Some(proto)) = (label, proto) {
+                    slots[slot] = Some(event_row(event, label, proto, name, no_pid));
+                } else {
+                    unaccounted += 1;
                 }
-                None => unaccounted += 1,
+            }
+            None => {
+                let is_left_listen =
+                    transition_label(event.protocol, event.oldstate, event.newstate)
+                        == Some("LEFT LISTEN");
+                match (is_left_listen, proto_family_of(event)) {
+                    (true, Some(proto)) => {
+                        match crate::ebpf::ringbuf::exit_names_event_after_teardown(
+                            exits,
+                            event.pid,
+                            event.timestamp_ns,
+                        ) {
+                            Some((exit, lag_ns)) => {
+                                let name =
+                                    crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                                slots[slot] =
+                                    Some(teardown_lag_row(event, proto, &name, no_pid, lag_ns));
+                            }
+                            None => {
+                                unaccounted += 1;
+                                left_listen_misses.push(left_listen_miss_note(event, proto));
+                            }
+                        }
+                    }
+                    _ => unaccounted += 1,
+                }
             }
         }
     }
@@ -237,6 +364,13 @@ pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool
             " events in the window with no visible PID (namespace boundary or\n  exited before attribution)"
         )
     ));
+    // The LEFT LISTEN race notes (the night-dragon-lts-T1 residual):
+    // each miss names itself instead of hiding in the count - the
+    // kernel's teardown ordering, said plainly, one grey row per
+    // event the ring could not reach.
+    for note in &left_listen_misses {
+        lines.push(note.clone());
+    }
     lines.push(crate::output::grey_out(
         "  Snapshot and event window can disagree - that is the point; the\n  snapshot is the state at this instant, the window is what changed.",
     ));
