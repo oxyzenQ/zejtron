@@ -1061,6 +1061,23 @@ v11.0.0
 
 ### Fixed
 
+- The night-dragon-lts-2 audit: the net surface's flags lane was
+  dormant from birth. /sys/class/net/<if>/flags is written by the
+  kernel in hex with the 0x prefix ("0x9" on loopback) and
+  read_sysfs_u32 parsed with plain `str::parse`, which rejects the
+  prefix - so the field was read on every host and parsed on none,
+  the decoded `flags` row never rendered, and the promiscuous-mode
+  warning that rides IFF_PROMISC (0x100, a sniffer-detection
+  feature) never once fired. parse_sysfs_u32 now accepts both
+  kernel shapes (hex-prefixed and decimal), unit-pinned for each.
+  The same pass resolves loopback's state honestly: RFC 2863
+  exempts lo from operstate reporting (it reads "unknown" on every
+  host), so `zejtron net` rendered `lo unknown` beside traffic
+  counters that move - resolved_state now reads the flags' own
+  IFF_UP bit for lo and renders `up` (or `down`), while every other
+  interface keeps the kernel's operstate word and an unreadable
+  flags file never guesses.
+
 - The night-dragon-lts-1 audit: eleven defects across the stability,
   correctness, and performance surfaces, each verified against the
   live host or the kernel's own documented formats before landing.

@@ -250,3 +250,53 @@ fn json_report_carries_the_absences_as_nulls() {
     assert!(out.contains("\"arp_neighbors\":[]"));
     assert!(out.contains("\"routes\":[]"));
 }
+
+#[test]
+fn loopback_state_resolves_through_the_iff_up_bit() {
+    // night-dragon-lts-2: RFC 2863 exempts lo from operstate
+    // reporting ("unknown" on every host), so the flags' IFF_UP bit
+    // carries the administrative truth instead.
+    assert_eq!(
+        resolved_state("lo", Some("unknown".to_owned()), Some(0x10049)),
+        Some("up".to_owned()),
+        "IFF_UP set renders up"
+    );
+    assert_eq!(
+        resolved_state("lo", Some("unknown".to_owned()), Some(0x10048)),
+        Some("down".to_owned()),
+        "IFF_UP clear renders down"
+    );
+    // An unreadable flags file never guesses - the kernel's own
+    // word rides through untouched.
+    assert_eq!(
+        resolved_state("lo", Some("unknown".to_owned()), None),
+        Some("unknown".to_owned())
+    );
+    // Every other interface keeps the kernel's operstate word,
+    // whatever it says.
+    assert_eq!(
+        resolved_state("eth0", Some("unknown".to_owned()), Some(0)),
+        Some("unknown".to_owned())
+    );
+    assert_eq!(
+        resolved_state("eth0", Some("up".to_owned()), None),
+        Some("up".to_owned())
+    );
+    assert_eq!(resolved_state("eth0", None, None), None);
+}
+
+#[test]
+fn parse_sysfs_u32_reads_both_kernel_shapes() {
+    // night-dragon-lts-2: the flags file rides hex with the 0x
+    // prefix ("0x9" on loopback), mtu and type ride decimal. The hex
+    // arm repairs the dormant flags lane - read on every host,
+    // parsed on none, since plain str::parse rejects the prefix.
+    assert_eq!(parse_sysfs_u32("0x9"), Some(0x9));
+    assert_eq!(parse_sysfs_u32("0X9"), Some(0x9));
+    assert_eq!(parse_sysfs_u32("0x10049"), Some(0x10049));
+    assert_eq!(parse_sysfs_u32("65536"), Some(65536));
+    assert_eq!(parse_sysfs_u32("772"), Some(772));
+    assert_eq!(parse_sysfs_u32(""), None);
+    assert_eq!(parse_sysfs_u32("0x"), None);
+    assert_eq!(parse_sysfs_u32("not-a-number"), None);
+}
