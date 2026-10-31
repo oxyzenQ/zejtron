@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 // NON_LATIN_FIXTURE: the multibyte rejection pins deliberately
-// exercise CJK units - the exact inputs the pre-fix parser
-// panicked on.
+// exercise CJK units and a four-byte CJK Extension B ideograph -
+// the exact inputs the pre-fix parser panicked on.
 
 //! recent unit pins. Lives under the single test/ tree
 //! (night-improve-18, the discipline contract: every test
@@ -35,7 +35,10 @@ fn rejects_multibyte_units_without_panicking() {
     // lands inside a multibyte character - a `--since 5分` age ask
     // crashed the CLI with a byte-index panic instead of the clean
     // usage error. Every multibyte-final input must be a rejection.
-    for bad in ["é", "日", "5分", "2日", "🦀", "1d分"] {
+    // The four-byte ideograph (U+20000) exercises the widest char
+    // without an emoji-class codepoint (banned from every text
+    // file, fixtures included).
+    for bad in ["é", "日", "5分", "2日", "\u{20000}", "1d分"] {
         assert!(parse_duration(bad).is_err(), "must reject {bad:?}");
     }
     assert!(parse_duration("分d").is_err());
