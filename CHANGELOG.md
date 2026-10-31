@@ -1061,6 +1061,76 @@ v11.0.0
 
 ### Fixed
 
+- The night-improve-61 exit-status contract for `path`: a command
+  no PATH entry names printed its grey "command not found in PATH:"
+  verdict and exited 0 - the only surface in the family whose
+  target-absent answer read as success (why, holds, and touch all
+  exit 1 for a missing target, and the README's replacement table
+  names `which <cmd>` as the tool `zejtron path` replaces, whose
+  POSIX contract is a nonzero status for an absent command). Both
+  lanes now answer 1 when the match set is empty (the text verdict
+  line and the found:false JSON wire keep their shapes
+  byte-for-byte; stdout is flushed before the exit), so a scripted
+  `if zejtron path tool >/dev/null` finally branches on the truth.
+- The night-improve-61 post-mortem attribution for the live file
+  lanes: an event whose pid had no /proc entry fell into the
+  Unaccounted block ("no visible PID - namespace boundary or
+  exited before attribution") even though the probe estate had
+  been recording every process exit since attach - the
+  sched/sched_process_exit probe's proc_events ring held the
+  writer's pid and comm, and no file-lane consumer ever read it
+  back. On a server that is the COMMON case, not the edge: the
+  mysterious writer an admin investigates is exactly the
+  short-lived one (a cron one-shot, a logrotate run, a shell
+  redirect) that dies inside the window. holds/touch/why live
+  windows now drain the exit ring when (and only when) some
+  event's /proc read comes back empty, attribute the row from the
+  first exit record at or after the event's own timestamp carrying
+  the same pid (a prior-life record of a recycled pid is refused),
+  and render the recorded-actor shape - "name (pid N)", the user
+  an honest absence because the exit record carries no uid, the
+  row still [observed] because the kernel saw the write. Row order
+  is preserved by construction (per-event slots, gaps filled in
+  place), and a fully-live window never consumes the doctor's
+  exit stream. Proven live on the micro-VM floor: the battery's
+  short-lived bash writers render as "wrote (writev) bash (pid
+  530) [observed]" with an Unaccounted block of "(none
+  observed)" where the pre-fix report shrugged at four unattributed
+  events.
+- The night-improve-61 mount prerequisites: the first
+  `doctor --attach` on a fresh server died at the first tracepoint
+  attach with aya's "tracefs not found" - naming neither the
+  filesystem, the seat, nor the fix - after the readiness section
+  had reported every row as ready. Neither tracefs (where aya
+  resolves tracepoint attach points) nor bpffs (where the pin
+  estate lives) is mounted by default on a fresh server or a
+  minimal container. The attach chain now ensures both mounts
+  after the kernel/BTF gates and before any pin is touched: a
+  process holding CAP_SYS_ADMIN mounts what is missing (the
+  bpftool precedent for pinned loads; detection is statfs(2)
+  filesystem magic, not a directory-existence guess - the kernel
+  creates /sys/kernel/tracing as an empty placeholder even when
+  tracefs is not mounted), and an unprivileged one gets the exact
+  mount command in the refusal. The doctor's [eBPF] section gains
+  the Tracefs row (present with the seat named, absent with the
+  remedy) in the text and JSON lanes, seated between Caps and
+  Lane. Verified live on the micro-VM floor: attach succeeds from
+  a boot with neither filesystem mounted, mounting both itself.
+- The night-improve-61 UDP event-lane truth: `zejtron port
+  --events-only --udp` rendered an empty window that read as
+  "listened and heard nothing" when the truth is that this lane
+  can never hear a UDP socket - the sock probe rides the
+  sock/inet_sock_set_state tracepoint, and the kernel's UDP path
+  never routes through it (a UDP lifecycle fires zero records;
+  proven empirically on the Alpine 6.12 floor kernel with a
+  tracefs-enabled census: zero inet_sock_set_state records for a
+  full bash /dev/udp open-send-close). The UDP-only event window
+  now carries the kernel fact as a note (the event lane is
+  TCP-only; UDP sockets ride the snapshot, which works and is
+  unaffected), so an operator watching a DNS resolver no longer
+  reads a false "no UDP activity" verdict. The filter arm and the
+  label stay as defense in depth: if a future kernel ever routes
+  UDP state through the tracepoint, the ring catches it.
 - The night-dragon-lts-4 one-identity law for `why`: the report
   statted the queried path three times - the opening stat keyed the
   event lane, the holder walk statted again inside itself, the
