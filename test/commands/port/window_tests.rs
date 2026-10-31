@@ -424,9 +424,12 @@ mod live {
     #[test]
     fn window_events_filter_by_clock_protocol_and_port() {
         // The live filter chain: window cutoff, protocol selection,
-        // port selection - pinned against the host's own monotonic
-        // clock (/proc/uptime), the same source the filter reads.
-        let now_ns = uptime_ns();
+        // port selection - pinned against the same CLOCK_MONOTONIC
+        // the filter reads (night-dragon-lts-1: the helper used to
+        // re-implement the /proc/uptime read, which is CLOCK_BOOTTIME
+        // - a different domain from the bpf_ktime_get_ns stamps
+        // whenever the host has ever suspended).
+        let now_ns = monotonic_now_ns();
         let recent = now_ns.saturating_sub(10_000_000_000); // 10s ago
         let stale = now_ns.saturating_sub(120_000_000_000); // 120s ago
 
@@ -488,10 +491,7 @@ mod live {
         );
     }
 
-    fn uptime_ns() -> u64 {
-        let uptime = std::fs::read_to_string("/proc/uptime").unwrap();
-        let first = uptime.split_whitespace().next().unwrap();
-        let seconds: f64 = first.parse().unwrap();
-        (seconds * 1e9) as u64
+    fn monotonic_now_ns() -> u64 {
+        crate::info::clock::monotonic_now_ns().unwrap()
     }
 }

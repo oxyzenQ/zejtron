@@ -85,9 +85,9 @@ pub(crate) fn comm_string(bytes: &[u8; 16]) -> String {
 /// not a live chain - `doctor --attach` heals it), then the drain,
 /// then the window cutoff. The read side needs no capabilities,
 /// only the bpffs walk. CLOCK_MONOTONIC end to end - the records
-/// are bpf_ktime_get_ns stamps and "now" is /proc/uptime, the same
-/// pair the port window uses (one source since night-improve-47:
-/// the civil clock module owns both companions).
+/// are bpf_ktime_get_ns stamps and "now" is clock_gettime on the
+/// same clock (night-dragon-lts-1; one source since
+/// night-improve-47: the civil clock module owns both companions).
 pub(crate) fn collect_window(window_secs: u64) -> ExitLane {
     if !ebpf::all_pins_present() {
         return ExitLane::NotAttached;

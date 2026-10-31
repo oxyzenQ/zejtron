@@ -79,9 +79,9 @@ fn a_sixteen_byte_comm_renders_whole_and_lossy() {
 fn the_window_keeps_the_fresh_slice_and_sorts_ascending() {
     // Against the live monotonic clock: the ancient stamps fall
     // outside the five-second window, the fresh ones stay, and the
-    // survivors render oldest-first. An unreadable clock (no
-    // /proc/uptime) skips the filter assertion entirely - the
-    // honest degradation keeps every drained record.
+    // survivors render oldest-first. An unreadable clock skips the
+    // filter assertion entirely - the honest degradation keeps every
+    // drained record.
     let Some(now) = crate::info::clock::monotonic_now_ns() else {
         return;
     };

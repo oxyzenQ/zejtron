@@ -72,10 +72,11 @@ fn selection_sorts_ascending_by_timestamp() {
 
 #[test]
 fn monotonic_now_degrades_to_none_never_a_guess() {
-    // On hosts with /proc/uptime this must be Some; the battery
-    // sandboxes all carry it. Guard for the exotic case anyway.
+    // clock_gettime on CLOCK_MONOTONIC cannot fail on a Linux host
+    // that booted; guard for the exotic case anyway (the honest
+    // degradation is None, never a guessed value).
     match monotonic_now_ns() {
-        Some(now) => assert!(now > 0, "a booted host has positive uptime"),
+        Some(now) => assert!(now > 0, "a booted host has positive monotonic time"),
         None => { /* the honest degradation; named here, not asserted */ }
     }
 }

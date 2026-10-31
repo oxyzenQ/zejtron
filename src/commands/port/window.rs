@@ -248,11 +248,13 @@ fn collect_over_window(
 /// Filter the collected events to the requested window and selection,
 /// ascending by timestamp. The clock arithmetic is CLOCK_MONOTONIC
 /// end to end: the records are `bpf_ktime_get_ns` stamps, and "now"
-/// comes from /proc/uptime - the std-only monotonic source (10 ms
-/// resolution, and boottime-inclusive: on a host that suspended, the
-/// computed cutoff sits slightly EARLY, so a boundary event survives
-/// that strict monotonic would drop - the error direction that
-/// over-includes, never under-reports).
+/// is read from the same CLOCK_MONOTONIC domain through
+/// clock_gettime (night-dragon-lts-1: the pre-fix "now" came from
+/// /proc/uptime, which the kernel serves from CLOCK_BOOTTIME -
+/// suspend-inclusive. With cumulative suspend S, the cutoff sat S
+/// nanoseconds late and silently dropped the last S nanoseconds of
+/// every window; both clocks are the same domain now, so the cutoff
+/// is exact and no error direction needs documenting).
 ///
 /// One semantic rides on the collection itself: a ring buffer read
 /// CONSUMES (the consumer position lives in the kernel map), so the

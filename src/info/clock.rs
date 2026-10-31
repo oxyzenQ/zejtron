@@ -94,18 +94,45 @@ pub(crate) fn format_unix_secs(total_secs: i64) -> String {
 // dedup law the unavailability sentence landed under: the lower
 // layer owns the sentence, the surfaces delegate down).
 
-/// The monotonic "now", in nanoseconds, from /proc/uptime (the
-/// kernel's own CLOCK_BOOTTIME clock at 10 ms resolution). `None`
-/// when the file is unreadable - the honest degradation, never a
-/// guess. Boottime-inclusive: on a host that suspended, a cutoff
-/// computed from this sits slightly EARLY, so a boundary event
-/// survives that strict monotonic would drop - the error direction
-/// that over-includes, never under-reports.
+/// The monotonic "now", in nanoseconds, read straight from the
+/// kernel's CLOCK_MONOTONIC through the libc pair the crate already
+/// carries (night-dragon-lts-1). CLOCK_MONOTONIC is the EXACT clock
+/// the eBPF records are stamped with (`bpf_ktime_get_ns`), so the
+/// window cutoffs built on this value compare stamps from the same
+/// domain - nanosecond resolution, no conversion.
+///
+/// The pre-fix source was /proc/uptime, which the kernel serves
+/// from CLOCK_BOOTTIME: identical to monotonic on a host that never
+/// suspended, but BOOTTIME includes suspend time while the eBPF
+/// stamps exclude it. On a host with cumulative suspend time S the
+/// computed cutoff sat S nanoseconds LATER than the true monotonic
+/// cutoff, silently dropping events from the last S nanoseconds of
+/// every window - with S >= the window, "Changes in the last 60s"
+/// rendered empty for events the camera had just captured. The old
+/// doc claimed the error direction over-included; that claim was the
+/// exact inversion of the arithmetic. A clock_gettime failure
+/// degrades to `None` - the honest absence, never a guess.
 pub(crate) fn monotonic_now_ns() -> Option<u64> {
-    let uptime = std::fs::read_to_string("/proc/uptime").ok()?;
-    let first = uptime.split_whitespace().next()?;
-    let seconds: f64 = first.parse().ok()?;
-    Some((seconds * 1e9) as u64)
+    let mut timespec = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: clock_gettime writes through a pointer to a timespec
+    // this call owns for the whole call; the clock id is a kernel
+    // constant. The libc pair is the crate's second raw call (the
+    // SIGPIPE reset in main is the first) - the dependency policy's
+    // own escape hatch, used because std exposes no CLOCK_MONOTONIC
+    // source: std::time::Instant is opaque (no epoch-relative value)
+    // and /proc/uptime is boottime, not monotonic.
+    if unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut timespec) } != 0 {
+        return None;
+    }
+    // CLOCK_MONOTONIC starts at zero at boot and never runs
+    // backwards, so both fields are non-negative in practice; the
+    // saturating shape only guards the signedness of the raw types.
+    let secs = timespec.tv_sec.max(0) as u64;
+    let nanos = timespec.tv_nsec.max(0) as u64;
+    Some(secs.saturating_mul(1_000_000_000).saturating_add(nanos))
 }
 
 /// The wall-clock offset for rendering event timestamps: wall-now
