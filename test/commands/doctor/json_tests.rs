@@ -15,6 +15,7 @@ use super::super::gpu::GpuSample;
 use super::super::memory::exits::ExitRow;
 use super::super::memory::{MemInfo, MemorySample, ProcessPss, SlabRow, TmpfsFile};
 use super::super::network::NetworkSample;
+use super::super::slow::SlowSample;
 use super::*;
 
 // ── Fixtures ─────────────────────────────────────────────────────
@@ -87,6 +88,42 @@ fn cpu_sample() -> CpuSample {
     }
 }
 
+fn slow_sample() -> SlowSample {
+    SlowSample {
+        sampled_at: "2026-01-01 00:00:00 (UTC)".to_owned(),
+        cpu: cpu_sample(),
+        disk: DiskSample {
+            sampled_at: String::new(),
+            iowait_pct: Some(2.5),
+            total_ticks_delta: 1000,
+            top: Vec::new(),
+            started_in_window: 0,
+            vanished_between_reads: 0,
+            io_permission_refused: 0,
+            exit_lane: ExitLane::NotAttached,
+        },
+        network: NetworkSample::default(),
+        meminfo: Some(MemInfo {
+            total_kib: 1024,
+            free_kib: 512,
+            available_kib: 768,
+            cached_kib: 128,
+            buffers_kib: 16,
+            shmem_kib: 8,
+            s_reclaimable_kib: 32,
+            s_unreclaim_kib: 4,
+        }),
+        swap_total_kib: Some(2048),
+        swap_free_kib: Some(1024),
+        swap_in_pages: 12,
+        swap_out_pages: 34,
+        exit_lane: ExitLane::NotAttached,
+        raw_meminfo: String::new(),
+        raw_vmstat_a: String::new(),
+        raw_vmstat_b: String::new(),
+    }
+}
+
 // ── The envelope laws ────────────────────────────────────────────
 
 #[test]
@@ -98,7 +135,7 @@ fn every_json_lane_is_one_line() {
         json_disk(&DiskSample::default()),
         json_network(&NetworkSample::default()),
         json_gpu(&GpuSample::default()),
-        slow_json(&["ram", "cpu"]),
+        json_slow(&slow_sample()),
     ] {
         assert!(
             !line.contains('\n'),
@@ -118,13 +155,26 @@ fn the_symptom_envelope_carries_its_identity() {
 }
 
 #[test]
-fn the_slow_json_names_the_absence_never_a_fake_report() {
-    let line = slow_json(&super::super::symptom::IMPLEMENTED);
-    assert_eq!(
-        line,
-        "{\"ledger_version\":2,\"mode\":\"symptom\",\"symptom\":\"slow\",\"window\":null,\
-\"implemented\":false,\"implemented_symptoms\":[\"ram\",\"cpu\",\"disk\",\"network\",\"gpu\"]}"
-    );
+fn the_umbrella_json_carries_the_lanes_the_findings_and_the_verdict() {
+    let line = json_slow(&slow_sample());
+    assert!(line.starts_with(
+        "{\"ledger_version\":2,\"mode\":\"symptom\",\"symptom\":\"slow\",\"window\":\"1.0s\""
+    ));
+    // The four compact lanes, each a sub-object of headline facts.
+    assert!(line.contains("\"cpu\":{\"ncpu\":8"));
+    assert!(line.contains("\"top_comm\":\"brave\""));
+    assert!(line.contains("\"memory\":{\"total_bytes\":1048576"));
+    assert!(line.contains("\"swap_in_pages\":12"));
+    assert!(line.contains("\"swap_out_pages\":34"));
+    assert!(line.contains("\"disk\":{\"iowait_pct\":2.5"));
+    assert!(line.contains("\"network\":{\"busiest_interface\":null"));
+    // The ranked findings with their severity classes, and the
+    // verdict - the same sentences the text ledger renders.
+    assert!(line.contains("\"findings\":[{\"rank\":1,\"class\":\"swap_pressure\""));
+    assert!(line.contains("\"verdict\":{\"lines\":["));
+    assert!(line.contains("The host is swapping"));
+    // The gpu exclusion is named, never silently dropped.
+    assert!(line.contains("gpu lane"));
 }
 
 // ── The readiness report ─────────────────────────────────────────

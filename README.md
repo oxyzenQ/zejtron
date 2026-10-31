@@ -234,7 +234,7 @@ zejtron why /etc/passwd -v
 - **The eBPF lane ships unconditionally.** There is no snapshot-only build; the doctor names the lane in every binary.
 - **Event windows** (`port --since`, `holds/touch/why --since`) require the eBPF lane, root, BTF, and kernel >= 5.15. Without them, the surfaces fall back to journalctl or snapshot-only with an honest unaccounted block.
 - **Live file probes** record `write(2)` via `raw_syscalls/sys_enter` and vectorized paths via `vfs_writev`. They do not see mmap'd writes, async kiocb (io_uring/AIO), splice-class copies, O_PATH peeks, or unlink events. The log lane may catch what the kernel lane does not.
-- **`doctor --symptom ram`** reads /proc, permission-gates other users' memory, and drains a 5-second exit ring when attached. The `cpu`, `disk`, `network`, and `gpu` lanes sample a 1.0-second delta; they are snapshots, never monitors. `slow` is the one deferral: it prints an honest line and exits 0.
+- **`doctor --symptom ram`** reads /proc, permission-gates other users' memory, and drains a 5-second exit ring when attached. The `cpu`, `disk`, `network`, and `gpu` lanes sample a 1.0-second delta; they are snapshots, never monitors. **`doctor --symptom slow`** is the umbrella: it composes the cpu, disk, memory, and network lanes over ONE shared 1.0-second window (one sleep, simultaneous evidence), adds the swap rate from /proc/vmstat, and ranks the cross-lane signatures — swap pressure, stuck I/O, iowait, memory pressure, CPU saturation, runnable queue, socket churn — into one severity-ordered answer.
 
 ## Safety Features
 

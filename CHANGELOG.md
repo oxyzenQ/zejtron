@@ -37,6 +37,36 @@ v11.0.0
 
 ### Added
 
+- The umbrella symptom (night-dragon-lts-2): `doctor --symptom slow`
+  - the one question every operator asks first ("why is my machine
+  slow?") - previously the honest deferral, now the composed answer.
+  Not a fifth source of kernel facts: the same tables the dedicated
+  lanes read, read once, slept between once, and cross-examined
+  together. The three delta lanes' arithmetic lifted verbatim out of
+  their readers into from_pair() (cpu's bundled in a CpuPair struct)
+  so the umbrella computes cpu, disk, and network from ONE shared
+  t0/t1 pair - one window, simultaneous evidence, one sleep for the
+  whole report family instead of three sequential answers about
+  three different seconds. The lane adds the one fact an umbrella
+  verdict needs and no per-lane report carries: the swap RATE
+  (/proc/vmstat pswpin/pswpout deltas - a host with a full swap
+  cache from last week and zero movement today is not slow because
+  of swap; the rate is the fact that says "slow now"). The verdict
+  is a severity ladder of named boundaries, ranked in the order the
+  causes cripple a host: swap pressure, stuck I/O (D-state, or load
+  above cores with a quiet CPU), iowait above 20% of ticks, under
+  10% of MemTotal available, CPU saturation at 80%, a runnable
+  queue over the core count, and socket churn (the network lane's
+  own TIME_WAIT boundary plus the CLOSE_WAIT pile at 32). A quiet
+  window answers with the four headline numbers restated - "CPU
+  12.5% busy, iowait 1.0%, swap 0/0 pages, 3.4 GiB available" -
+  never a shrug. The gpu lane rides outside the triage and the
+  Unaccounted block says so; the JSON lane carries the same lanes,
+  findings, and verdict in one typed line (json/slow.rs); --raw
+  re-prints the shared pair's verbatim bytes (stat A/B, loadavg,
+  the meminfo headline, the vmstat swap lines). The drill-down is
+  the funnel: compact lane lines name the headlines, the dedicated
+  --symptom lanes carry the per-process tables.
 - The user FAQ (night-dragon-maintenance-T1): `docs/FAQ.md` answers
   the questions a serious reader asks before trusting the tool on a
   real host - root and privileges (the one-shot attach, the
@@ -1229,6 +1259,11 @@ v11.0.0
 
 ### Changed
 
+- The Quick examples' doctor pair is the umbrella question
+  (night-dragon-lts-2): "why is everything slow?" pairs with
+  `zejtron doctor --symptom slow` - the first question a new user
+  asks, now the first answer the help surface teaches. The doctor
+  verb's own example row keeps `--symptom ram`.
 - The estate-wide build-label contract lands
   (night-dragon-maintenance-T1, the zelynic T1 lineage): `-V`'s
   `Build:` line now carries the canonical label instead of the bare
