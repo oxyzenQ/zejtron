@@ -1089,6 +1089,22 @@ v11.0.0
   round-trip- and edge-pinned in the clock tests. recent's JSON
   `modified` field keeps its documented epoch-saturating u64
   clamp: that one is a written contract, not a lost sign.
+- The night-dragon-lts-T1 CLI consistency pass on proc: two edges
+  where the verb disagreed with its own family. A bare `zejtron
+  proc` exited 1 with a hand-rolled "expected USER_OR_UID or --me"
+  while every other required-operand verb (path, holds, touch, why)
+  rides clap's usage error - exit 2, the standard usage render, the
+  one-tip bridge. The requirement is now a parse-time ArgGroup
+  (USER_OR_UID or --me, exactly one): the usage line reads
+  `zejtron proc [OPTIONS] <USER_OR_UID|--me>`, a flag-only
+  invocation (proc --find sh) is refused the same way, and the
+  runtime resolve_target guard stays as the non-CLI backstop.
+  And `--depth 0` parsed as a valid usize and rendered
+  "0 roots · 0 processes" - an honest-looking lie that tells the
+  user they own nothing; the range parser now bounds depth to 1..
+  (exit 2, named), the pro-mode estate carries the same floor in
+  its flag help, and the internal limit_depth keeps its own
+  contract for direct callers.
 - The night-dragon-lts-2 audit: the net surface's flags lane was
   dormant from birth. /sys/class/net/<if>/flags is written by the
   kernel in hex with the 0x prefix ("0x9" on loopback) and
