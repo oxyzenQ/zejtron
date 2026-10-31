@@ -64,12 +64,20 @@ Private_Dirty:     20480 kB
 
 #[test]
 fn tmpfs_mount_parser_keeps_only_tmpfs_and_decodes_escapes() {
+    // The \012 line (night-dragon-lts-1): the kernel's mangle()
+    // escapes newline in mount points as the literal four bytes
+    // \012; the decoder previously missed that arm, so the mount
+    // point kept the escape verbatim and the walk never found the
+    // directory.
     let contents = "\
 proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
 tmpfs /dev/shm tmpfs rw,nosuid,nodev,inode64 0 0
 devpts /dev/pts devpts rw,nosuid,noexec,relatime 0 0
 tmpfs /run tmpfs rw,nosuid,nodev,noexec,relatime,mode=755,inode64 0 0
 tmpfs /tmp/with\\040space tmpfs rw 0 0
+tmpfs /tmp/tab\\011sep tmpfs rw 0 0
+tmpfs /tmp/nl\\012sep tmpfs rw 0 0
+tmpfs /tmp/back\\134slash tmpfs rw 0 0
 tmpfs /run/user/1000 tmpfs rw,nosuid,nodev,relatime,size=163840k,mode=700,uid=1000 0 0
 ";
     let mounts = parse_tmpfs_mounts(contents);
@@ -79,6 +87,9 @@ tmpfs /run/user/1000 tmpfs rw,nosuid,nodev,relatime,size=163840k,mode=700,uid=10
             "/dev/shm".to_owned(),
             "/run".to_owned(),
             "/run/user/1000".to_owned(),
+            "/tmp/back\\slash".to_owned(),
+            "/tmp/nl\nsep".to_owned(),
+            "/tmp/tab\tsep".to_owned(),
             "/tmp/with space".to_owned(),
         ]
     );
