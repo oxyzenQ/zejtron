@@ -1031,6 +1031,78 @@ v11.0.0
 
 ### Fixed
 
+- The night-dragon-lts-1 audit: eleven defects across the stability,
+  correctness, and performance surfaces, each verified against the
+  live host or the kernel's own documented formats before landing.
+  The crash class first: the `--since` parsers (port's window
+  grammar, recent's file-age grammar, shared by why/holds/touch
+  through lane::resolve_window) split their input at len() - 1
+  BYTES, so any multibyte final character (`--since 5分`, a bare
+  `é`) panicked on the char boundary instead of rendering the
+  usage error; the unit is now peeled off through chars() and every
+  multibyte-final input is a clean rejection, pinned. The calendar
+  class: civil_from_days was missing Hinnant's final - doe/146096
+  term, so Feb 29 of every 400-divisible year (2000-02-29, all
+  86,400 seconds of it; 1600, 2400, ...) rendered as Mar 01 - the
+  2024 pin never reached doe 146096 and could not catch it; the
+  full four-term expression is restored with boundary pins on both
+  sides of the day, cross-checked against date -u. The kernel-format
+  class: parse_slabinfo read /proc/slabinfo's column 4 (objperslab,
+  the packing count) as objsize, so every slab footprint computed as
+  num_objs * objperslab - up to two orders of magnitude off in
+  either direction - and the unit fixture's phantom <objperpad>
+  column with identical values at 3 and 4 could not discriminate;
+  the real mm/slab_common.c layout is pinned with differing values.
+  The identity class: the touch and why ledgers resolved a file's
+  GROUP through the uid-to-username passwd map, so any gid
+  numerically colliding with a differently-named uid rendered that
+  user's name as the group (the Arch-layout gid 100 "users" vs uid
+  100 first-login); system::group_users mirrors the passwd lane
+  field for field and both ledgers resolve the Owner row's group
+  through it. The clock-domain class: the window arithmetic compared
+  bpf_ktime_get_ns stamps (CLOCK_MONOTONIC) against a "now" read
+  from /proc/uptime (CLOCK_BOOTTIME, suspend-inclusive), so a host
+  with cumulative suspend time S dropped the last S nanoseconds of
+  every event window - and the adjacent comment claimed the opposite
+  error direction; the read now goes through clock_gettime on
+  CLOCK_MONOTONIC itself (the crate's second libc raw call, the
+  dependency policy's own escape hatch; nanosecond resolution
+  instead of /proc/uptime's 10 ms), and the wall-offset companion
+  rides the same fix. The attribution classes: kernel threads and
+  zombies read smaps_rollup back empty (no mm) and were counted as
+  "exited or emptied mid-scan" - a false race claim on every host
+  with visible kthreads - and now carry their own counter and honest
+  note (the vanished note narrows to the truncation race it names);
+  the RAM residual subtracted the reclaimable buckets from
+  total - MemAvailable, a base that already excludes them, so the
+  residual saturated to a permanent 0 B on every cache-rich host and
+  the 15% verdict threshold could never fire (proven on a live
+  reading: 540 MiB unavailable vs 2.8 GiB of buckets) - the honest
+  decomposition is the unavailable set minus the process-owned
+  Pss_Anon and Pss_Shmem, with Pss_File deliberately kept out (the
+  kernel mostly counts mapped file pages as available); the tmpfs
+  mount decoder missed the kernel's \012 newline escape so a
+  newline mount point's files silently dropped out of the report,
+  and the unreadable-dirs note hardcoded "(permission)" for a
+  counter that also tallies unmount races; the port owner scanner
+  counted NotFound (a pid that exited between the /proc listing and
+  the fd read) into the counters that drive the "try sudo" note,
+  advice that is false for a gone process - the holds scanner's
+  Gone classification is now the port scanner's too; and the owner
+  cmdline read hardcoded /proc, bypassing the proc_root seam every
+  other read in the scan rides. The performance class, all in the
+  hot /proc walks: the fd walk re-read /proc/<pid>/comm per
+  deleted or memfd fd (hundreds for a Chromium-style process) and
+  now reads it once per pid through a lazy FdShapes cache;
+  parse_smaps_rollup scanned the rollup five times (once per field)
+  with a fresh prefix String per line per pass and now parses all
+  five fields in one allocation-free pass with byte-identical
+  semantics; and group_sockets linearly scanned every existing
+  group per socket (O(N*G) String comparisons, ~N^2/2 on a
+  connection-heavy --all host) and now resolves each socket's group
+  through a HashMap index that preserves first-seen order
+  byte-identically.
+
 - The non-finite float class in the JSON lane
   (night-dragon-maintenance-T1, found by the differential
   round-trip hunt): `write_pct` formatted any f64 with `{:.1}`, and

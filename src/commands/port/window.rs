@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// NON_LATIN_FIXTURE: the parser comments quote the literal
+// multibyte crash inputs (`5分`) the char-boundary fix names.
 //
 //! The port surface's event window (night-improve-2): the second
 //! truth. The snapshot (the /proc parse, unchanged) says what IS;

@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// NON_LATIN_FIXTURE: the multibyte rejection pins deliberately
+// exercise CJK units - the exact inputs the pre-fix parser
+// panicked on.
 
 //! recent unit pins. Lives under the single test/ tree
 //! (night-improve-18, the discipline contract: every test
