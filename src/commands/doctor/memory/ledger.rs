@@ -228,9 +228,15 @@ fn render_tmpfs(sample: &MemorySample, lines: &mut Vec<String>) {
 
 /// The unreadable-directories note, rendered grey (a hint, the
 /// locked scheme's secondary content). One builder, two call sites.
+/// night-dragon-lts-1: the note previously hardcoded "(permission)"
+/// as the reason, but the counter tallies every read_dir refusal -
+/// a tmpfs unmounted between the /proc/mounts read and the walk
+/// (ENOENT) is counted too, and permission advice is false for it.
+/// The honest word is the neutral one: the directory could not be
+/// read, for whichever reason the walk met.
 fn grey_unreadable_dirs(count: usize) -> String {
     crate::output::grey_out(&format!(
-        "  {count} tmpfs directories were unreadable (permission) and are not represented"
+        "  {count} tmpfs directories could not be read (unmounted mid-scan or permission) and are not represented"
     ))
 }
 

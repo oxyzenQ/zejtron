@@ -281,12 +281,19 @@ pub(crate) fn parse_tmpfs_mounts(contents: &str) -> Vec<String> {
     for line in contents.lines() {
         let fields: Vec<&str> = line.split_whitespace().collect();
         if fields.len() >= 3 && fields[2] == "tmpfs" {
-            // The kernel escapes spaces/tabs as \040/\011 in
-            // /proc/mounts; the decode keeps mount points comparable
-            // with fd link targets.
+            // The kernel's mangle() escapes the four bytes a
+            // mount point cannot carry verbatim in the whitespace-
+            // separated /proc/mounts grammar: space, tab, newline,
+            // and backslash as \040/\011/\012/\134. The decode
+            // keeps mount points comparable with fd link targets;
+            // night-dragon-lts-1 adds the missing \012 arm - a tmpfs
+            // mounted at a path containing a newline kept the escape
+            // verbatim, the follow-up read_dir missed, and the
+            // mount's files silently dropped out of the report.
             let point = fields[1]
                 .replace("\\040", " ")
                 .replace("\\011", "\t")
+                .replace("\\012", "\n")
                 .replace("\\134", "\\");
             mounts.push(point);
         }
