@@ -61,7 +61,17 @@ pub(crate) fn format_unix_secs(total_secs: i64) -> String {
     let z = days_since_epoch + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z - era * 146_097; // [0, 146096]
-    let yoe = (doe - doe / 1_460 + doe / 36_524) / 365; // [0, 399]
+    // Hinnant's full four-term year-of-era:
+    // (doe - doe/1460 + doe/36524 - doe/146096) / 365. The final
+    // term (night-dragon-lts-1) was missing: doe/146096 is 1 only on
+    // day 146096 of an era - Feb 29 of a 400-divisible year (2000,
+    // 2400, ...) - and without it that day computed yoe = 400,
+    // breaking the [0, 399] invariant and rolling the date forward
+    // to Mar 01. Every unix second in [951782400, 951868799] (all
+    // of 2000-02-29) rendered one day late; non-400 leap years
+    // (2024-02-29, the old test pin) never reach doe = 146096, which
+    // is why the suite stayed green.
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
     let y = yoe + era * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
     let mp = (5 * doy + 2) / 153; // [0, 11]
