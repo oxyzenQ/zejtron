@@ -122,6 +122,16 @@ attributed name in hand: a stale holder is a restart candidate; a
 growing memfd family is a leak in the holder. `--raw` appends the
 plain /proc reads the analysis came from, for the drill-down.
 
+**The same hunt on the GPU.** `doctor --symptom gpu` answers the
+VRAM question the same way: a **Per-process GPU memory** ranking
+read from the drm fdinfo the kernel exports per open device fd
+(`drm-memory-vram`, `drm-memory-gtt`), largest consumer first. The
+verdict ladder never mistakes a device-node holder for a consumer
+- systemd holds the card on every desktop for seat management and
+renders as a holder count, not as "the GPU is held by systemd";
+when the driver exports no per-process numbers, the report says
+exactly that instead of dressing a zero up as measured.
+
 ## Scenario 2: How to catch a process modifying a config file
 
 **The situation.** A config file - `/etc/hosts`, a unit file, a cron
@@ -220,6 +230,7 @@ zejtron doctor --attach             # root, one-shot: arm the kernel probes
 zejtron doctor --detach             # unpin everything, idempotent
 zejtron doctor --symptom slow       # why is everything slow: one window, ranked findings
 zejtron doctor --symptom ram        # the memory ghosts, holders named
+zejtron doctor --symptom gpu        # who really consumes the VRAM, ranked
 zejtron why /etc/hosts --since 60s  # who changed this, with the evidence tier stated
 zejtron holds /path/or/443          # who holds this file or port open
 zejtron touch /path                 # when did this path last change (modifies nothing)
