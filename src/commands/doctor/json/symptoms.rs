@@ -152,6 +152,15 @@ pub(in crate::commands::doctor) fn json_ram(sample: &MemorySample) -> String {
         write_opt_u64(out, f.size_bytes);
         out.push('}');
     });
+    // The deleted view's unique-file total (night-dragon-lts-4):
+    // each distinct file (dev, ino) counted once - the per-row sum
+    // inflated a shared deleted file or memfd once per holder.
+    out.push_str(",\"deleted_open_unique_bytes\":");
+    let _ = write!(
+        out,
+        "{}",
+        super::super::memory::fds::deleted_unique(&sample.deleted).1
+    );
     // The kernel-level buckets and the slab census.
     match &sample.meminfo {
         Some(mem) => {

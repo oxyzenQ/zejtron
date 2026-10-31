@@ -319,25 +319,3 @@ fn holders_label_collapses_long_lists() {
     let label = holders_label(&held);
     assert!(label.contains("and 2 more"), "{label}");
 }
-
-#[test]
-fn memfd_targets_are_classified_before_the_deleted_suffix_eats_them() {
-    // The kernel's own render (proven live on 5.10 and 6.12 hosts):
-    // a memfd's fd target is "/memfd:<name> (deleted)" - leading
-    // slash and deleted suffix are both unconditional. The pre-fix
-    // walk tested "memfd:" (never matches: the slash) AFTER the
-    // deleted suffix (always matches first), so the memfd section
-    // rendered "(none observed)" on every host while the deleted
-    // lane absorbed every memfd.
-    assert!(is_memfd_target("/memfd:pulseaudio (deleted)"));
-    assert!(is_memfd_target("/memfd:webkit"));
-    // The bare form (some tooling strips the slash) classifies too.
-    assert!(is_memfd_target("memfd:bare"));
-    // A deleted file whose path merely contains "memfd" is not one:
-    // only one leading slash is stripped, so directory components
-    // keep the prefix test honest.
-    assert!(!is_memfd_target("/tmp/memfd:fake (deleted)"));
-    assert!(!is_memfd_target("/var/log/gone.log (deleted)"));
-    assert!(!is_memfd_target("/dev/dri/card0"));
-    assert!(!is_memfd_target("socket:[12345]"));
-}

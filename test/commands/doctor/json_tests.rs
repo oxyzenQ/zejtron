@@ -253,7 +253,7 @@ fn the_ram_json_pins_its_shape() {
 \"processes_total\":1,\"pss_permission_refused\":2,\"pss_vanished\":1,\"pss_kernel_threads\":5,\
 \"tmpfs\":{\"mounts\":[\"/dev/shm\"],\"files\":[{\"path\":\"/dev/shm/x\",\
 \"size_bytes\":2048,\"holders\":[42]}],\"unreadable_dirs\":0},\
-\"deleted_open\":[],\"memfds\":[],\
+\"deleted_open\":[],\"memfds\":[],\"deleted_open_unique_bytes\":0,\
 \"kernel_buckets\":{\"page_cache_bytes\":122880,\"buffers_bytes\":16384,\
 \"shmem_bytes\":8192},\
 \"slab\":{\"readable\":true,\"caches\":[{\"cache\":\"kmalloc-1k\",\"size_bytes\":65536}]},\

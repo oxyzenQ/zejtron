@@ -9,6 +9,7 @@
 //! JSON lane carries them in verdict.lines.
 
 use super::MemorySample;
+use super::fds::deleted_unique;
 use super::ledger::{fmt_bytes, kib_to_bytes};
 use super::residual_kib;
 
@@ -68,11 +69,11 @@ pub(crate) fn verdict_parts(sample: &MemorySample) -> (Vec<String>, bool) {
 
     // Deleted-but-open total above the threshold: never "safe to
     // remove" - the holder process is the only way those pages free.
-    let deleted_total: u64 = sample
-        .deleted
-        .iter()
-        .map(|f| f.size_bytes.unwrap_or(0))
-        .sum();
+    // night-dragon-lts-4: the total counts each FILE once (dev, ino)
+    // through the fd walk's identity accounting - the pre-fix sum
+    // counted one row per holder, so a shared deleted file or memfd
+    // riding N processes inflated the number the verdict leans on.
+    let (_deleted_unique_files, deleted_total) = deleted_unique(&sample.deleted);
     if deleted_total >= ANOMALY_BYTES {
         lines.push(format!(
             "{} is held by deleted files still open in live processes. These cannot \

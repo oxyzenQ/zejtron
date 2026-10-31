@@ -52,14 +52,21 @@
 //! double-counted sums would be a lie with a number on it.
 
 use std::cmp::Reverse;
-use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub(crate) mod exits;
+pub(crate) mod fds;
 pub(crate) mod ledger;
 pub(crate) mod tmpfs;
 pub(crate) mod verdict;
+
+// The fd walk's surface re-exported from its split module
+// (night-dragon-lts-4, the LOC-cap split riding the tmpfs
+// precedent): a pure move - every consumer's `use super::...` path
+// (ledger, symptoms, the test tree's glob import) resolves exactly
+// as it did before.
+pub(crate) use fds::{DeletedOpenFile, MemfdFile};
 
 // The tmpfs lane's surface re-exported from its split module
 // (night-dragon-lts-1, the LOC-cap split): a pure move - every
@@ -106,23 +113,8 @@ pub(crate) struct ProcessPss {
     pub rss_kib: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct DeletedOpenFile {
-    pub pid: u32,
-    pub name: String,
-    pub path: String,
-    /// None when the magic-link stat was refused (permission) - the
-    /// row still renders; the size renders as unknown.
-    pub size_bytes: Option<u64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct MemfdFile {
-    pub pid: u32,
-    pub name: String,
-    pub target: String,
-    pub size_bytes: Option<u64>,
-}
+// The deleted-but-open and memfd row shapes live in the fd walk's
+// split module (fds.rs) and ride the re-export above.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SlabRow {
@@ -192,7 +184,9 @@ pub(crate) fn pid_dirs(proc_root: &Path) -> Vec<u32> {
 /// field renders. night-dragon-1: /proc/<pid>/comm replaces the
 /// per-pid full status read + line scan; unreadable or vanished
 /// processes degrade to the same "unknown". pub(crate) since the
-/// tmpfs split (the lane's holders label names the pids too).
+/// tmpfs split (the lane's holders label names the pids too), and
+/// since night-dragon-lts-4 the fd walk's split module speaks it
+/// too (fds.rs).
 pub(crate) fn comm_of(pid: u32) -> String {
     fs::read_to_string(format!("/proc/{pid}/comm"))
         .ok()
@@ -327,162 +321,6 @@ fn collect_pss(pids: &[u32], sample: &mut MemorySample) {
     }
 }
 
-/// The fd walk's rare-shape accumulator (night-dragon-lts-1): the
-/// deleted and memfd lists ride one borrow bundle with the per-pid
-/// comm cache, so the walk pays one /proc/<pid>/comm read per pid
-/// that needs a name - not one per qualifying fd - and
-/// attribute_fd_target stays under the argument-count law.
-struct FdShapes<'a> {
-    deleted: &'a mut Vec<DeletedOpenFile>,
-    memfds: &'a mut Vec<MemfdFile>,
-    comm: Option<String>,
-}
-
-impl FdShapes<'_> {
-    /// The pid's comm, read at most once per pid for the whole walk.
-    fn comm(&mut self, pid: u32) -> String {
-        self.comm.get_or_insert_with(|| comm_of(pid)).clone()
-    }
-}
-
-/// The memfd classifier (night-dragon-lts-4): the kernel renders a
-/// memfd's fd target as "/memfd:<name> (deleted)" - leading slash and
-/// deleted suffix are both unconditional (proven live on 5.10 and
-/// 6.12 hosts) - so the test strips one leading slash before the
-/// "memfd:" prefix match. It must run BEFORE the deleted-suffix test:
-/// every memfd in the wild carries the suffix too, and the pre-fix
-/// walk filed them all as deleted files while the memfd section
-/// rendered "(none observed)" on every host.
-pub(crate) fn is_memfd_target(target: &str) -> bool {
-    let rest = target.strip_prefix('/').unwrap_or(target);
-    rest.starts_with("memfd:")
-}
-
-/// Attribute one fd link target: deleted files, memfd files, and
-/// tmpfs holders. The magic link's stat follows to the underlying
-/// file even when the directory entry is gone - the only size source
-/// for a deleted-but-open file. night-dragon-1: the stat used to run
-/// for EVERY fd target although only the deleted and memfd branches
-/// read it; it now runs inside those branches, and the tmpfs holder
-/// lookup is the caller's path index, same push rule, same rows.
-fn attribute_fd_target(
-    pid: u32,
-    target: &str,
-    fd_path: &Path,
-    shapes: &mut FdShapes<'_>,
-    tmpfs_index: &HashMap<String, Vec<usize>>,
-    tmpfs_files: &mut [TmpfsFile],
-) {
-    // Memfd first: its target carries the deleted suffix too
-    // (night-dragon-lts-4), and the deleted branch below would eat
-    // every memfd before the memfd test could fire.
-    if is_memfd_target(target) {
-        let size = fs::metadata(fd_path).ok().map(|m| m.len());
-        let name = shapes.comm(pid);
-        shapes.memfds.push(MemfdFile {
-            pid,
-            name,
-            target: target.to_owned(),
-            size_bytes: size,
-        });
-        return;
-    }
-    if target.ends_with(" (deleted)") {
-        let size = fs::metadata(fd_path).ok().map(|m| m.len());
-        // The comm rides the pid, not the fd: this branch fires per
-        // deleted fd, and a Chromium-style process holds hundreds -
-        // the bundle's cache reads /proc/<pid>/comm once.
-        let name = shapes.comm(pid);
-        shapes.deleted.push(DeletedOpenFile {
-            pid,
-            name,
-            path: target.to_owned(),
-            size_bytes: size,
-        });
-        return;
-    }
-    // The index maps each path to every list position carrying it
-    // (duplicates are real: overlapping tmpfs mounts), so the lookup
-    // reproduces the old find's first-missing-holder rule.
-    if let Some(indices) = tmpfs_index.get(target) {
-        for &index in indices {
-            let file = &mut tmpfs_files[index];
-            if !file.holders.contains(&pid) {
-                file.holders.push(pid);
-                break;
-            }
-        }
-    }
-}
-
-fn collect_fds(pids: &[u32], sample: &mut MemorySample) {
-    let mut deleted = Vec::new();
-    let mut memfds = Vec::new();
-    // night-dragon-1: the tmpfs file list indexed once per scan; the
-    // old form re-scanned it linearly per matching fd (and allocated
-    // a mount-prefix string per fd per mount). Owned keys, so the
-    // index does not borrow its slice.
-    let mut tmpfs_index: HashMap<String, Vec<usize>> = HashMap::new();
-    for (index, file) in sample.tmpfs_files.iter().enumerate() {
-        tmpfs_index
-            .entry(file.path.clone())
-            .or_default()
-            .push(index);
-    }
-    for pid in pids {
-        let fd_dir = PathBuf::from(format!("/proc/{pid}/fd"));
-        let entries = match fs::read_dir(&fd_dir) {
-            Ok(entries) => entries,
-            Err(e) => {
-                if e.kind() == std::io::ErrorKind::PermissionDenied {
-                    sample.fd_permission_refused += 1;
-                }
-                continue;
-            }
-        };
-        // The per-pid accumulator bundle (night-dragon-lts-1): the
-        // comm read stays lazy - exactly one /proc/<pid>/comm open
-        // per pid that needs it, instead of one per qualifying fd.
-        let mut shapes = FdShapes {
-            deleted: &mut deleted,
-            memfds: &mut memfds,
-            comm: None,
-        };
-        for entry in entries.flatten() {
-            let Ok(target) = fs::read_link(entry.path()) else {
-                continue;
-            };
-            let target = target.to_string_lossy().to_string();
-            attribute_fd_target(
-                *pid,
-                &target,
-                &entry.path(),
-                &mut shapes,
-                &tmpfs_index,
-                &mut sample.tmpfs_files,
-            );
-        }
-    }
-    deleted.sort_by(|left, right| {
-        right
-            .size_bytes
-            .unwrap_or(0)
-            .cmp(&left.size_bytes.unwrap_or(0))
-            .then(left.pid.cmp(&right.pid))
-            .then(left.path.cmp(&right.path))
-    });
-    memfds.sort_by(|left, right| {
-        right
-            .size_bytes
-            .unwrap_or(0)
-            .cmp(&left.size_bytes.unwrap_or(0))
-            .then(left.pid.cmp(&right.pid))
-            .then(left.target.cmp(&right.target))
-    });
-    sample.deleted = deleted;
-    sample.memfds = memfds;
-}
-
 /// One /proc/slabinfo row: name, num_objs, objsize are columns 0, 2,
 /// and 3 of the data lines (after the two header lines). The real
 /// kernel header (mm/slab_common.c) is
@@ -544,7 +382,7 @@ pub(crate) fn collect() -> MemorySample {
     let pids = pid_dirs(Path::new("/proc"));
     collect_pss(&pids, &mut sample);
     collect_tmpfs(&mut sample);
-    collect_fds(&pids, &mut sample);
+    fds::collect_fds(&pids, &mut sample);
     collect_slab(&mut sample);
     sample.exit_lane = exits::collect_window(exits::EXIT_WINDOW_SECS);
     sample
