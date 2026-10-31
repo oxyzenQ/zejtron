@@ -53,6 +53,10 @@ pub fn build_path_report(
     let device = device_token_from_stat(metadata.dev());
 
     let users = touch::parse_passwd().unwrap_or_default();
+    // The group map beside the user map (night-dragon-lts-1): a
+    // gid resolves through /etc/group, never through the uid
+    // namespace - see system::group_users.
+    let groups = touch::parse_group().unwrap_or_default();
     let lookup = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     let query = LaneQuery {
         display_path: path,
@@ -79,7 +83,7 @@ pub fn build_path_report(
     let mut meta_rows = 0;
     if let Some(info) = &touch_info {
         let before = measured.len();
-        push_metadata_rows(&mut measured, info, scan_instant, &users);
+        push_metadata_rows(&mut measured, info, scan_instant, &users, &groups);
         meta_rows = measured.len() - before;
     }
 
@@ -279,6 +283,7 @@ fn push_metadata_rows(
     info: &TouchInfo,
     scan_instant: i64,
     users: &std::collections::HashMap<u32, String>,
+    groups: &std::collections::HashMap<u32, String>,
 ) {
     let Some(meta) = &info.meta else {
         rows.push(EvidenceRow::new(
@@ -293,10 +298,12 @@ fn push_metadata_rows(
         .get(&meta.uid)
         .cloned()
         .unwrap_or_else(|| meta.uid.to_string());
-    let gname = users
-        .get(&meta.gid)
-        .cloned()
-        .unwrap_or_else(|| meta.gid.to_string());
+    // The gid resolves through the GROUP map (night-dragon-lts-1):
+    // the pre-fix lookup ran it through the uid map, so a gid
+    // numerically colliding with a differently-named uid rendered
+    // that user's name as the group (Arch-style hosts: gid 100 is
+    // "users", uid 100 is the first login).
+    let gname = crate::system::gid_to_group(meta.gid, groups);
     rows.push(EvidenceRow::new(
         Some(scan_instant),
         EvidenceKind::Type {

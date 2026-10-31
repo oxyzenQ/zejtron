@@ -41,12 +41,23 @@ fn meta_info() -> TouchInfo {
 fn users() -> HashMap<u32, String> {
     let mut users = HashMap::new();
     users.insert(0u32, "root".to_owned());
+    users.insert(100u32, "firstuser".to_owned());
     users
+}
+
+/// The group fixture (night-dragon-lts-1): gid 100 is "users", NOT
+/// uid 100's "firstuser" - the two namespaces must not bleed into
+/// each other in either direction.
+fn groups() -> HashMap<u32, String> {
+    let mut groups = HashMap::new();
+    groups.insert(0u32, "root".to_owned());
+    groups.insert(100u32, "users".to_owned());
+    groups
 }
 
 #[test]
 fn the_metadata_block_becomes_rows_fact_for_fact() {
-    let rows = metadata_rows(&meta_info(), 1_767_230_000, &users());
+    let rows = metadata_rows(&meta_info(), 1_767_230_000, &users(), &groups());
     let rendered: Vec<String> = rows.iter().map(|r| r.render_line(false)).collect();
     assert_eq!(
         rendered,
@@ -65,11 +76,50 @@ fn the_metadata_block_becomes_rows_fact_for_fact() {
 
 #[test]
 fn time_bearing_facts_carry_their_own_time_not_the_scan_instant() {
-    let rows = metadata_rows(&meta_info(), 1_767_230_000, &users());
+    let rows = metadata_rows(&meta_info(), 1_767_230_000, &users(), &groups());
     // The mtime row is stamped with the mtime; the type row with the
     // scan instant - the honest split, pinned.
     assert_eq!(rows[5].unix_secs, Some(1_767_225_600));
     assert_eq!(rows[0].unix_secs, Some(1_767_230_000));
+}
+
+#[test]
+fn a_gid_colliding_with_a_differently_named_uid_renders_the_group_name() {
+    // night-dragon-lts-1: the pre-fix owner resolution looked the
+    // gid up in the UID map, so a file owned by firstuser:users
+    // (uid 100, gid 100 - the classic Arch layout) rendered its
+    // group as "firstuser". The gid must resolve through the group
+    // map: the collision here is deliberate and discriminating.
+    let mut info = meta_info();
+    let Some(meta) = info.meta.as_mut() else {
+        unreachable!()
+    };
+    meta.uid = 100;
+    meta.gid = 100;
+    let rows = metadata_rows(&info, 1_767_230_000, &users(), &groups());
+    let rendered: Vec<String> = rows.iter().map(|r| r.render_line(false)).collect();
+    assert!(
+        rendered
+            .iter()
+            .any(|line| line.contains("owner firstuser:users (uid 100, gid 100)")),
+        "owner row must name the group from /etc/group, not the colliding user: {rendered:?}"
+    );
+    // And a gid with no group entry degrades to the numeric string,
+    // the same honest fallback uid_to_user carries.
+    let mut orphan = meta_info();
+    let Some(meta) = orphan.meta.as_mut() else {
+        unreachable!()
+    };
+    meta.uid = 100;
+    meta.gid = 4242;
+    let rows = metadata_rows(&orphan, 1_767_230_000, &users(), &groups());
+    let rendered: Vec<String> = rows.iter().map(|r| r.render_line(false)).collect();
+    assert!(
+        rendered
+            .iter()
+            .any(|line| line.contains("owner firstuser:4242 (uid 100, gid 4242)")),
+        "an unknown gid degrades to its number: {rendered:?}"
+    );
 }
 
 #[test]
@@ -81,7 +131,7 @@ fn a_symlink_carries_its_target_row() {
     meta.file_type = "symlink".to_owned();
     meta.is_symlink = true;
     meta.symlink_target = Some("/etc/real-target".to_owned());
-    let rows = metadata_rows(&info, 1_767_230_000, &users());
+    let rows = metadata_rows(&info, 1_767_230_000, &users(), &groups());
     assert!(rows.iter().any(|r| r.kind
         == crate::evidence::row::EvidenceKind::SymlinkTarget {
             target: "/etc/real-target".to_owned()
@@ -93,7 +143,7 @@ fn a_missing_meta_block_degrades_to_the_modified_row_only() {
     let mut info = meta_info();
     info.meta = None;
     info.modified = UNIX_EPOCH + Duration::from_secs(1_767_225_600);
-    let rows = metadata_rows(&info, 1_767_230_000, &users());
+    let rows = metadata_rows(&info, 1_767_230_000, &users(), &groups());
     assert_eq!(rows.len(), 1);
     assert_eq!(
         rows[0].kind,

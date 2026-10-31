@@ -192,6 +192,13 @@ pub(crate) fn parse_passwd() -> io::Result<HashMap<u32, String>> {
     crate::system::passwd_users()
 }
 
+/// The group map seam (night-dragon-lts-1): /etc/group read once,
+/// mirroring parse_passwd - a gid resolves through the GROUP
+/// namespace, never through the uid one.
+pub(crate) fn parse_group() -> io::Result<HashMap<u32, String>> {
+    crate::system::group_users()
+}
+
 pub(crate) fn uid_to_user(uid: u32, users: &HashMap<u32, String>) -> String {
     crate::system::uid_to_user(uid, users)
 }
