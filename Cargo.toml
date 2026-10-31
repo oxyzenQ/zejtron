@@ -148,7 +148,11 @@ aya = { version = "0.14" }
 # API; this is the escape hatch the policy note above aya reserved
 # ("a later pass that needs a raw syscall adds it feature-gated, one
 # line") arriving at its first raw syscall. Unix-gated (the crate is
-# Linux-only anyway), one call site: the SIG_DFL reset at main's top.
+# Linux-only anyway). Two call sites now: the SIG_DFL reset at main's
+# top, and clock_gettime(CLOCK_MONOTONIC) in src/info/clock.rs
+# (night-dragon-lts-1 - std exposes no CLOCK_MONOTONIC source:
+# std::time::Instant is opaque and /proc/uptime is CLOCK_BOOTTIME,
+# a different domain from the bpf_ktime_get_ns event stamps).
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 

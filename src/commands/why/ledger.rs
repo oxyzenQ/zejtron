@@ -433,7 +433,7 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
             lines.push(format!(
                 "  {observed} {} event rows: vfs_open kprobe + the write probe (raw_syscalls/sys_enter) -> \
                  tracked_inodes filter -> file_events ring; CLOCK_MONOTONIC stamps \
-                 rendered via /proc/uptime + wall offset",
+                 rendered via clock_gettime + wall offset",
                 observed_tag
             ));
         }
