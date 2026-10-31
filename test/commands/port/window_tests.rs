@@ -128,6 +128,67 @@ fn window_labels_are_compact_and_stable() {
 }
 
 #[test]
+fn the_truncation_note_names_the_ask_byte_for_byte() {
+    // night-dragon-lts-T1 residual: the note is the contract - the
+    // raw ask named verbatim, the ceiling named, one line. The
+    // absurd token is the audit's own (u64::MAX/1000 hours: the
+    // largest ask whose seconds still saturate cleanly).
+    let absurd = "18446744073709551h";
+    assert_eq!(
+        truncation_note(absurd, parse_window(absurd).unwrap()).as_deref(),
+        Some("warning: --since 18446744073709551h exceeds the 1h maximum — clamped to 1h"),
+    );
+    assert_eq!(
+        truncation_note("2h", parse_window("2h").unwrap()).as_deref(),
+        Some("warning: --since 2h exceeds the 1h maximum — clamped to 1h"),
+    );
+    // 7200s is the same ask in seconds: above the ceiling, same note
+    // shape, the ask still named as typed.
+    assert_eq!(
+        truncation_note("7200s", parse_window("7200s").unwrap()).as_deref(),
+        Some("warning: --since 7200s exceeds the 1h maximum — clamped to 1h"),
+    );
+}
+
+#[test]
+fn the_truncation_note_is_silent_within_and_below_the_range() {
+    // In-bounds asks never warn - the ceiling itself included (the
+    // boundary is legal, not a truncation).
+    for (raw, parsed) in [
+        ("1s", parse_window("1s").unwrap()),
+        ("30s", parse_window("30s").unwrap()),
+        ("2700s", parse_window("2700s").unwrap()),
+        ("1h", parse_window("1h").unwrap()),
+        // The below-floor direction stays word-free: 0s clamps up
+        // to 1s, and the residual named the ceiling side only.
+        ("0s", parse_window("0s").unwrap()),
+    ] {
+        assert!(
+            truncation_note(raw, parsed).is_none(),
+            "{raw} must not warn",
+        );
+    }
+}
+
+#[test]
+fn the_truncation_note_never_changes_the_clamped_window() {
+    // The note is a word, not a behavior change: the clamped window
+    // is byte-identical with and without the note path - a clamped
+    // ask and the explicit ceiling feed the renderer the same
+    // Duration, so the reports cannot differ.
+    for raw in ["999999h", "2h", "18446744073709551h"] {
+        let parsed = parse_window(raw).unwrap();
+        assert!(truncation_note(raw, parsed).is_some(), "{raw} warns");
+        assert_eq!(clamp_window(parsed), WINDOW_CEILING, "{raw} clamps to 1h");
+    }
+    assert_eq!(
+        clamp_window(parse_window("1h").unwrap()),
+        WINDOW_CEILING,
+        "the explicit ceiling is the same window",
+    );
+}
+
+#[test]
 fn the_refusal_line_names_the_doctor() {
     // One shape for every not-live reason; the doctor carries the
     // exact verdict.

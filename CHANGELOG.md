@@ -1062,6 +1062,20 @@ v11.0.0
 
 ### Fixed
 
+- The silent `--since` clamp now speaks (night-dragon-lts-T1
+  residual): `--since 18446744073709551h` quietly became a 1h window
+  with no word, and a user waiting an hour for "no events in window"
+  had no way to know their input was truncated. Every window surface
+  that accepts the flag (port, why, holds, touch - recent is the
+  file-age grammar and clamps nothing, so there is nothing to name
+  there) now emits exactly one stderr line when the parsed ask
+  exceeds the ceiling - `warning: --since 999999h exceeds the 1h
+  maximum — clamped to 1h`, the ask named as typed. The line rides
+  stderr only (the report's stdout stays byte-clean for pipes; the
+  battery pins the silence in both directions), once per invocation,
+  never when the ask is within bounds, below the floor, or absent.
+  The clamp contract itself is untouched: [1s, 1h] in, same
+  clamped window out.
 - The night-improve-61 exit-status contract for `path`: a command
   no PATH entry names printed its grey "command not found in PATH:"
   verdict and exited 0 - the only surface in the family whose

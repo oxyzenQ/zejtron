@@ -79,6 +79,37 @@ surface_port() {
 	sm_flag_used "port --events-only"
 	sm_flag_used "port --since"
 
+	# The clamp note (night-dragon-lts-T1 residual): an absurd ask
+	# no longer truncates in silence. The snapshot-only lane is
+	# window-free, so these pins cost no wall time on any leg:
+	# in-bounds and absent asks stay word-free on stderr, an
+	# above-ceiling ask names the clamp exactly once, and the note
+	# never touches stdout (the report is the pipes' contract; the
+	# byte-exact note text is pinned in the unit tests).
+	sm_run "$SM_SCRATCH/since-ok.out" "$SM_SCRATCH/since-ok.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" port --snapshot-only --since 30s
+	sm_assert_rc 0 "$rc" "port --snapshot-only --since 30s exits 0"
+	sm_assert_silent_stderr "$SM_SCRATCH/since-ok.err" \
+		"port --since in-bounds keeps stderr silent"
+	sm_run "$SM_SCRATCH/since-absent.out" "$SM_SCRATCH/since-absent.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" port --snapshot-only
+	sm_assert_silent_stderr "$SM_SCRATCH/since-absent.err" \
+		"port without --since keeps stderr silent"
+	sm_run "$SM_SCRATCH/since-huge.out" "$SM_SCRATCH/since-huge.err" rc 5 -- \
+		"$SM_DEFAULT_BIN" port --snapshot-only --since 999999h
+	sm_assert_rc 0 "$rc" "port --snapshot-only --since 999999h exits 0 (clamped)"
+	sm_assert_contains "$SM_SCRATCH/since-huge.err" \
+		"warning: --since 999999h exceeds the 1h maximum" \
+		"port --since above the ceiling names the clamp on stderr"
+	if [[ "$(grep -c '^warning: --since' "$SM_SCRATCH/since-huge.err")" -eq 1 ]]; then
+		sm_pass "the clamp note rides exactly once per invocation"
+	else
+		sm_fail "the clamp note rides exactly once per invocation" \
+			"expected one warning line, got $(grep -c '^warning: --since' "$SM_SCRATCH/since-huge.err" || true)"
+	fi
+	sm_assert_not_contains "$SM_SCRATCH/since-huge.out" "warning:" \
+		"the clamp note never touches stdout"
+
 	# A combined ladder: the flags compose.
 	sm_run "$SM_SCRATCH/comb.out" "$SM_SCRATCH/comb.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" port --tcp --numeric --no-pid --group --snapshot-only
