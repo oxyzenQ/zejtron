@@ -27,7 +27,7 @@ use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance}
 use crate::evidence::{ChangesSection, EvidenceReport, Mode, UnaccountedEntry, Verdict};
 
 use super::super::holds::{self, Holder};
-use super::super::touch::{self, TouchInfo};
+use super::super::touch::{self, FileMeta, TouchInfo};
 use super::raw::raw_section;
 use super::verdict::{path_cannot_line, path_supports_line, port_cannot_line, port_supports_line};
 use crate::commands::lane::{self, LaneQuery, OpFilter, device_token_from_stat};
@@ -51,6 +51,15 @@ pub fn build_path_report(
     })?;
     let inode = metadata.ino();
     let device = device_token_from_stat(metadata.dev());
+    // The one-identity anchor (night-dragon-lts-4): every keyed
+    // consumer below rides THIS stat - the holder walk matches fds
+    // and maps against this (dev, inode), the event lane filters by
+    // this inode. The old flow statted the path again inside the
+    // holder walk, so a path replaced mid-scan (the logrotate
+    // rename dance, an editor's atomic write) matched holders
+    // against one inode while the metadata rows described another
+    // - two objects blended into one evidence list, silently.
+    let anchor = holds::FileId::from_metadata(&metadata);
 
     let users = touch::parse_passwd().unwrap_or_default();
     // The group map beside the user map (night-dragon-lts-1): a
@@ -70,9 +79,24 @@ pub fn build_path_report(
 
     // The snapshot: BOTH halves, as the old why ran them - the
     // holders scan and the touch inspection, parsers untouched.
+    // The walk rides the anchor's identity: a path that vanished
+    // or was replaced mid-scan still answers for the inode this
+    // scan started on (its deleted-but-open holders stay visible),
+    // and the split, when it happened, is named below.
     let (holders, stats) =
-        holds::scan_path_holders(path).map_err(|e| super::WhyError(e.to_string()))?;
+        holds::scan_path_holders_for_file_id(anchor).map_err(|e| super::WhyError(e.to_string()))?;
     let touch_info = touch::inspect_path(path).ok();
+    // The coherence check: the metadata rows describe whatever the
+    // path answered LAST - if that is not the object this scan
+    // anchored on, the report carries two identities and must say
+    // so, never blend them in silence. A path that answers no
+    // metadata stat at all was deleted after the scan began.
+    let identity = identity_entry(
+        metadata.dev(),
+        inode,
+        touch_info.as_ref().and_then(|info| info.meta.as_ref()),
+        || fs::symlink_metadata(path).is_ok(),
+    );
     let scan_instant = unix_now();
 
     let mut measured = Vec::new();
@@ -97,6 +121,12 @@ pub fn build_path_report(
         String::new()
     };
     let mut unaccounted = parts.unaccounted;
+    // The identity boundary leads the block: it re-attributes every
+    // row above it, so the reader meets it before the readability
+    // notes.
+    if let Some(entry) = identity {
+        unaccounted.insert(0, entry);
+    }
     if stats.unreadable_processes > 0 {
         unaccounted.push(UnaccountedEntry::new(
             stats.unreadable_processes,
@@ -140,6 +170,58 @@ pub fn build_path_report(
         out.push_str(&raw_text);
     }
     Ok(out)
+}
+
+/// The identity coherence check (night-dragon-lts-4): decide
+/// whether one report can honestly carry every row it collected,
+/// and when it cannot, build the boundary entry that names the
+/// split. `anchor_dev`/`anchor_ino` are the identity the scan
+/// keyed its holder walk and event lane to (the opening stat);
+/// `meta` is the identity the metadata rows describe (the last
+/// stat); `path_listable` says whether the path still answered a
+/// stat at all. A coherent scan - the overwhelming case, nothing
+/// moved between the stats - yields no entry: the boundary renders
+/// only when the facts split.
+fn identity_entry(
+    anchor_dev: u64,
+    anchor_ino: u64,
+    meta: Option<&FileMeta>,
+    path_listable: impl FnOnce() -> bool,
+) -> Option<UnaccountedEntry> {
+    let Some(meta) = meta else {
+        // No metadata rows. A path that no longer answers a stat
+        // was deleted after the scan began: the holder rows above
+        // still answer for the anchor (a deleted-but-open file
+        // keeps its inode while the last fd lives), so the vanish
+        // is named, not rendered as an empty report. A path that
+        // DOES still answer failed its metadata read for a
+        // readability reason - not an identity split, and this
+        // entry is not the place to name it.
+        if path_listable() {
+            return None;
+        }
+        return Some(UnaccountedEntry::new(
+            1,
+            "path identity",
+            "the path vanished during the scan (deleted after the scan began): \
+             metadata rows are absent; holder and event rows are keyed to the \
+             inode the scan started on - a holder of it survives as deleted-but-open",
+        ));
+    };
+    if meta.inode == anchor_ino && meta.dev == anchor_dev {
+        return None;
+    }
+    let mut reason = format!(
+        "the path was replaced during the scan (inode {anchor_ino} at scan start, \
+         inode {} rendered): holder and event rows are keyed to the scan-start \
+         inode, metadata rows to the rendered one - a holder of the scan-start \
+         inode survives as deleted-but-open",
+        meta.inode
+    );
+    if meta.dev != anchor_dev {
+        reason.push_str("; the two inodes live on different devices");
+    }
+    Some(UnaccountedEntry::new(1, "path identity", reason))
 }
 
 /// Build the synthesis report for a port target: the socket holders

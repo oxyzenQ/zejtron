@@ -134,13 +134,13 @@ impl ScanStats {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct FileId {
+pub(crate) struct FileId {
     dev: u64,
     inode: u64,
 }
 
 impl FileId {
-    fn from_metadata(metadata: &fs::Metadata) -> Self {
+    pub(crate) fn from_metadata(metadata: &fs::Metadata) -> Self {
         Self {
             dev: metadata.dev(),
             inode: metadata.ino(),
@@ -210,7 +210,21 @@ pub(crate) fn scan_path_holders(path: &Path) -> Result<(Vec<Holder>, ScanStats),
             HoldsError(format!("{}: {error}", path.display()))
         }
     })?;
-    let target = FileId::from_metadata(&metadata);
+    scan_path_holders_for_file_id(FileId::from_metadata(&metadata))
+}
+
+/// The holder walk keyed to one file identity (night-dragon-lts-4):
+/// the why lane passes the identity its opening stat captured, so a
+/// path replaced or deleted mid-scan cannot silently re-key the walk
+/// to a second object - the deleted-but-open holders of the queried
+/// inode stay visible, the replacement's holders stay out, and the
+/// report names the split through its unaccounted block instead of
+/// blending two objects' facts into one evidence list. The standalone
+/// `holds` command keeps its own stat (the target exists when the
+/// command begins); this walk needs no path and no second stat.
+pub(crate) fn scan_path_holders_for_file_id(
+    target: FileId,
+) -> Result<(Vec<Holder>, ScanStats), HoldsError> {
     let (target_major, target_minor) = dev_major_minor(target.dev);
     let pids = list_pids().map_err(|error| HoldsError(error.to_string()))?;
     let users = passwd_map();

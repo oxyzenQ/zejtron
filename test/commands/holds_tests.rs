@@ -99,3 +99,66 @@ fn classifies_vanished_proc_errors() {
         _ => panic!("expected gone"),
     }
 }
+
+#[test]
+fn the_keyed_walk_survives_a_mid_scan_deletion() {
+    // night-dragon-lts-4: the why lane keys its holder walk to the
+    // identity the opening stat captured, so a file deleted after
+    // the scan began still answers for its holders. The fd this
+    // very process keeps open is the deleted-but-open evidence the
+    // report must keep rendering - a second stat of the vanished
+    // path must not kill the walk (the pre-fix flow statted the
+    // path again inside the holder walk and errored the whole
+    // report out at exactly the moment the leak evidence appeared).
+    let directory = TempDir::new().unwrap();
+    let path = directory.path().join("gone");
+    std::fs::write(&path, "payload").unwrap();
+    let meta = std::fs::metadata(&path).unwrap();
+    let held = std::fs::File::open(&path).unwrap();
+    std::fs::remove_file(&path).unwrap();
+    let (holders, _stats) = scan_path_holders_for_file_id(FileId::from_metadata(&meta)).unwrap();
+    let found = holders
+        .iter()
+        .any(|holder| holder.pid == std::process::id());
+    assert!(
+        found,
+        "the deleted-but-open fd is still holder evidence: {holders:?}"
+    );
+    drop(held);
+}
+
+#[test]
+fn the_keyed_walk_ignores_a_replacement_object() {
+    // The other half of the one-identity law: when the path is
+    // replaced, the keyed walk must not silently adopt the
+    // replacement - a holder of the NEW inode is not a holder of
+    // the object this scan asked about. The replacement here is a
+    // different file nobody holds; the anchor's own holder (this
+    // process) is the only evidence that may render.
+    let directory = TempDir::new().unwrap();
+    let anchor_path = directory.path().join("anchor");
+    std::fs::write(&anchor_path, "the queried object").unwrap();
+    let meta = std::fs::metadata(&anchor_path).unwrap();
+    let held = std::fs::File::open(&anchor_path).unwrap();
+    let replacement = directory.path().join("replacement");
+    std::fs::write(&replacement, "the impostor").unwrap();
+    let (holders, _stats) = scan_path_holders_for_file_id(FileId::from_metadata(&meta)).unwrap();
+    assert!(
+        holders
+            .iter()
+            .any(|holder| holder.pid == std::process::id()),
+        "the anchor's own holder renders: {holders:?}"
+    );
+    drop(held);
+    // The replacement carries the anchor's content nowhere: a walk
+    // keyed to the anchor CANNOT see it, and a walk keyed to the
+    // replacement CANNOT see the anchor's holder - the blend the
+    // one-identity law forbids, from the other side.
+    let replacement_meta = std::fs::metadata(&replacement).unwrap();
+    let (impostor_holders, _) =
+        scan_path_holders_for_file_id(FileId::from_metadata(&replacement_meta)).unwrap();
+    assert!(
+        !impostor_holders.iter().any(|h| h.pid == std::process::id()),
+        "a holder of the anchor is not a holder of the impostor: {impostor_holders:?}"
+    );
+}
