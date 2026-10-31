@@ -148,7 +148,7 @@ fn write_exits(out: &mut String, lane: &ExitLane, window_label: &str) {
             write_string(out, error);
             out.push('}');
         }
-        ExitLane::Drained(rows) => {
+        ExitLane::Drained(rows, observer_excluded) => {
             out.push_str("\"drained\",\"window_label\":");
             write_string(out, window_label);
             out.push_str(",\"processes\":");
@@ -174,6 +174,12 @@ fn write_exits(out: &mut String, lane: &ExitLane, window_label: &str) {
                 "{}",
                 rows.len().saturating_sub(super::memory::ledger::TOP_N)
             );
+            // The observer's own invocations the lane excluded from
+            // the rows (night-dragon-lts-4) - named in the schema so
+            // a JSON consumer can tell a quiet window from the
+            // watch-loop's self-exits.
+            out.push_str(",\"observer_excluded\":");
+            let _ = write!(out, "{}", observer_excluded);
             out.push('}');
         }
     }
@@ -324,7 +330,7 @@ fn sampling_entry(lane: &ExitLane) -> UnaccountedEntry {
             "process lifecycles",
             "processes that started and exited within the 1.0s sampling window: not attributed (zejtron samples, it does not watch)",
         ),
-        ExitLane::Drained(_) => UnaccountedEntry::new(
+        ExitLane::Drained(..) => UnaccountedEntry::new(
             1,
             "process lifecycles",
             "processes that started and exited within the 1.0s sampling window: named [observed] in the exits section above (the eBPF drain holds the last 2s)",

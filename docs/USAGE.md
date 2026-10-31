@@ -95,6 +95,10 @@ residual, and each lands in its own section:
 
 - **Exits in the last five seconds** - process exits the kernel
   recorded (the event window, `[observed]` when the probe is live).
+  The tool's own invocations are excluded from the rows and named
+  in a grey boundary line (`2 exits of this tool excluded`) - a
+  watch-loop's self-exits are facts about the observer, not the
+  host, and the count rides the JSON as `observer_excluded`.
 - **The memory deltas** - the charge/discharge between samples, so a
   slow leak shows as a direction, not a number.
 - **Deleted-but-open files** - `/proc/*/fd` targets ending in

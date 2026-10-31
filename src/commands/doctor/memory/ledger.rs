@@ -57,7 +57,7 @@ pub(crate) fn render(sample: &MemorySample, raw: bool) -> String {
 fn mode_line(lane: &ExitLane) -> &'static str {
     match lane {
         ExitLane::NotAttached => "Mode: snapshot (eBPF not attached - recent exits are invisible)",
-        ExitLane::Drained(_) => "Mode: snapshot + post-mortem (eBPF exit lane drained, last 5s)",
+        ExitLane::Drained(..) => "Mode: snapshot + post-mortem (eBPF exit lane drained, last 5s)",
         ExitLane::DrainFailed(_) => {
             "Mode: snapshot + post-mortem (the exit drain failed - named below)"
         }
@@ -403,7 +403,7 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
             ),
             crate::output::grey_out("[unaccounted]"),
         )),
-        ExitLane::Drained(_) => lines.push(format!(
+        ExitLane::Drained(..) => lines.push(format!(
             "  {}  {}",
             crate::output::grey_out(
                 "processes that exited before the 5-second eBPF window: \

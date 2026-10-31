@@ -108,7 +108,7 @@ fn the_mode_lines_name_all_three_lane_states_for_both_flavors() {
         "Mode: snapshot delta (1.0s sample; eBPF not attached)"
     );
     assert_eq!(
-        mode_line(&ExitLane::Drained(Vec::new()), true),
+        mode_line(&ExitLane::Drained(Vec::new(), 0), true),
         "Mode: snapshot delta + post-mortem (1.0s sample; eBPF exits drained, last 2s)"
     );
     assert_eq!(
@@ -120,7 +120,7 @@ fn the_mode_lines_name_all_three_lane_states_for_both_flavors() {
         "Mode: snapshot (eBPF not attached)"
     );
     assert_eq!(
-        mode_line(&ExitLane::Drained(Vec::new()), false),
+        mode_line(&ExitLane::Drained(Vec::new(), 0), false),
         "Mode: snapshot + post-mortem (eBPF exits drained, last 2s)"
     );
     assert_eq!(
@@ -145,7 +145,7 @@ fn the_sampling_boundary_names_the_spec_sentence_when_not_attached() {
 
 #[test]
 fn the_sampling_boundary_defers_to_the_overlay_when_drained() {
-    let line = sampling_unaccounted(&ExitLane::Drained(Vec::new()), SAMPLE_WINDOW_DESC);
+    let line = sampling_unaccounted(&ExitLane::Drained(Vec::new(), 0), SAMPLE_WINDOW_DESC);
     assert!(
         line.contains("named [observed] in the exits section above"),
         "{line}"

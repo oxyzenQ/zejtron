@@ -369,18 +369,21 @@ fn non_finite_percentages_degrade_to_json_null_never_invalid_tokens() {
 
 #[test]
 fn the_drained_lane_names_its_processes_and_the_overflow() {
-    let lane = ExitLane::Drained(vec![
-        ExitRow {
-            pid: 7,
-            comm: "gone".to_owned(),
-            timestamp_ns: 2_000_000_000,
-        },
-        ExitRow {
-            pid: 8,
-            comm: "also-gone".to_owned(),
-            timestamp_ns: 3_000_000_000,
-        },
-    ]);
+    let lane = ExitLane::Drained(
+        vec![
+            ExitRow {
+                pid: 7,
+                comm: "gone".to_owned(),
+                timestamp_ns: 2_000_000_000,
+            },
+            ExitRow {
+                pid: 8,
+                comm: "also-gone".to_owned(),
+                timestamp_ns: 3_000_000_000,
+            },
+        ],
+        0,
+    );
     let mut out = String::new();
     write_exits(&mut out, &lane, "5s");
     assert!(out.starts_with(
@@ -389,7 +392,10 @@ fn the_drained_lane_names_its_processes_and_the_overflow() {
     ));
     assert!(out.contains("\"timestamp_ns\":2000000000}"));
     assert!(out.contains("]"));
-    assert!(out.ends_with("\"overflow\":0}"));
+    // night-dragon-lts-4: the observer's excluded-invocation count
+    // rides the schema's tail - a JSON consumer can tell a quiet
+    // window from the watch-loop's self-exits.
+    assert!(out.ends_with("\"overflow\":0,\"observer_excluded\":0}"));
 }
 
 #[test]

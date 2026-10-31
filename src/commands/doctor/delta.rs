@@ -252,14 +252,14 @@ pub(crate) fn render_exits_overlay(lane: &ExitLane, lines: &mut Vec<String>) {
 pub(crate) fn mode_line(lane: &ExitLane, delta: bool) -> &'static str {
     match (delta, lane) {
         (true, ExitLane::NotAttached) => "Mode: snapshot delta (1.0s sample; eBPF not attached)",
-        (true, ExitLane::Drained(_)) => {
+        (true, ExitLane::Drained(..)) => {
             "Mode: snapshot delta + post-mortem (1.0s sample; eBPF exits drained, last 2s)"
         }
         (true, ExitLane::DrainFailed(_)) => {
             "Mode: snapshot delta + post-mortem (1.0s sample; the exit drain failed - named below)"
         }
         (false, ExitLane::NotAttached) => "Mode: snapshot (eBPF not attached)",
-        (false, ExitLane::Drained(_)) => {
+        (false, ExitLane::Drained(..)) => {
             "Mode: snapshot + post-mortem (eBPF exits drained, last 2s)"
         }
         (false, ExitLane::DrainFailed(_)) => {
@@ -279,7 +279,7 @@ pub(crate) fn sampling_unaccounted(lane: &ExitLane, window_desc: &str) -> String
             "processes that started and exited within {window_desc}: not attributed \
              (zejtron samples, it does not watch)"
         ),
-        ExitLane::Drained(_) => format!(
+        ExitLane::Drained(..) => format!(
             "processes that started and exited within {window_desc}: named [observed] \
              in the exits section above (the eBPF drain holds the last {OVERLAY_WINDOW_LABEL})"
         ),
