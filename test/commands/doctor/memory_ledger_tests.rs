@@ -63,12 +63,14 @@ fn sample() -> MemorySample {
         name: "firefox".to_owned(),
         path: "/tmp/xyz (deleted)".to_owned(),
         size_bytes: Some(512 * MIB),
+        identity: Some((9, 1)),
     }];
     sample.memfds = vec![MemfdFile {
         pid: 2345,
         name: "systemd".to_owned(),
         target: "memfd:journal".to_owned(),
         size_bytes: Some(300 * MIB),
+        identity: Some((9, 2)),
     }];
     sample.slab_readable = true;
     sample.slab = vec![SlabRow {
