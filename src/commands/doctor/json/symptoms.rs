@@ -505,6 +505,19 @@ pub(in crate::commands::doctor) fn json_gpu(sample: &GpuSample) -> String {
         });
         out.push('}');
     });
+    out.push_str(",\"gpu_memory\":");
+    write_array(&mut out, sample.gpu_memory.len(), |out, index| {
+        let row = &sample.gpu_memory[index];
+        out.push_str("{\"pid\":");
+        let _ = write!(out, "{}", row.pid);
+        out.push_str(",\"comm\":");
+        write_string(out, &row.comm);
+        out.push_str(",\"vram_bytes\":");
+        let _ = write!(out, "{}", row.vram_kib.saturating_mul(1024));
+        out.push_str(",\"gtt_bytes\":");
+        let _ = write!(out, "{}", row.gtt_kib.saturating_mul(1024));
+        out.push('}');
+    });
     out.push_str(",\"vram\":");
     write_array(&mut out, sample.vram.len(), |out, index| {
         let row = &sample.vram[index];
