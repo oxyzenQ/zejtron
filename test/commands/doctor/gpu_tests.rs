@@ -35,6 +35,7 @@ fn synthetic() -> GpuSample {
                 "/dev/dri/renderD128".to_owned(),
             ],
         }],
+        gpu_memory: Vec::new(),
         vram: vec![VramRow {
             card: "card0".to_owned(),
             used: 3_u64 * 1024 * 1024 * 1024 + 200 * 1024 * 1024,
@@ -70,13 +71,18 @@ fn the_report_carries_the_locked_shape() {
 }
 
 #[test]
-fn the_verdict_names_the_holder() {
+fn the_verdict_attributes_nothing_it_cannot_measure() {
+    // No driver exported per-process memory: the verdict names the
+    // holder COUNT and the lowest pid - an open device node is not
+    // memory use - and never again "The GPU is held by <systemd>"
+    // as if holding were consuming.
     let report = render(&synthetic(), false);
     assert!(
-        report.contains(
-            "The GPU is held by firefox (PID 4321, devices: /dev/dri/card0, \
-                         /dev/dri/renderD128)."
-        ) || report.contains("The GPU is held by firefox (PID 4321"),
+        report.contains("1 process has the GPU device open (lowest PID 4321, firefox)"),
+        "{report}"
+    );
+    assert!(
+        report.contains("holding a device node is not memory use"),
         "{report}"
     );
     // The nvidia marker is absent: no external-dependency line.
@@ -152,4 +158,84 @@ fn the_vram_reader_skips_the_render_nodes_and_non_cards() {
     // fresh CI runner both prove it), and the render skips the
     // section entirely.
     assert!(read_vram().len() <= 64, "bounded by the card count");
+}
+
+#[test]
+fn the_fdinfo_parser_reads_the_drm_memory_keys() {
+    // The amdgpu shape (Documentation/gpu/drm-usage-stats.rst):
+    // values in KiB, both keys present.
+    let amdgpu = "\
+pos:	0
+flags:	02
+mnt_id:	14
+ino:	3012
+drm-driver:	amdgpu
+drm-client-id:	12
+drm-pid:	4321
+drm-engine-gfx:	123456789 ns
+drm-memory-vram:	1048576
+drm-memory-gtt:	2048
+";
+    assert_eq!(parse_fdinfo_drm_memory(amdgpu), Some((1_048_576, 2048)));
+    // One key alone still carries its half.
+    assert_eq!(
+        parse_fdinfo_drm_memory("drm-memory-vram: 512\n"),
+        Some((512, 0))
+    );
+    // A driver without the keys exports an absent fact, not zero.
+    assert_eq!(parse_fdinfo_drm_memory("pos:\t0\nflags:\t02\n"), None);
+    assert_eq!(parse_fdinfo_drm_memory(""), None);
+    // A non-numeric value never guesses.
+    assert_eq!(parse_fdinfo_drm_memory("drm-memory-vram: n/a\n"), None);
+}
+
+#[test]
+fn the_verdict_names_the_largest_memory_consumer_when_fdinfo_ranks() {
+    // The killer question the symptom exists to answer: WHO is
+    // eating the VRAM. The ranking's head is the verdict's first
+    // line, the pressure finding rides behind it.
+    let mut ranked = synthetic();
+    ranked.gpu_memory = vec![
+        GpuMemoryRow {
+            pid: 4321,
+            comm: "firefox".to_owned(),
+            vram_kib: 2 * 1024 * 1024, // 2 GiB
+            gtt_kib: 64 * 1024,
+        },
+        GpuMemoryRow {
+            pid: 5000,
+            comm: "gnome-shell".to_owned(),
+            vram_kib: 256 * 1024,
+            gtt_kib: 128 * 1024,
+        },
+    ];
+    let report = render(&ranked, false);
+    assert!(
+        report.contains("The largest GPU memory consumer is firefox (PID 4321, 2.0 GiB VRAM)."),
+        "{report}"
+    );
+    assert!(
+        report.contains("Per-process GPU memory (drm fdinfo, VRAM descending):"),
+        "{report}"
+    );
+    // The ranking renders VRAM-descending, the head first.
+    let firefox = report.find("PID 4321 (firefox)  VRAM").unwrap_or_default();
+    let shell = report
+        .find("PID 5000 (gnome-shell)  VRAM")
+        .unwrap_or_default();
+    assert!(firefox < shell, "the ranking is VRAM-descending: {report}");
+
+    // Pressure: 7.5 GiB used of 8 GiB total is 94 percent - the
+    // sharpest fact on the page, named with its boundary.
+    let mut pressure = ranked;
+    pressure.vram = vec![VramRow {
+        card: "card0".to_owned(),
+        used: 7_u64 * 1024 * 1024 * 1024 + 500 * 1024 * 1024,
+        total: 8_u64 * 1024 * 1024 * 1024,
+    }];
+    let report = render(&pressure, false);
+    assert!(
+        report.contains("card0 VRAM is at 93% of its 8.0 GiB"),
+        "{report}"
+    );
 }
