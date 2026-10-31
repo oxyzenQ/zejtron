@@ -72,10 +72,14 @@ fn selection_sorts_ascending_by_timestamp() {
 
 #[test]
 fn monotonic_now_degrades_to_none_never_a_guess() {
-    // clock_gettime on CLOCK_MONOTONIC cannot fail on a Linux host
-    // that booted; guard for the exotic case anyway (the honest
-    // degradation is None, never a guessed value).
-    match monotonic_now_ns() {
+    // The crate's one clock source (clock_gettime on CLOCK_MONOTONIC)
+    // cannot fail on a Linux host that booted; guard for the exotic
+    // case anyway (the honest degradation is None, never a guessed
+    // value). The helper this test used to call was fileprobe's own
+    // /proc/uptime copy - retired with the BOOTTIME fix; the pin
+    // rides the shared source now, so the two can never drift apart
+    // again.
+    match crate::info::clock::monotonic_now_ns() {
         Some(now) => assert!(now > 0, "a booted host has positive monotonic time"),
         None => { /* the honest degradation; named here, not asserted */ }
     }
@@ -83,7 +87,10 @@ fn monotonic_now_degrades_to_none_never_a_guess() {
 
 #[test]
 fn event_unix_secs_lands_inside_the_recent_window() {
-    let Some(now) = monotonic_now_ns() else {
+    // The conversion rides the crate's one clock source, so the pin
+    // reads its monotonic now from the same module the offset does -
+    // one domain end to end, the same law the fix restored.
+    let Some(now) = crate::info::clock::monotonic_now_ns() else {
         return;
     };
     let event = file_event(now, FILE_OP_OPEN, 1, 2, 3);

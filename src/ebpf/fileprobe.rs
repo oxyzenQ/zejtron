@@ -11,10 +11,17 @@
 //! the query, sort ascending.
 //!
 //! The clock arithmetic is CLOCK_MONOTONIC end to end — the records
-//! are bpf_ktime_get_ns stamps; the same /proc/uptime + wall offset
-//! conversion port's window uses (duplicated here by hand: those
-//! three helpers are port-surface privates and port's output is
-//! locked; the cross-reference is the contract).
+//! are bpf_ktime_get_ns stamps, and the offset that turns them into
+//! wall time rides the crate's one clock source (crate::info::clock,
+//! the shared helpers night-improve-47 moved there): the same
+//! wall_offset_ns the port window and the doctor's exit rows render
+//! through, so the three surfaces cannot drift again. The hand
+//! copies this module carried until night-improve-60 read
+//! /proc/uptime - the CLOCK_BOOTTIME domain, suspend-inclusive -
+//! so every live file row's rendered time ran early by the host's
+//! cumulative suspend on any host that ever suspended (the exact
+//! defect night-dragon-lts-1 fixed for the port window; this
+//! module's hand duplicate was left behind by that fix).
 //!
 //! The collection-over-duration semantic is the honest one and it
 //! costs what it costs: `--since 30s` waits 30 seconds, because the
@@ -69,33 +76,17 @@ pub fn select_window(events: &[FileEvent], inode: u64, device: u64) -> Vec<FileE
     selected
 }
 
-/// The monotonic "now", in nanoseconds, from /proc/uptime (the
-/// kernel's own CLOCK_BOOTTIME clock at 10 ms resolution). `None`
-/// when the file is unreadable — the honest degradation.
-pub fn monotonic_now_ns() -> Option<u64> {
-    let uptime = std::fs::read_to_string("/proc/uptime").ok()?;
-    let first = uptime.split_whitespace().next()?;
-    let seconds: f64 = first.parse().ok()?;
-    Some((seconds * 1e9) as u64)
-}
-
-/// The wall-clock offset for rendering event timestamps: wall-now
-/// minus monotonic-now, both read in the same breath.
-pub fn wall_offset_ns() -> Option<i128> {
-    let wall = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .ok()?
-        .as_nanos() as i128;
-    let mono = monotonic_now_ns()? as i128;
-    Some(wall - mono)
-}
-
 /// One event's wall-clock unix seconds (truncated to the second,
 /// the ledger's rendering granularity). `None` when the clocks are
 /// unreadable — the row then renders `unknown`, never a fabricated
-/// time.
+/// time. The offset is the crate's one source
+/// (crate::info::clock::wall_offset_ns, CLOCK_MONOTONIC through
+/// clock_gettime - the same domain the eBPF stamps ride), never a
+/// /proc/uptime re-implementation: the two clocks differ by the
+/// host's cumulative suspend time, and a BOOTTIME-based offset
+/// renders every live row that much too early.
 pub fn event_unix_secs(event: &FileEvent) -> Option<i64> {
-    let offset = wall_offset_ns()?;
+    let offset = crate::info::clock::wall_offset_ns()?;
     let nanos = event.timestamp_ns as i128 + offset;
     if nanos.is_negative() {
         return None;
