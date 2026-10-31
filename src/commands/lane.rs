@@ -180,7 +180,14 @@ fn collect_live(
 ) -> Result<LaneParts, String> {
     let events = crate::ebpf::fileprobe::capture_file_window(query.inode, query.device, window)?;
 
-    let mut rows: Vec<EvidenceRow> = Vec::new();
+    // The rows keep the capture's ascending order (the renderer
+    // never reorders), so each attributed event lands in a SLOT and
+    // an event whose actor is not resolvable yet parks its slot as
+    // None - the post-mortem pass below fills the gaps IN PLACE, so
+    // a row attributed from the exit ring can never jump ahead of a
+    // live-attributed row that happened later.
+    let mut slots: Vec<Option<EvidenceRow>> = Vec::new();
+    let mut post_mortem: Vec<(usize, &crate::ebpf::events::FileEvent)> = Vec::new();
     let mut gone_opens: usize = 0;
     let mut gone_writes: usize = 0;
     for event in &events {
@@ -203,34 +210,77 @@ fn collect_live(
         // The row's actor: the /proc facts for the recorded pid,
         // resolved at render time - the same fields the snapshot's
         // holder rows carry. A pid with no visible /proc entry at
-        // render time is unaccounted (a namespace boundary, or an
-        // exit between the change and the query).
+        // render time is a post-mortem candidate (the exit-ring pass
+        // below): the common server shape is a short-lived writer -
+        // a cron one-shot, a logrotate run, a shell redirect - that
+        // finished its write and died inside the window, and the
+        // probe estate has been recording every exit since attach.
         let Some((name, user)) = pid_context(event.pid, query.users) else {
-            if is_open {
-                gone_opens += 1;
-            } else {
-                gone_writes += 1;
-            }
+            post_mortem.push((slots.len(), event));
+            slots.push(None);
             continue;
         };
-        // The action names the write path that crossed: the writev
-        // parenthetical is the whole point of op=4 - the operator
-        // learns WHICH syscall family the writer used. The kind
-        // carries the family as typed data; the phrase renders it.
-        let kind = match event.op {
-            crate::ebpf::events::FILE_OP_OPEN => EvidenceKind::Opened,
-            crate::ebpf::events::FILE_OP_WRITEV => EvidenceKind::Wrote {
-                via: Some("writev"),
-            },
-            _ => EvidenceKind::Wrote { via: None },
-        };
-        rows.push(EvidenceRow::new(
+        slots.push(Some(EvidenceRow::new(
             crate::ebpf::fileprobe::event_unix_secs(event),
-            kind,
+            event_kind(event.op),
             EvidenceActor::process(name, event.pid, user),
             Provenance::Observed,
-        ));
+        )));
     }
+
+    // The exit-ring pass (night-improve-61): the post-mortem
+    // attribution. The sched/sched_process_exit probe (the
+    // night-improve-47 estate) records every process exit - pid and
+    // comm, the same pair a /proc read would have named - into the
+    // proc_events ring, and this is the consumer that answers the
+    // question the unaccounted block used to shrug at: WHICH
+    // short-lived process wrote the file. The exit record carries
+    // no uid, so the row's user stays an honest absence (the
+    // recorded-actor shape, "name (pid N)"); the event itself stays
+    // [observed] - the kernel saw the write. The ring is drained
+    // ONLY when some parked event needs it: a fully-live window
+    // never consumes the doctor's exit stream.
+    if !post_mortem.is_empty() {
+        let exits = match crate::ebpf::ringbuf::drain_proc_exits() {
+            Ok(exits) => exits,
+            Err(error) => {
+                crate::output::verbose::vlog!(
+                    "lane",
+                    "exit ring unavailable for post-mortem attribution: {error}"
+                );
+                Vec::new()
+            }
+        };
+        if !exits.is_empty() {
+            crate::output::verbose::vlog!(
+                "lane",
+                "post-mortem attribution: {} exit record(s) in the ring",
+                exits.len()
+            );
+        }
+        for (slot, event) in post_mortem {
+            match exit_names_event(&exits, event) {
+                Some(exit) => {
+                    let comm = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                    slots[slot] = Some(EvidenceRow::new(
+                        crate::ebpf::fileprobe::event_unix_secs(event),
+                        event_kind(event.op),
+                        EvidenceActor::recorded(Some(comm), Some(event.pid), None),
+                        Provenance::Observed,
+                    ));
+                }
+                None => {
+                    if event.op == crate::ebpf::events::FILE_OP_OPEN {
+                        gone_opens += 1;
+                    } else {
+                        gone_writes += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let rows: Vec<EvidenceRow> = slots.into_iter().flatten().collect();
 
     let mut unaccounted = Vec::new();
     if gone_opens > 0 {
@@ -258,6 +308,35 @@ fn collect_live(
         unaccounted,
         raw: events,
     })
+}
+
+/// The event's action, typed from its op: the writev parenthetical
+/// is the whole point of op=4 - the operator learns WHICH syscall
+/// family the writer used. One mapping for both the live pass and
+/// the post-mortem pass, so a row attributed from the exit ring
+/// renders the same phrase a live-attributed row would.
+fn event_kind(op: u8) -> EvidenceKind {
+    match op {
+        crate::ebpf::events::FILE_OP_OPEN => EvidenceKind::Opened,
+        crate::ebpf::events::FILE_OP_WRITEV => EvidenceKind::Wrote {
+            via: Some("writev"),
+        },
+        _ => EvidenceKind::Wrote { via: None },
+    }
+}
+
+/// The exit record that names the event's writer: the FIRST exit at
+/// or after the event's own timestamp - the writer did the work,
+/// then died. A record carrying the same pid but stamped BEFORE the
+/// event is a prior life of a recycled pid naming a different
+/// process; the first at-or-after record is this writer's own death.
+fn exit_names_event<'a>(
+    exits: &'a [crate::ebpf::events::ProcExitEvent],
+    event: &crate::ebpf::events::FileEvent,
+) -> Option<&'a crate::ebpf::events::ProcExitEvent> {
+    exits
+        .iter()
+        .find(|exit| exit.pid == event.pid && exit.timestamp_ns >= event.timestamp_ns)
 }
 
 /// The pid's Name and Uid (real) from /proc, resolved to a username.
