@@ -98,9 +98,10 @@ fn the_window_keeps_the_fresh_slice_and_sorts_ascending() {
             &comm_bytes("fourth-second"),
         ),
     ];
-    let rows = window_rows(events, EXIT_WINDOW_SECS);
+    let (rows, observer_excluded) = window_rows(events, EXIT_WINDOW_SECS);
     let pids: Vec<u32> = rows.iter().map(|r| r.pid).collect();
     assert_eq!(pids, vec![111, 222], "fresh only, ascending by time");
+    assert_eq!(observer_excluded, 0, "no observer events rode this drain");
 }
 
 #[test]
@@ -116,18 +117,21 @@ fn the_not_attached_lane_renders_no_section() {
 #[test]
 fn the_drained_lane_renders_the_spec_row_shape() {
     let mut lines: Vec<String> = Vec::new();
-    let lane = ExitLane::Drained(vec![
-        ExitRow {
-            pid: 1234,
-            comm: "python3".to_owned(),
-            timestamp_ns: 1,
-        },
-        ExitRow {
-            pid: 5678,
-            comm: "make".to_owned(),
-            timestamp_ns: 2,
-        },
-    ]);
+    let lane = ExitLane::Drained(
+        vec![
+            ExitRow {
+                pid: 1234,
+                comm: "python3".to_owned(),
+                timestamp_ns: 1,
+            },
+            ExitRow {
+                pid: 5678,
+                comm: "make".to_owned(),
+                timestamp_ns: 2,
+            },
+        ],
+        0,
+    );
     render_section(&lane, &mut lines, "5s");
     assert_eq!(
         lines[0], "Recently exited (eBPF, last 5s):",
@@ -146,7 +150,7 @@ fn the_drained_lane_renders_the_spec_row_shape() {
 #[test]
 fn the_drained_lane_renders_the_empty_window_finding() {
     let mut lines: Vec<String> = Vec::new();
-    render_section(&ExitLane::Drained(Vec::new()), &mut lines, "5s");
+    render_section(&ExitLane::Drained(Vec::new(), 0), &mut lines, "5s");
     assert_eq!(lines[0], "Recently exited (eBPF, last 5s):");
     assert_eq!(lines[1], "  (none observed)");
 }
@@ -161,7 +165,7 @@ fn the_drained_lane_caps_rows_at_the_ledger_top_n() {
         })
         .collect();
     let mut lines: Vec<String> = Vec::new();
-    render_section(&ExitLane::Drained(rows), &mut lines, "5s");
+    render_section(&ExitLane::Drained(rows, 0), &mut lines, "5s");
     // header + 10 rows + the overflow note + the blank separator.
     assert_eq!(lines.len(), 13, "capped rows plus the note: {lines:?}");
     assert!(
@@ -182,5 +186,86 @@ fn the_drain_failed_lane_names_the_error_verbatim() {
     assert!(
         lines[1].contains("the exit ring could not be read (pinned proc_events map test-refused)"),
         "the error rides the report verbatim: {lines:?}"
+    );
+}
+
+#[test]
+fn the_kernel_comm_record_shapes_into_the_comparison_form() {
+    // /proc/self/comm is the kernel's own record - the exact string
+    // bpf_get_current_comm() will attach to this process's exit
+    // event. The shaper drops the record's trailing newline, keeps
+    // the kernel's 15-character bound, and returns empty (the
+    // caller's fall-through signal) for a record that carries no
+    // word.
+    assert_eq!(shape_comm_record("zejtron\n"), "zejtron");
+    assert_eq!(shape_comm_record("make\n"), "make");
+    // TASK_COMM_LEN minus the NUL is 15: a longer name is cut the
+    // same way the kernel cuts it, or the comparison never meets.
+    assert_eq!(shape_comm_record("a-watch-loop-invocation\n").len(), 15);
+    assert_eq!(
+        shape_comm_record("a-watch-loop-invocation\n"),
+        "a-watch-loop-in"
+    );
+    assert_eq!(shape_comm_record(""), "");
+    assert_eq!(shape_comm_record("\n"), "");
+}
+
+#[test]
+fn the_observers_own_exits_leave_the_rows_but_stay_counted() {
+    // The watch-loop shape: this tool's own recent invocations are
+    // real kernel exit events but facts about the observer, not the
+    // host. They leave the rows and ride the named exclusion count
+    // - never a silent drop, never "PID 12345 (zejtron) exited"
+    // printed inside a zejtron report.
+    let Some(now) = crate::info::clock::monotonic_now_ns() else {
+        return;
+    };
+    let own = own_comm();
+    let events = vec![
+        exit(now.saturating_sub(1_000_000_000), 111, &comm_bytes("make")),
+        exit(now.saturating_sub(500_000_000), 222, &comm_bytes(&own)),
+        exit(now.saturating_sub(250_000_000), 333, &comm_bytes(&own)),
+    ];
+    let (rows, observer_excluded) = window_rows(events, EXIT_WINDOW_SECS);
+    let pids: Vec<u32> = rows.iter().map(|r| r.pid).collect();
+    assert_eq!(pids, vec![111], "the observer's exits leave the rows");
+    assert_eq!(observer_excluded, 2, "named, never silently dropped");
+}
+
+#[test]
+fn the_render_names_the_exclusion_when_the_observer_ran_inside_the_window() {
+    // The grey boundary line is the contract: a watch-loop's
+    // self-exits must be named in the report, never dropped in
+    // silence, and a zero count renders nothing (an all-host window
+    // carries no observer noise).
+    let mut lines: Vec<String> = Vec::new();
+    render_section(
+        &ExitLane::Drained(
+            vec![ExitRow {
+                pid: 111,
+                comm: "make".to_owned(),
+                timestamp_ns: 1,
+            }],
+            2,
+        ),
+        &mut lines,
+        "5s",
+    );
+    let rendered = lines.join("\n");
+    assert!(
+        rendered.contains("2 exits of this tool excluded"),
+        "the exclusion is named: {rendered}"
+    );
+    assert!(
+        rendered.contains("the observer's own invocations, not host facts"),
+        "the reason rides the line: {rendered}"
+    );
+
+    let mut quiet: Vec<String> = Vec::new();
+    render_section(&ExitLane::Drained(Vec::new(), 0), &mut quiet, "5s");
+    let quiet_joined = quiet.join("\n");
+    assert!(
+        !quiet_joined.contains("excluded"),
+        "a zero count renders no boundary line: {quiet_joined}"
     );
 }

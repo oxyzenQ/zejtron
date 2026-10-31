@@ -107,7 +107,7 @@ fn the_mode_line_names_the_exit_lane_state() {
     // drain names itself, and the not-attached host says what stays
     // invisible.
     let mut drained = sample();
-    drained.exit_lane = ExitLane::Drained(Vec::new());
+    drained.exit_lane = ExitLane::Drained(Vec::new(), 0);
     assert!(
         render(&drained, false)
             .contains("Mode: snapshot + post-mortem (eBPF exit lane drained, last 5s)"),
@@ -137,11 +137,14 @@ fn the_unaccounted_block_names_the_exit_boundary_by_lane_state() {
     );
 
     let mut drained = sample();
-    drained.exit_lane = ExitLane::Drained(vec![ExitRow {
-        pid: 1234,
-        comm: "python3".to_owned(),
-        timestamp_ns: 1,
-    }]);
+    drained.exit_lane = ExitLane::Drained(
+        vec![ExitRow {
+            pid: 1234,
+            comm: "python3".to_owned(),
+            timestamp_ns: 1,
+        }],
+        0,
+    );
     let report = render(&drained, false);
     assert!(
         report.contains("Recently exited (eBPF, last 5s):"),

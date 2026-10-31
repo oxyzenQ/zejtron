@@ -219,7 +219,7 @@ pub(super) fn ram_unaccounted(sample: &MemorySample) -> Vec<UnaccountedEntry> {
                 "eBPF is not attached - processes that exited before this snapshot are invisible",
             ));
         }
-        ExitLane::Drained(_) => {
+        ExitLane::Drained(..) => {
             entries.push(UnaccountedEntry::new(
                 1,
                 "exited processes",
@@ -555,7 +555,7 @@ pub(super) fn gpu_unaccounted(sample: &GpuSample) -> Vec<UnaccountedEntry> {
             "process lifecycles",
             "processes that started and exited within the moment before this snapshot: not attributed (zejtron samples, it does not watch)",
         )),
-        ExitLane::Drained(_) => entries.push(UnaccountedEntry::new(
+        ExitLane::Drained(..) => entries.push(UnaccountedEntry::new(
             1,
             "process lifecycles",
             "processes that started and exited within the moment before this snapshot: named [observed] in the exits section above (the eBPF drain holds the last 2s)",

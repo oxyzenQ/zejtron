@@ -53,8 +53,11 @@ pub(crate) enum ExitLane {
     /// Unaccounted block names what stays invisible.
     NotAttached,
     /// The drain succeeded: the exits inside the window, possibly
-    /// none (an empty window is a finding, not a missing section).
-    Drained(Vec<ExitRow>),
+    /// none (an empty window is a finding, not a missing section),
+    /// and the count of the observer's own invocations the lane
+    /// excluded from those rows (named, never silently dropped -
+    /// night-dragon-lts-4).
+    Drained(Vec<ExitRow>, usize),
     /// The probe is attached but the ring would not open: the error
     /// text rides the report verbatim.
     DrainFailed(String),
@@ -82,6 +85,63 @@ pub(crate) fn comm_string(bytes: &[u8; 16]) -> String {
     }
 }
 
+/// This invocation's own comm (the observer): every previous
+/// zejtron run that exited inside the window is the tool measuring
+/// itself - a watch-loop's invocations, a monitoring cron's one per
+/// second. Those exits are real kernel events but facts about the
+/// observer, not the host: the lane excludes them from the rows and
+/// names the exclusion count, never a silent drop. The kernel
+/// truncates comm to 15 characters (TASK_COMM_LEN minus the NUL),
+/// and the comparison truncates the same way or a long binary name
+/// never matches its own exits.
+///
+/// The kernel's own record first (night-dragon-lts-4): /proc/self/comm
+/// is the exact string bpf_get_current_comm() will attach to this
+/// process's own exit event, so the comparison matches by
+/// construction where a path-derived guess does not - a watch loop
+/// invoking through a symlink alias (current_exe resolves the link,
+/// comm rides the alias name) and a watch loop holding the binary
+/// across a rebuild (current_exe grows the kernel's " (deleted)"
+/// marker, comm keeps the bare name) are the two shapes this lane
+/// exists for, and both break the basename guess.
+fn own_comm() -> String {
+    if let Ok(record) = std::fs::read_to_string("/proc/self/comm") {
+        let shaped = shape_comm_record(&record);
+        if !shaped.is_empty() {
+            return shaped;
+        }
+    }
+    let name = std::env::current_exe()
+        .ok()
+        .and_then(|path| {
+            path.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+        })
+        // The deleted-binary shape: /proc/self/exe names the unlinked
+        // file as "<name> (deleted)" - the marker is the kernel's
+        // annotation, not part of any comm.
+        .map(|name| {
+            name.strip_suffix(" (deleted)")
+                .map(str::to_owned)
+                .unwrap_or(name)
+        })
+        .unwrap_or_else(|| "zejtron".to_owned());
+    name.chars().take(15).collect()
+}
+
+/// Shape one /proc/self/comm record into the comparison form: trim
+/// the trailing newline (and any NUL a record ever carried), cap at
+/// the kernel's own 15-character comm bound. An unreadable or empty
+/// record is the caller's signal to fall through to the exe path -
+/// never a guess rendered as the kernel's word.
+fn shape_comm_record(record: &str) -> String {
+    record
+        .trim_end_matches(['\n', '\0'])
+        .chars()
+        .take(15)
+        .collect()
+}
+
 /// Collect the exit lane: the pin state first (a partial chain is
 /// not a live chain - `doctor --attach` heals it), then the drain,
 /// then the window cutoff. The read side needs no capabilities,
@@ -95,7 +155,10 @@ pub(crate) fn collect_window(window_secs: u64) -> ExitLane {
     }
     match ebpf::ringbuf::drain_proc_exits() {
         Err(e) => ExitLane::DrainFailed(e),
-        Ok(events) => ExitLane::Drained(window_rows(events, window_secs)),
+        Ok(events) => {
+            let (rows, observer_excluded) = window_rows(events, window_secs);
+            ExitLane::Drained(rows, observer_excluded)
+        }
     }
 }
 
@@ -107,8 +170,12 @@ pub(crate) fn collect_window(window_secs: u64) -> ExitLane {
 /// bounded and the section header names the window either way.
 /// night-improve-48 grows the parameter: ram asks for its five
 /// seconds, the delta symptoms ask for two (the window the spec
-/// names for the sampling-blind overlay).
-fn window_rows(events: Vec<ProcExitEvent>, window_secs: u64) -> Vec<ExitRow> {
+/// names for the sampling-blind overlay). night-dragon-lts-4 adds
+/// the observer cut: this tool's own invocations leave the rows and
+/// ride the named exclusion count instead - the pre-fix lane
+/// rendered "PID 12345 (zejtron) exited" inside a zejtron report,
+/// the observer accusing itself.
+fn window_rows(events: Vec<ProcExitEvent>, window_secs: u64) -> (Vec<ExitRow>, usize) {
     let cutoff_ns = crate::info::clock::monotonic_now_ns()
         .map(|now| now.saturating_sub(window_secs * 1_000_000_000));
     let mut rows: Vec<ExitRow> = events
@@ -123,8 +190,12 @@ fn window_rows(events: Vec<ProcExitEvent>, window_secs: u64) -> Vec<ExitRow> {
             timestamp_ns: event.timestamp_ns,
         })
         .collect();
+    let own = own_comm();
+    let before = rows.len();
+    rows.retain(|row| row.comm != own);
+    let observer_excluded = before - rows.len();
     rows.sort_by_key(|row| row.timestamp_ns);
-    rows
+    (rows, observer_excluded)
 }
 
 /// The exit section's render, seated between the slab section and
@@ -141,9 +212,9 @@ fn window_rows(events: Vec<ProcExitEvent>, window_secs: u64) -> Vec<ExitRow> {
 /// passes its own pair, the delta symptoms pass theirs).
 pub(crate) fn render_section(lane: &ExitLane, lines: &mut Vec<String>, window_label: &str) {
     let header = format!("Recently exited (eBPF, last {window_label}):");
-    let rows = match lane {
+    let (rows, observer_excluded) = match lane {
         ExitLane::NotAttached => return,
-        ExitLane::Drained(rows) => rows,
+        ExitLane::Drained(rows, observer_excluded) => (rows, observer_excluded),
         ExitLane::DrainFailed(e) => {
             lines.push(crate::output::ok_out(&header));
             lines.push(format!(
@@ -180,6 +251,17 @@ pub(crate) fn render_section(lane: &ExitLane, lines: &mut Vec<String>, window_la
         lines.push(crate::output::grey_out(&format!(
             "  ({more} more {} in the window, not rendered)",
             noun_for(more, "exit", "exits")
+        )));
+    }
+    // The observer boundary (night-dragon-lts-4): this tool's own
+    // invocations are real kernel events but facts about the
+    // observer, not the host - excluded from the rows above and
+    // named here, never dropped in silence.
+    if *observer_excluded > 0 {
+        lines.push(crate::output::grey_out(&format!(
+            "  {} {} of this tool excluded (the observer's own invocations, not host facts)",
+            observer_excluded,
+            noun_for(*observer_excluded, "exit", "exits")
         )));
     }
     lines.push(String::new());
