@@ -300,3 +300,48 @@ fn parse_sysfs_u32_reads_both_kernel_shapes() {
     assert_eq!(parse_sysfs_u32("0x"), None);
     assert_eq!(parse_sysfs_u32("not-a-number"), None);
 }
+
+#[test]
+fn ipv6_addresses_render_in_rfc5952_form() {
+    // This host's own eth0 link-local shape: the kernel's 32 hex
+    // digits compress to the two-colon form every reader expects.
+    assert_eq!(
+        format_ipv6("fe800000000000002cb54efffe3520c9").as_deref(),
+        Some("fe80::2cb5:4eff:fe35:20c9")
+    );
+    // Loopback: seven zero groups compress, the trailing 1 rides.
+    assert_eq!(
+        format_ipv6("00000000000000000000000000000001").as_deref(),
+        Some("::1")
+    );
+    // The unspecified address: all eight groups compress.
+    assert_eq!(
+        format_ipv6("00000000000000000000000000000000").as_deref(),
+        Some("::")
+    );
+    // Two equal zero runs: the LEFTMOST compresses (RFC 5952 4.2.2).
+    assert_eq!(
+        format_ipv6("20010db8000000000001000000000001").as_deref(),
+        Some("2001:db8::1:0:0:1")
+    );
+    // A longer run beats an earlier shorter one.
+    assert_eq!(
+        format_ipv6("20010db8000100000000000000010000").as_deref(),
+        Some("2001:db8:1::1:0")
+    );
+    // A lone zero group never compresses (RFC 5952 4.2.1), and each
+    // group drops its leading zeros.
+    assert_eq!(
+        format_ipv6("0db80000000200030004000500060007").as_deref(),
+        Some("db8:0:2:3:4:5:6:7")
+    );
+    assert_eq!(
+        format_ipv6("20010db8123456789abcdef000011234").as_deref(),
+        Some("2001:db8:1234:5678:9abc:def0:1:1234")
+    );
+    // Anything that is not exactly 32 hex digits is refused, never
+    // guessed at.
+    assert_eq!(format_ipv6("fe80::1"), None);
+    assert_eq!(format_ipv6(""), None);
+    assert_eq!(format_ipv6("zz000000000000000000000000000001"), None);
+}

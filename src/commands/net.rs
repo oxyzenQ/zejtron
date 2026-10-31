@@ -231,6 +231,63 @@ fn read_sysfs_u64(iface_path: &Path, file: &str) -> Option<u64> {
     content.trim().parse::<u64>().ok()
 }
 
+/// RFC 5952 form of one /proc/net/if_inet6 address (32 lowercase
+/// hex digits, no colons): each 16-bit group drops its leading
+/// zeros, and the single longest run of two or more all-zero groups
+/// compresses to "::" - leftmost on ties, a lone zero group never
+/// compresses (night-dragon-lts-4; the kernel's 32-character form
+/// was rendered verbatim with colons spliced in, so the loopback
+/// address rode as 0000:0000:...:0001 on every host and the
+/// link-local prefix drowned the interface identifier). None for
+/// any input that is not exactly 32 hex digits - the caller drops
+/// the line rather than guessing at a malformed kernel row.
+pub(crate) fn format_ipv6(hex: &str) -> Option<String> {
+    let mut groups = [0u16; 8];
+    for (index, group) in groups.iter_mut().enumerate() {
+        *group = u16::from_str_radix(hex.get(index * 4..index * 4 + 4)?, 16).ok()?;
+    }
+    // The longest all-zero run of two or more groups, leftmost on
+    // ties (RFC 5952 4.2.2): strict > keeps the earlier run, and a
+    // run shorter than two never compresses (4.2.1).
+    let mut best_start = usize::MAX;
+    let mut best_len = 0;
+    let mut index = 0;
+    while index < 8 {
+        if groups[index] == 0 {
+            let start = index;
+            while index < 8 && groups[index] == 0 {
+                index += 1;
+            }
+            if index - start > best_len {
+                best_len = index - start;
+                best_start = start;
+            }
+        } else {
+            index += 1;
+        }
+    }
+    if best_len < 2 {
+        best_start = usize::MAX;
+    }
+    let mut out = String::with_capacity(39);
+    let mut index = 0;
+    while index < 8 {
+        if index == best_start {
+            out.push_str("::");
+            index += best_len;
+            continue;
+        }
+        if !out.is_empty() && !out.ends_with(':') {
+            out.push(':');
+        }
+        // Lowercase hex without leading zeros: u16's Display prints
+        // decimal, so the group renders through the hex formatter.
+        out.push_str(&format!("{:x}", groups[index]));
+        index += 1;
+    }
+    Some(out)
+}
+
 /// Parse /proc/net/if_inet6 to get IPv6 addresses per interface.
 /// Format: addr_index prefix_len scope flags ifname
 /// addr is 32 hex chars (no colons).
@@ -251,16 +308,9 @@ fn read_ipv6_addresses(iface_name: &str) -> Vec<String> {
         if raw.len() != 32 {
             continue;
         }
-        // Insert colon every 4 chars to form standard IPv6 notation
-        let mut formatted = String::with_capacity(39);
-        for (i, c) in raw.chars().enumerate() {
-            if i > 0 && i % 4 == 0 {
-                formatted.push(':');
-            }
-            formatted.push(c);
+        if let Some(ip) = format_ipv6(raw) {
+            addrs.push(ip);
         }
-        // Could canonicalize (compress zeros) but raw form is fine for display
-        addrs.push(formatted);
     }
     addrs
 }
