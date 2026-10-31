@@ -432,6 +432,17 @@ pub(crate) fn eprintln_error_labeled(msg: &str) {
     eprintln!("{block}");
 }
 
+/// The count-noun agreement law (night-dragon-lts-4): one process,
+/// two processes. The ledger's boundary lines, the verdict
+/// sentences, and the row-count notes render a count beside its
+/// noun, and "1 processes exited mid-scan" reads as a tool that
+/// does not check its own output - the same blunt edge on every
+/// low-count host, the exact shape a detective tool cannot afford.
+/// One helper, both forms, every count-noun site speaks it.
+pub(crate) fn noun_for<'a>(count: usize, singular: &'a str, plural: &'a str) -> &'a str {
+    if count == 1 { singular } else { plural }
+}
+
 #[cfg(test)]
 #[path = "../../test/output/output_tests.rs"]
 mod tests;

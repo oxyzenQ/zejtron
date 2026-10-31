@@ -184,13 +184,13 @@ fn the_trace_ladder_names_each_class_present() {
     };
     let section = trace_section(&report, 1);
     assert!(section.contains("How zejtron knows:"));
-    assert!(section.contains("1 [measured] holder rows: /proc/<pid>/fd + /proc/<pid>/maps"));
-    assert!(section.contains("1 [measured] enrichment rows: /proc/<pid>/cgroup"));
-    assert!(section.contains("1 [measured] metadata rows: stat(2)"));
+    assert!(section.contains("1 [measured] holder row: /proc/<pid>/fd + /proc/<pid>/maps"));
+    assert!(section.contains("1 [measured] enrichment row: /proc/<pid>/cgroup"));
+    assert!(section.contains("1 [measured] metadata row: stat(2)"));
     assert!(section.contains(
         "2 [observed] event rows: vfs_open kprobe + the write probe (raw_syscalls/sys_enter)"
     ));
-    assert!(section.contains("1 [inferred] event rows: audit.log SYSCALL+PATH records"));
+    assert!(section.contains("1 [inferred] event row: audit.log SYSCALL+PATH records"));
     assert!(section.contains("Unaccounted and the verdict: composed from the rows above"));
 }
 

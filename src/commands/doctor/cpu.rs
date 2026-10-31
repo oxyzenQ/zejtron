@@ -21,6 +21,7 @@
 use super::delta::{self, SAMPLE_WINDOW_DESC};
 use super::memory::exits::ExitLane;
 use super::memory::pid_dirs;
+use crate::output::noun_for;
 use std::collections::BTreeMap;
 use std::time::SystemTime;
 
@@ -350,8 +351,9 @@ fn render_top(sample: &CpuSample, lines: &mut Vec<String>) {
 fn render_load_stuck(sample: &CpuSample, lines: &mut Vec<String>) {
     lines.push(crate::output::ok_out("Load / stuck:"));
     lines.push(format!(
-        "  {} processes in R state (running)  {}",
+        "  {} {} in R state (running)  {}",
         sample.running,
+        noun_for(sample.running, "process", "processes"),
         crate::output::ok_out("[measured]")
     ));
     for row in &sample.stuck {

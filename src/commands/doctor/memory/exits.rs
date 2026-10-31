@@ -21,6 +21,7 @@
 //! report verbatim, never a silent empty section).
 
 use crate::ebpf::{self, events::ProcExitEvent};
+use crate::output::noun_for;
 
 /// The post-mortem window: the last five seconds of process exits
 /// the doctor drains and names. Five, because the question this
@@ -175,9 +176,10 @@ pub(crate) fn render_section(lane: &ExitLane, lines: &mut Vec<String>, window_la
         ));
     }
     if rows.len() > super::ledger::TOP_N {
+        let more = rows.len() - super::ledger::TOP_N;
         lines.push(crate::output::grey_out(&format!(
-            "  ({} more exits in the window, not rendered)",
-            rows.len() - super::ledger::TOP_N
+            "  ({more} more {} in the window, not rendered)",
+            noun_for(more, "exit", "exits")
         )));
     }
     lines.push(String::new());

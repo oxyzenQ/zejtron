@@ -12,6 +12,7 @@ use std::path::Path;
 use std::process::Command;
 
 use super::{CheckResult, CheckStatus};
+use crate::output::noun_for;
 
 pub(super) fn check_kernel_distro() -> CheckResult {
     let kernel = kernel_release().unwrap_or_else(|| "unknown".to_owned());
@@ -247,16 +248,21 @@ pub(super) fn check_proc_net(proc_net: &Path) -> CheckResult {
         return CheckResult {
             status: CheckStatus::Ok,
             check: "proc_net",
-            message: format!("{sockets} sockets parsed"),
+            message: format!(
+                "{sockets} {} parsed",
+                noun_for(sockets, "socket", "sockets")
+            ),
         };
     }
 
+    let unavailable = files.len() - parsed;
     CheckResult {
         status: CheckStatus::Warn,
         check: "proc_net",
         message: format!(
-            "{sockets} sockets parsed; {} proc-net files unavailable",
-            files.len() - parsed
+            "{sockets} {} parsed; {unavailable} {} unavailable",
+            noun_for(sockets, "socket", "sockets"),
+            noun_for(unavailable, "proc-net file", "proc-net files")
         ),
     }
 }

@@ -13,6 +13,7 @@
 use super::exits::EXIT_WINDOW_LABEL;
 use super::exits::ExitLane;
 use super::{MemorySample, TmpfsFile, holders_label, residual_kib};
+use crate::output::noun_for;
 
 /// The top-N rows each section renders (the exits section shares
 /// it - one row cap for the whole report).
@@ -236,7 +237,8 @@ fn render_tmpfs(sample: &MemorySample, lines: &mut Vec<String>) {
 /// read, for whichever reason the walk met.
 fn grey_unreadable_dirs(count: usize) -> String {
     crate::output::grey_out(&format!(
-        "  {count} tmpfs directories could not be read (unmounted mid-scan or permission) and are not represented"
+        "  {count} {} could not be read (unmounted mid-scan or permission) and are not represented",
+        noun_for(count, "tmpfs directory", "tmpfs directories")
     ))
 }
 
@@ -270,8 +272,9 @@ fn render_deleted(sample: &MemorySample, lines: &mut Vec<String>) {
     }
     if sample.deleted.len() > TOP_N {
         lines.push(crate::output::grey_out(&format!(
-            "  ({} more deleted-but-open files, not rendered)",
-            sample.deleted.len() - TOP_N
+            "  ({} more deleted-but-open {}, not rendered)",
+            sample.deleted.len() - TOP_N,
+            noun_for(sample.deleted.len() - TOP_N, "file", "files")
         )));
     }
     lines.push(String::new());
@@ -425,41 +428,46 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
         lines.push(format!(
             "  {} {}",
             sample.pss_permission_refused,
-            crate::output::grey_out(
-                "processes' smaps_rollup unreadable (permission) - their memory \
-                 rides the residual above"
-            )
+            crate::output::grey_out(&format!(
+                "{} with an unreadable smaps_rollup (permission) - that memory \
+                 rides the residual above",
+                noun_for(sample.pss_permission_refused, "process", "processes")
+            ))
         ));
     }
     if sample.pss_vanished > 0 {
         lines.push(format!(
             "  {} {}",
             sample.pss_vanished,
-            crate::output::grey_out(
-                "processes exited or truncated mid-scan - their memory rides the \
-                 residual above"
-            )
+            crate::output::grey_out(&format!(
+                "{} exited or truncated mid-scan - that memory rides the \
+                 residual above",
+                noun_for(sample.pss_vanished, "process", "processes")
+            ))
         ));
     }
     if sample.pss_kernel_threads > 0 {
         lines.push(format!(
             "  {} {}",
             sample.pss_kernel_threads,
-            crate::output::grey_out(
-                "processes carry no memory map (kernel threads, zombies) - no \
-                 user memory to attribute; their kernel-side memory rides the \
-                 residual above"
-            )
+            crate::output::grey_out(&format!(
+                "{} {} no memory map (kernel threads, zombies) - no \
+                 user memory to attribute; the kernel-side memory rides the \
+                 residual above",
+                noun_for(sample.pss_kernel_threads, "process", "processes"),
+                noun_for(sample.pss_kernel_threads, "carries", "carry")
+            ))
         ));
     }
     if sample.fd_permission_refused > 0 {
         lines.push(format!(
             "  {} {}",
             sample.fd_permission_refused,
-            crate::output::grey_out(
-                "processes' fd tables unreadable (permission) - the tmpfs holder \
-                 list names only the holders visible to this user"
-            )
+            crate::output::grey_out(&format!(
+                "{} with unreadable fd tables (permission) - the tmpfs holder \
+                 list names only the holders visible to this user",
+                noun_for(sample.fd_permission_refused, "process", "processes")
+            ))
         ));
     }
     lines.push(String::new());

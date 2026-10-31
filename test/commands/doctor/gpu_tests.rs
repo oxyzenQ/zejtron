@@ -123,7 +123,7 @@ fn the_permission_boundary_is_named_never_dropped() {
     let report = render(&synthetic(), false);
     assert!(
         report.contains(
-            "3 processes' fd tables unreadable (permission) - the holder list names \
+            "3 processes with unreadable fd tables (permission) - the holder list names \
              only the holders visible to this user"
         ),
         "{report}"

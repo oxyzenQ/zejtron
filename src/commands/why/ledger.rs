@@ -399,9 +399,10 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
         .count();
     if holder_rows > 0 {
         lines.push(format!(
-            "  {holder_rows} {} holder rows: /proc/<pid>/fd + /proc/<pid>/maps \
+            "  {holder_rows} {} {}: /proc/<pid>/fd + /proc/<pid>/maps \
              scan at the instant of this query",
-            measured_tag
+            measured_tag,
+            crate::output::noun_for(holder_rows, "holder row", "holder rows")
         ));
     }
     let enrich_rows = report
@@ -411,15 +412,17 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
         .count();
     if enrich_rows > 0 {
         lines.push(format!(
-            "  {enrich_rows} {} enrichment rows: /proc/<pid>/cgroup (systemd unit) \
+            "  {enrich_rows} {} {}: /proc/<pid>/cgroup (systemd unit) \
              + /proc/<pid>/cmdline",
-            measured_tag
+            measured_tag,
+            crate::output::noun_for(enrich_rows, "enrichment row", "enrichment rows")
         ));
     }
     if meta_rows > 0 {
         lines.push(format!(
-            "  {meta_rows} {} metadata rows: stat(2) on the queried path",
-            measured_tag
+            "  {meta_rows} {} {}: stat(2) on the queried path",
+            measured_tag,
+            crate::output::noun_for(meta_rows, "metadata row", "metadata rows")
         ));
     }
     if !report.changes.rows.is_empty() || report.changes.unavailable {
@@ -432,17 +435,19 @@ fn trace_section(report: &EvidenceReport, meta_rows: usize) -> String {
         let inferred = report.changes.rows.len() - observed;
         if observed > 0 {
             lines.push(format!(
-                "  {observed} {} event rows: vfs_open kprobe + the write probe (raw_syscalls/sys_enter) -> \
+                "  {observed} {} {}: vfs_open kprobe + the write probe (raw_syscalls/sys_enter) -> \
                  tracked_inodes filter -> file_events ring; CLOCK_MONOTONIC stamps \
                  rendered via clock_gettime + wall offset",
-                observed_tag
+                observed_tag,
+                crate::output::noun_for(observed, "event row", "event rows")
             ));
         }
         if inferred > 0 {
             lines.push(format!(
-                "  {inferred} {} event rows: audit.log SYSCALL+PATH records (or \
+                "  {inferred} {} {}: audit.log SYSCALL+PATH records (or \
                  journalctl export --grep), replayed - the log's latest record",
-                inferred_tag
+                inferred_tag,
+                crate::output::noun_for(inferred, "event row", "event rows")
             ));
         }
         if report.changes.unavailable {

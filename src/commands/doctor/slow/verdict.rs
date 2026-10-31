@@ -202,9 +202,12 @@ pub(crate) fn rank_findings(sample: &SlowSample) -> Vec<Finding> {
         findings.push(Finding {
             class: "runnable_queue",
             text: format!(
-                "{} processes are running on {} cores - the runnable queue is \
+                "{} {} are running on {} {} - the runnable queue is \
                  over-subscribed.",
-                sample.cpu.running, sample.cpu.ncpu
+                sample.cpu.running,
+                crate::output::noun_for(sample.cpu.running, "process", "processes"),
+                sample.cpu.ncpu,
+                crate::output::noun_for(sample.cpu.ncpu, "core", "cores"),
             ),
         });
     }
