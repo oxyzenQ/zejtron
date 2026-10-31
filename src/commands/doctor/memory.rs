@@ -214,24 +214,47 @@ pub(crate) fn parse_meminfo(contents: &str) -> Option<MemInfo> {
     })
 }
 
-/// One Pss field of /proc/*/smaps_rollup, in KiB.
-fn rollup_field(contents: &str, field: &str) -> Option<u64> {
+/// The rollup's five fields, in one pass, zero allocations
+/// (night-dragon-lts-1): the old form scanned the whole rollup once
+/// per field through a per-field helper - five passes - and
+/// allocated a fresh prefix String per line per pass, ~110 heap
+/// hits per process and tens of thousands across a few hundred
+/// processes. Semantics are byte-identical: the first line matching
+/// a field's prefix is the one that parses (a matching line with no
+/// number fails the whole read, exactly as the per-field scan's `?`
+/// did), and the five prefixes are mutually exclusive ("Pss:"
+/// cannot prefix-match "Pss_Anon:").
+pub(crate) fn parse_smaps_rollup(contents: &str) -> Option<(u64, u64, u64, u64, u64)> {
+    let mut pss = None;
+    let mut anon = None;
+    let mut file = None;
+    let mut shmem = None;
+    let mut rss = None;
+    let number_after = |rest: &str| -> Option<u64> { rest.split_whitespace().next()?.parse().ok() };
     for line in contents.lines() {
-        if let Some(rest) = line.strip_prefix(&format!("{field}:")) {
-            return rest.split_whitespace().next()?.parse().ok();
+        if pss.is_none()
+            && let Some(rest) = line.strip_prefix("Pss:")
+        {
+            pss = Some(number_after(rest)?);
+        } else if anon.is_none()
+            && let Some(rest) = line.strip_prefix("Pss_Anon:")
+        {
+            anon = Some(number_after(rest)?);
+        } else if file.is_none()
+            && let Some(rest) = line.strip_prefix("Pss_File:")
+        {
+            file = Some(number_after(rest)?);
+        } else if shmem.is_none()
+            && let Some(rest) = line.strip_prefix("Pss_Shmem:")
+        {
+            shmem = Some(number_after(rest)?);
+        } else if rss.is_none()
+            && let Some(rest) = line.strip_prefix("Rss:")
+        {
+            rss = Some(number_after(rest)?);
         }
     }
-    None
-}
-
-pub(crate) fn parse_smaps_rollup(contents: &str) -> Option<(u64, u64, u64, u64, u64)> {
-    Some((
-        rollup_field(contents, "Pss")?,
-        rollup_field(contents, "Pss_Anon")?,
-        rollup_field(contents, "Pss_File")?,
-        rollup_field(contents, "Pss_Shmem")?,
-        rollup_field(contents, "Rss")?,
-    ))
+    Some((pss?, anon?, file?, shmem?, rss?))
 }
 
 /// The per-process PSS table: every pid whose rollup this invocation
