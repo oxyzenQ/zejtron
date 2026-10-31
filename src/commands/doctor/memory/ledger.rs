@@ -436,7 +436,18 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
             "  {} {}",
             sample.pss_vanished,
             crate::output::grey_out(
-                "processes exited or emptied mid-scan - their memory rides the \
+                "processes exited or truncated mid-scan - their memory rides the \
+                 residual above"
+            )
+        ));
+    }
+    if sample.pss_kernel_threads > 0 {
+        lines.push(format!(
+            "  {} {}",
+            sample.pss_kernel_threads,
+            crate::output::grey_out(
+                "processes carry no memory map (kernel threads, zombies) - no \
+                 user memory to attribute; their kernel-side memory rides the \
                  residual above"
             )
         ));

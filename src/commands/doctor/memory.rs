@@ -130,8 +130,17 @@ pub(crate) struct MemorySample {
     pub pss: Vec<ProcessPss>,
     /// /proc pid dirs whose smaps_rollup was permission-refused.
     pub pss_permission_refused: usize,
-    /// Pid dirs that vanished or parsed empty mid-scan.
+    /// Pid dirs that vanished or parsed empty mid-scan (a read that
+    /// succeeded on non-empty bytes but no longer parses - the
+    /// exiting-process truncation race).
     pub pss_vanished: usize,
+    /// Pid dirs whose smaps_rollup read back EMPTY: kernel threads
+    /// and zombies, which carry no mm and therefore no user memory
+    /// to attribute (night-dragon-lts-1: these were counted as
+    /// vanished, printing a false "exited or emptied mid-scan" claim
+    /// on every host with visible kthreads - a steady-state class,
+    /// not a scan race).
+    pub pss_kernel_threads: usize,
     pub tmpfs_files: Vec<TmpfsFile>,
     /// Tmpfs mount points (or their subdirs) readdir refused to read.
     pub tmpfs_unreadable_dirs: usize,
@@ -235,7 +244,17 @@ fn collect_pss(pids: &[u32], sample: &mut MemorySample) {
     for pid in pids {
         match fs::read_to_string(format!("/proc/{pid}/smaps_rollup")) {
             Ok(contents) => {
-                if let Some((pss, anon, file, shmem, rss)) = parse_smaps_rollup(&contents) {
+                // The empty read is its own class (night-dragon-lts-1):
+                // a process with no mm - kernel threads, and zombies
+                // past their exit - open the file fine and read back
+                // zero bytes, because show_smaps_rollup has no mm to
+                // walk. Counting them as "exited mid-scan" printed a
+                // false race claim for a steady-state population of
+                // 80-200 kthreads on a normal host; they carry no
+                // user memory, so nothing was missed.
+                if contents.trim().is_empty() {
+                    sample.pss_kernel_threads += 1;
+                } else if let Some((pss, anon, file, shmem, rss)) = parse_smaps_rollup(&contents) {
                     sample.pss.push(ProcessPss {
                         pid: *pid,
                         name: comm_of(*pid),

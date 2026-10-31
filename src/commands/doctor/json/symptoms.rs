@@ -93,6 +93,8 @@ pub(in crate::commands::doctor) fn json_ram(sample: &MemorySample) -> String {
     let _ = write!(out, "{}", sample.pss_permission_refused);
     out.push_str(",\"pss_vanished\":");
     let _ = write!(out, "{}", sample.pss_vanished);
+    out.push_str(",\"pss_kernel_threads\":");
+    let _ = write!(out, "{}", sample.pss_kernel_threads);
     // The tmpfs view: the text's top files (size > 0) and the
     // mounts they ride on.
     let tmpfs_files: Vec<&TmpfsFile> = sample
@@ -236,7 +238,15 @@ pub(super) fn ram_unaccounted(sample: &MemorySample) -> Vec<UnaccountedEntry> {
         entries.push(UnaccountedEntry::new(
             sample.pss_vanished,
             "processes",
-            "exited or emptied mid-scan - their memory rides the residual above",
+            "exited or truncated mid-scan - their memory rides the residual above",
+        ));
+    }
+    if sample.pss_kernel_threads > 0 {
+        entries.push(UnaccountedEntry::new(
+            sample.pss_kernel_threads,
+            "processes",
+            "carry no memory map (kernel threads, zombies) - no user memory to \
+             attribute; their kernel-side memory rides the residual above",
         ));
     }
     if sample.fd_permission_refused > 0 {
