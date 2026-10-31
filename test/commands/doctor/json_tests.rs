@@ -42,6 +42,7 @@ fn ram_sample() -> MemorySample {
         }],
         pss_permission_refused: 2,
         pss_vanished: 1,
+        pss_kernel_threads: 5,
         tmpfs_files: vec![TmpfsFile {
             path: "/dev/shm/x".to_owned(),
             size_bytes: 2048,
@@ -199,7 +200,7 @@ fn the_ram_json_pins_its_shape() {
 \"used_pct\":25},\
 \"processes\":[{\"pid\":42,\"comm\":\"brave\",\"pss_bytes\":409600,\"anon_bytes\":102400,\
 \"file_bytes\":204800,\"shmem_bytes\":4096,\"rss_bytes\":524288}],\
-\"processes_total\":1,\"pss_permission_refused\":2,\"pss_vanished\":1,\
+\"processes_total\":1,\"pss_permission_refused\":2,\"pss_vanished\":1,\"pss_kernel_threads\":5,\
 \"tmpfs\":{\"mounts\":[\"/dev/shm\"],\"files\":[{\"path\":\"/dev/shm/x\",\
 \"size_bytes\":2048,\"holders\":[42]}],\"unreadable_dirs\":0},\
 \"deleted_open\":[],\"memfds\":[],\
@@ -211,8 +212,11 @@ fn the_ram_json_pins_its_shape() {
 attached - processes that exited before this snapshot are invisible\"},\
 {\"count\":2,\"category\":\"processes\",\"reason\":\"smaps_rollup unreadable (permission) - \
 their memory rides the residual above\"},\
-{\"count\":1,\"category\":\"processes\",\"reason\":\"exited or emptied mid-scan - their \
+{\"count\":1,\"category\":\"processes\",\"reason\":\"exited or truncated mid-scan - their \
 memory rides the residual above\"},\
+{\"count\":5,\"category\":\"processes\",\"reason\":\"carry no memory map (kernel threads, \
+zombies) - no user memory to attribute; their kernel-side memory rides the residual \
+above\"},\
 {\"count\":3,\"category\":\"fd tables\",\"reason\":\"unreadable (permission) - the tmpfs \
 holder list names only the holders visible to this user\"}],\
 \"verdict\":{\"lines\":[\"The largest single consumer is brave (400 KiB PSS).\",\
