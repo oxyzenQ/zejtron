@@ -23,8 +23,12 @@
 //!    produce);
 //! 3. deleted-but-open files (/proc/*/fd targets ending " (deleted)"
 //!    - page cache and swap pinned by a dead directory entry);
-//! 4. memfd files (/proc/*/fd targets starting "memfd:" - in-memory
-//!    files a process created);
+//! 4. memfd files (in-memory files a process created; the kernel
+//!    renders their fd targets as "/memfd:<name> (deleted)" on
+//!    every kernel since memfd_create landed - the leading slash
+//!    and the deleted suffix are both unconditional, so the
+//!    classifier accepts the slash-prefixed shape and runs BEFORE
+//!    the deleted test, or every memfd in the wild lands in lane 3);
 //! 5. page cache, buffers, shmem (/proc/meminfo - reclaimable on
 //!    demand, named so the operator knows what is not a leak);
 //! 6. slab (top caches by num_objs * objsize from /proc/slabinfo;
@@ -341,6 +345,19 @@ impl FdShapes<'_> {
     }
 }
 
+/// The memfd classifier (night-dragon-lts-4): the kernel renders a
+/// memfd's fd target as "/memfd:<name> (deleted)" - leading slash and
+/// deleted suffix are both unconditional (proven live on 5.10 and
+/// 6.12 hosts) - so the test strips one leading slash before the
+/// "memfd:" prefix match. It must run BEFORE the deleted-suffix test:
+/// every memfd in the wild carries the suffix too, and the pre-fix
+/// walk filed them all as deleted files while the memfd section
+/// rendered "(none observed)" on every host.
+pub(crate) fn is_memfd_target(target: &str) -> bool {
+    let rest = target.strip_prefix('/').unwrap_or(target);
+    rest.starts_with("memfd:")
+}
+
 /// Attribute one fd link target: deleted files, memfd files, and
 /// tmpfs holders. The magic link's stat follows to the underlying
 /// file even when the directory entry is gone - the only size source
@@ -356,6 +373,20 @@ fn attribute_fd_target(
     tmpfs_index: &HashMap<String, Vec<usize>>,
     tmpfs_files: &mut [TmpfsFile],
 ) {
+    // Memfd first: its target carries the deleted suffix too
+    // (night-dragon-lts-4), and the deleted branch below would eat
+    // every memfd before the memfd test could fire.
+    if is_memfd_target(target) {
+        let size = fs::metadata(fd_path).ok().map(|m| m.len());
+        let name = shapes.comm(pid);
+        shapes.memfds.push(MemfdFile {
+            pid,
+            name,
+            target: target.to_owned(),
+            size_bytes: size,
+        });
+        return;
+    }
     if target.ends_with(" (deleted)") {
         let size = fs::metadata(fd_path).ok().map(|m| m.len());
         // The comm rides the pid, not the fd: this branch fires per
@@ -366,17 +397,6 @@ fn attribute_fd_target(
             pid,
             name,
             path: target.to_owned(),
-            size_bytes: size,
-        });
-        return;
-    }
-    if target.starts_with("memfd:") {
-        let size = fs::metadata(fd_path).ok().map(|m| m.len());
-        let name = shapes.comm(pid);
-        shapes.memfds.push(MemfdFile {
-            pid,
-            name,
-            target: target.to_owned(),
             size_bytes: size,
         });
         return;
