@@ -62,6 +62,18 @@ v11.0.0
 
 ### Added
 
+- **The pre-LTS real-usage audit** (docs/REAL_USAGE_AUDIT.md): the
+  release binary driven end to end — every verb, every flag class,
+  every error path, all nine `--print-json` lanes strict-parsed, the
+  degradation lanes on a host below the eBPF floor, a 400-run
+  stability loop, the 486-check supermassive e2e leg (0 failures,
+  the one skip naming its reason), and `build.sh check-all` inside
+  its cap. Verdict: cleared for the LTS production floor, no code
+  defect found. The one suspected defect (the provenance tag
+  displaying as `easured]`) was disproven at the byte level and the
+  guard note for future AI sessions landed in
+  AI_AGENTS_READ_THIS.md — a capture pipeline that eats `[m` must
+  never be trusted over the bytes.
 - The umbrella symptom (night-dragon-lts-2): `doctor --symptom slow`
   - the one question every operator asks first ("why is my machine
   slow?") - previously the honest deferral, now the composed answer.
