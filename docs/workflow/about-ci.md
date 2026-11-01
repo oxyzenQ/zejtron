@@ -27,7 +27,10 @@ wholesale on every push and every pull request - the same blind posture
 as the fast lane - with every tool it probes installed and pinned
 (version plus sha256, the bytes-are-the-pin contract), because a check
 that silently skips behind a missing tool is a check that does not
-exist. The 19 sections cover the shell quad, the workflow linters, TOML
+exist. The pins ride the release CDN directly - no api.github.com
+resolve sits in the install path, so the unauthenticated rate-limit
+failure class (a busy shared egress pool outliving any retry window)
+has no seat in the install steps. The 19 sections cover the shell quad, the workflow linters, TOML
 syntax, the repo-discipline gates (headers, permissions, emoji,
 language, the LOC caps), the pin-sync guards, the fuzz include law
 (section 18), and the documentation disclaimer's placement (section
@@ -207,7 +210,9 @@ needs the network has no place in a check that must stay fast. The
 on-demand seats are the report and the maintainer heal: `--apply`
 rewrites stale tag pins in place and fails closed if anything outside
 `.github/workflows/` changes, and `GITHUB_TOKEN` (optional, standard
-convention) lifts the unauthenticated API quota.
+convention) lifts the unauthenticated API quota, while every read -
+authenticated or bare - pins the API contract date with the
+`X-GitHub-Api-Version: 2022-11-28` header.
 
 ## Supermassive (the heavy lane)
 
