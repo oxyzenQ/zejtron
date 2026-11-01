@@ -75,6 +75,18 @@ reason = "chrono's tz-database sidecar; denied with its host crate"
 name = "time"
 reason = "the other heavyweight time crate; the civil clock contract is std-only"
 
+# Portfolio parity (2026-11-01): serde and serde_json join the ban
+# list, matching zelynic's ruleset. The JSON lane is hand-written in
+# src/evidence/json.rs (std-only, byte-deterministic, no crates exist
+# only to move JSON) and the derive stack is not in the graph.
+[[bans.deny]]
+name = "serde"
+reason = "hand-written JSON lane in src/evidence/json.rs; the derive stack is not in the graph"
+
+[[bans.deny]]
+name = "serde_json"
+reason = "hand-written JSON parser + writer replace it"
+
 [sources]
 unknown-registry = "warn"
 unknown-git = "warn"
