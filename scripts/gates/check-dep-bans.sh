@@ -45,34 +45,34 @@ CARVE_OUT_ROOT="aya-build"
 status=0
 
 find_banned() {
-        local lock="$1" crate="$2"
-        grep -q "^name = \"${crate}\"$" "$lock"
+	local lock="$1" crate="$2"
+	grep -q "^name = \"${crate}\"$" "$lock"
 }
 
 for lock in $(git ls-files -- '*Cargo.lock' | sort); do
-        for crate in "${BANNED[@]}"; do
-                if ! find_banned "$lock" "$crate"; then
-                        continue
-                fi
-                if [ "$lock" = "ebpf/Cargo.lock" ] && [[ "${SERDE_FAMILY}" == *"$crate"* ]]; then
-                        # The guarded carve-out: allowed only as the
-                        # upstream aya-build probe chain's passenger.
-                        if grep -q "^name = \"${CARVE_OUT_ROOT}\"$" "$lock"; then
-                                echo "  carve-out (upstream aya-ebpf build probe): $lock: $crate"
-                        else
-                                echo "  BANNED (no aya-build chain — a direct dependency): $lock: $crate"
-                                status=1
-                        fi
-                else
-                        echo "  BANNED: $lock: $crate"
-                        status=1
-                fi
-        done
+	for crate in "${BANNED[@]}"; do
+		if ! find_banned "$lock" "$crate"; then
+			continue
+		fi
+		if [ "$lock" = "ebpf/Cargo.lock" ] && [[ "${SERDE_FAMILY}" == *"$crate"* ]]; then
+			# The guarded carve-out: allowed only as the
+			# upstream aya-build probe chain's passenger.
+			if grep -q "^name = \"${CARVE_OUT_ROOT}\"$" "$lock"; then
+				echo "  carve-out (upstream aya-ebpf build probe): $lock: $crate"
+			else
+				echo "  BANNED (no aya-build chain — a direct dependency): $lock: $crate"
+				status=1
+			fi
+		else
+			echo "  BANNED: $lock: $crate"
+			status=1
+		fi
+	done
 done
 
 if [ "$status" -eq 0 ]; then
-        echo "dependency ban check: clean (root and fuzz locks carry zero banned crates;"
-        echo "ebpf carries only the documented upstream aya-build probe carve-out)"
+	echo "dependency ban check: clean (root and fuzz locks carry zero banned crates;"
+	echo "ebpf carries only the documented upstream aya-build probe carve-out)"
 fi
 
 exit "$status"
