@@ -118,7 +118,7 @@ mod live {
                 TCP_CLOSE,
             ),
         ];
-        let section = format_event_section(&events, Duration::from_secs(60), false);
+        let section = format_event_section(&events, Duration::from_secs(60), false, None);
 
         let lines: Vec<&str> = section.lines().collect();
         assert_eq!(lines[0], "Changes in the last 60s:");
@@ -161,7 +161,7 @@ mod live {
 
     #[test]
     fn empty_window_says_so_honestly() {
-        let section = format_event_section(&[], Duration::from_secs(300), false);
+        let section = format_event_section(&[], Duration::from_secs(300), false, None);
         assert!(section.contains("Changes in the last 5m:"));
         assert!(section.contains("(no events in the window)"));
         assert!(section.contains("Unaccounted:"));
@@ -178,7 +178,7 @@ mod live {
             TCP_CLOSE,
             TCP_LISTEN,
         )];
-        let section = format_event_section(&events, Duration::from_secs(60), true);
+        let section = format_event_section(&events, Duration::from_secs(60), true, None);
         // The PID token is dropped from the ROW - the unaccounted
         // block's prose still names the concept ("no visible PID"),
         // which is the point of the block.
@@ -221,8 +221,13 @@ mod live {
         let event_ts = 10_000_000_000;
         let events = vec![dead_left_listen(4242, event_ts)];
         let exits = vec![exit_at(event_ts - 87_000_000, 4242, "shortlisten")];
-        let section =
-            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        let section = format_event_section_with_exits(
+            &events,
+            Duration::from_secs(30),
+            false,
+            None,
+            Some(&exits),
+        );
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[observed]  "), "the weaker tier: {row}");
         assert!(row.contains("TCP4  *:9999  LEFT LISTEN"), "{row}");
@@ -247,8 +252,13 @@ mod live {
         let event_ts = 10_000_000_000;
         let events = vec![dead_left_listen(4242, event_ts)];
         let exits = vec![exit_at(event_ts - 400_000, 4242, "fast")];
-        let section =
-            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        let section = format_event_section_with_exits(
+            &events,
+            Duration::from_secs(30),
+            false,
+            None,
+            Some(&exits),
+        );
         assert!(
             section
                 .lines()
@@ -266,8 +276,13 @@ mod live {
         // kernel's ordering plainly, and the count stays honest.
         let event_ts = 10_000_000_000;
         let events = vec![dead_left_listen(4242, event_ts)];
-        let section =
-            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&[]));
+        let section = format_event_section_with_exits(
+            &events,
+            Duration::from_secs(30),
+            false,
+            None,
+            Some(&[]),
+        );
         let note = section
             .lines()
             .find(|l| l.contains("[unaccounted]") && l.contains("LEFT LISTEN"))
@@ -291,8 +306,13 @@ mod live {
         let event_ts = 10_000_000_000;
         let events = vec![dead_left_listen(4242, event_ts)];
         let exits = vec![exit_at(event_ts - 400_000_000, 4242, "oldlife")];
-        let section =
-            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        let section = format_event_section_with_exits(
+            &events,
+            Duration::from_secs(30),
+            false,
+            None,
+            Some(&exits),
+        );
         assert!(!section.contains("[observed]"), "{section}");
         assert!(
             section.contains("race window by kernel ordering"),
@@ -311,8 +331,13 @@ mod live {
         entered.timestamp_ns = event_ts;
         let events = vec![entered];
         let exits = vec![exit_at(event_ts - 87_000_000, 4242, "eager")];
-        let section =
-            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        let section = format_event_section_with_exits(
+            &events,
+            Duration::from_secs(30),
+            false,
+            None,
+            Some(&exits),
+        );
         assert!(!section.contains("[observed]"), "{section}");
         assert!(section.contains("  1 events in the window"), "{section}");
     }
@@ -326,13 +351,77 @@ mod live {
         let event_ts = 10_000_000_000;
         let events = vec![dead_left_listen(4242, event_ts)];
         let exits = vec![exit_at(event_ts + 3_000_000, 4242, "slowclose")];
-        let section =
-            format_event_section_with_exits(&events, Duration::from_secs(30), false, Some(&exits));
+        let section = format_event_section_with_exits(
+            &events,
+            Duration::from_secs(30),
+            false,
+            None,
+            Some(&exits),
+        );
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[event]  "), "{row}");
         assert!(!row.contains("[observed]"), "{row}");
         assert!(!section.contains("teardown lag"), "{section}");
         assert!(row.contains("(slowclose)"), "{row}");
+    }
+
+    #[test]
+    fn the_header_names_the_window_it_describes() {
+        // The one-shot window semantics residual: two sequential runs
+        // watch two different windows, and the header says WHICH one
+        // this section describes. The bounds are fixture stamps (the
+        // capture's own shape: the wait runs the window long, the
+        // drain costs the overhead); the rendered times ride the live
+        // wall offset, so the pins are structural and arithmetic,
+        // never by wall-clock value.
+        let start = 30_000_123_456_789;
+        let bounds = Some((start, start + 5 * 1_000_000_000 + 137_000_000));
+        let section = format_event_section(&[], Duration::from_secs(5), false, bounds);
+        let header = section.lines().next().unwrap();
+        assert!(header.contains("Changes in the last 5s ("), "{header}");
+        assert!(header.ends_with("):"), "{header}");
+        // The range token: two HH:MM:SS UTC stamps around the arrow.
+        let open = header.find('(').unwrap();
+        let range = &header[open + 1..header.len() - 2];
+        let stamps: Vec<&str> = range.split(" \u{2192} ").collect();
+        assert_eq!(stamps.len(), 2, "start then end: {header}");
+        let sod = |stamp: &str| -> u64 {
+            let bare = stamp
+                .strip_suffix(" UTC")
+                .unwrap_or_else(|| panic!("HH:MM:SS UTC: {stamp}"));
+            assert_eq!(bare.len(), 8, "HH:MM:SS: {bare}");
+            assert_eq!(&bare[2..3], ":", "{bare}");
+            assert_eq!(&bare[5..6], ":", "{bare}");
+            let p: Vec<u64> = bare.split(':').map(|x| x.parse().unwrap()).collect();
+            p[0] * 3600 + p[1] * 60 + p[2]
+        };
+        for stamp in &stamps {
+            sod(stamp);
+        }
+        // The span pin: end - start ~= the 5s window (the tolerance
+        // covers the fixture's own collection overhead and the
+        // per-endpoint whole-second truncation; the wrap keeps a
+        // midnight-crossing window honest).
+        let span = (sod(stamps[1]) + 86_400 - sod(stamps[0])) % 86_400;
+        assert!((4..=7).contains(&span), "end - start ~= 5s: {span}");
+        // The empty line carries the same range - an empty window
+        // still names itself.
+        let empty = section.lines().nth(1).unwrap();
+        assert!(empty.contains("(no events in the window: "), "{empty}");
+        assert!(empty.ends_with(')'), "{empty}");
+        assert!(empty.contains(" \u{2192} "), "{empty}");
+    }
+
+    #[test]
+    fn the_header_without_bounds_keeps_the_locked_shape() {
+        // No bounds (a failed clock read, or a caller without the
+        // capture's stamps): the locked range-less shapes ride
+        // unchanged - the honest absence, never a guessed boundary.
+        let section = format_event_section(&[], Duration::from_secs(5), false, None);
+        assert!(
+            section.contains("Changes in the last 5s:\n  (no events in the window)"),
+            "{section}"
+        );
     }
 }
 

@@ -33,14 +33,24 @@ pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
     // One scan, one capture, two renderers - the text lane below is
     // untouched.
     if print_json {
-        let events = if options.snapshot_only {
+        let capture = if options.snapshot_only {
             None
         } else {
             window::capture_window(&options)
         };
+        let (events, bounds) = capture
+            .map(|capture| (Some(capture.events), capture.bounds))
+            .unwrap_or((None, None));
         println!(
             "{}",
-            json::port_report_json(&selected, &owners, &stats, &options, events.as_deref())
+            json::port_report_json(
+                &selected,
+                &owners,
+                &stats,
+                &options,
+                events.as_deref(),
+                bounds
+            )
         );
         return Ok(());
     }

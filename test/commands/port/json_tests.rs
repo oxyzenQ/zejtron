@@ -84,7 +84,7 @@ fn live_udp_event(pid: u32) -> SockEvent {
 fn json_snapshot_shape_pins_the_two_truths() {
     let stats = ScanStats::default();
     let opts = options(true);
-    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None);
+    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None, None);
     // The subject pins the asked port; the mode is the honest
     // snapshot; the ports array carries the owner typed.
     assert!(out.starts_with("{\"subject\":\":9999\""));
@@ -106,7 +106,7 @@ fn json_snapshot_without_a_port_filter_has_a_null_subject() {
     let stats = ScanStats::default();
     let mut opts = options(true);
     opts.port = None;
-    let out = super::port_report_json(&[], &HashMap::new(), &stats, &opts, None);
+    let out = super::port_report_json(&[], &HashMap::new(), &stats, &opts, None, None);
     assert!(out.starts_with("{\"subject\":null"));
 }
 
@@ -122,7 +122,7 @@ fn json_live_shape_carries_the_event_kinds() {
         // A pid the kernel no longer shows: the unaccounted gap.
         live_event(4_000_000, TCP_CLOSE, TCP_LISTEN),
     ];
-    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, Some(&events));
+    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, Some(&events), None);
     assert!(out.contains("\"mode\":\"live\""));
     assert!(out.contains("\"changes\":{\"available\":true,\"reason\":null"));
     // The transition vocabulary, as the jq-friendly kind tokens.
@@ -140,7 +140,7 @@ fn json_lane_absence_names_the_reason_not_a_fake_window() {
     let opts = options(false);
     // The default shape with no captured window: the same snapshot
     // honesty as --snapshot-only, with the lane's own reason.
-    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None);
+    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None, None);
     assert!(out.contains("\"mode\":\"snapshot\""));
     assert!(out.contains("\"changes\":{\"available\":false,\"reason\":\"lane-not-attached\""));
 }
@@ -188,8 +188,13 @@ mod post_mortem {
     }
 
     fn both_formats(events: &[SockEvent], exits: &[ProcExitEvent]) -> (String, String) {
-        let text =
-            format_event_section_with_exits(events, Duration::from_secs(60), false, Some(exits));
+        let text = format_event_section_with_exits(
+            events,
+            Duration::from_secs(60),
+            false,
+            None,
+            Some(exits),
+        );
         let stats = ScanStats::default();
         let opts = options(false);
         let json = super::super::port_report_json_with_exits(
@@ -199,6 +204,7 @@ mod post_mortem {
             &opts,
             Some(events),
             Some(exits),
+            None,
         );
         (text, json)
     }
