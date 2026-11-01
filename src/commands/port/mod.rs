@@ -3,6 +3,7 @@
 
 mod events;
 mod json;
+mod lane_state;
 mod model;
 mod owners;
 mod parser;
@@ -33,14 +34,23 @@ pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
     // One scan, one capture, two renderers - the text lane below is
     // untouched.
     if print_json {
-        let capture = if options.snapshot_only {
-            None
+        let (events, bounds, lane_down) = if options.snapshot_only {
+            (None, None, None)
         } else {
-            window::capture_window(&options)
+            match window::capture_window(&options) {
+                // The detach story: the window ran but its lane was
+                // torn down mid-flight - the JSON lane reports the
+                // detach instead of serving a suspect window as
+                // whole. The text lane keeps the drained rows.
+                Ok(capture) if capture.detached_mid_window => (
+                    None,
+                    None,
+                    Some(lane_state::LaneUnavailable::DetachedMidWindow),
+                ),
+                Ok(capture) => (Some(capture.events), capture.bounds, None),
+                Err(lane) => (None, None, Some(lane)),
+            }
         };
-        let (events, bounds) = capture
-            .map(|capture| (Some(capture.events), capture.bounds))
-            .unwrap_or((None, None));
         println!(
             "{}",
             json::port_report_json(
@@ -49,7 +59,8 @@ pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
                 &stats,
                 &options,
                 events.as_deref(),
-                bounds
+                bounds,
+                lane_down
             )
         );
         return Ok(());

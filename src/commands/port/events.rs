@@ -18,7 +18,7 @@ use crate::ebpf::events::{ProcExitEvent, SockEvent};
 /// The `--events-only` shape: the live event section, or the refusal.
 pub(super) fn events_only_output(options: &PortOptions) -> String {
     match capture_window(options) {
-        Some(capture) => {
+        Ok(capture) => {
             let mut section = format_event_section(
                 &capture.events,
                 options.window,
@@ -31,7 +31,10 @@ pub(super) fn events_only_output(options: &PortOptions) -> String {
             }
             section
         }
-        None => unavailability_line(options.window),
+        // Every not-live shape renders the same refusal sentence it
+        // always has (the text lane's behavior is unchanged; the
+        // JSON lane is where the actual cause is named).
+        Err(_) => unavailability_line(options.window),
     }
 }
 

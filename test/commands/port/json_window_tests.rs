@@ -113,6 +113,7 @@ fn json_changes_block_names_its_window() {
         Some(&[]),
         None,
         Some(bounds),
+        None,
     );
     assert!(out.contains("\"changes\":{\"available\":true"), "{out}");
     let start = window_field(&out, "window_start_utc");
@@ -150,6 +151,7 @@ fn json_two_sequential_runs_name_two_different_windows() {
         Some(&[]),
         None,
         Some(first),
+        None,
     );
     let two = super::port_report_json_with_exits(
         &[],
@@ -159,6 +161,7 @@ fn json_two_sequential_runs_name_two_different_windows() {
         Some(&[]),
         None,
         Some(second),
+        None,
     );
     assert_ne!(
         window_field(&one, "window_start_utc"),
@@ -177,10 +180,11 @@ fn json_unavailable_changes_block_keeps_both_fields_null() {
     // omitted, never invented (the schema law).
     let stats = ScanStats::default();
     let opts = options(false);
-    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None, None);
+    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None, None, None);
     assert!(
         out.contains(
             "\"changes\":{\"available\":false,\"reason\":\"lane-not-attached\",\
+             \"hint\":\"attach first: sudo zejtron doctor --attach\",\
              \"window_start_utc\":null,\"window_end_utc\":null"
         ),
         "{out}"
@@ -202,12 +206,143 @@ fn json_window_that_ran_without_a_clock_keeps_both_fields_null() {
         Some(&[]),
         None,
         None,
+        None,
     );
     assert!(
         out.contains(
-            "\"changes\":{\"available\":true,\"reason\":null,\
+            "\"changes\":{\"available\":true,\"reason\":null,\"hint\":null,\
              \"window_start_utc\":null,\"window_end_utc\":null"
         ),
         "{out}"
     );
+}
+
+/// The lane-honesty pins (the misleading-reason residual): the
+/// changes block names the ACTUAL cause and the next action that
+/// heals it - a lane this euid cannot read is not a lane that is
+/// not attached. Split here with the boundary pins (the 600-LOC
+/// cap); the classification ladder's own unit pins live in
+/// window_tests.rs - this module pins the JSON contract only.
+mod lane_honesty {
+    use super::*;
+
+    fn report_with_lane(lane: Option<LaneUnavailable>) -> String {
+        let stats = ScanStats::default();
+        let opts = options(false);
+        super::port_report_json_with_exits(
+            &[socket()],
+            &owners(),
+            &stats,
+            &opts,
+            None,
+            None,
+            None,
+            lane,
+        )
+    }
+
+    #[test]
+    fn json_the_unreadable_lane_names_sudo_not_attach() {
+        // The live evidence, typed: pins present, euid != 0 - the
+        // reason is the permission wall and the hint is the sudo
+        // command, never the attach instruction that cannot heal it.
+        let out = report_with_lane(Some(LaneUnavailable::Unreadable));
+        assert!(
+            out.contains(
+                "\"reason\":\"lane-unreadable\",\"hint\":\"pins exist but \
+                 are root-owned: run with sudo\""
+            ),
+            "{out}"
+        );
+        assert!(!out.contains("lane-not-attached"), "{out}");
+    }
+
+    #[test]
+    fn json_the_missing_lane_names_attach_first() {
+        let out = report_with_lane(Some(LaneUnavailable::NotAttached));
+        assert!(
+            out.contains(
+                "\"reason\":\"lane-not-attached\",\"hint\":\"attach first: \
+                 sudo zejtron doctor --attach\""
+            ),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn json_the_mid_window_detach_names_the_retry() {
+        // The window ran and its lane was torn down mid-flight: the
+        // block reports the detach, the events stay empty (never a
+        // suspect window served as whole), the hint says re-attach.
+        let out = report_with_lane(Some(LaneUnavailable::DetachedMidWindow));
+        assert!(
+            out.contains(
+                "\"reason\":\"lane-detached-mid-window\",\"hint\":\"the lane \
+                 was detached mid-window: re-attach and retry\""
+            ),
+            "{out}"
+        );
+        assert!(out.contains("\"available\":false"), "{out}");
+        assert!(out.contains("\"events\":[]"), "{out}");
+        assert!(
+            out.contains("\"window_start_utc\":null,\"window_end_utc\":null"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn json_the_working_lane_carries_null_reason_and_null_hint() {
+        // The contract's silence half: reason null, hint null - the
+        // absence IS the "lane worked" verdict.
+        let stats = ScanStats::default();
+        let opts = options(false);
+        let out = super::port_report_json_with_exits(
+            &[socket()],
+            &owners(),
+            &stats,
+            &opts,
+            Some(&[]),
+            None,
+            None,
+            None,
+        );
+        assert!(
+            out.contains("\"changes\":{\"available\":true,\"reason\":null,\"hint\":null"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn json_snapshot_only_stays_a_named_shape_without_a_hint() {
+        // The operator's own request is not a failure: the reason
+        // token rides (it always has), no next action is invented.
+        let stats = ScanStats::default();
+        let opts = options(true);
+        let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None, None, None);
+        assert!(
+            out.contains(
+                "\"changes\":{\"available\":false,\"reason\":\"snapshot-only\",\"hint\":null"
+            ),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn json_the_reason_and_hint_are_strings_or_nulls_never_absent() {
+        // The schema law: the pair is ALWAYS present in the changes
+        // block - strings when the lane is down, nulls when it is
+        // not. Pinned through every shape the block can take.
+        for out in [
+            report_with_lane(None),
+            report_with_lane(Some(LaneUnavailable::Unreadable)),
+        ] {
+            let changes = out
+                .split("\"changes\":{")
+                .nth(1)
+                .and_then(|rest| rest.find(",\"events\":").map(|end| &rest[..end]))
+                .expect("the changes block");
+            assert!(changes.contains("\"reason\":"), "{changes}");
+            assert!(changes.contains("\"hint\":"), "{changes}");
+        }
+    }
 }

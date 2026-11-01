@@ -1062,6 +1062,39 @@ v11.0.0
 
 ### Fixed
 
+- `port --print-json` no longer calls a permission wall
+  "lane-not-attached" (the live-verification residual): with pins
+  planted by a root `doctor --attach` (18 pins verified) and read by
+  a non-root euid in the same second, the changes block reported
+  `"reason": "lane-not-attached"` - and a buyer's automated pipeline
+  that token into "attach first", an instruction that can never heal
+  the actual cause (the pins are root-owned; the run needs sudo).
+  The capture now classifies its state from the REAL stat/open
+  results' `std::io::ErrorKind`s at collection time - never from
+  error-message text: ENOENT on the pin directory is
+  `lane-not-attached` (the healing hint names `doctor --attach`), a
+  refused directory stat or walk is `lane-unreadable` (the hint
+  names sudo), a refusal at the BPF_OBJ_GET open is
+  `lane-unreadable` too (the repo's own typed classifier
+  `ebpf::pin_access_denied`, unchanged, rides the open seam's
+  repo-owned marker), and a directory present at the window's start
+  probe but gone when the collection ended is
+  `lane-detached-mid-window` (the window watched its own lane being
+  torn down; the JSON lane reports the detach instead of serving a
+  suspect window as whole, while the text lane keeps the drained
+  rows it always rendered). The changes block carries a `hint` field
+  beside every non-null `reason` - the human next action each cause
+  actually needs, null when the reason is null (the lane worked) and
+  null on `snapshot-only` (the operator's own request is a named
+  shape, not a failure). No sudo auto-elevation, no text-lane
+  change, no exit-ring or attribution change; the text lane's
+  refusal sentence and the README's "without sudo, owners show as
+  unknown" behavior stand untouched. Pinned hermetically on
+  synthesized `io::Error` kinds plus one skippable live-host leg:
+  the full token/hint vocabulary, the detach detection, the
+  null/null success shape, and the through-the-seam JSON contract
+  for every shape the block can take.
+
 - The port surface's one-shot window semantics are visible now (the
   live-verification residual): two sequential runs of
   `port --since 5s` capture two DIFFERENT 5-second windows - there is
