@@ -66,7 +66,10 @@
 # their own - never a fake "no versions upstream". Set GITHUB_TOKEN
 # (standard GitHub tooling convention; CI provides it natively) to
 # lift the unauthenticated IP quota - the token is sent as a Bearer
-# header and never written anywhere by this script. One API call per
+# header and never written anywhere by this script, and every read
+# pins the API contract date with the X-GitHub-Api-Version: 2022-11-28
+# header, one contract for the authenticated and the bare shape. One
+# API call per
 # unique repo per run (responses memoized), well inside the
 # authenticated quota for this estate's size.
 #
@@ -145,7 +148,7 @@ latest_major() {
 	fi
 	local body="" tag="" major=""
 	if ! body="$(curl -fsS -m 15 --retry 2 --retry-delay 1 --retry-all-errors \
-		-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
+		-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" -H "X-GitHub-Api-Version: 2022-11-28" \
 		"${auth[@]}" \
 		"https://api.github.com/repos/${slug}/releases/latest" 2>/dev/null)"; then
 		# Distinguish the failure mode: quota (403/429) vs 404 (no
@@ -156,7 +159,7 @@ latest_major() {
 		# could never run for the one case it was written for).
 		local code
 		code="$(curl -sS -o /dev/null -m 15 "${auth[@]}" -w '%{http_code}' \
-			-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
+			-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" -H "X-GitHub-Api-Version: 2022-11-28" \
 			"https://api.github.com/repos/${slug}/releases/latest" 2>/dev/null || true)"
 		if [[ "${code}" == "403" || "${code}" == "429" ]]; then
 			SKIP_REASON="API quota low (HTTP ${code}): skip, retry later or set GITHUB_TOKEN"
@@ -206,12 +209,12 @@ latest_major() {
 		# that SUCCEEDED and still found no v-tag reports the
 		# human-decision skip.
 		local tags_body=""
-		if ! tags_body="$(curl -fsS -m 15 -H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
+		if ! tags_body="$(curl -fsS -m 15 -H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" -H "X-GitHub-Api-Version: 2022-11-28" \
 			"${auth[@]}" \
 			"https://api.github.com/repos/${slug}/tags?per_page=100" 2>/dev/null)"; then
 			local tags_code
 			tags_code="$(curl -sS -o /dev/null -m 15 "${auth[@]}" -w '%{http_code}' \
-				-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" \
+				-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" -H "X-GitHub-Api-Version: 2022-11-28" \
 				"https://api.github.com/repos/${slug}/tags?per_page=100" 2>/dev/null || true)"
 			if [[ "${tags_code}" == "403" || "${tags_code}" == "429" ]]; then
 				SKIP_REASON="API quota low (HTTP ${tags_code}): skip, retry later or set GITHUB_TOKEN"
