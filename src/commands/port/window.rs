@@ -188,6 +188,13 @@ pub fn format_port_output(
 pub(crate) struct WindowCapture {
     pub events: Vec<SockEvent>,
     pub bounds: Option<(u64, u64)>,
+    /// The pin directory vanished between the window's start probe
+    /// and its end re-stat: the probes were unloaded mid-flight, the
+    /// drained rows are real kernel records but the window is
+    /// suspect as a whole. The text lane keeps rendering the rows
+    /// (its behavior is unchanged); the JSON lane reports the detach
+    /// instead of serving a partial window as if it were whole.
+    pub detached_mid_window: bool,
 }
 
 /// The default shape: both truths when the chain is live, the
@@ -199,7 +206,7 @@ fn default_output(
     options: &PortOptions,
 ) -> String {
     match capture_window(options) {
-        Some(capture) => format_window_report(
+        Ok(capture) => format_window_report(
             sockets,
             owners,
             stats,
@@ -207,7 +214,7 @@ fn default_output(
             &capture.events,
             capture.bounds,
         ),
-        None => format_report(sockets, owners, stats, options),
+        Err(_) => format_report(sockets, owners, stats, options),
     }
 }
 
@@ -215,21 +222,60 @@ fn default_output(
 
 use crate::ebpf::events::SockEvent;
 
-/// Capture the window: the pin state first (a partial chain is not a
-/// live chain - `doctor --attach` heals it), then the collection, then
-/// the window/protocol/port filters. `None` is every not-live shape;
-/// the caller renders the fallback, and the refusal line (when the
-/// user asked explicitly) names the doctor as the place the exact
-/// reason lives.
-pub fn capture_window(options: &PortOptions) -> Option<WindowCapture> {
+use super::lane_state::{
+    LaneUnavailable, dir_error_kind, lane_detached_mid_window, lane_reason,
+    lane_state_before_window, pin_dir_listing_kind,
+};
+
+/// Capture the window: the lane's own state first (the residual's
+/// ladder - the real stat/read-dir kinds name the actual cause),
+/// then the pin-set integrity, then the collection, then the
+/// window/protocol/port filters. `Err` is every not-live shape with
+/// its actual cause named; the caller renders the fallback (text) or
+/// the reason and hint (JSON), and the refusal line (when the user
+/// asked explicitly) still names the doctor as the place the exact
+/// cause lives.
+pub fn capture_window(options: &PortOptions) -> Result<WindowCapture, LaneUnavailable> {
+    // The lane's own ladder (the live-verification residual): a
+    // missing directory is one story, a directory this euid may not
+    // walk is another, and the two need different next actions -
+    // "attach first" never healed a permission wall.
+    if let Some(lane) = lane_state_before_window(
+        dir_error_kind(std::fs::metadata(crate::ebpf::PIN_DIR)),
+        pin_dir_listing_kind(),
+    ) {
+        crate::output::verbose::vlog!("lane", "snapshot only ({})", lane_reason(lane).0);
+        return Err(lane);
+    }
+    // The chain-integrity gate rides second (a directory that exists
+    // and walks can still hold a partial pin set - a crashed attach,
+    // a manual rm): the same NotAttached token, the same healing
+    // hint; the doctor names the partial set.
     if !crate::ebpf::all_pins_present() {
         // The diagnostic trace (night-hunter-4): stderr only - the
         // port report's stdout stays pipe-clean.
         crate::output::verbose::vlog!("lane", "snapshot only (eBPF not attached)");
-        return None;
+        return Err(LaneUnavailable::NotAttached);
     }
     crate::output::verbose::vlog!("lane", "live eBPF window selected (attached)");
-    let mut ring = crate::ebpf::ringbuf::open_sock_ring().ok()?;
+    // The open IS the collection's own permission moment: a refusal
+    // at BPF_OBJ_GET is the unreadable story. The typed classifier
+    // (ebpf::pin_access_denied - a std::io::ErrorKind check, never
+    // message text) rides the open seam's error through the
+    // repo-owned marker constant (night-hunter-5); matching THAT is
+    // matching the repo's own sentinel, not an OS message.
+    let mut ring = match crate::ebpf::ringbuf::open_sock_ring() {
+        Ok(ring) => ring,
+        Err(error) => {
+            let lane = if error.starts_with(crate::ebpf::PIN_ACCESS_DENIED) {
+                LaneUnavailable::Unreadable
+            } else {
+                LaneUnavailable::NotAttached
+            };
+            crate::output::verbose::vlog!("lane", "snapshot only ({error})");
+            return Err(lane);
+        }
+    };
     let mut collected: Vec<SockEvent> = Vec::new();
     // The observed bounds: one stamp the instant the wait begins and
     // one the instant it ends - the same CLOCK_MONOTONIC domain the
@@ -241,13 +287,20 @@ pub fn capture_window(options: &PortOptions) -> Option<WindowCapture> {
     let started_ns = crate::info::clock::monotonic_now_ns();
     collect_over_window(&mut ring, &mut collected, options.window);
     let ended_ns = crate::info::clock::monotonic_now_ns();
+    // The mid-window re-stat: a directory present at the start probe
+    // and NotFound at the end is the detach story - the window
+    // watched its own lane being torn down, and the JSON lane
+    // reports that instead of serving a suspect window as whole.
+    let detached_mid_window =
+        lane_detached_mid_window(dir_error_kind(std::fs::metadata(crate::ebpf::PIN_DIR)));
     let bounds = match (started_ns, ended_ns) {
         (Some(start), Some(end)) => Some((start, end)),
         _ => None,
     };
-    Some(WindowCapture {
+    Ok(WindowCapture {
         events: window_events(&collected, options),
         bounds,
+        detached_mid_window,
     })
 }
 

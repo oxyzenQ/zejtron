@@ -19,6 +19,7 @@
 use std::fmt::Write as _;
 
 use super::events::{PostMortemVerdict, protocol_family_label, transition_label};
+use super::lane_state::{LaneUnavailable, lane_reason};
 use super::model::{OwnerMap, PortOptions, ScanStats, SocketEntry};
 use super::window::window_label;
 use crate::ebpf::events::{ProcExitEvent, SockEvent};
@@ -41,6 +42,7 @@ pub(super) fn port_report_json(
     options: &PortOptions,
     events: Option<&[SockEvent]>,
     bounds: Option<(u64, u64)>,
+    lane_down: Option<LaneUnavailable>,
 ) -> String {
     let needs_exit_ring = events.is_some_and(|events| {
         events
@@ -69,6 +71,7 @@ pub(super) fn port_report_json(
         events,
         exits.as_deref(),
         bounds,
+        lane_down,
     )
 }
 
@@ -83,7 +86,16 @@ pub(super) fn port_report_json(
 /// changes block names both instants (`window_start_utc` /
 /// `window_end_utc`, `HH:MM:SS UTC` each) when the window ran and
 /// the clock could be read, and carries both as `null` when it did
-/// not or could not - never omitted, never invented.
+/// not or could not - never omitted, never invented. `lane_down`
+/// rides the capture's actual verdict: the reason token AND its
+/// human next action (`hint`) name the real cause - a lane this
+/// euid cannot read is not a lane that is not attached, and the
+/// two need different next actions.
+// The seam's shape IS the parity contract: each parameter is one
+// fixture axis the tests pin independently (events, exits, bounds,
+// the lane verdict), the same shape the doctor's exit-row renderer
+// allows.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn port_report_json_with_exits(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
@@ -92,6 +104,7 @@ pub(super) fn port_report_json_with_exits(
     events: Option<&[SockEvent]>,
     exits: Option<&[ProcExitEvent]>,
     bounds: Option<(u64, u64)>,
+    lane_down: Option<LaneUnavailable>,
 ) -> String {
     let mut out = String::with_capacity(512);
     out.push_str("{\"subject\":");
@@ -118,10 +131,28 @@ pub(super) fn port_report_json_with_exits(
     });
     out.push_str(",\"changes\":{\"available\":");
     out.push_str(if events.is_some() { "true" } else { "false" });
+    // The reason and its next action (the misleading-reason
+    // residual): a lane this euid cannot read is "lane-unreadable"
+    // with the sudo hint, NOT "lane-not-attached" with an attach
+    // instruction that never heals it. The hint is null when the
+    // reason is null (the lane worked) and null on snapshot-only
+    // (the operator's own request is a named shape, not a failure
+    // with a next action).
+    let (reason, hint) = if events.is_some() {
+        (None, None)
+    } else {
+        let (reason, hint) = unavailability_parts(options, lane_down);
+        (Some(reason), hint)
+    };
     out.push_str(",\"reason\":");
-    match events {
-        Some(_) => out.push_str("null"),
-        None => write_string(&mut out, unavailability_reason(options)),
+    match reason {
+        Some(reason) => write_string(&mut out, reason),
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"hint\":");
+    match hint {
+        Some(hint) => write_string(&mut out, hint),
+        None => out.push_str("null"),
     }
     // The observed window's boundaries (the one-shot window
     // semantics residual): two sequential runs watch two different
@@ -338,15 +369,23 @@ pub(super) fn event_row_json(
     row
 }
 
-/// Why the event window did not run - the stable reason token the
-/// automation lane gates on. `snapshot-only` is the operator's own
-/// explicit request; anything else is the lane's honest absence.
-fn unavailability_reason(options: &PortOptions) -> &'static str {
+/// Why the event window did not run, with the human next action:
+/// the stable reason token the automation lane gates on plus the
+/// hint the changes block renders alongside it. `snapshot-only` is
+/// the operator's own explicit request - a named shape, not a
+/// failure, so no hint rides it. Anything else is the lane's honest
+/// absence: the capture's actual verdict when it says one, the
+/// historical blanket ("lane-not-attached") when a caller hands
+/// down a missing window without a verdict (the test seam's shape).
+fn unavailability_parts(
+    options: &PortOptions,
+    lane_down: Option<LaneUnavailable>,
+) -> (&'static str, Option<&'static str>) {
     if options.snapshot_only {
-        "snapshot-only"
-    } else {
-        "lane-not-attached"
+        return ("snapshot-only", None);
     }
+    let (reason, hint) = lane_reason(lane_down.unwrap_or(LaneUnavailable::NotAttached));
+    (reason, Some(hint))
 }
 
 /// The process name for an event's pid at render time - the same
