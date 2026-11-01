@@ -64,12 +64,42 @@ good faith — pick the tier that honestly matches your situation; nobody
 audits you, but misrepresenting revenue to underpay is a breach of the
 license terms.
 
-| Tier              | Price          | Target                                                          |
-| ----------------- | -------------- | --------------------------------------------------------------- |
-| Personal          | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions      |
-| Solo Dev Business | $1,899/year    | Solo devs, freelancers, revenue under $100K/year                |
-| SMB               | $9,999/year    | Startups, SMBs, revenue $100K to $10M/year                      |
-| Company           | $49,999/year   | Enterprise, revenue over $10M/year, OR any redistribution rights |
+| Tier                 | Price                                                        | Target                                                                   |
+| -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Personal             | Free (GPL-3.0)                                               | Hobby, personal, non-commercial                                          |
+| Professional         | $1,899/year                                                  | Solo devs, freelancers, revenue under $100K/year                         |
+| Business             | $9,999/year                                                  | Startups, SMBs, revenue $100K to $10M/year                               |
+| Enterprise Internal  | $49,999/year                                                 | Enterprise revenue over $10M/year, internal use only, NO redistribution  |
+| OEM / Redistribution | $99,999/year OR $169,999 one-time + $34,000/year maintenance | Embedding or reselling in a shipped product; redistribution rights       |
+
+**OEM pricing note:** the OEM tier offers two equivalent paths —
+annual ($99,999/year) for buyers who prefer opex, and perpetual
+($169,999 one-time + $34,000/year maintenance, i.e. 20%; the exact
+20% of $169,999 is $33,999.80, invoiced rounded to $34,000) for
+buyers who prefer capex and want to cap long-term risk. Total cost
+over multi-year horizons:
+
+- 1 year:  annual = $99,999;  perpetual = $169,999
+- 3 years: annual = $299,997; perpetual = $237,999
+- 5 years: annual = $499,995; perpetual = $305,999
+- 10 years: annual = $999,990; perpetual = $475,999
+
+The perpetual option is not stackable with the multi-year discount.
+Grandfathering applies to whichever path the buyer purchased.
+
+### What the Enterprise / OEM tiers license
+
+The Enterprise Internal tier licenses zejtron for internal use only —
+no redistribution: run it on any number of hosts inside the enterprise,
+build internal tooling around it, but do not embed or resell it in a
+distributed product.
+
+The OEM / Redistribution tier grants redistribution rights: embed
+zejtron's Evidence Ledger format, Lazy Camera eBPF architecture,
+BTF-verified offset resolution, post-mortem exit-ring attribution,
+and the deterministic UTC output discipline inside a shipped product.
+For a redistribution license, the OEM tier is the entry price; contact
+<with.rezky@gmail.com> for the agreement.
 
 Notes:
 
@@ -77,6 +107,11 @@ Notes:
   individual, whichever applies), not your zejtron-specific revenue.
 - **Multi-year discount** (owner discretion): 20% off a 2-year term,
   30% off a 3-year term.
+- **Grandfathering** — buyers who paid before a price move are
+  grandfathered at the price they bought, for the term they bought.
+  Existing Company-tier customers at $49,999 keep their purchased
+  price for their purchased term; new licenses follow the current
+  table.
 - **2026-10-24 price move** (night-badass-8, effective from the
   first release tag after that date): the paid ladder grows a middle
   rung and the top re-pegs — Solo Dev Business holds at
@@ -135,8 +170,8 @@ Notes:
   stands for the term you bought. Rationale record:
   [docs/research/NIGHT_DINNER_14_PRICING_RESEARCH.md](docs/research/NIGHT_DINNER_14_PRICING_RESEARCH.md)
   (section 7: the owner's executed decision).
-- **Redistribution rights** are granted at the Company tier only.
-  Trademark licensing is separate — see
+- **Redistribution rights** are granted at the OEM / Redistribution
+  tier only. Trademark licensing is separate — see
   [TRADEMARK.md](TRADEMARK.md).
 - No free tier above Personal is granted without explicit owner
   approval.
@@ -155,8 +190,8 @@ for the license first. That is not a loophole, a gray area, or a
 clever business move. It is theft of one person's years of work,
 a breach of GPL-3.0-only and of this Commercial License, and —
 in the owner's own words — the mark of the worst kind of human:
-a rotten one. If closed source is what you need, the Company
-tier exists precisely for that; buy it. If you cannot or will
+a rotten one. If closed source is what you need, the Enterprise
+Internal tier exists precisely for that; buy it. If you cannot or will
 not pay, the GPL path is complete and free — open-source what
 you build. There is no third path that leaves you clean.
 
@@ -172,7 +207,11 @@ Every paid tier grants, for the license term:
 - **Internal modification rights** — private forks and patches for your
   own use, with no disclosure requirement.
 
-The **Company** tier additionally grants:
+The **Enterprise Internal** tier grants no rights beyond the base list
+above — internal use only, no redistribution (see
+[What the Enterprise / OEM tiers license](#what-the-enterprise--oem-tiers-license)).
+
+The **OEM / Redistribution** tier additionally grants:
 
 - **Redistribution rights** — the right to distribute zejtron (or your
   derivative of it) as part of your own offering, under your own terms,
