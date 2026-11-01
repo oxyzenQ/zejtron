@@ -37,6 +37,14 @@ v11.0.0
 
 ### License
 
+- **Documented why zejtron starts at Professional ($1,899), not $99.**
+  The $99 entry tier other portfolio projects carry serves
+  hobbyist-adjacent buyers; zejtron's commercial buyer is an SRE or
+  incident responder whose hourly rate pays off the license in one
+  shift. The $1,899 anchor is calibrated against the professional
+  forensic CLI market. Personal (Free, GPL-3.0) still covers hobby,
+  learning, and open-source contributions. Docs-only; no tier price
+  changed.
 - **Pricing restructured to the 5-tier portfolio model.** The
   conflated "Company" tier is split into Enterprise Internal
   ($49,999/year, internal use only) and OEM / Redistribution

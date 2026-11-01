@@ -37,6 +37,19 @@ Redistribution under your own terms is the OEM / Redistribution tier
 regardless of revenue — it is the only tier that carries
 redistribution rights.
 
+## Why is there no $99 Individual tier like the other portfolio projects?
+
+The $99 tier that zelynic, zylaxion, and cosmostrix carry serves
+hobbyist-adjacent commercial buyers — small-scale use of terminal
+aesthetics or personal bandwidth. zejtron is a forensic tool; its
+commercial buyer is an SRE, security engineer, or incident
+responder whose hourly rate pays off $1,899 in a single shift. The
+Personal tier (Free, GPL-3.0) already covers hobby, learning, and
+open-source contributions. The $1,899 anchor is calibrated against
+the professional forensic CLI market (Security Ronin Katana sits in
+the $1,188–1,788/seat range). Full reasoning in
+[COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
+
 ## Do contributors need to sign anything?
 
 Yes, in the lightweight DCO sense: every commit carries a
