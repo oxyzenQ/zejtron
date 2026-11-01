@@ -1743,6 +1743,23 @@ v11.0.0
 
 ### Changed
 
+- **The serde total ban now binds every Cargo.lock in the
+  repository** (the owner's directive): `deny.toml` names the whole
+  serde family explicitly (`serde_core` and `serde_derive` are
+  split packages with their own names since serde 1.0.228, so
+  banning `serde` alone leaves them reachable), and a new
+  tool-free gate (`scripts/gates/check-dep-bans.sh`, gate-keepers
+  section 20) reads every tracked lock - CI's `cargo deny check`
+  never sees the detached ebpf workspace, which is exactly where
+  this audit found serde/serde_json living: upstream
+  `aya-ebpf`'s unconditional build-dependency chain
+  (`aya-build` -> `cargo_metadata` -> serde, both 0.2.0 and
+  0.2.1). That chain is host-side only and never compiles into
+  the shipped bpfel-unknown-none object; the gate shape-guards
+  the carve-out (serde in ebpf/ only while the aya-build chain is
+  its root cause, zero tolerance everywhere else) and
+  docs/DEPENDENCY_AUDIT.md documents why removal without forking
+  aya is not possible.
 - The Quick examples' doctor pair is the umbrella question
   (night-dragon-lts-2): "why is everything slow?" pairs with
   `zejtron doctor --symptom slow` - the first question a new user

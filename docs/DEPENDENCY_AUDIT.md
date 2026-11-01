@@ -36,6 +36,26 @@ rides the std-only guard (see the Removed table).
 | `tempfile` (dev) | night-dragon-maintenance-T1 (2026-10-30) | The single dev-dependency, retired for the independence law: its whole transitive subtree (fastrand, getrandom, rustix, linux-raw-sys, errno, r-efi - seven lockfile entries) existed for nothing else, and the consumed surface was two methods. The test tree now rides the std-only guard (`test/support/tempdir.rs`): a unique directory under `std::env::temp_dir()` created exclusive (pid + nanos + counter, retry on `AlreadyExists`) with RAII cleanup on drop - the reference project's own shape. All 22 call sites unchanged (same `new()`/`path()` surface). The dev graph is empty; the lockfile is the runtime graph plus proc-macros. |
 | `ctrlc` | night-improve-4 (the refresh-loop removal) | The only consumer was the old `proc --live` refresh loop's Ctrl-C handler; night-improve-4 replaced the loop with the collect-over-a-window shape and the crate left the graph with the loop that needed it (its CHANGELOG entry says so). The stale justification row above claimed the contract for "any surface that must restore terminal state on Ctrl-C" - no such surface exists in the tree. The dead row itself is removed by night-improve-34's audit pass. |
 
+## Banned (total, every lock)
+
+| Crate family | Reason |
+|---|---|
+| `chrono`, `iana-time-zone`, `time` | The civil clock contract is std-only (night-improve-13, `src/info/clock.rs`); re-adding fails `cargo deny check` in CI. |
+| `serde`, `serde_core`, `serde_derive`, `serde_json` | The JSON lane is hand-written in `src/evidence/json.rs` (std-only, byte-deterministic); no crates exist only to move JSON. The whole family is named explicitly - `serde_core` and `serde_derive` are split packages with their own names since serde 1.0.228, so banning `serde` alone leaves them reachable. |
+
+Enforcement is two-seated. CI's `cargo deny check` (audit.yml) covers
+the root workspace; `scripts/gates/check-dep-bans.sh` (gate-keepers
+section 20) reads EVERY tracked Cargo.lock tool-free, because the
+`ebpf/` crate is a detached workspace cargo-deny never enters. The
+one documented carve-out is shape-guarded there: `ebpf/Cargo.lock`
+carries the serde family only as upstream `aya-ebpf`'s unconditional
+build-dependency chain (`aya-build` 0.2.0/0.2.1 -> `cargo_metadata`
+-> serde/serde_json). That chain runs aya-ebpf's build.rs on the host
+and never compiles into the shipped `bpfel-unknown-none` object;
+removing it means forking aya, which trades a transient host-only
+path for a permanent fork. serde appearing in `ebpf/` without the
+`aya-build` chain, or in any other lock, fails the gate.
+
 ## Rules going forward
 
 1. A new direct dependency lands in the same commit as its first live
@@ -48,6 +68,10 @@ rides the std-only guard (see the Removed table).
 4. `cargo deny check all` (CI) is the enforcement arm; this file is
    the reasoning arm. A ban without a reason string here is a gate
    nobody can debug.
+5. Bans bind every lock, not every workspace: a detached workspace's
+   Cargo.lock is still this repository's supply chain. The lock-reading
+   gate is the arbiter - if it fails, the fix is a dependency change,
+   never a gate edit.
 
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
