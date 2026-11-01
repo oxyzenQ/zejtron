@@ -359,6 +359,10 @@ Companies using zejtron in production need a commercial license. zejtron is dual
 
 The paid rungs follow the value upward. Revenue anchors are self-declared in good faith. The canonical pricing table, the OEM pricing note, and the tier grants live in [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md); this table mirrors it.
 
+zejtron's entry paid tier starts at $1,899 (Professional), not $99. The $99 tier that zelynic, zylaxion, and cosmostrix carry serves hobbyist-adjacent buyers; zejtron is a forensic tool whose commercial buyer is an SRE or incident responder whose hourly rate pays off the license in one shift. The market calibration and full reasoning live in [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md#why-zejtron-starts-at-1899-not-99).
+
+The Personal tier (Free, GPL-3.0) still covers hobby, learning, and open-source contributions — the honest path for anyone who does not need commercial rights.
+
 **Unauthorized use is theft.** Taking this code without contacting the owner and paying the license is prohibited. The honest paths are two: comply with GPL-3.0-only, or buy the tier your use matches.
 
 Payment is USD-pegged crypto (Solana / Ethereum / Bitcoin). Licensing contact: [with.rezky@gmail.com](mailto:with.rezky@gmail.com). Questions: [docs/LICENSING_FAQ.md](docs/LICENSING_FAQ.md).

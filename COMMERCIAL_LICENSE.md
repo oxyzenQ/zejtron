@@ -92,6 +92,32 @@ vs $299,997 at 3 years). The perpetual option is not stackable with
 the multi-year discount. Grandfathering applies to whichever path the
 buyer purchased.
 
+### Why zejtron starts at $1,899, not $99.
+
+zejtron is a forensic tool. Its commercial buyer is an SRE, a
+security engineer, or an incident responder — someone whose hourly
+rate pays off the Professional license in a single shift. The $99
+entry tier that zelynic, zylaxion, and cosmostrix carry serves
+hobbyist-adjacent buyers (terminal aesthetics, keyboard sound,
+personal bandwidth) whose commercial use is small and personal.
+zejtron's Personal tier (Free, GPL-3.0) already covers hobby,
+learning, and open-source contributions. Commercial use of a
+forensic tool is a different scale, and the pricing reflects that
+difference honestly rather than undercutting it.
+
+The $1,899 anchor is calibrated against the market for
+professional forensic CLI tools — Security Ronin Katana, the
+closest analog, is commonly cited in the $1,188–1,788/seat range.
+zejtron sits at the top of that band because it ships nine
+read-only surfaces (not a single triage pipeline), the Lazy Camera
+eBPF architecture, the Evidence Ledger v3 format, and a frozen
+LTS contract.
+
+A buyer who needs the forensic capability without a commercial
+license still has the GPL-3.0 path — read the source, learn from
+it, contribute back. The pricing is for commercial use that cannot
+meet copyleft, and $1,899 is the honest entry point for that.
+
 ### What the Enterprise / OEM tiers license
 
 The Enterprise Internal tier licenses zejtron for internal use only —
