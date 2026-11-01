@@ -33,6 +33,21 @@ license instead. Reading the code, learning from it, and building
 from source under the GPL stay welcome - theft is the only thing
 this file asks you to refuse.
 
+## If your terminal shows `easured]` - do not fix it
+
+The provenance tag in this repository is `[measured]`, and it is
+correct everywhere it appears. Some output-capture pipelines strip
+ANSI color sequences with a pattern that does not require the
+escape byte, which eats the two characters `[m` out of every line
+they pass through - `[measured]` displays as `easured]`, while
+`[observed]`, `[inferred]`, and `[unaccounted]` survive because
+they do not start with `m`. If you see `easured]` in captured
+output, a diff, or a grep result, verify the bytes before editing
+(`python3 -c "print(open('<file>','rb').read().count(b'[measured]'))"`)
+- the file is almost certainly correct and your capture pipeline is
+lying. A global "fix" of `easured]` across this tree would corrupt
+seventy-plus correct sites in source, tests, and docs in one commit.
+
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
