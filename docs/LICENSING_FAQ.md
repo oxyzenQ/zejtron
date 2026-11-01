@@ -23,15 +23,19 @@ that is exactly what it is for. See
 Tiers follow your use, with your total annual revenue as the honest
 self-declaration input:
 
-| Your use                                           | Tier                               |
-| -------------------------------------------------- | ---------------------------------- |
-| No commercial use (hobby/personal)                 | Personal (free, GPL-3.0)           |
-| Solo devs, freelancers (revenue under $100K/year)  | Solo Dev Business ($1,899/year)    |
-| Startups, SMBs (revenue $100K to $10M/year)        | SMB ($9,999/year)                  |
-| Enterprise (revenue over $10M/year), SaaS, or any redistribution | Company ($49,999/year) |
+| Your use                                            | Tier                                |
+| --------------------------------------------------- | ----------------------------------- |
+| No commercial use (hobby/personal)                  | Personal (free, GPL-3.0)            |
+| Solo devs, freelancers (revenue under $100K/year)   | Professional ($1,899/year)          |
+| Startups, SMBs (revenue $100K to $10M/year)         | Business ($9,999/year)              |
+| Enterprise (revenue over $10M/year), SaaS — internal use only | Enterprise Internal ($49,999/year) |
+| Embedding or reselling in a shipped product         | OEM / Redistribution ($99,999/year) |
 
-Redistribution under your own terms is the Company tier regardless of
-revenue — it is the only tier that carries redistribution rights.
+Full terms in [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
+
+Redistribution under your own terms is the OEM / Redistribution tier
+regardless of revenue — it is the only tier that carries
+redistribution rights.
 
 ## Do contributors need to sign anything?
 
@@ -66,15 +70,15 @@ free path is not a trial.
 No. Two separate locks apply:
 
 1. **Redistribution** of zejtron or a derivative under your own terms
-   requires the Company tier of the Commercial License — see
-   [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
+   requires the OEM / Redistribution tier of the Commercial License —
+   see [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
 2. **The Marks** (name, logo, branding) are governed by
    [TRADEMARK.md](../TRADEMARK.md) and require separate trademark
    permission for any rebrand or relaunch — a commercial source
    license does not grant them.
 
-Both locks must be opened to rebrand and sell: Company tier **plus**
-trademark permission.
+Both locks must be opened to rebrand and sell: the OEM / Redistribution
+tier **plus** trademark permission.
 
 ## What if I just take it — fork it illegally, close the source, and sell it?
 
