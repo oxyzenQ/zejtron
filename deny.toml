@@ -79,6 +79,16 @@ reason = "the other heavyweight time crate; the civil clock contract is std-only
 # list, matching zelynic's ruleset. The JSON lane is hand-written in
 # src/evidence/json.rs (std-only, byte-deterministic, no crates exist
 # only to move JSON) and the derive stack is not in the graph.
+# The whole family is named explicitly (serde_core and serde_derive
+# are split packages with their own names since serde 1.0.228, so
+# banning serde alone leaves them reachable). The detached ebpf
+# workspace is invisible to cargo-deny; scripts/gates/
+# check-dep-bans.sh (gate-keepers section 20) reads every tracked
+# Cargo.lock instead. It allows the serde family in ebpf/Cargo.lock
+# only as upstream aya-ebpf's unconditional build-dependency chain
+# (aya-build -> cargo_metadata -> serde/serde_json; host-side
+# probe, never compiled into the bpfel-unknown-none object) and
+# fails on anything else.
 [[bans.deny]]
 name = "serde"
 reason = "hand-written JSON lane in src/evidence/json.rs; the derive stack is not in the graph"
@@ -86,6 +96,14 @@ reason = "hand-written JSON lane in src/evidence/json.rs; the derive stack is no
 [[bans.deny]]
 name = "serde_json"
 reason = "hand-written JSON parser + writer replace it"
+
+[[bans.deny]]
+name = "serde_core"
+reason = "serde's split core package; banned with its host crate"
+
+[[bans.deny]]
+name = "serde_derive"
+reason = "serde's proc-macro half; banned with its host crate"
 
 [sources]
 unknown-registry = "warn"
