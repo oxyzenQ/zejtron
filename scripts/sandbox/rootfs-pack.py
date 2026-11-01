@@ -650,7 +650,7 @@ def git_archive_into(repo, dest):
     extract_tar_bytes_into(proc.stdout, dest)
 
 
-def build_initrd(cache, repo, binary, init, payload, lane=None):
+def build_initrd(cache, repo, binary, init, payload, lane=None, extras=None):
     rootfs = tempfile.mkdtemp(prefix="zejtron-sandbox-rootfs-")
     try:
         # 1. the base userland (the suite the floor kernel shipped with)
@@ -699,6 +699,24 @@ def build_initrd(cache, repo, binary, init, payload, lane=None):
             with open(lane_path, "w", encoding="utf-8") as fh:
                 fh.write(lane + "\n")
             os.chmod(lane_path, 0o644)
+        # 3b. operator extras (the --extra HOST:GUEST overlays): the same
+        #    permission discipline as every other file - 0755 when the
+        #    host file is executable, 0644 otherwise, parents created.
+        #    A missing host file is an assembly error, never a silent skip.
+        for spec in extras or []:
+            host_path, _, guest_rel = spec.partition(":")
+            if not host_path or not guest_rel:
+                raise SystemExit(f"--extra wants HOST:GUEST, got {spec!r}")
+            if not os.path.isfile(host_path):
+                raise SystemExit(f"--extra host file not found: {host_path}")
+            guest_path = os.path.join(rootfs, guest_rel.lstrip("/"))
+            parent = os.path.dirname(guest_path)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            shutil.copy2(host_path, guest_path)
+            mode = 0o755 if os.access(host_path, os.X_OK) else 0o644
+            os.chmod(guest_path, mode)
+            say(f"  extra {guest_rel} ({oct(mode)})")
         shutil.copy2(init, os.path.join(rootfs, "init"))
         os.chmod(os.path.join(rootfs, "init"), 0o755)
         # 4. pack (degraded /dev placeholders are dropped inside; the
@@ -997,6 +1015,11 @@ def main():
         "--lane", choices=["floor", "arbitrary"], default=None,
         help="the lane marker packed at .sandbox/lane (absent = floor)",
     )
+    i.add_argument(
+        "--extra", action="append", default=[], metavar="HOST:GUEST",
+        help="overlay one host file into the image (repeatable, GUEST "
+        "is relative to /; executable bits ride the host file)",
+    )
     sub.add_parser("self-test", help="rootless unit checks, no network")
     args = ap.parse_args()
 
@@ -1006,7 +1029,10 @@ def main():
     if args.cmd == "kernel":
         print(fetch_suite_kernel(args.cache, args.suite))
         return 0
-    build_initrd(args.cache, args.repo, args.binary, args.init, args.payload, args.lane)
+    build_initrd(
+        args.cache, args.repo, args.binary, args.init, args.payload,
+        args.lane, args.extra,
+    )
     return 0
 
 
