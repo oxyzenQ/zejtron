@@ -1062,6 +1062,34 @@ v11.0.0
 
 ### Fixed
 
+- The port surface's one-shot window semantics are visible now (the
+  live-verification residual): two sequential runs of
+  `port --since 5s` capture two DIFFERENT 5-second windows - there is
+  no bug, the windows are simply different, and the tool used to hide
+  that. `port --since 5s` after a busy window printed
+  `(no events in the window)` with no way to see which 5s came up
+  empty, and comparing text against JSON (or two invocations against
+  each other) read as a defect instead of what it is: different
+  windows, honestly observed. The capture now stamps its own
+  boundaries - one CLOCK_MONOTONIC read the instant the wait begins
+  and one the instant it ends, the same domain the event records and
+  the cutoff filter speak - and both lanes render the observed range:
+  the text header carries it
+  (`Changes in the last 5s (HH:MM:SS UTC → HH:MM:SS UTC):`, the same
+  range on the `(no events in the window)` line so an empty window
+  still names itself), and the JSON changes block carries the pair as
+  `window_start_utc` / `window_end_utc` (`HH:MM:SS UTC` each, present
+  whenever the window ran, both `null` when it did not or when the
+  clock's own read failed - never omitted, never invented; the pair
+  renders under one wall offset so the span between the two strings
+  is the stamps' own span). The window grammar is untouched
+  (`--since 5s` stays, no new flags), the parity and fixture tests
+  are untouched, and the boundaries are pinned hermetically: the
+  `HH:MM:SS UTC` shape, the `end - start ~= window duration` span
+  pin (the tolerance covering the collection's own overhead), the
+  two-sequential-runs range-is-real pin, the both-null unavailable
+  pin, and the range-less degradation when the clock cannot answer.
+
 - The port JSON lane now reads the same exit ring the text lane
   reads (night-dragon-lts-T1 residual, the text/JSON parity fix):
   `port --since 30s` attributed a short-lived listener from the

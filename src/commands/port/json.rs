@@ -40,6 +40,7 @@ pub(super) fn port_report_json(
     stats: &ScanStats,
     options: &PortOptions,
     events: Option<&[SockEvent]>,
+    bounds: Option<(u64, u64)>,
 ) -> String {
     let needs_exit_ring = events.is_some_and(|events| {
         events
@@ -60,7 +61,15 @@ pub(super) fn port_report_json(
     } else {
         None
     };
-    port_report_json_with_exits(sockets, owners, stats, options, events, exits.as_deref())
+    port_report_json_with_exits(
+        sockets,
+        owners,
+        stats,
+        options,
+        events,
+        exits.as_deref(),
+        bounds,
+    )
 }
 
 /// The seam form: the same JSON line with the drained exit records
@@ -70,6 +79,11 @@ pub(super) fn port_report_json(
 /// means the caller never needed the ring; an empty slice means the
 /// ring was drained and held nothing - the two are the same
 /// attribution outcome but different consumption contracts.
+/// `bounds` rides the observed window the capture bracketed: the
+/// changes block names both instants (`window_start_utc` /
+/// `window_end_utc`, `HH:MM:SS UTC` each) when the window ran and
+/// the clock could be read, and carries both as `null` when it did
+/// not or could not - never omitted, never invented.
 pub(super) fn port_report_json_with_exits(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
@@ -77,6 +91,7 @@ pub(super) fn port_report_json_with_exits(
     options: &PortOptions,
     events: Option<&[SockEvent]>,
     exits: Option<&[ProcExitEvent]>,
+    bounds: Option<(u64, u64)>,
 ) -> String {
     let mut out = String::with_capacity(512);
     out.push_str("{\"subject\":");
@@ -107,6 +122,27 @@ pub(super) fn port_report_json_with_exits(
     match events {
         Some(_) => out.push_str("null"),
         None => write_string(&mut out, unavailability_reason(options)),
+    }
+    // The observed window's boundaries (the one-shot window
+    // semantics residual): two sequential runs watch two different
+    // windows, and the automated consumer needs to see WHICH window
+    // a changes block describes. Present whenever the window ran;
+    // null when it did not (every unavailable shape) or when the
+    // clock's own read failed (the honest absence, never a guessed
+    // boundary). The pair renders under one wall offset - the
+    // span between the two strings is the stamps' span.
+    let window_range = bounds.and_then(|(start, end)| {
+        crate::info::clock::time_of_day_pair_from_monotonic_ns(start, end)
+    });
+    out.push_str(",\"window_start_utc\":");
+    match &window_range {
+        Some((start, _)) => write_string(&mut out, start),
+        None => out.push_str("null"),
+    }
+    out.push_str(",\"window_end_utc\":");
+    match &window_range {
+        Some((_, end)) => write_string(&mut out, end),
+        None => out.push_str("null"),
     }
     out.push_str(",\"events\":");
     let mut unaccounted = 0usize;
@@ -325,3 +361,7 @@ fn event_pid_name(pid: u32) -> Option<String> {
 #[cfg(test)]
 #[path = "../../../test/commands/port/json_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../../test/commands/port/json_window_tests.rs"]
+mod window_tests;

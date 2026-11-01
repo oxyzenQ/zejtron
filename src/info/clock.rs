@@ -187,6 +187,25 @@ pub(crate) fn time_of_day_from_monotonic_ns(timestamp_ns: u64) -> String {
     }
 }
 
+/// Render a monotonic range as the pair of `HH:MM:SS UTC` strings
+/// under ONE wall offset - the window range's own contract: a start
+/// and an end must share a single breath, so the rendered span is
+/// the stamps' span and no wall-clock step between two reads can
+/// bend the pair (two separate [`time_of_day_from_monotonic_ns`]
+/// calls each read the offset, and a step between them would print
+/// a span the stamps never measured). `None` when the offset is
+/// unreadable - the honest absence, never a guessed pair.
+pub(crate) fn time_of_day_pair_from_monotonic_ns(
+    start_ns: u64,
+    end_ns: u64,
+) -> Option<(String, String)> {
+    let offset = wall_offset_ns()?;
+    Some((
+        time_of_day_from_parts(start_ns, offset),
+        time_of_day_from_parts(end_ns, offset),
+    ))
+}
+
 /// The pure time-of-day core: a monotonic stamp plus a known wall
 /// offset, rendered as `HH:MM:SS UTC`. Separated from
 /// [`time_of_day_from_monotonic_ns`] so the arithmetic is

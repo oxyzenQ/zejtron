@@ -176,6 +176,20 @@ pub fn format_port_output(
     default_output(sockets, owners, stats, options)
 }
 
+/// The window capture's yield: the collected events and the observed
+/// bounds the collection bracketed - the two CLOCK_MONOTONIC stamps
+/// (nanoseconds) taken around the wait, the instants the "last Ns"
+/// claim can now name (the one-shot window semantics residual: two
+/// sequential runs watch two different windows, and the boundaries
+/// belong in the report so the windows can tell themselves apart).
+/// `None` bounds is the clock's own absence (a failed read): the
+/// window still ran, the labels just cannot be rendered, and every
+/// lane degrades to the range-less shape instead of inventing one.
+pub(crate) struct WindowCapture {
+    pub events: Vec<SockEvent>,
+    pub bounds: Option<(u64, u64)>,
+}
+
 /// The default shape: both truths when the chain is live, the
 /// phase-1 snapshot tree when it is not.
 fn default_output(
@@ -185,7 +199,14 @@ fn default_output(
     options: &PortOptions,
 ) -> String {
     match capture_window(options) {
-        Some(events) => format_window_report(sockets, owners, stats, options, &events),
+        Some(capture) => format_window_report(
+            sockets,
+            owners,
+            stats,
+            options,
+            &capture.events,
+            capture.bounds,
+        ),
         None => format_report(sockets, owners, stats, options),
     }
 }
@@ -200,7 +221,7 @@ use crate::ebpf::events::SockEvent;
 /// the caller renders the fallback, and the refusal line (when the
 /// user asked explicitly) names the doctor as the place the exact
 /// reason lives.
-pub fn capture_window(options: &PortOptions) -> Option<Vec<SockEvent>> {
+pub fn capture_window(options: &PortOptions) -> Option<WindowCapture> {
     if !crate::ebpf::all_pins_present() {
         // The diagnostic trace (night-hunter-4): stderr only - the
         // port report's stdout stays pipe-clean.
@@ -210,8 +231,24 @@ pub fn capture_window(options: &PortOptions) -> Option<Vec<SockEvent>> {
     crate::output::verbose::vlog!("lane", "live eBPF window selected (attached)");
     let mut ring = crate::ebpf::ringbuf::open_sock_ring().ok()?;
     let mut collected: Vec<SockEvent> = Vec::new();
+    // The observed bounds: one stamp the instant the wait begins and
+    // one the instant it ends - the same CLOCK_MONOTONIC domain the
+    // records and the cutoff filter speak (window_events cuts at
+    // end-of-collection minus the window), so the rendered pair and
+    // the filtered set describe the same span. A failed read leaves
+    // the bounds None - the window itself is still served; the
+    // honest absence beats a fabricated boundary.
+    let started_ns = crate::info::clock::monotonic_now_ns();
     collect_over_window(&mut ring, &mut collected, options.window);
-    Some(window_events(&collected, options))
+    let ended_ns = crate::info::clock::monotonic_now_ns();
+    let bounds = match (started_ns, ended_ns) {
+        (Some(start), Some(end)) => Some((start, end)),
+        _ => None,
+    };
+    Some(WindowCapture {
+        events: window_events(&collected, options),
+        bounds,
+    })
 }
 
 /// The drain slice: how often the collection wakes to empty the ring
@@ -330,6 +367,7 @@ fn format_window_report(
     stats: &ScanStats,
     options: &PortOptions,
     events: &[SockEvent],
+    bounds: Option<(u64, u64)>,
 ) -> String {
     let mut lines = Vec::new();
     // The window header rides green (the section header).
@@ -340,7 +378,12 @@ fn format_window_report(
     lines.push(String::new());
     lines.extend(snapshot_rows(sockets, owners, options));
     lines.push(String::new());
-    lines.push(format_event_section(events, options.window, options.no_pid));
+    lines.push(format_event_section(
+        events,
+        options.window,
+        options.no_pid,
+        bounds,
+    ));
     if udp_events_only(options) {
         lines.push(String::new());
         lines.push(udp_event_lane_note());

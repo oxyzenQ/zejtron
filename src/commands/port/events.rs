@@ -18,8 +18,13 @@ use crate::ebpf::events::{ProcExitEvent, SockEvent};
 /// The `--events-only` shape: the live event section, or the refusal.
 pub(super) fn events_only_output(options: &PortOptions) -> String {
     match capture_window(options) {
-        Some(events) => {
-            let mut section = format_event_section(&events, options.window, options.no_pid);
+        Some(capture) => {
+            let mut section = format_event_section(
+                &capture.events,
+                options.window,
+                options.no_pid,
+                capture.bounds,
+            );
             if udp_events_only(options) {
                 section.push('\n');
                 section.push_str(&udp_event_lane_note());
@@ -276,6 +281,17 @@ pub fn protocol_family_label(protocol: u8, family: u16) -> Option<&'static str> 
     }
 }
 
+/// The observed window's civil range, `HH:MM:SS UTC` to
+/// `HH:MM:SS UTC` around the arrow: the text lane's rendering of
+/// the capture's bounds, the pair read under one wall offset (the
+/// clock module's pair helper), so the rendered span is the stamps'
+/// own span. `None` degrades the caller to the range-less shape:
+/// the clock's absence, never a guessed boundary.
+fn window_range(bounds: (u64, u64)) -> Option<String> {
+    let (start, end) = crate::info::clock::time_of_day_pair_from_monotonic_ns(bounds.0, bounds.1)?;
+    Some(format!("{start} → {end}"))
+}
+
 /// The full event-window section: the Changes header, one row per
 /// attributed event (ascending), and the unaccounted block that
 /// names what neither source can see. Every event whose pid has no
@@ -286,7 +302,12 @@ pub fn protocol_family_label(protocol: u8, family: u16) -> Option<&'static str> 
 /// and the exit record that names it is the only survivor. Only an
 /// event the exit ring cannot name either counts toward the
 /// unaccounted block.
-pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool) -> String {
+pub fn format_event_section(
+    events: &[SockEvent],
+    window: Duration,
+    no_pid: bool,
+    bounds: Option<(u64, u64)>,
+) -> String {
     // The ring is drained ONLY when some event needs it: a fully
     // live window never consumes the exit stream. The seam form
     // below carries the drained records so the tests can pin the
@@ -308,7 +329,7 @@ pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool
     } else {
         None
     };
-    format_event_section_with_exits(events, window, no_pid, exits.as_deref())
+    format_event_section_with_exits(events, window, no_pid, bounds, exits.as_deref())
 }
 
 /// The seam form: the same section with the drained exit records
@@ -316,19 +337,26 @@ pub fn format_event_section(events: &[SockEvent], window: Duration, no_pid: bool
 /// `None` means the caller never needed the ring; an empty slice
 /// means the ring was drained and held nothing - the two are the
 /// same attribution outcome (nothing to name) but different
-/// consumption contracts.
+/// consumption contracts. `bounds` rides the observed window the
+/// capture bracketed (see [`window_range`]): `Some` puts the range
+/// in the header and the empty line, `None` keeps the locked
+/// range-less shapes.
 pub fn format_event_section_with_exits(
     events: &[SockEvent],
     window: Duration,
     no_pid: bool,
+    bounds: Option<(u64, u64)>,
     exits: Option<&[ProcExitEvent]>,
 ) -> String {
+    let range = bounds.and_then(window_range);
     let mut lines = Vec::new();
-    // The Changes header rides green (the section header).
-    lines.push(crate::output::ok_out(&format!(
-        "Changes in the last {}:",
-        window_label(window)
-    )));
+    // The Changes header rides green (the section header). With the
+    // observed bounds the header names WHICH window: two sequential
+    // runs watch two different windows, and the boundaries say so.
+    lines.push(crate::output::ok_out(&match &range {
+        Some(range) => format!("Changes in the last {} ({range}):", window_label(window)),
+        None => format!("Changes in the last {}:", window_label(window)),
+    }));
 
     let mut unaccounted: usize = 0;
     // The rows keep the capture's ascending order (the renderer
@@ -404,8 +432,13 @@ pub fn format_event_section_with_exits(
 
     if rows.is_empty() {
         // The empty-window line rides grey (the locked scheme names
-        // it explicitly).
-        lines.push(crate::output::grey_out("  (no events in the window)"));
+        // it explicitly) - and with the observed bounds it names
+        // WHICH window came up empty, so an empty window still
+        // tells itself apart from the next run's empty window.
+        lines.push(crate::output::grey_out(&match &range {
+            Some(range) => format!("  (no events in the window: {range})"),
+            None => "  (no events in the window)".to_owned(),
+        }));
     } else {
         lines.extend(rows);
     }
