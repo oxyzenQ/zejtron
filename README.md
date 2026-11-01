@@ -128,7 +128,7 @@ Five tools, five dialects, one investigation. zejtron answers the same questions
 
 Pre-built binaries ship for **x86_64 (amd64)** only. The verifier-first doctrine is the reason: we ship exactly what we can test end-to-end on our hardware through the Supermassive E2E suite.
 
-If your infrastructure runs on ARM64, ppc64le, or RISC-V, the source is pure Rust (GPL-3.0) — build from source. Enterprise license holders ($49,999/year) can request an officially verified build for their architecture: we compile, run the full test suite, and provide the verified artifact.
+If your infrastructure runs on ARM64, ppc64le, or RISC-V, the source is pure Rust (GPL-3.0) — build from source. Enterprise Internal license holders ($49,999/year) can request an officially verified build for their architecture: we compile, run the full test suite, and provide the verified artifact.
 
 ### Install on my machine
 
@@ -349,14 +349,15 @@ Support is optional. The project remains open-source.
 
 Companies using zejtron in production need a commercial license. zejtron is dual-licensed: GPL-3.0-only for open-source, and a Commercial License for proprietary use.
 
-| Tier               | Price          | Target                                                     |
-| ------------------ | -------------- | ---------------------------------------------------------- |
-| Personal           | Free (GPL-3.0) | Hobby, personal, non-commercial                            |
-| Solo Dev Business  | $1,899/year    | Solo devs, freelancers, revenue under $100K/year           |
-| SMB                | $9,999/year    | Startups, SMBs, revenue $100K to $10M/year                 |
-| Company            | $49,999/year   | Enterprise, revenue over $10M/year, or redistribution      |
+| Tier                 | Price          | Target                                                     |
+| -------------------- | -------------- | ---------------------------------------------------------- |
+| Personal             | Free (GPL-3.0) | Hobby, personal, non-commercial                            |
+| Professional         | $1,899/year    | Solo devs, freelancers, revenue under $100K/year           |
+| Business             | $9,999/year    | Startups, SMBs, revenue $100K to $10M/year                 |
+| Enterprise Internal  | $49,999/year   | Enterprise revenue over $10M/year, internal use only, NO redistribution |
+| OEM / Redistribution | $99,999/year OR $169,999 one-time + $34,000/year maintenance | Embedding or reselling in a shipped product; redistribution rights |
 
-The paid rungs follow the value upward. Revenue anchors are self-declared in good faith.
+The paid rungs follow the value upward. Revenue anchors are self-declared in good faith. The canonical pricing table, the OEM pricing note, and the tier grants live in [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md); this table mirrors it.
 
 **Unauthorized use is theft.** Taking this code without contacting the owner and paying the license is prohibited. The honest paths are two: comply with GPL-3.0-only, or buy the tier your use matches.
 

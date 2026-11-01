@@ -35,6 +35,23 @@ v11.0.0
 
 ## [Unreleased]
 
+### License
+
+- **Pricing restructured to the 5-tier portfolio model.** The
+  conflated "Company" tier is split into Enterprise Internal
+  ($49,999/year, internal use only) and OEM / Redistribution
+  ($99,999/year, or $169,999 one-time + 20%/year maintenance).
+  Professional ($1,899) and Business ($9,999) are unchanged —
+  market-calibrated against comparable forensic CLI tools
+  ($1,188-1,788/seat) and mid-market network forensics
+  ($8,000-10,000).
+- **Tier names aligned with the portfolio** — "Solo Dev Business"
+  → "Professional", "SMB" → "Business". The Architecture Support
+  section's "Enterprise license holders" reference is now consistent
+  with the pricing table.
+- Docs-only change: no source, build, or test surface touched, so no
+  A/B benchmark per house rule.
+
 ### Added
 
 - The umbrella symptom (night-dragon-lts-2): `doctor --symptom slow`
