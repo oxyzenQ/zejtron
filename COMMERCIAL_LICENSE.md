@@ -77,15 +77,20 @@ annual ($99,999/year) for buyers who prefer opex, and perpetual
 ($169,999 one-time + $34,000/year maintenance, i.e. 20%; the exact
 20% of $169,999 is $33,999.80, invoiced rounded to $34,000) for
 buyers who prefer capex and want to cap long-term risk. Total cost
-over multi-year horizons:
+over multi-year horizons, on the portfolio's N convention — the
+perpetual fee includes the first year's maintenance, paid with the
+one-time payment rather than deferred, matching zelynic and
+cosmostrix (Perpetual(N) = $169,999 + $34,000 × N):
 
-- 1 year:  annual = $99,999;  perpetual = $169,999
-- 3 years: annual = $299,997; perpetual = $237,999
-- 5 years: annual = $499,995; perpetual = $305,999
-- 10 years: annual = $999,990; perpetual = $475,999
+- 1 year:  annual = $99,999;  perpetual = $203,999
+- 3 years: annual = $299,997; perpetual = $271,999
+- 5 years: annual = $499,995; perpetual = $339,999
+- 10 years: annual = $999,990; perpetual = $509,999
 
-The perpetual option is not stackable with the multi-year discount.
-Grandfathering applies to whichever path the buyer purchased.
+The perpetual path is the cheaper total from year 3 onward ($271,999
+vs $299,997 at 3 years). The perpetual option is not stackable with
+the multi-year discount. Grandfathering applies to whichever path the
+buyer purchased.
 
 ### What the Enterprise / OEM tiers license
 
