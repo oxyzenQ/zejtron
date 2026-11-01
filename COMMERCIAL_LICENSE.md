@@ -66,7 +66,7 @@ license terms.
 
 | Tier                 | Price                                                        | Target                                                                   |
 | -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Personal             | Free (GPL-3.0)                                               | Hobby, personal, non-commercial                                          |
+| Personal             | Free (GPL-3.0)                                               | Hobby, personal, non-commercial, open-source contributions               |
 | Professional         | $1,899/year                                                  | Solo devs, freelancers, revenue under $100K/year                         |
 | Business             | $9,999/year                                                  | Startups, SMBs, revenue $100K to $10M/year                               |
 | Enterprise Internal  | $49,999/year                                                 | Enterprise revenue over $10M/year, internal use only, NO redistribution  |
