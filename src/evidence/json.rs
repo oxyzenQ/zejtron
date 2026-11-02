@@ -13,9 +13,9 @@
 //! render.rs's text grammar field for field:
 //!
 //! ```json
-//! {"ledger_version":3,"subject":"/etc/resolv.conf","mode":"snapshot",
+//! {"ledger_version":4,"subject":"/etc/resolv.conf","mode":"snapshot",
 //!  "lane":"journal fallback","window":"10s","measured":[...],
-//!  "changes":{"unavailable":false,"rows":[...]},
+//!  "changes":{"available":true,"events":[...],"unaccounted":0},
 //!  "unaccounted":[{"count":1,"category":"opens","reason":"..."}],
 //!  "verdict":{"supports":"...","cannot_support":"..."}}
 //! ```
@@ -52,12 +52,23 @@
 //!   actor when the row is pure state - the machine-native form of
 //!   the text grammar's em-dash. jq selects `.actor.pid == 2985`
 //!   without parsing a parenthesized string.
-//! - `changes.unavailable` is the absent-lane truth; rows sit
-//!   beside it, and an empty window with a present lane is
-//!   `unavailable:false` with an empty `rows` array - the two
-//!   different truths the text renderer keeps apart.
-//! - `unaccounted` is always present (empty array when nothing is
-//!   named), `verdict` always exactly its two lines.
+//! - The `changes` block speaks the port lane's uniform dialect
+//!   (v4, the empty-window law): `available` is the lane truth
+//!   (`true` when the event window ran, `false` when no event lane
+//!   could serve - an absent lane and an empty window stay the two
+//!   different truths the text renderer keeps apart), `events` is
+//!   ALWAYS an array, never null, never omitted - the zero-event
+//!   window with a present lane is `"events":[]`, so
+//!   `.changes.events[]` iterates zero rows instead of crashing on
+//!   null (no events is an empty array, not null) - and
+//!   `unaccounted` is always present, counting the event rows
+//!   whose actor is fully absent (the uniform mirror of the port
+//!   lane's per-event attribution misses; this lane's richer,
+//!   reasoned attribution misses ride the typed top-level
+//!   `unaccounted` entries).
+//! - The top-level `unaccounted` is always present (empty array
+//!   when nothing is named), `verdict` always exactly its two
+//!   lines.
 //!
 //! Escaping: quote and backslash take their two-character forms,
 //! the named control bytes take `\b` `\f` `\n` `\r` `\t`, any other
@@ -71,14 +82,20 @@ use super::row::{EvidenceActor, EvidenceKind, EvidenceRow};
 use super::{EvidenceReport, Mode};
 
 /// The one version number the automation lane can pin against: the
-/// Evidence Ledger Specification this module mirrors. v3
+/// Evidence Ledger Specification this module mirrors. v4 (the
+/// empty-window law) renamed the changes block to the port lane's
+/// uniform dialect - `unavailable` became `available` (inverted),
+/// `rows` became `events`, and the per-window attribution count
+/// `unaccounted` joined the block - so one jq script iterates
+/// `.changes.events[]` across every event-window command (`why`,
+/// `port --since`, `holds --since`, `touch --since`); v3
 /// (night-badass-6) flattened the row - the typed evidence fields
 /// moved from the nested `action` object to the row root - and
 /// typed the actor (the name/pid/user object, null for pure
 /// state); v2 (night-badass-5) had typed the action, v1 was the
 /// string phrase. Every one of those changes is a breaking event,
 /// named by the version.
-const LEDGER_VERSION: u32 = 3;
+const LEDGER_VERSION: u32 = 4;
 
 /// Serialize the report to one line of JSON. Pure function of its
 /// input: no clock reads, no environment reads, no map iteration -
@@ -100,14 +117,22 @@ pub fn report_json(report: &EvidenceReport) -> String {
     write_string(&mut out, &report.window_label);
     out.push_str(",\"measured\":");
     write_rows(&mut out, &report.measured);
-    out.push_str(",\"changes\":{\"unavailable\":");
+    // The uniform changes dialect (v4, the empty-window law): the
+    // same block the port lane renders - available, events,
+    // unaccounted - so one jq script filters every event-window
+    // command identically. `events` is always an array: the
+    // serializer never has a null shape to emit, whatever the lane
+    // did.
+    out.push_str(",\"changes\":{\"available\":");
     out.push_str(if report.changes.unavailable {
-        "true"
-    } else {
         "false"
+    } else {
+        "true"
     });
-    out.push_str(",\"rows\":");
+    out.push_str(",\"events\":");
     write_rows(&mut out, &report.changes.rows);
+    out.push_str(",\"unaccounted\":");
+    let _ = write!(out, "{}", unattributed_events(&report.changes.rows));
     out.push_str("},\"unaccounted\":");
     write_unaccounted(&mut out, &report.unaccounted);
     out.push_str(",\"verdict\":{\"supports\":");
@@ -135,6 +160,21 @@ fn lane_name(mode: Mode) -> Option<&'static str> {
         Mode::SnapshotJournal => Some("journal fallback"),
         Mode::SnapshotNoLane => Some("no event lane available"),
     }
+}
+
+/// The count behind `changes.unaccounted`: the event rows whose
+/// actor is fully absent - an event the lane saw and can attribute
+/// to nothing. The same predicate [`write_actor`] applies when it
+/// decides the whole actor is null, so the count and the rows above
+/// it can never disagree. The uniform mirror of the port lane's
+/// per-event attribution misses; this lane's richer, reasoned
+/// misses ride the typed top-level `unaccounted` entries.
+fn unattributed_events(rows: &[EvidenceRow]) -> usize {
+    rows.iter()
+        .filter(|row| {
+            row.actor.name.is_none() && row.actor.pid.is_none() && row.actor.user.is_none()
+        })
+        .count()
 }
 
 fn write_rows(out: &mut String, rows: &[EvidenceRow]) {

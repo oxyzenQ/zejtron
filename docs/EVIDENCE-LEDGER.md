@@ -3,19 +3,22 @@
 
 # The Evidence Ledger Specification
 
-**Evidence Ledger Specification v3**
+**Evidence Ledger Specification v4**
 
 This document is the citable definition of the Evidence Ledger
 output format - the block structure zejtron prints for every
-question it answers. v1 (Frozen) and v2 (Frozen) remain citable
-history: every consumer pinned against them can find their
-contracts in the archive below. v3 changes exactly two things,
-both in the JSON row (section 5): the typed evidence fields sit
-at the row root (v2 carried them under a nested `action` object),
-and the actor became the typed name/pid/user object (v1 and v2
-carried a pre-rendered string; the pure-state actor is JSON null).
-The text grammar, the tier vocabulary, and the four laws are
-unchanged from v1. A change to any of them is a new specification
+question it answers. v1 (Frozen), v2 (Frozen), and v3 (Frozen)
+remain citable history: every consumer pinned against them can
+find their contracts in the archive below. v4 changes exactly one
+thing, in the JSON surface (section 5): the changes block speaks
+the port lane's uniform dialect - `unavailable` became `available`
+(inverted), `rows` became `events`, and the per-window attribution
+count `unaccounted` joined the block - so one jq script iterates
+`.changes.events[]` across every event-window command (`why`,
+`port --since`, `holds --since`, `touch --since`), and a window
+that saw nothing answers `"events":[]`, never null. The row shape
+(v3's), the text grammar, the tier vocabulary, and the four laws
+are unchanged. A change to any of them is a new specification
 version and a breaking event, not an edit.
 
 The reference implementation is zejtron's `src/evidence/` module,
@@ -223,16 +226,17 @@ crates.
 
 Field map:
 
-- `ledger_version` - `3`, the specification version this report
+- `ledger_version` - `4`, the specification version this report
   conforms to (v1 carried `1`; v2 typed the action; v3 flattened
-  the row and typed the actor).
+  the row and typed the actor; v4 unified the changes block with
+  the port lane's dialect).
 - `subject`, `window` - the header and mode line's window label,
   the same tokens the text block carries.
 - `mode` - the base word: `live`, `snapshot`, or `mixed`.
 - `lane` - the mode line's lane qualifier without the comma
   (`journal fallback`, `no event lane available`), or `null` for
   the unqualified lanes (`live`, `mixed`).
-- `measured`, `changes.rows` - arrays of row objects. A row is
+- `measured`, `changes.events` - arrays of row objects. A row is
   `{"unix_secs": <seconds | null>, "timestamp_utc": <"YYYY-MM-DD
   HH:MM:SS (UTC)" | null>, "kind": "...", <the kind's raw
   fields>, "actor": <the typed actor object | null>,
@@ -279,10 +283,22 @@ Field map:
   the user resolved from the uid); the log-replayed rows carry
   what the record said. `jq 'select(.actor.pid == 2985)'`
   selects without parsing a parenthesized string.
-- `changes.unavailable` - the absent-lane truth beside the rows:
-  `true` when no event lane could serve, `false` when it ran (an
-  empty window with a present lane is `false` with an empty `rows`
-  array - an empty window is a finding, not an absence).
+- `changes.available` - the lane truth: `true` when the event
+  window ran, `false` when no event lane could serve. An empty
+  window with a present lane is `true` with an empty `events`
+  array - an empty window is a finding, not an absence; the two
+  truths stay apart.
+- `changes.events` - ALWAYS an array, never `null`, never
+  omitted, whatever the lane did: `.changes.events[]` iterates
+  zero rows on an empty window instead of crashing on `null`
+  (`jq: error: Cannot iterate over null` is the bug this v4 law
+  eradicates).
+- `changes.unaccounted` - always present, a count: the event rows
+  above whose actor is fully absent (an event the lane saw and
+  can attribute to nothing). The uniform mirror of the port
+  lane's per-event attribution misses; the ledger's richer,
+  reasoned misses ride the typed top-level `unaccounted` entries
+  below.
 - `unaccounted` - always present (empty array when nothing is
   named); each entry is `{"count": N, "category": "...",
   "reason": "..."}`.
@@ -340,6 +356,18 @@ typed-absence nulls):
   state, mtu, mac, ipv4, ipv6, the eight counters),
   `arp_neighbors`, `routes`, `default_route`, `resolver` - every
   fact the /proc read could not answer rides as `null`.
+
+### v3 archive (Frozen)
+
+Evidence Ledger Specification v3 (Frozen) is the pre-v4 contract,
+citable verbatim: identical to this document except section 5,
+where v3's changes block carried `"unavailable": <bool>` beside a
+`"rows": [...]` array, with no per-window count - `ledger_version`
+was `3`. v4 renamed the block to the port lane's uniform dialect
+(`available` inverted, `rows` became `events`, the `unaccounted`
+count joined). The row shape, the text grammar (section 2), the
+tier vocabulary (section 1), and the four laws (section 3) are
+byte-identical between v3 and v4.
 
 ### v2 archive (Frozen)
 
