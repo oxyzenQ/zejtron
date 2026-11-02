@@ -46,7 +46,17 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
+          # Pinned explicitly so the musl target below lands on the
+          # toolchain the gate resolves (rust-toolchain.toml), not on
+          # whatever the action's own default is.
+          toolchain: "1.98.1"
           components: rustfmt, clippy
+          # The gate builds the musl shape only (the night-badass-1 GNU
+          # purge completion): the deps-validate lane runs the same
+          # ./scripts/build.sh (its default verb is check-all), so the
+          # musl rust-std must ride this install - without it the
+          # gate's preflight refuses to start, before the first verb.
+          targets: x86_64-unknown-linux-musl
 
       # The ebpf feature is the default (night-improve-5): the validate
       # build source-builds the kernel object, so the prerequisites
