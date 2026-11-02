@@ -23,6 +23,16 @@ mod update;
 #[path = "../test/support/tempdir.rs"]
 mod test_tempdir;
 
+// The dead-pid fixture guard (the port post-mortem fixtures'
+// hermeticity): declared once at the crate root beside test_tempdir
+// (the same duplicate_mod law - a per-test-file #[path] include
+// would load the module multiple times) and consumed through
+// `crate::test_dead_pid::dead_pid` by the port test files whose
+// post-mortem pins need a pid the host's process table cannot hold.
+#[cfg(test)]
+#[path = "../test/support/dead_pid.rs"]
+mod test_dead_pid;
+
 fn main() {
     // The UNIX pipe law (night-dragon-6): a CLI piped into a consumer
     // that closes early (jq, head) must die the UNIX way - SIGPIPE,

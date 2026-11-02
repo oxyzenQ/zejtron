@@ -38,6 +38,7 @@ mod live {
         AF_INET, AF_INET6, IPPROTO_TCP, IPPROTO_UDP, ProcExitEvent, SockEvent, TCP_CLOSE,
         TCP_LISTEN,
     };
+    use crate::test_dead_pid::dead_pid;
     use std::time::Duration;
 
     pub(crate) fn live_event(
@@ -205,6 +206,11 @@ mod live {
         }
     }
 
+    /// A LEFT LISTEN recorded after its process is gone from /proc.
+    /// The pid must come from [`crate::test_dead_pid::dead_pid`] -
+    /// the post-mortem verdict reads the REAL /proc, so a pid the
+    /// host holds flips the row from post-mortem to live and the
+    /// pins fail on a collision host.
     fn dead_left_listen(pid: u32, event_ts: u64) -> SockEvent {
         let mut event = live_event(pid, 9999, IPPROTO_TCP, AF_INET, TCP_LISTEN, TCP_CLOSE);
         event.timestamp_ns = event_ts;
@@ -219,8 +225,9 @@ mod live {
         // names it, and the row rides [observed] with the measured
         // lag and the recorded actor.
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts - 87_000_000, 4242, "shortlisten")];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts - 87_000_000, pid, "shortlisten")];
         let section = format_event_section_with_exits(
             &events,
             Duration::from_secs(30),
@@ -231,7 +238,8 @@ mod live {
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[observed]  "), "the weaker tier: {row}");
         assert!(row.contains("TCP4  *:9999  LEFT LISTEN"), "{row}");
-        assert!(row.contains("PID 4242"), "{row}");
+        let pid_token = format!("PID {pid}");
+        assert!(row.contains(&pid_token), "{row}");
         assert!(row.contains("(shortlisten)"), "{row}");
         assert!(
             row.contains(
@@ -250,8 +258,9 @@ mod live {
     #[test]
     fn a_sub_millisecond_lag_reads_under_1ms() {
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts - 400_000, 4242, "fast")];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts - 400_000, pid, "fast")];
         let section = format_event_section_with_exits(
             &events,
             Duration::from_secs(30),
@@ -275,7 +284,8 @@ mod live {
         // event at all - no invented actor, the race note says the
         // kernel's ordering plainly, and the count stays honest.
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
         let section = format_event_section_with_exits(
             &events,
             Duration::from_secs(30),
@@ -304,8 +314,9 @@ mod live {
         // a recycled pid's prior life again - the race note, not a
         // fabricated attribution.
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts - 400_000_000, 4242, "oldlife")];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts - 400_000_000, pid, "oldlife")];
         let section = format_event_section_with_exits(
             &events,
             Duration::from_secs(30),
@@ -327,10 +338,11 @@ mod live {
         // rule - an exit stamped before the event stays unaccounted,
         // never [observed].
         let event_ts = 10_000_000_000;
-        let mut entered = live_event(4242, 9999, IPPROTO_TCP, AF_INET, TCP_CLOSE, TCP_LISTEN);
+        let pid = dead_pid();
+        let mut entered = live_event(pid, 9999, IPPROTO_TCP, AF_INET, TCP_CLOSE, TCP_LISTEN);
         entered.timestamp_ns = event_ts;
         let events = vec![entered];
-        let exits = vec![exit_at(event_ts - 87_000_000, 4242, "eager")];
+        let exits = vec![exit_at(event_ts - 87_000_000, pid, "eager")];
         let section = format_event_section_with_exits(
             &events,
             Duration::from_secs(30),
@@ -349,8 +361,9 @@ mod live {
         // fallback never hijacks what night-improve-61 already
         // attributes.
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts + 3_000_000, 4242, "slowclose")];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts + 3_000_000, pid, "slowclose")];
         let section = format_event_section_with_exits(
             &events,
             Duration::from_secs(30),
