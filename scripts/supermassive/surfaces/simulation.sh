@@ -663,7 +663,7 @@ while time.time() < end:
 			'.measured | type == "array" and length > 0' \
 			"simulation: the why report carries measured rows${fire_suffix}"
 		sm_assert_json "$SM_SCRATCH/why.json" \
-			'.changes.rows | any(.provenance == "observed")' \
+			'.changes.events | any(.provenance == "observed")' \
 			"simulation: the why report carries observed rows${fire_suffix}"
 		sm_assert_json "$SM_SCRATCH/why.json" \
 			".measured | any(.actor != null and .actor.pid == $io_pid and .actor.name == \"dd\")" \
