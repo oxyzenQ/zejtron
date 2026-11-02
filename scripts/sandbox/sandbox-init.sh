@@ -44,57 +44,57 @@ FAILURES=0
 LANE="floor"
 
 note() {
-        echo "SANDBOX-RESULT: $1 — $2"
-        # The floor lane gates on bring-up; the arbitrary lane only
-        # reports - there the payload's exit code is the verdict.
-        if [ "$2" != "PASS" ] && [ "$LANE" = "floor" ]; then
-                FAILURES=$((FAILURES + 1))
-        fi
+	echo "SANDBOX-RESULT: $1 — $2"
+	# The floor lane gates on bring-up; the arbitrary lane only
+	# reports - there the payload's exit code is the verdict.
+	if [ "$2" != "PASS" ] && [ "$LANE" = "floor" ]; then
+		FAILURES=$((FAILURES + 1))
+	fi
 }
 
 guest_exit() {
-        # The deterministic VM exit, belts in order. (1) The console
-        # drain: the sentinel lines are the contract, and qemu's
-        # isa-debug-exit device ends the process the moment one byte
-        # lands on port 0xf4 - serial bytes still in flight (the tail of
-        # the SANDBOX-RESULT line, the SANDBOX-VERDICT line itself) die
-        # with it, proven live on the cachyos witness: a green 389/0
-        # suite whose PASS sentinel never reached vm.log. One quiet
-        # second lets the UART FIFO and the host-side pipe run dry before
-        # the exit byte is written. (2) qemu's isa-debug-exit device:
-        # /dev/port is the root-writable port-I/O window (seek = the
-        # port number), and the written value 0 makes qemu exit with
-        # status 1 - an rc the entrypoint's boot step accepts as the
-        # guest's deliberate exit. (3) The sysrq poweroff: enabling sysrq
-        # first is LOAD-BEARING (the jammy kernel's default mask hides
-        # the poweroff bit, and a bare `echo o` silently no-ops - proven
-        # live on the floor kernel: with sysrq enabled, the write reaches
-        # ACPI S5 and the kernel prints "reboot: Power down"; qemu exits
-        # 0, a natural poweroff, also accepted). (4) The sleep loop
-        # (never spin the host's budget - the outer timeout owns the last
-        # resort).
-        echo 1 >/proc/sys/kernel/sysrq 2>/dev/null || true
-        sync 2>/dev/null || true
-        sleep 1 2>/dev/null || true
-        printf '\x00' | dd of=/dev/port bs=1 seek=244 count=1 2>/dev/null || true
-        echo o >/proc/sysrq-trigger 2>/dev/null || true
-        # (3b) The reset belt, proven needed on the qemu-10 userland/TCG
-        # run: the port write and the ACPI S5 both no-op'd there (no
-        # "reboot: Power down" on the console, qemu kept running), but a
-        # plain CPU reset is the one exit -no-reboot catches by
-        # construction - the entrypoint accepts the natural rc 0.
-        echo b >/proc/sysrq-trigger 2>/dev/null || true
-        reboot -f 2>/dev/null || true
-        while true; do sleep 60; done
+	# The deterministic VM exit, belts in order. (1) The console
+	# drain: the sentinel lines are the contract, and qemu's
+	# isa-debug-exit device ends the process the moment one byte
+	# lands on port 0xf4 - serial bytes still in flight (the tail of
+	# the SANDBOX-RESULT line, the SANDBOX-VERDICT line itself) die
+	# with it, proven live on the cachyos witness: a green 389/0
+	# suite whose PASS sentinel never reached vm.log. One quiet
+	# second lets the UART FIFO and the host-side pipe run dry before
+	# the exit byte is written. (2) qemu's isa-debug-exit device:
+	# /dev/port is the root-writable port-I/O window (seek = the
+	# port number), and the written value 0 makes qemu exit with
+	# status 1 - an rc the entrypoint's boot step accepts as the
+	# guest's deliberate exit. (3) The sysrq poweroff: enabling sysrq
+	# first is LOAD-BEARING (the jammy kernel's default mask hides
+	# the poweroff bit, and a bare `echo o` silently no-ops - proven
+	# live on the floor kernel: with sysrq enabled, the write reaches
+	# ACPI S5 and the kernel prints "reboot: Power down"; qemu exits
+	# 0, a natural poweroff, also accepted). (4) The sleep loop
+	# (never spin the host's budget - the outer timeout owns the last
+	# resort).
+	echo 1 >/proc/sys/kernel/sysrq 2>/dev/null || true
+	sync 2>/dev/null || true
+	sleep 1 2>/dev/null || true
+	printf '\x00' | dd of=/dev/port bs=1 seek=244 count=1 2>/dev/null || true
+	echo o >/proc/sysrq-trigger 2>/dev/null || true
+	# (3b) The reset belt, proven needed on the qemu-10 userland/TCG
+	# run: the port write and the ACPI S5 both no-op'd there (no
+	# "reboot: Power down" on the console, qemu kept running), but a
+	# plain CPU reset is the one exit -no-reboot catches by
+	# construction - the entrypoint accepts the natural rc 0.
+	echo b >/proc/sysrq-trigger 2>/dev/null || true
+	reboot -f 2>/dev/null || true
+	while true; do sleep 60; done
 }
 
 Z=/opt/zejtron
 if ! cd "$Z"; then
-        # A PID 1 must never plain-exit (the guest would panic-wedge):
-        # exit through the port device with the verdict already naming
-        # the failure.
-        echo "SANDBOX-VERDICT: FAIL (cannot cd $Z — initrd assembly bug)"
-        guest_exit
+	# A PID 1 must never plain-exit (the guest would panic-wedge):
+	# exit through the port device with the verdict already naming
+	# the failure.
+	echo "SANDBOX-VERDICT: FAIL (cannot cd $Z — initrd assembly bug)"
+	guest_exit
 fi
 
 # ── the kernel surfaces, before anything that needs them ──────────
@@ -108,18 +108,18 @@ echo "SANDBOX: init on $(uname -r)"
 # strict identity contract; arbitrary = the report mode. A garbage
 # lane file is an assembly bug - fail loudly, never guess.
 if [ -r "$Z/.sandbox/lane" ]; then
-        LANE="$(cat "$Z/.sandbox/lane" 2>/dev/null)"
+	LANE="$(cat "$Z/.sandbox/lane" 2>/dev/null)"
 fi
 LANE="${LANE:-floor}"
 case "$LANE" in
 floor | arbitrary) ;;
 *)
-        echo "SANDBOX-VERDICT: FAIL (unknown lane: $LANE — assembly bug)"
-        guest_exit
-        ;;
+	echo "SANDBOX-VERDICT: FAIL (unknown lane: $LANE — assembly bug)"
+	guest_exit
+	;;
 esac
 if [ "$LANE" = "arbitrary" ]; then
-        echo "SANDBOX: arbitrary lane — the identity rows below are reports; the payload is the verdict"
+	echo "SANDBOX: arbitrary lane — the identity rows below are reports; the payload is the verdict"
 fi
 
 # Everything the zejtron battery needs (PID 1 owns it all): tmpfs
@@ -136,16 +136,16 @@ fi
 # its own preflight with "tracefs not found", exactly the gap the
 # first floor-kernel run caught.
 if mount -t tmpfs tmp /tmp &&
-        mount -t tmpfs run /run &&
-        mkdir -p /sys/fs/bpf /dev/pts /sys/kernel/debug /sys/kernel/tracing &&
-        mount -t bpf bpf /sys/fs/bpf &&
-        mount -t devpts devpts /dev/pts &&
-        mount -t debugfs debugfs /sys/kernel/debug &&
-        mount -t tracefs tracefs /sys/kernel/tracing &&
-        ip link set lo up; then
-        note "kernel surfaces (proc, sysfs, devtmpfs, tmpfs, bpffs, devpts, debugfs, tracefs, loopback)" PASS
+	mount -t tmpfs run /run &&
+	mkdir -p /sys/fs/bpf /dev/pts /sys/kernel/debug /sys/kernel/tracing &&
+	mount -t bpf bpf /sys/fs/bpf &&
+	mount -t devpts devpts /dev/pts &&
+	mount -t debugfs debugfs /sys/kernel/debug &&
+	mount -t tracefs tracefs /sys/kernel/tracing &&
+	ip link set lo up; then
+	note "kernel surfaces (proc, sysfs, devtmpfs, tmpfs, bpffs, devpts, debugfs, tracefs, loopback)" PASS
 else
-        note "kernel surfaces" FAIL
+	note "kernel surfaces" FAIL
 fi
 
 # The lane's own floor guard. Floor lane: the kernel that booted
@@ -157,31 +157,31 @@ fi
 # composes that direction with BTF and the effective capabilities,
 # so the row states the floor dimension only.
 if [ "$LANE" = "floor" ]; then
-        case "$(uname -r)" in
-        5.15.0-*)
-                note "kernel floor (release $(uname -r) is the jammy GA 5.15.0 floor kernel)" PASS
-                ;;
-        *)
-                note "kernel floor (release $(uname -r) is NOT the 5.15.0 floor kernel — wrong kernel booted)" FAIL
-                ;;
-        esac
+	case "$(uname -r)" in
+	5.15.0-*)
+		note "kernel floor (release $(uname -r) is the jammy GA 5.15.0 floor kernel)" PASS
+		;;
+	*)
+		note "kernel floor (release $(uname -r) is NOT the 5.15.0 floor kernel — wrong kernel booted)" FAIL
+		;;
+	esac
 else
-        KREL="$(uname -r)"
-        KMAJ="${KREL%%.*}"
-        KREST="${KREL#*.}"
-        KMIN="${KREST%%[-.]*}"
-        case "${KMAJ}${KMIN}" in
-        '' | *[!0-9]*)
-                note "kernel direction (release $KREL is unparsable — the suite's own osrelease computation owns the direction)" PASS
-                ;;
-        *)
-                if [ "$KMAJ" -gt 5 ] || { [ "$KMAJ" -eq 5 ] && [ "$KMIN" -ge 15 ]; }; then
-                        note "kernel direction (release $KREL is at/above the 5.15 floor)" PASS
-                else
-                        note "kernel direction (release $KREL is BELOW the 5.15 floor)" PASS
-                fi
-                ;;
-        esac
+	KREL="$(uname -r)"
+	KMAJ="${KREL%%.*}"
+	KREST="${KREL#*.}"
+	KMIN="${KREST%%[-.]*}"
+	case "${KMAJ}${KMIN}" in
+	'' | *[!0-9]*)
+		note "kernel direction (release $KREL is unparsable — the suite's own osrelease computation owns the direction)" PASS
+		;;
+	*)
+		if [ "$KMAJ" -gt 5 ] || { [ "$KMAJ" -eq 5 ] && [ "$KMIN" -ge 15 ]; }; then
+			note "kernel direction (release $KREL is at/above the 5.15 floor)" PASS
+		else
+			note "kernel direction (release $KREL is BELOW the 5.15 floor)" PASS
+		fi
+		;;
+	esac
 fi
 
 # The BTF substrate: the floor kernel ships /sys/kernel/btf/vmlinux
@@ -191,9 +191,9 @@ fi
 # documents; on the arbitrary lane it is a reported property of the
 # operator's chosen kernel.
 if [ -r /sys/kernel/btf/vmlinux ]; then
-        note "BTF (/sys/kernel/btf/vmlinux readable — the offsets substrate)" PASS
+	note "BTF (/sys/kernel/btf/vmlinux readable — the offsets substrate)" PASS
 else
-        note "BTF (/sys/kernel/btf/vmlinux unreadable — no offsets substrate on this kernel)" FAIL
+	note "BTF (/sys/kernel/btf/vmlinux unreadable — no offsets substrate on this kernel)" FAIL
 fi
 
 # The tracing substrate (the lane contract the first floor-kernel
@@ -202,22 +202,22 @@ fi
 # mount battery above owns the mount; this probe pins the RESULT -
 # the events tree for the probe's own tracepoints must be readable.
 if [ -r /sys/kernel/tracing/events/sched/sched_process_exec/id ]; then
-        note "tracefs (the sched_process_exec tracepoint id is readable)" PASS
+	note "tracefs (the sched_process_exec tracepoint id is readable)" PASS
 else
-        note "tracefs (the sched_process_exec tracepoint id is unreadable)" FAIL
+	note "tracefs (the sched_process_exec tracepoint id is unreadable)" FAIL
 fi
 
 # The lean prelude: the binary runs and the doctor answers on this
 # kernel, before any payload spends its budget.
 if ./zejtron -V >/dev/null 2>&1; then
-        note "zejtron -V (the binary runs on this kernel)" PASS
+	note "zejtron -V (the binary runs on this kernel)" PASS
 else
-        note "zejtron -V (the binary runs on this kernel)" FAIL
+	note "zejtron -V (the binary runs on this kernel)" FAIL
 fi
 if ./zejtron doctor >/dev/null 2>&1; then
-        note "doctor (the bpf syscall answers on this kernel)" PASS
+	note "doctor (the bpf syscall answers on this kernel)" PASS
 else
-        note "doctor (the bpf syscall answers on this kernel)" FAIL
+	note "doctor (the bpf syscall answers on this kernel)" FAIL
 fi
 
 # ── the payload ────────────────────────────────────────────────────
@@ -231,21 +231,21 @@ fi
 # verdict, bring-up only reported.
 PAYLOAD="$Z/.sandbox/payload.sh"
 if [ "$FAILURES" -ne 0 ]; then
-        echo "SANDBOX-VERDICT: FAIL (bring-up probes failed — payload never ran)"
-        guest_exit
+	echo "SANDBOX-VERDICT: FAIL (bring-up probes failed — payload never ran)"
+	guest_exit
 fi
 if [ -x "$PAYLOAD" ]; then
-        echo "SANDBOX: running the packed payload..."
-        bash "$PAYLOAD"
-        rc=$?
+	echo "SANDBOX: running the packed payload..."
+	bash "$PAYLOAD"
+	rc=$?
 else
-        echo "SANDBOX: no payload packed — the root shell is the console."
-        bash
-        rc=$?
+	echo "SANDBOX: no payload packed — the root shell is the console."
+	bash
+	rc=$?
 fi
 if [ "$rc" -eq 0 ]; then
-        echo "SANDBOX-VERDICT: PASS"
+	echo "SANDBOX-VERDICT: PASS"
 else
-        echo "SANDBOX-VERDICT: FAIL (payload exit $rc)"
+	echo "SANDBOX-VERDICT: FAIL (payload exit $rc)"
 fi
 guest_exit
