@@ -16,8 +16,8 @@ bytes are the pin.
 | Asset | Role | Size (bytes) |
 |---|---|---|
 | `assets/zejtron-original-logo-2026.png` | the official logo | 1470673 |
-| `assets/zejtron-demo-doctor.png` | the doctor surface demo capture | 85795 |
-| `assets/zejtron-demo-why.png` | the why surface demo capture | 75297 |
+| `assets/zejtron-demo-doctor.png` | the doctor surface demo capture | 503738 |
+| `assets/zejtron-demo-why.png` | the why surface demo capture | 471142 |
 | `assets/qr/bitcoin.png` | bitcoin receive-address QR | 575 |
 | `assets/qr/ethereum.png` | ethereum receive-address QR | 591 |
 | `assets/qr/solana.png` | solana receive-address QR | 595 |
@@ -29,8 +29,8 @@ the repository root):
 09ec09fcdc4815e23373cb266bb120aa4e1af140fb9d598e117d05478a791b47  assets/qr/bitcoin.png
 4eb520de0fe258d2c82ba07ccba8d9e48bafc63904d022a83cc42b59d1ed2ac7  assets/qr/ethereum.png
 bca56b0a454daf06ff2d57fe401719553e28733e73479de2652a0740a9e87d1a  assets/qr/solana.png
-a35d491703315e7f4132598bbf90ca65765f1f6a51e8c0783e1df4230b588c37  assets/zejtron-demo-doctor.png
-072bb9d1d8fa50780f4230bfe8a053991488b7112d814eaa93ec26bbab0d050c  assets/zejtron-demo-why.png
+77f5a87a731499c090cfb565805a89aaccd1b638cf028c57f14b0973d1d75c20  assets/zejtron-demo-doctor.png
+07f52d9efa4780e446b8f8850c0fadb84b59be00cc97968849d2afc516ad9edf  assets/zejtron-demo-why.png
 405c65108085a036aeed726b7d9e08388f5eecca03d196fe2121d9ba07a30a7c  assets/zejtron-original-logo-2026.png
 ```
 
