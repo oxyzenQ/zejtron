@@ -17,3 +17,9 @@ pub mod proc;
 pub mod recent;
 pub mod touch;
 pub mod why;
+
+// The Mode banner guard (the buyer verification defect class): the cross-verb
+// net that keeps every --since verb's human output banner-first.
+#[cfg(test)]
+#[path = "../../test/commands/mode_banner_guard_tests.rs"]
+mod mode_banner_guard;

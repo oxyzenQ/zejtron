@@ -4,6 +4,7 @@
 mod events;
 mod json;
 mod lane_state;
+mod mode_banner;
 mod model;
 mod owners;
 mod parser;
