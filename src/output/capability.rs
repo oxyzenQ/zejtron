@@ -46,6 +46,18 @@
 //! both streams, in both piped combinations. `CLICOLOR_FORCE=1`
 //! re-arms either lane for the wrapper scripts and CI logs that
 //! capture a stream away from a terminal.
+//!
+//! The test build's hermeticity law (the TTY-vs-suite defect): the
+//! two lane caches below return Mono unconditionally under `cfg(test)`,
+//! so the test binary renders the exact plain bytes the unit pins
+//! assert whatever host it runs on - the owner's truecolor TTY, a
+//! piped CI runner, `NO_COLOR=1`, or `CLICOLOR_FORCE=1`. Before the
+//! gate, a `cargo test` on a real terminal probed TrueColor and 88
+//! assertions read escape bytes on their left side; in a sterilized
+//! sandbox the same suite passed - an environment-dependent suite.
+//! `cfg(test)` exists only in test compilations, so the shipped
+//! binary probes the environment exactly as the ladder documents:
+//! product output behavior is untouched.
 
 use std::io::IsTerminal;
 use std::sync::OnceLock;
@@ -132,10 +144,18 @@ pub(crate) fn classify(
 
 /// The detected capability, cached for the process lifetime. The
 /// environment cannot change mid-run in any honest terminal session,
-/// so one detection is one truth.
+/// so one detection is one truth. Test builds short-circuit to Mono
+/// before the probe - the hermeticity law in the module doc.
 pub(crate) fn capability() -> ColorCapability {
     static CAPABILITY: OnceLock<ColorCapability> = OnceLock::new();
     *CAPABILITY.get_or_init(|| {
+        // The hermeticity law: the test binary renders Mono, period -
+        // whatever the host TTY, NO_COLOR, or CLICOLOR_FORCE say. The
+        // suite pins plain bytes; a real terminal must not repaint
+        // them. The shipped binary never sees cfg(test).
+        if cfg!(test) {
+            return ColorCapability::Mono;
+        }
         let env_flag = |key: &str| std::env::var_os(key).is_some_and(|v| !v.is_empty());
         let env_value = |key: &str| std::env::var(key).ok();
         classify(
@@ -155,10 +175,16 @@ pub(crate) fn capability() -> ColorCapability {
 /// ladder, the stream's own verdict (night-improve-37's two-lane
 /// law). A piped stdout renders plain bytes even when stderr keeps
 /// its lane, so piped output carries zero escape bytes regardless of
-/// what stderr is doing.
+/// what stderr is doing. Test builds short-circuit to Mono before
+/// the probe - the same hermeticity law as [`capability`].
 pub(crate) fn stdout_capability() -> ColorCapability {
     static CAPABILITY: OnceLock<ColorCapability> = OnceLock::new();
     *CAPABILITY.get_or_init(|| {
+        // The hermeticity law: see [`capability`] - the test binary
+        // renders Mono, the shipped binary probes as always.
+        if cfg!(test) {
+            return ColorCapability::Mono;
+        }
         let env_flag = |key: &str| std::env::var_os(key).is_some_and(|v| !v.is_empty());
         let env_value = |key: &str| std::env::var(key).ok();
         classify(
