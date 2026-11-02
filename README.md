@@ -188,7 +188,7 @@ The build cross-compiles `ebpf/` (pure Rust, aya-ebpf) into six programs: `sched
 sudo zejtron doctor --attach   # plant the probes
 sudo zejtron doctor --detach   # the sledgehammer: unpin everything, idempotent
 ```
-After `--attach`, the process may exit. The pinned links keep programs attached; the pinned maps keep data. `--detach` sweeps the whole pin estate (legacy pins, foreign entries) — no manual `rm` is ever needed. The Lazy Camera architecture is exactly this: the kernel records into bounded rings, nothing streams to userspace, and the CLI wakes only to drain the window it was asked for, then exits. The doctor's `[eBPF]` section carries the camera's posture: `Mode: Lazy Camera (Kernel: recording | CLI: asleep)`.
+After `--attach`, the process may exit. The pinned links keep programs attached; the pinned maps keep data. `--detach` sweeps the whole pin estate (legacy pins, foreign entries) — no manual `rm` is ever needed. Both verbs are quiet by default: the attach answers with one line — `eBPF probes attached successfully (6 programs, 6 links, 6 maps). Lazy Camera is now recording.` — and the detach with `eBPF probes detached (18 pins removed).`; run either with `-v` when you want the full report instead (every probe by name, the BTF verification claims, the whole pin list). The Lazy Camera architecture is exactly this: the kernel records into bounded rings, nothing streams to userspace, and the CLI wakes only to drain the window it was asked for, then exits. The doctor's `[eBPF]` section carries the camera's posture: `Mode: Lazy Camera (Kernel: recording | CLI: asleep)`.
 
 ### Usage
 

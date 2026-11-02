@@ -87,34 +87,46 @@ surface_doctor() {
 	# capable (floor met + BTF readable + the two capabilities in
 	# the effective set), the attach may legitimately still refuse
 	# (lockdown active is the real-world case) or succeed - and a
-	# SUCCESS carries its own contract: the probe names itself, the
-	# pin directory names itself, the BTF-verified offsets claim
-	# pins itself, the second attach is the honest idempotent
-	# nothing-to-do, and the detach that follows is the REAL
-	# unpin (15 pins removed, the pin directory gone). A success
-	# on a host the harness reads as incapable is a loud failure:
-	# the binary attached where its own preflight must refuse.
-	# The 20s per-call budget is the leg's documented slow class
-	# (the same vocabulary --check-update rides): the one-shot
-	# loads five BPF programs and pins fifteen objects.
-	sm_run "$SM_SCRATCH/att.out" "$SM_SCRATCH/att.err" rc 20 -- "$SM_DEFAULT_BIN" doctor --attach
+	# SUCCESS carries its own contract, split by the quiet law
+	# (the verbosity masterclass): the VERBOSE first attach names
+	# the probe, the pin directory, the BTF-verified offsets
+	# claim, and the pin list; the default re-attach is the honest
+	# idempotent nothing-to-do in ONE quiet line (no pin dump, no
+	# probe wall); and the detach that follows is the REAL unpin
+	# (18 pins removed) in its own quiet line. A success on a host
+	# the harness reads as incapable is a loud failure: the binary
+	# attached where its own preflight must refuse. The 20s
+	# per-call budget is the leg's documented slow class (the same
+	# vocabulary --check-update rides): the one-shot loads six BPF
+	# programs and pins eighteen objects.
+	sm_run "$SM_SCRATCH/att.out" "$SM_SCRATCH/att.err" rc 20 -- "$SM_DEFAULT_BIN" doctor --attach -v
 	sm_flag_used "doctor --attach"
 	if [[ "$rc" -eq 0 ]]; then
 		if ((can_attach)); then
 			sm_assert_contains "$SM_SCRATCH/att.out" "probes attached" \
-				"doctor --attach succeeds on a capable host and names the probe"
+				"doctor --attach -v succeeds on a capable host and names the probe"
 			sm_assert_contains "$SM_SCRATCH/att.out" "/sys/fs/bpf/zejtron" \
-				"doctor --attach names the pin directory"
+				"doctor --attach -v names the pin directory"
 			sm_assert_contains "$SM_SCRATCH/att.out" "offsets verified from this host's BTF" \
-				"doctor --attach pins the BTF-verified offsets claim"
+				"doctor --attach -v pins the BTF-verified offsets claim"
+			sm_assert_contains "$SM_SCRATCH/att.out" "pins:" \
+				"doctor --attach -v carries the pin list"
 			sm_run "$SM_SCRATCH/att2.out" "$SM_SCRATCH/att2.err" rc 20 -- "$SM_DEFAULT_BIN" doctor --attach
 			sm_assert_rc 0 "$rc" "doctor --attach is idempotent on a live probe (exit 0)"
-			sm_assert_contains "$SM_SCRATCH/att2.out" "probe is already attached - nothing to do" \
+			sm_assert_contains "$SM_SCRATCH/att2.out" "already attached" \
 				"doctor --attach idempotence names the live probe"
+			sm_assert_not_contains "$SM_SCRATCH/att2.out" "/sys/fs/bpf/zejtron" \
+				"doctor --attach default output stays quiet (no pin dump)"
+			sm_assert_not_contains "$SM_SCRATCH/att2.out" "sched_process_exec" \
+				"doctor --attach default output stays quiet (no probe wall)"
 			sm_run "$SM_SCRATCH/det.out" "$SM_SCRATCH/det.err" rc 20 -- "$SM_DEFAULT_BIN" doctor --detach
 			sm_assert_rc 0 "$rc" "doctor --detach unpins the live probe (exit 0)"
-			sm_assert_contains "$SM_SCRATCH/det.out" "probes detached: unpinned" \
+			sm_assert_contains "$SM_SCRATCH/det.out" "probes detached" \
 				"doctor --detach reports the real unpin"
+			sm_assert_contains "$SM_SCRATCH/det.out" "pins removed" \
+				"doctor --detach names the pin count"
+			sm_assert_not_contains "$SM_SCRATCH/det.out" "/sys/fs/bpf/zejtron" \
+				"doctor --detach default output stays quiet (no pin path)"
 			if [[ -e /sys/fs/bpf/zejtron ]]; then
 				sm_fail "doctor --detach removes the pin directory" \
 					"/sys/fs/bpf/zejtron still exists after detach"

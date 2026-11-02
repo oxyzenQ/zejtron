@@ -88,7 +88,11 @@ The lane's whole life, boot to boot:
    members in, and still refuse by name when a member cannot be
    found - attaches each program,
    and pins programs, links, and maps under `/sys/fs/bpf/zejtron`.
-   The attach prints its summary and exits. Because bpffs is a
+   The attach prints one quiet success line (`eBPF probes attached
+   successfully (6 programs, 6 links, 6 maps). Lazy Camera is now
+   recording.`) and exits; `-v` swaps the line for the full report -
+   every probe by name, the BTF verification claims, the whole pin
+   list. Because bpffs is a
    virtual filesystem, the pins do not survive a reboot - the lane
    is per-boot by physics, not by policy.
 
@@ -130,7 +134,9 @@ The lane's whole life, boot to boot:
 4. **Optional detach.** `sudo zejtron doctor --detach` unpins
    everything (links first, so an interrupted cleanup leaves a
    detached probe, never a half-attached one) and removes the pin
-   directory. The kernel footprint is exactly zero again - the
+   directory. The detach answers with one quiet line
+   (`eBPF probes detached (18 pins removed).`); `-v` names the pin
+   directory it removed. The kernel footprint is exactly zero again - the
    same state a host that never attached has.
 
 The doctor's `[eBPF]` section reports the lane's state in every

@@ -69,3 +69,134 @@ fn pin_paths_are_the_one_directory_contract() {
     assert!(PIN_PROG_EXIT.starts_with("/sys/fs/bpf/zejtron/"));
     assert!(PIN_MAP_PROC_EVENTS.starts_with("/sys/fs/bpf/zejtron/"));
 }
+
+// ── The quiet-by-default summary law (the verbosity masterclass) ────
+//
+// The default human output of the attach/detach verbs is ONE short
+// line - no probe-name wall, no pin dump (the data lives behind -v).
+// These guards pin the law from both directions: the default line
+// stays quiet and small, and the -v branch is where the wall went.
+
+#[test]
+fn estate_counts_classify_the_whole_pin_estate() {
+    // The classifier's naming contract against the real constants:
+    // six programs, six links, six maps - and the three counts cover
+    // every pin, so a future probe pair updates the summary line
+    // without touching it, and a naming drift fails here instead of
+    // printing a wrong count.
+    let (programs, links, maps) = estate_counts();
+    assert_eq!(programs, 6, "the estate plants six probe programs");
+    assert_eq!(links, 6, "every program rides one link pin");
+    assert_eq!(maps, 6, "the estate plants six maps");
+    assert_eq!(
+        programs + links + maps,
+        crate::ebpf::ALL_PINS.len(),
+        "every pin must classify into exactly one role"
+    );
+}
+
+#[test]
+fn attach_success_default_is_one_quiet_line() {
+    // The default success line: single-line, under 100 chars, no
+    // probe names, no pin list, no pin directory - the estate's
+    // shape and the camera's posture, nothing else.
+    let concise = attach_success_summary(&Ok(0), "vfs_writev", false);
+    assert!(
+        !concise.contains('\n'),
+        "default output is one line: {concise}"
+    );
+    assert!(
+        concise.chars().count() < 100,
+        "default attach output must stay under 100 chars, got {}: {concise}",
+        concise.chars().count()
+    );
+    assert!(!concise.contains("sched_process_exec"));
+    assert!(!concise.contains("vfs_"), "no probe names: {concise}");
+    assert!(!concise.contains("sys_enter"));
+    assert!(!concise.contains("inet_sock"));
+    assert!(!concise.contains("probe_link"), "no pin list: {concise}");
+    assert!(!concise.contains(PIN_DIR), "no pin directory: {concise}");
+    assert!(!concise.contains("BTF"), "no BTF detail: {concise}");
+    // The shape it DOES carry: the counts and the camera posture.
+    assert!(concise.contains("6 programs"));
+    assert!(concise.contains("6 links"));
+    assert!(concise.contains("6 maps"));
+    assert!(concise.contains("probes attached successfully"));
+    assert!(concise.contains("Lazy Camera is now recording"));
+}
+
+#[test]
+fn attach_verbose_carries_the_probe_and_pin_details() {
+    // -v is where the wall lives: the probe names, the BTF
+    // verification claims, the counter read, and the whole pin
+    // list, multi-line - strictly more than the quiet line.
+    let concise = attach_success_summary(&Ok(0), "vfs_writev", false);
+    let verbose = attach_success_summary(&Ok(0), "vfs_writev", true);
+    assert!(verbose.contains("sched_process_exec"));
+    assert!(verbose.contains("vfs_writev"));
+    assert!(verbose.contains("vfs_open"));
+    assert!(verbose.contains("sys_enter"));
+    assert!(verbose.contains("offsets verified from this host's BTF"));
+    assert!(verbose.contains("pins:"));
+    assert!(verbose.contains(PIN_DIR));
+    assert!(verbose.contains("events since attach: N=0"));
+    assert!(verbose.contains('\n'), "the verbose report is multi-line");
+    assert!(verbose.chars().count() > concise.chars().count());
+}
+
+#[test]
+fn attach_already_default_is_quiet_and_verbose_names_the_pointer() {
+    // The idempotent re-attach: default stays one quiet line with
+    // the live counter; -v keeps the full shape with the detach
+    // pointer.
+    let concise = attach_already_summary(&Ok(7), false);
+    assert!(
+        !concise.contains('\n'),
+        "default output is one line: {concise}"
+    );
+    assert!(
+        concise.chars().count() < 100,
+        "default already-attached output must stay under 100 chars: {concise}"
+    );
+    assert!(!concise.contains(PIN_DIR));
+    assert!(concise.contains("already attached"));
+    assert!(concise.contains("events since attach: N=7"));
+    let verbose = attach_already_summary(&Ok(7), true);
+    assert!(verbose.contains("doctor --detach"));
+    assert!(verbose.contains("all pins present"));
+    assert!(verbose.chars().count() > concise.chars().count());
+}
+
+#[test]
+fn attach_counter_unreadable_stays_honest_in_both_lanes() {
+    // A counter readback failure never fabricates a number: the
+    // default line says unreadable (short), the verbose line keeps
+    // the exact error.
+    let err = Err("no such map".to_owned());
+    let concise = attach_already_summary(&err, false);
+    assert!(concise.contains("counter unreadable"), "{concise}");
+    assert!(!concise.contains("N="), "no fabricated count: {concise}");
+    let verbose = attach_already_summary(&err, true);
+    assert!(verbose.contains("counter unreadable (no such map)"));
+}
+
+#[test]
+fn detach_default_is_one_quiet_line() {
+    // The default detach line: the task's masterclass shape, no pin
+    // directory path, one line. The swept note rides only when the
+    // sledgehammer actually swept something.
+    let concise = detach_summary(18, 0, false);
+    assert_eq!(concise, "eBPF probes detached (18 pins removed).");
+    assert!(
+        concise.chars().count() < 100,
+        "default detach output must stay under 100 chars: {concise}"
+    );
+    assert!(!concise.contains(PIN_DIR));
+    let swept = detach_summary(18, 2, false);
+    assert!(swept.contains("2 foreign entries swept"), "{swept}");
+    assert!(!swept.contains('\n'));
+    let verbose = detach_summary(18, 0, true);
+    assert!(verbose.contains("unpinned 18 pin(s)"));
+    assert!(verbose.contains(PIN_DIR));
+    assert!(verbose.chars().count() > concise.chars().count());
+}

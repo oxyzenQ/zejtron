@@ -1105,6 +1105,22 @@ v11.0.0
 
 ### Fixed
 
+- **The default CLI output is quiet by default, loud on request.**
+  `doctor --attach` no longer dumps the comma-separated wall of probe
+  names, BTF verification lines, and the pin list on stdout: the
+  default success is one line (`eBPF probes attached successfully
+  (6 programs, 6 links, 6 maps). Lazy Camera is now recording.`), the
+  default detach is `eBPF probes detached (18 pins removed).`, and the
+  full report (probe names, BTF verification claims, the pin list,
+  the pin directory) moved behind `-v` - the stderr trace lane is
+  unchanged. A repo-wide verbosity audit confirmed every other verb
+  (`path`, `recent`, `port`, `proc`, `holds`, `touch`, `why`, `net`,
+  and the doctor readiness and symptom lanes) already speaks in
+  structured, tight-headed reports, so nothing else moved. Guard
+  tests pin the quiet shapes (one line, under 100 chars, no probe or
+  pin dump) and the `-v` detail contract; the supermassive doctor
+  surface now enforces both directions on a capable host.
+
 - `port --print-json` no longer calls a permission wall
   "lane-not-attached" (the live-verification residual): with pins
   planted by a root `doctor --attach` (18 pins verified) and read by
