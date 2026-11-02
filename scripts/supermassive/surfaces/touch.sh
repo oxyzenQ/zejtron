@@ -51,7 +51,7 @@ surface_touch() {
 		"touch --print-json keeps stderr silent"
 	sm_assert_pure_json "$SM_SCRATCH/json.out" \
 		"touch --print-json stdout is pure JSON"
-	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 3' \
+	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 4' \
 		"touch --print-json names the ledger version"
 	sm_assert_json "$SM_SCRATCH/json.out" '.verdict | has("supports")' \
 		"touch --print-json carries the typed verdict"

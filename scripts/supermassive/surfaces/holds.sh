@@ -49,7 +49,7 @@ surface_holds() {
 		"holds --print-json keeps stderr silent"
 	sm_assert_pure_json "$SM_SCRATCH/json.out" \
 		"holds --print-json stdout is pure JSON"
-	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 3' \
+	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 4' \
 		"holds --print-json names the ledger version"
 	sm_assert_json "$SM_SCRATCH/json.out" '.verdict | has("supports")' \
 		"holds --print-json carries the typed verdict"

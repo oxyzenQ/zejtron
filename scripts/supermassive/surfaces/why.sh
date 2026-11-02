@@ -44,7 +44,7 @@ surface_why() {
 		"why --print-json keeps stderr silent"
 	sm_assert_pure_json "$SM_SCRATCH/json.out" \
 		"why --print-json stdout is pure JSON"
-	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 3' \
+	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 4' \
 		"why --print-json names the ledger version"
 	sm_assert_json "$SM_SCRATCH/json.out" '.verdict | has("supports")' \
 		"why --print-json carries the typed verdict"
