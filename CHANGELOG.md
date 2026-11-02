@@ -1105,6 +1105,31 @@ v11.0.0
 
 ### Fixed
 
+- **The JSON automation lane's empty-window crash: `changes.events`
+  is always an array now, never `null`.** A real buyer simulation
+  (an SRE wiring `why --print-json` into a cron/Slack bot) hit
+  `jq: error: Cannot iterate over null` the moment a `--since`
+  window contained zero events: the evidence trio (`why`, `holds`,
+  `touch`) serialized its changes block as
+  `{"unavailable":false,"rows":[...]}` while the port lane
+  (night-badass-9) speaks
+  `{"available":true,"events":[...],"unaccounted":N}` - one
+  automation script, two dialects, and the `.changes.events[]`
+  filter dead on half the commands. The evidence lane now speaks
+  the port dialect (Evidence Ledger Specification v4,
+  `ledger_version` 4): `changes.available` (the inverted lane
+  truth), `changes.events` (ALWAYS an array - the zero-event
+  window is `[]`, so `.changes.events[]` iterates zero rows
+  instead of crashing), and `changes.unaccounted` (always present,
+  counting the event rows whose actor is fully absent - the
+  uniform mirror of the port lane's per-event attribution misses;
+  the reasoned misses stay in the typed top-level `unaccounted`
+  entries). Text rendering untouched; the absent-lane truth keeps
+  its own word (`available:false`) beside the same empty-array
+  law. The contract doc (docs/EVIDENCE-LEDGER.md) carries v4 with
+  the v3 archive frozen; guard test:
+  `test_json_empty_window_returns_empty_array_not_null`.
+
 - **The default CLI output is quiet by default, loud on request.**
   `doctor --attach` no longer dumps the comma-separated wall of probe
   names, BTF verification lines, and the pin list on stdout: the

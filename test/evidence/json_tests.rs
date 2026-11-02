@@ -278,20 +278,63 @@ fn the_report_serializes_one_deterministic_line() {
         "the JSON lane is one line, got {json}"
     );
     // The full byte pin: the same report, the same bytes, forever.
-    // ledger_version 3 = the flat row and the typed actor
-    // (night-badass-6).
+    // ledger_version 4 = the uniform changes dialect (available /
+    // events / unaccounted) - the empty-window law.
     assert_eq!(
         json,
-        "{\"ledger_version\":3,\"subject\":\"/etc/resolv.conf\",\"mode\":\"snapshot\",\
+        "{\"ledger_version\":4,\"subject\":\"/etc/resolv.conf\",\"mode\":\"snapshot\",\
 \"lane\":\"journal fallback\",\"window\":\"10s\",\"measured\":[{\"unix_secs\":1760463767,\
 \"timestamp_utc\":\"2025-10-14 17:42:47 (UTC)\",\"kind\":\"type\",\
 \"file_type\":\"file\",\"actor\":\
-null,\"provenance\":\"measured\"}],\"changes\":{\"unavailable\":false,\
-\"rows\":[{\"unix_secs\":1760463770,\"timestamp_utc\":\"2025-10-14 17:42:50 (UTC)\",\
+null,\"provenance\":\"measured\"}],\"changes\":{\"available\":true,\
+\"events\":[{\"unix_secs\":1760463770,\"timestamp_utc\":\"2025-10-14 17:42:50 (UTC)\",\
 \"kind\":\"opened\",\"actor\":{\"name\":\"systemd\",\"pid\":1,\"user\":\"root\"},\
-\"provenance\":\"observed\"}]},\"unaccounted\":[{\"count\":2,\"category\":\"processes\",\
+\"provenance\":\"observed\"}],\"unaccounted\":0},\"unaccounted\":[{\"count\":2,\"category\":\"processes\",\
 \"reason\":\"unreadable - try sudo for complete holder details\"}],\"verdict\":{\
 \"supports\":\"1 process holds the path now (systemd)\",\"cannot_support\":\"changes the \
 log does not record - actor inference is best-effort\"}}"
     );
+}
+
+#[test]
+fn test_json_empty_window_returns_empty_array_not_null() {
+    // The empty-window law (the buyer's golden rule): a window that
+    // ran and saw nothing is `"events":[]` - never null, never
+    // omitted - so `.changes.events[]` iterates zero rows instead
+    // of crashing on `jq: error: Cannot iterate over null`. The
+    // absent lane keeps the OTHER truth (`available:false`) under
+    // the same array law: still [], still never null. Both shapes
+    // carry the uniform `unaccounted` count.
+    let report = |unavailable: bool| EvidenceReport {
+        subject: "/etc/resolv.conf".to_owned(),
+        mode: if unavailable {
+            Mode::SnapshotNoLane
+        } else {
+            Mode::Live
+        },
+        window_label: "2s".to_owned(),
+        measured: Vec::new(),
+        changes: super::super::ChangesSection {
+            rows: Vec::new(),
+            unavailable,
+        },
+        unaccounted: Vec::new(),
+        verdict: super::super::Verdict {
+            supports: "no rows to support".to_owned(),
+            cannot_support: "nothing rode the window".to_owned(),
+        },
+    };
+    for (unavailable, available) in [(false, "true"), (true, "false")] {
+        let json = report_json(&report(unavailable));
+        let want =
+            format!("\"changes\":{{\"available\":{available},\"events\":[],\"unaccounted\":0}}");
+        assert!(
+            json.contains(&want),
+            "the empty-window shape drifted (unavailable={unavailable}), got {json}"
+        );
+        assert!(
+            !json.contains("\"events\":null"),
+            "events is never null (unavailable={unavailable}), got {json}"
+        );
+    }
 }
