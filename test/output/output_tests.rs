@@ -365,6 +365,34 @@ fn the_mono_override_forces_both_lanes_plain() {
 }
 
 #[test]
+fn the_test_binary_is_hermetically_mono() {
+    // The hermeticity law (the TTY-vs-suite defect): the test binary
+    // renders Mono no matter the environment it runs in - the owner's
+    // truecolor TTY, a piped CI runner, NO_COLOR=1, or CLICOLOR_FORCE=1
+    // all hand the wrappers the exact plain bytes the pins assert.
+    // Before the cfg(test) gate in the capability caches, a
+    // `cargo test` on a real terminal probed TrueColor and 88
+    // assertions read escape bytes on their left side, while the same
+    // suite passed in a sterilized sandbox. These canaries fail the
+    // moment the suite becomes environment-dependent again - on any
+    // host, in any terminal.
+    assert_eq!(capability(), ColorCapability::Mono);
+    assert_eq!(stdout_capability(), ColorCapability::Mono);
+    assert!(!stdout_paintable());
+    assert!(!ok_bold_out("x").contains('\x1b'));
+    assert!(!warn_bold_out("x").contains('\x1b'));
+    assert!(!error_bold_out("x").contains('\x1b'));
+    assert!(!brand_bold_out("x").contains('\x1b'));
+    assert!(!error("x").contains('\x1b'));
+    assert!(!grey_err("x").contains('\x1b'));
+    assert!(!ok_out("x").contains('\x1b'));
+    assert!(!grey_out("x").contains('\x1b'));
+    assert!(!warn_out("x").contains('\x1b'));
+    assert!(!brand_out("x").contains('\x1b'));
+    assert_eq!(reset(), "");
+}
+
+#[test]
 fn green_and_grey_stay_distinguishable_at_the_16color_floor() {
     // The two roles the data surfaces ride must not collapse into one
     // slot at the Color16 rung: green takes green (32, the sibling's
