@@ -163,6 +163,7 @@ fn json_lane_absence_names_the_reason_not_a_fake_window() {
 mod post_mortem {
     use super::*;
     use crate::commands::port::events::{LEFT_LISTEN_RACE_NOTE, format_event_section_with_exits};
+    use crate::test_dead_pid::dead_pid;
 
     /// One synthetic exit record: the comm rides as the kernel's
     /// bpf_get_current_comm would have written it, NUL-padded (the
@@ -180,7 +181,11 @@ mod post_mortem {
     }
 
     /// A LEFT LISTEN recorded after its process is gone from /proc -
-    /// the post-mortem candidate both lanes must agree on.
+    /// the post-mortem candidate both lanes must agree on. The pid
+    /// must come from [`crate::test_dead_pid::dead_pid`] - the
+    /// verdict reads the REAL /proc, so a pid the host holds flips
+    /// the row from post-mortem to live and every pin below fails
+    /// on a collision host.
     fn dead_left_listen(pid: u32, event_ts: u64) -> SockEvent {
         let mut event = live_event(pid, TCP_LISTEN, TCP_CLOSE);
         event.timestamp_ns = event_ts;
@@ -255,8 +260,9 @@ mod post_mortem {
         // the JSON number is pinned to the TEXT figure, not to a
         // private constant.
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts - 87_000_000, 4242, "shortlisten")];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts - 87_000_000, pid, "shortlisten")];
         let (text, json) = both_formats(&events, &exits);
 
         assert!(text.contains("[observed]"), "{text}");
@@ -281,7 +287,12 @@ mod post_mortem {
             Some("\"shortlisten\""),
             "{row}"
         );
-        assert_eq!(json_value_token(&row, "pid"), Some("4242"), "{row}");
+        let pid_str = pid.to_string();
+        assert_eq!(
+            json_value_token(&row, "pid"),
+            Some(pid_str.as_str()),
+            "{row}"
+        );
         // The parity cross-pin: the lag figure in JSON IS the figure
         // the text note renders.
         let lag_token = json_value_token(&row, "lag_ms").expect("the lag field rides the row");
@@ -304,7 +315,8 @@ mod post_mortem {
         // byte-identical (parsed out of the JSON and matched
         // against the text note's own prose).
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
         let (text, json) = both_formats(&events, &[]);
 
         assert!(
@@ -341,8 +353,9 @@ mod post_mortem {
         // attribution "post-mortem" with NO lag_ms in JSON (the lag
         // note is the teardown branch's alone, never this one's).
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts + 3_000_000, 4242, "slowclose")];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts + 3_000_000, pid, "slowclose")];
         let (text, json) = both_formats(&events, &exits);
 
         assert!(text.contains("[event]"), "{text}");
@@ -372,8 +385,9 @@ mod post_mortem {
         // stays unaccounted - the race note's teardown story would
         // not fit it, so no note rides the row.
         let event_ts = 10_000_000_000;
-        let events = vec![dead_entered_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts - 87_000_000, 4242, "eager")];
+        let pid = dead_pid();
+        let events = vec![dead_entered_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts - 87_000_000, pid, "eager")];
         let (_, json) = both_formats(&events, &exits);
 
         let row = json_row(&json, "\"kind\":\"listened\"");
@@ -394,8 +408,9 @@ mod post_mortem {
         // attribute: the race note in text, the typed verdict in
         // JSON.
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts - 400_000_000, 4242, "oldlife")];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts - 400_000_000, pid, "oldlife")];
         let (text, json) = both_formats(&events, &exits);
 
         assert!(!text.contains("[observed]"), "{text}");
@@ -421,8 +436,9 @@ mod post_mortem {
         // the number without decimals, both formats from the same
         // arithmetic (lag_whole_ms).
         let event_ts = 10_000_000_000;
-        let events = vec![dead_left_listen(4242, event_ts)];
-        let exits = vec![exit_at(event_ts - 400_000, 4242, "fast")];
+        let pid = dead_pid();
+        let events = vec![dead_left_listen(pid, event_ts)];
+        let exits = vec![exit_at(event_ts - 400_000, pid, "fast")];
         let (text, json) = both_formats(&events, &exits);
 
         assert!(
@@ -461,8 +477,9 @@ mod post_mortem {
         // and race_note as strings; the fields are absent where the
         // field laws say absent.
         let event_ts = 10_000_000_000;
-        let lag_events = vec![dead_left_listen(4242, event_ts)];
-        let lag_exits = vec![exit_at(event_ts - 87_000_000, 4242, "shortlisten")];
+        let pid = dead_pid();
+        let lag_events = vec![dead_left_listen(pid, event_ts)];
+        let lag_exits = vec![exit_at(event_ts - 87_000_000, pid, "shortlisten")];
         let (_, json) = both_formats(&lag_events, &lag_exits);
         let lag_row = json_row(&json, "\"kind\":\"left-listen\"");
         for key in ["kind", "protocol", "attribution"] {
@@ -479,7 +496,7 @@ mod post_mortem {
         );
         assert_eq!(json_value_token(&lag_row, "race_note"), None, "{lag_row}");
 
-        let miss_events = vec![dead_left_listen(4243, event_ts)];
+        let miss_events = vec![dead_left_listen(dead_pid(), event_ts)];
         let (_, json) = both_formats(&miss_events, &[]);
         let miss_row = json_row(&json, "\"kind\":\"left-listen\"");
         for key in ["attribution", "race_note"] {
@@ -490,5 +507,23 @@ mod post_mortem {
             );
         }
         assert_eq!(json_value_token(&miss_row, "lag_ms"), None, "{miss_row}");
+    }
+
+    #[test]
+    fn the_fixture_pid_is_absent_from_the_process_table() {
+        // The hermeticity law of the post-mortem fixtures (the
+        // 2026-11-02 CI red run): the verdict reads the host's REAL
+        // /proc, so the fixture pid must be one the process table
+        // cannot hold. The helper's floor sits above the kernel's
+        // classic 32768 pid_max default - structurally impossible on
+        // every host that did not raise the ceiling - and the scan
+        // adapts on hosts that did. This canary fails the moment a
+        // fixture hardcodes a pid again.
+        let pid = dead_pid();
+        assert!(pid >= 40_000, "the scan floor holds: {pid}");
+        assert!(
+            !std::path::Path::new(&format!("/proc/{pid}")).exists(),
+            "the fixture pid is free on this host: {pid}"
+        );
     }
 }
