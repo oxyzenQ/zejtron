@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The file window capture (night-improve-3, feature builds only):
 //! the live lane's one-shot, shared by holds, touch, and why. The

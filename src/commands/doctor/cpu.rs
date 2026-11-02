@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The cpu symptom (night-improve-48): "why is my load high, who is
 //! burning the processor?" answered by a 1.0-second delta sample of

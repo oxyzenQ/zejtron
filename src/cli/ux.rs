@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The CLI UX bridge (night-improve-19, the sibling's zelynic
 //! contract sized for zejtron's read-only shape): parse errors stop

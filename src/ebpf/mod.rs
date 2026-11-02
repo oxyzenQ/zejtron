@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The userspace eBPF surface (night-improve-1, the zelynic/zylaxion
 //! lineage discipline): the chain - load, verifier, tracepoint,

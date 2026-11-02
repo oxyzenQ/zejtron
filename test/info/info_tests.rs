@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! info unit pins. Lives under the single test/ tree
 //! (night-improve-18, the discipline contract: every test
@@ -16,7 +16,7 @@ use super::*;
 /// a release day.
 #[test]
 fn license_line_is_the_contiguous_bytes_the_release_probe_greps() {
-    assert_eq!(LICENSE_LINE, "License: GPL-3.0-only");
+    assert_eq!(LICENSE_LINE, "License: AGPL-3.0-only");
 }
 
 /// The version report carries the Build-time line between Build
@@ -28,7 +28,7 @@ fn version_report_carries_build_time_line() {
     for line in [
         "Build-time: ",
         "Copyright: (c) 2026 rezky_nightky (oxyzenQ)",
-        "License: GPL-3.0-only",
+        "License: AGPL-3.0-only",
         "Source: https://github.com/oxyzenQ/zejtron",
     ] {
         let count = body.lines().filter(|l| l.contains(line)).count();

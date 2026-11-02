@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The net surface's render half (the tree renderer: one section per
 //! report block, the roles of night-improve-37, the values unwrapped).

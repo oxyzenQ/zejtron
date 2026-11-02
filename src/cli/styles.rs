@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Clap brand styling — the one place clap's rendered surfaces
 //! (help, usage, errors) pick up the brand palette. The runtime lane

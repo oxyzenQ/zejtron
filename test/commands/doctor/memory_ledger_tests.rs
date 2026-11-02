@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The memory symptom's Evidence Ledger pins (night-improve-4,
 //! Part B): the report is rendered from SYNTHETIC samples only -

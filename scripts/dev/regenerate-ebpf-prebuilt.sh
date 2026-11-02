@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # OS: Linux only — zejtron is a Linux introspection tool; no other OS
 # is supported (the object is a bpfel ELF; the recipe is git + b3sum +
 # coreutils).
@@ -246,7 +246,7 @@ install -m 644 "$BUILT_OBJECT" "$STAGED_OBJECT"
 
 cat >"$MANIFEST" <<EOF
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # zejtron prebuilt eBPF object manifest (night-improve-5, the zylaxion
 # night-improve-23 shape; schema 2 since night-weekly-maintenance-1 -

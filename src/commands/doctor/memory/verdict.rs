@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The memory verdict's lines (night-badass-5): the largest single
 //! consumer, the conditional findings (the stale tmpfs file, the

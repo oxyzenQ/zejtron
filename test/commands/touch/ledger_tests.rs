@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! touch Ledger pins (night-improve-3): the metadata rows (the old
 //! tree's block, fact for fact, time-bearing facts carrying their

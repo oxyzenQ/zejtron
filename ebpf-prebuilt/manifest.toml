@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # zejtron prebuilt eBPF object manifest (night-improve-5, the zylaxion
 # night-improve-23 shape; schema 2 since night-weekly-maintenance-1 -
@@ -19,11 +19,11 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-10-26T18:56:34Z"
+generated = "2026-11-02T06:42:58Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "9396d656e97e09ee0881172c98bbc77a50ec624c1a6e52fe6ad5336ad2c36824"
-built_by = "rezky_nightky <130107241+oxyzenQ@users.noreply.github.com>"
+ebpf_tree_blake3 = "b2ae9544126345338d5b6124a3c29c1d6e2617bc2feb805ab821ff11110d5e52"
+built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"

@@ -1,18 +1,21 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # zejtron Licensing FAQ
 
 Short answers to the questions that reach the licensing inbox most.
-The authoritative documents are [LICENSE](../LICENSE) (GPL-3.0-only),
+The authoritative documents are [LICENSE](../LICENSE) (AGPL-3.0-only),
 [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) (the commercial
 offer), and [TRADEMARK.md](../TRADEMARK.md) (the Marks).
 
 ## Can I use this at my company for free?
 
-Only if you comply with GPL-3.0 — which means, among its obligations,
+Only if you comply with AGPL-3.0 — which means, among its obligations,
 open-sourcing your modifications and integrations and offering them
-under GPL-3.0-only to anyone you distribute to. If that works for you,
+under AGPL-3.0-only to anyone you distribute to — and, if you offer
+zejtron as a network service, giving that service's users the source
+code too (AGPL section 13, the clause that closes the SaaS loophole).
+If that works for you,
 use it for free with the project's blessing. If your company cannot or
 will not meet the copyleft obligations, buy a commercial license —
 that is exactly what it is for. See
@@ -25,7 +28,7 @@ self-declaration input:
 
 | Your use                                            | Tier                                |
 | --------------------------------------------------- | ----------------------------------- |
-| No commercial use (hobby/personal)                  | Personal (free, GPL-3.0)            |
+| No commercial use (hobby/personal)                  | Personal (free, AGPL-3.0)            |
 | Solo devs, freelancers (revenue under $100K/year)   | Professional ($1,899/year)          |
 | Startups, SMBs (revenue $100K to $10M/year)         | Business ($9,999/year)              |
 | Enterprise (revenue over $10M/year), SaaS — internal use only | Enterprise Internal ($49,999/year) |
@@ -44,7 +47,7 @@ hobbyist-adjacent commercial buyers — small-scale use of terminal
 aesthetics or personal bandwidth. zejtron is a forensic tool; its
 commercial buyer is an SRE, security engineer, or incident
 responder whose hourly rate pays off $1,899 in a single shift. The
-Personal tier (Free, GPL-3.0) already covers hobby, learning, and
+Personal tier (Free, AGPL-3.0) already covers hobby, learning, and
 open-source contributions. The $1,899 anchor is calibrated against
 the professional forensic CLI market (Security Ronin Katana sits in
 the $1,188–1,788/seat range). Full reasoning in
@@ -74,7 +77,7 @@ the owner verifies it on-chain. Full instructions and QR codes:
 
 ## Do I need a license for hobby use?
 
-No. GPL-3.0 covers personal, hobby, educational, and non-commercial
+No. AGPL-3.0 covers personal, hobby, educational, and non-commercial
 research use completely — no payment, no registration, no ask. The
 free path is not a trial.
 
@@ -99,11 +102,11 @@ Then you are the person the licensing docs warn about. Taking
 zejtron's code — stealing it, forking it illegally, stripping the
 license, or building a closed-source commercial product on it —
 without contacting the owner (rezky_nightky / oxyzenQ) and paying
-for the license is theft, not a gray area: a breach of GPL-3.0-only
+for the license is theft, not a gray area: a breach of AGPL-3.0-only
 and the Commercial License alike, and — in the owner's own words —
 the mark of the worst kind of human, a rotten one. The honest
 options are exactly two: open-source what you build under
-GPL-3.0-only (free and first-class), or buy the tier your revenue
+AGPL-3.0-only (free and first-class), or buy the tier your revenue
 honestly matches. Closed source without a license is not a third
 option — it is the one this warning exists for.
 

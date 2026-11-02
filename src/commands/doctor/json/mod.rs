@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The doctor's JSON lane (`--print-json`, night-badass-5): the
 //! readiness report and every symptom, as one line of typed JSON.

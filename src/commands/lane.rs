@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The fallback-lane collector (night-improve-3): the one place the
 //! ladder lives, shared by holds, touch, and why. The ladder is

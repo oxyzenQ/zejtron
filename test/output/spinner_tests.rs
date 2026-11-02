@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The waiting indicator's tests: the gate's truth table, the one
 //! line shape, the ceiling arithmetic, and the machine's byte-level

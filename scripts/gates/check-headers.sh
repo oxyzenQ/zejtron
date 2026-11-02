@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # OS: Linux only — zejtron is a Linux introspection tool; no other OS is supported.
 #
 # ZEJTRON SPDX HEADER CHECK
@@ -10,13 +10,13 @@
 # the wrong license identifier.
 #
 # Required (within the first 10 lines of the file):
-#   SPDX-License-Identifier: GPL-3.0-only
+#   SPDX-License-Identifier: AGPL-3.0-only
 #   plus a copyright line carrying the year and the author - zejtron
 #   carries BOTH house forms and both are accepted:
 #     Copyright (C) 2026 rezky_nightky          (scripts, manifests)
 #     SPDX-FileCopyrightText: 2026 rezky_nightky (Rust sources)
 # Rejected: any other SPDX-License-Identifier value (project is
-# GPL-3.0-only licensed).
+# AGPL-3.0-only licensed).
 #
 # dinner-28: every *.sh ADDITIONALLY requires the OS line within the
 # first 10 lines — '# OS: Linux only' — the owner's rule, enforced as
@@ -55,7 +55,7 @@ WRONG=0
 CHECKED=0
 
 EXPECTED_COPYRIGHT="2026 rezky_nightky"
-EXPECTED_LICENSE_NAME="GPL-3.0-only"
+EXPECTED_LICENSE_NAME="AGPL-3.0-only"
 
 while IFS= read -r -d '' file; do
 	CHECKED=$((CHECKED + 1))
@@ -67,7 +67,7 @@ while IFS= read -r -d '' file; do
 		continue
 	fi
 
-	# Check for a non-GPL license identifier
+	# Check for a non-AGPL license identifier
 	if ! head -10 "$file" | grep -q "SPDX-License-Identifier: ${EXPECTED_LICENSE_NAME}"; then
 		echo -e "${RED}WRONG LICENSE (expected ${EXPECTED_LICENSE_NAME}): ${file}${NC}"
 		WRONG=$((WRONG + 1))

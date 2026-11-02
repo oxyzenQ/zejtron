@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Contributing to zejtron
 
@@ -15,7 +15,7 @@ this repository, you accept the terms of the
 [CLA](CLA.md): the Owner receives a perpetual, worldwide,
 non-exclusive, royalty-free, irrevocable license to use and relicense
 your contribution (necessary because zejtron is dual-licensed
-GPL-3.0-only + Commercial), while you keep full copyright. The
+AGPL-3.0-only + Commercial), while you keep full copyright. The
 [SECURITY.md](SECURITY.md) file owns vulnerability reports —
 do not open public issues for security problems.
 
@@ -91,13 +91,13 @@ docs/            — the docs tree (BRANDING, RULES, VERIFY_RELEASE, ...)
 
    ```
    Copyright (C) 2026 rezky_nightky
-   SPDX-License-Identifier: GPL-3.0-only
+   SPDX-License-Identifier: AGPL-3.0-only
    ```
 
    (comments prefixed per language; `.md` uses HTML comments.
    Enforced by `scripts/gates/check-headers.sh`; `.sh` files
    additionally carry the `# OS: Linux only` line.)
-4. **License**: GPL-3.0-only
+4. **License**: AGPL-3.0-only
 5. **Rust toolchain**: pinned to a concrete X.Y.Z in
    `rust-toolchain.toml` (never `stable` — dormant-mode policy). Sync
    across rust-toolchain.toml / Cargo.toml MSRV / CI pins is enforced

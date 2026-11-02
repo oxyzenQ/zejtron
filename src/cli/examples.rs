@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The Examples layer of the help surface (night-improve-35, the
 //! sibling's teaching law): a help surface that lists grammar is a

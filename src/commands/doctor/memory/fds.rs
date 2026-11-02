@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The fd walk (night-dragon-lts-4, split from memory.rs at the LOC
 //! cap - a pure move plus the identity accounting the split rode

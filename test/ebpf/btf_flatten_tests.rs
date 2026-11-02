@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The anonymous-union pins (night-improve-49): the 6.18 kernel
 //! line wraps struct file's f_path in an unnamed union - `const

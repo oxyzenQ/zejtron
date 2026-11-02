@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // zejtron eBPF probe, the plain-write program (night-improve-59, the
 // third generation - a dedicated module under the 600-LOC no-mercy

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The writev-lane symbol verification (night-improve-42, split from
 //! btf.rs at the 600 LOC no-mercy cap, night-hunter-4 - a pure move,

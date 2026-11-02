@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The spec drift pin (night-improve-44): docs/EVIDENCE-LEDGER.md is
 //! the citable contract - Evidence Ledger Specification v3 -

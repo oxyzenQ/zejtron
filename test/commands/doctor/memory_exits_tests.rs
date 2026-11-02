@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The post-mortem exit lane's pins (night-improve-47): the comm
 //! rendering contract, the window arithmetic against the live

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The net surface's JSON lane (night-badass-9, the universal JSON
 //! law): the report the text tree renders, as one typed line. The

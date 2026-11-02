@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! Per-interface IPv4 addresses from the kernel's own address
 //! table (night-dragon-lts-4): one RTM_GETADDR dump on a netlink

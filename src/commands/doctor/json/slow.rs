@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The umbrella symptom's JSON lane (night-dragon-lts-2): the four
 //! lanes' headline facts as compact sub-objects, the ranked

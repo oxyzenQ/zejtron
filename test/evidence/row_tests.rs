@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Row-level pins for the Evidence Ledger (night-improve-3): the
 //! locked row grammar, the four-tier vocabulary, the (UTC) marking

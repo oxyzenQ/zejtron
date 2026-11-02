@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The tracked_inodes writer (night-improve-3, feature builds only):
 //! the command-lifetime half of the filter contract. A command that

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The disk symptom's pins (night-improve-48): the I/O delta table
 //! and the render shape, pinned with synthetic samples - the
