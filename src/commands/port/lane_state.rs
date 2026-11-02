@@ -48,6 +48,26 @@ pub(crate) fn lane_reason(lane: LaneUnavailable) -> (&'static str, &'static str)
     }
 }
 
+/// The Mode banner's lane qualifier, the text lane's rendering of
+/// the same vocabulary [`lane_reason`]'s JSON tokens name - one
+/// cause, one qualifier, so the two lanes cannot tell different
+/// stories about the same lane state. The phrasing rides the
+/// evidence family's qualifier grammar (a leading `, ` then the
+/// terse cause, lowercase, no parens - `Mode::lane_qualifier`'s
+/// shape), and the shared cause matches the family's bytes exactly:
+/// NotAttached is the same "no event lane available" why, holds,
+/// and print for a lane that could not serve at all. The terse word
+/// beats the hint here on purpose: the banner is one line, and the
+/// doctor's [eBPF] section is where the exact cause and the next
+/// action live.
+pub(crate) fn lane_mode_qualifier(lane: LaneUnavailable) -> &'static str {
+    match lane {
+        LaneUnavailable::NotAttached => ", no event lane available",
+        LaneUnavailable::Unreadable => ", event lane unreadable",
+        LaneUnavailable::DetachedMidWindow => ", lane detached mid-window",
+    }
+}
+
 /// The pin directory's error kind, if any: a passed probe is `None`,
 /// a failed one is its `ErrorKind`. The one shaper both the start
 /// probe and the mid-window re-stat speak, so the classification is

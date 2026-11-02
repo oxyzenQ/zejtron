@@ -190,7 +190,11 @@ the holder with the file-surface's evidence grammar. Want the
 connection churn and not the snapshot? `--events-only` renders just
 the event window; `--snapshot-only` pins the report to the phase-1
 behavior. The window defaults to 60s here and is widened with
-`--since` the same way.
+`--since` the same way. The window report opens with the same
+`Mode:` line every ledger surface prints - `Mode: live (window 60s)`
+when the eBPF lane watched, `Mode: snapshot (window 60s, no event
+lane available)` when it could not - so a degraded window names
+itself before the ports list instead of rendering in silence.
 
 ## Scenario 4: How to trace a deleted file still consuming disk
 

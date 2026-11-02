@@ -19,13 +19,16 @@
 //! neither source can see.
 //!
 //! The fallback contract (the one the battery pins byte-for-byte):
-//! without the ebpf feature, or without a live chain (no root, not
-//! attached), `port` is the snapshot-only tool phase 1 shipped - the
-//! same tree output, the same flags, nothing degraded and nothing
-//! upgraded. The event window appears only when the chain can
-//! actually capture events, and the explicit request a run cannot
-//! serve (`--events-only` without a live chain) gets the named
-//! refusal line, never a silent empty section.
+//! without a live chain (no root, not attached, pins unreadable),
+//! `port` is the snapshot-only tool phase 1 shipped - the same tree
+//! output below a one-line Mode banner, the same flags, nothing else
+//! degraded and nothing else upgraded (the buyer verification honesty contract:
+//! the banner names the lane that refused, so a fallback run never
+//! renders byte-identical to a live one again). The event window
+//! appears only when the chain can actually capture events, and the
+//! explicit request a run cannot serve (`--events-only` without a
+//! live chain) gets the named refusal line, never a silent empty
+//! section.
 //!
 //! The lane-independent half (the grammar, the clamp, the refusal)
 //! compiles in every build; the capture and the live rendering
@@ -38,6 +41,7 @@ use std::time::Duration;
 use super::events::events_only_output;
 use super::events::format_event_section;
 use super::events::{udp_event_lane_note, udp_events_only};
+use super::mode_banner::{port_mode_line, snapshot_fallback_output};
 use super::model::{OwnerMap, PortError, PortOptions, ScanStats, SocketEntry};
 use super::render::format_report;
 
@@ -198,7 +202,7 @@ pub(crate) struct WindowCapture {
 }
 
 /// The default shape: both truths when the chain is live, the
-/// phase-1 snapshot tree when it is not.
+/// phase-1 snapshot tree under the Mode banner when it is not.
 fn default_output(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
@@ -214,7 +218,12 @@ fn default_output(
             &capture.events,
             capture.bounds,
         ),
-        Err(_) => format_report(sockets, owners, stats, options),
+        // The fallback keeps the phase-1 tree below the banner: the
+        // snapshot itself is unchanged, the honesty line above it is
+        // the buyer verification fix (the degrade used to be silent - a
+        // degraded run rendered byte-identical to an attached run
+        // with an empty window).
+        Err(lane) => snapshot_fallback_output(sockets, owners, stats, options, lane),
     }
 }
 
@@ -423,6 +432,16 @@ fn format_window_report(
     bounds: Option<(u64, u64)>,
 ) -> String {
     let mut lines = Vec::new();
+    // The Mode banner (the buyer verification honesty contract): the window
+    // report's first line, before the ports list - the same sentence
+    // why/holds/touch print, from the same source. Live, because
+    // this render only happens when the capture ran; a mid-window
+    // detach keeps the drained rows (the text lane's unchanged
+    // behavior) and the banner stays live with them - the rows are
+    // real kernel records, and the JSON lane is where the detach is
+    // reported instead of served.
+    lines.push(port_mode_line(None, options.window));
+    lines.push(String::new());
     // The window header rides green (the section header).
     lines.push(crate::output::ok_out(&format!(
         "Ports (window {}):",

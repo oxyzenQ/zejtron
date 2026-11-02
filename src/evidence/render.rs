@@ -68,6 +68,20 @@ pub fn unavailability_line(window_label: &str) -> String {
     )
 }
 
+/// The Mode banner, the one source of the line (the buyer verification honesty
+/// contract): `Mode: <base> (window <label><qualifier>)`, whole line
+/// on the grey tier. The evidence renderer prints it for
+/// holds/touch/why, and port's window speaks it from this same
+/// function - the same one-grammar-one-source-two-surfaces law
+/// [`unavailability_line`] already carries, so the banner cannot
+/// drift between the surfaces that print it. `base` is the mode word
+/// (the `Mode::base` vocabulary); `qualifier` is the lane qualifier
+/// with its leading `, ` (the `Mode::lane_qualifier` vocabulary), or
+/// empty for the lanes that need none.
+pub fn mode_line(base: &str, window_label: &str, qualifier: &str) -> String {
+    crate::output::grey_out(&format!("Mode: {base} (window {window_label}{qualifier})"))
+}
+
 /// Render the full report. Pure function of its input plus the
 /// cached stdout capability (the one environment read); no clock
 /// reads (the rows carry their own times). Mono renders the exact
@@ -165,14 +179,15 @@ pub fn render_report(report: &EvidenceReport) -> String {
 
 /// The mode line: `Mode: <base> (window <label><qualifier>)`. The
 /// whole line rides the grey tier - the locked scheme's secondary
-/// content (mode lines). In Mono the wrap is the identity.
+/// content (mode lines). In Mono the wrap is the identity. Spoken
+/// through [`mode_line`], the one source, since the buyer verification audit (port's
+/// window joined the surfaces that print the banner).
 fn grey_mode_line(report: &EvidenceReport) -> String {
-    crate::output::grey_out(&format!(
-        "Mode: {} (window {}{})",
+    mode_line(
         report.mode.base(),
-        report.window_label,
-        report.mode.lane_qualifier()
-    ))
+        &report.window_label,
+        report.mode.lane_qualifier(),
+    )
 }
 
 /// The (UTC) marking rule: the first row that carries a real

@@ -285,6 +285,81 @@ fn snapshot_only_is_the_phase_one_renderer_whatever_the_lane() {
     );
 }
 
+#[test]
+fn the_snapshot_fallback_leads_with_the_mode_banner_and_names_the_lane() {
+    // The buyer verification defect: the default shape's
+    // fallback used to render the phase-1 tree in silence - a
+    // degraded window was byte-identical to an attached run's empty
+    // window, and only --print-json could tell them apart. The
+    // banner now names the lane's actual refusal, one qualifier per
+    // LaneUnavailable cause, and the tree below it stays
+    // byte-identical to phase 1.
+    let sockets = vec![SocketEntry {
+        protocol: Protocol::Tcp,
+        address: "0.0.0.0".to_owned(),
+        port: 22,
+        remote_address: "0.0.0.0".to_owned(),
+        remote_port: 0,
+        state: Some("LISTEN".to_owned()),
+        inode: 100,
+    }];
+    let owners: OwnerMap = HashMap::new();
+    let stats = ScanStats::default();
+    let options = options();
+
+    for (lane, banner) in [
+        (
+            LaneUnavailable::NotAttached,
+            "Mode: snapshot (window 60s, no event lane available)",
+        ),
+        (
+            LaneUnavailable::Unreadable,
+            "Mode: snapshot (window 60s, event lane unreadable)",
+        ),
+        (
+            LaneUnavailable::DetachedMidWindow,
+            "Mode: snapshot (window 60s, lane detached mid-window)",
+        ),
+    ] {
+        let out = snapshot_fallback_output(&sockets, &owners, &stats, &options, lane);
+        assert_eq!(out.lines().next(), Some(banner), "the banner for {lane:?}");
+        // The phase-1 tree rides below the banner byte-identical:
+        // banner, blank line, then exactly what --snapshot-only
+        // renders for the same selection.
+        let tree: Vec<&str> = out.lines().skip(2).collect();
+        assert_eq!(
+            tree,
+            format_report(&sockets, &owners, &stats, &options)
+                .lines()
+                .collect::<Vec<_>>(),
+            "the tree below the banner for {lane:?}"
+        );
+    }
+}
+
+#[test]
+fn the_default_shape_leads_with_the_mode_banner_whatever_the_lane() {
+    // The wiring net for the defect class: both arms of the default
+    // shape open with the banner - attached hosts print the live
+    // banner after the 1s capture, detached hosts print the named
+    // fallback instantly - so the assertion holds in every
+    // environment and only a real regression (a banner-less default
+    // render) can fail it.
+    let sockets: Vec<SocketEntry> = Vec::new();
+    let owners: OwnerMap = HashMap::new();
+    let stats = ScanStats::default();
+    let options = PortOptions {
+        window: Duration::from_secs(1),
+        ..options()
+    };
+    let out = format_port_output(&sockets, &owners, &stats, &options);
+    let first = out.lines().next().unwrap_or_default();
+    assert!(
+        first.starts_with("Mode: "),
+        "the default shape must open with the Mode banner, got: {first:?}"
+    );
+}
+
 // ── The live rendering pins ──────────────────
 
 mod live {
@@ -314,6 +389,33 @@ mod live {
             _pad2: 0,
             pid,
         }
+    }
+
+    #[test]
+    fn the_live_window_report_leads_with_the_mode_banner() {
+        // The buyer verification honesty contract: the live window report
+        // opens with the same Mode banner why/holds/touch print -
+        // live, the window label matching the Ports header's -
+        // before the ports list and the event section.
+        let sockets = vec![SocketEntry {
+            protocol: Protocol::Tcp,
+            address: "0.0.0.0".to_owned(),
+            port: 22,
+            remote_address: "0.0.0.0".to_owned(),
+            remote_port: 0,
+            state: Some("LISTEN".to_owned()),
+            inode: 1,
+        }];
+        let owners: OwnerMap = HashMap::new();
+        let stats = ScanStats::default();
+        let events = vec![SockEvent {
+            timestamp_ns: monotonic_now_ns(),
+            ..live_event(4321, 8080, IPPROTO_TCP, AF_INET, TCP_CLOSE, TCP_LISTEN)
+        }];
+        let out = format_window_report(&sockets, &owners, &stats, &options(), &events, None);
+        assert_eq!(out.lines().next(), Some("Mode: live (window 60s)"));
+        assert!(out.contains("Ports (window 60s):"));
+        assert!(out.contains("Changes in the last 60s:"));
     }
 
     #[test]
