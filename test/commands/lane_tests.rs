@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Ladder pins (night-improve-3): the window grammar resolution (the
 //! port surface's grammar, the 10s default, the clamps), the log

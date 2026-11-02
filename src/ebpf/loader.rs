@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The probe loader - attach and detach (night-improve-1, the
 //! zylaxion orchestration lineage; night-improve-2 grows the chain

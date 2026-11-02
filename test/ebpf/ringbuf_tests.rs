@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The sock_events ring reader pins. Lives under the single test/
 //! tree (night-improve-18, the discipline contract) and is

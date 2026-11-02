@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The Evidence Ledger renderer (night-improve-3): the locked
 //! output shape, rendered byte-deterministically. The shape, once,

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The audit/journal evidence lane for `touch` (the night-improve-12b
 //! 600-line split: the core report lives in the parent module, the

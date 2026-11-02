@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Native pacman ownership reader (night-improve-0): the `path`
 //! surface no longer shells out to `pacman -Qo` — it reads the

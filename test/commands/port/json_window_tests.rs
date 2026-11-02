@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The port JSON lane's window-boundary pins (the one-shot window
 //! semantics residual). Split from json_tests.rs at the 600-LOC cap

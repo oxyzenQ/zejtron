@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The doctor JSON lane's tests (night-badass-5, repinned by
 //! night-badass-6): the readiness envelope with its root facts, the

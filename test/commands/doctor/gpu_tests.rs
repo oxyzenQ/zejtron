@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The gpu symptom's pins (night-improve-48): the device
 //! classification and the render shape, pinned with synthetic

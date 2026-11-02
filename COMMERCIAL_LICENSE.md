@@ -1,18 +1,18 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # zejtron Commercial License
 
 zejtron is dual-licensed:
 
-- **GPL-3.0-only** for open-source use (see [LICENSE](LICENSE)).
+- **AGPL-3.0-only** for open-source use (see [LICENSE](LICENSE)).
 - **Commercial License** for proprietary and commercial use (this document).
 
 If your use of zejtron can satisfy the copyleft obligations of the
-GPL-3.0-only — including releasing your modifications, integrations, and
+AGPL-3.0-only — including releasing your modifications, integrations, and
 the corresponding source code to anyone you distribute to — you do not
-need to pay anything. The GPL path is complete, free, and first-class;
-it is not a trial. The Commercial License exists for the uses GPL
+need to pay anything. The AGPL path is complete, free, and first-class;
+it is not a trial. The Commercial License exists for the uses AGPL
 cannot honestly cover: keeping your modifications proprietary,
 embedding zejtron in a closed product, or redistributing it under
 different terms.
@@ -25,24 +25,24 @@ You need a Commercial License if any of the following describe your use:
 
 - **Production use at a company** — running zejtron as part of
   commercial infrastructure, tooling, or support workflows, where the
-  GPL's copyleft obligations (open-sourcing your modifications and
+  AGPL's copyleft obligations (open-sourcing your modifications and
   integrations) cannot or will not be met.
 - **SaaS offerings** — providing a hosted service whose value depends on
   zejtron, where you would otherwise be obligated to release your
   service's zejtron-related source code.
 - **Internal business tools** — shipping zejtron inside a closed
-  internal tool, appliance, or image beyond what the GPL permits
+  internal tool, appliance, or image beyond what the AGPL permits
   without disclosure.
 - **Redistribution under different terms** — distributing zejtron (or a
-  derivative) under terms other than GPL-3.0-only.
-- **Any use that cannot meet GPL-3.0 copyleft obligations** — when in
+  derivative) under terms other than AGPL-3.0-only.
+- **Any use that cannot meet AGPL-3.0 copyleft obligations** — when in
   doubt about whether your use complies, that doubt is the signal to
   either study [LICENSE](LICENSE) carefully or buy the license that
   removes the question.
 
 ## 2. Who Does NOT Need One
 
-The following uses are fully covered by GPL-3.0-only and cost nothing:
+The following uses are fully covered by AGPL-3.0-only and cost nothing:
 
 - **Personal use** — introspecting your own machines and
   workstations.
@@ -66,7 +66,7 @@ license terms.
 
 | Tier                 | Price                                                        | Target                                                                   |
 | -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Personal             | Free (GPL-3.0)                                               | Hobby, personal, non-commercial, open-source contributions               |
+| Personal             | Free (AGPL-3.0)                                               | Hobby, personal, non-commercial, open-source contributions               |
 | Professional         | $1,899/year                                                  | Solo devs, freelancers, revenue under $100K/year                         |
 | Business             | $9,999/year                                                  | Startups, SMBs, revenue $100K to $10M/year                               |
 | Enterprise Internal  | $49,999/year                                                 | Enterprise revenue over $10M/year, internal use only, NO redistribution  |
@@ -100,7 +100,7 @@ rate pays off the Professional license in a single shift. The $99
 entry tier that zelynic, zylaxion, and cosmostrix carry serves
 hobbyist-adjacent buyers (terminal aesthetics, keyboard sound,
 personal bandwidth) whose commercial use is small and personal.
-zejtron's Personal tier (Free, GPL-3.0) already covers hobby,
+zejtron's Personal tier (Free, AGPL-3.0) already covers hobby,
 learning, and open-source contributions. Commercial use of a
 forensic tool is a different scale, and the pricing reflects that
 difference honestly rather than undercutting it.
@@ -114,7 +114,7 @@ eBPF architecture, the Evidence Ledger v3 format, and a frozen
 LTS contract.
 
 A buyer who needs the forensic capability without a commercial
-license still has the GPL-3.0 path — read the source, learn from
+license still has the AGPL-3.0 path — read the source, learn from
 it, contribute back. The pricing is for commercial use that cannot
 meet copyleft, and $1,899 is the honest entry point for that.
 
@@ -149,7 +149,7 @@ Notes:
   $1,899/year, **SMB $9,999/year** joins (startups and SMBs, revenue
   $100K to $10M/year), and Company moves from $35,999 to
   **$49,999/year** (enterprise, revenue over $10M/year, or any
-  redistribution rights); Personal stays free (GPL-3.0). The
+  redistribution rights); Personal stays free (AGPL-3.0). The
   rationale is the owner's, unchanged: the tool's value increases
   year by year, and the paid rungs ride the value ladder the owner
   sets — it will keep rising as the work compounds. Grandfathering
@@ -161,7 +161,7 @@ Notes:
   **Solo Dev Business $1,899/year** (solo devs, freelancers, revenue
   under $100K/year), and Company moves from $9,199 to
   **$35,999/year** (enterprise, revenue over $10M/year, or any
-  redistribution rights); Personal stays free (GPL-3.0). The
+  redistribution rights); Personal stays free (AGPL-3.0). The
   rationale is the owner's, unchanged: the tool's value increases
   year by year, and the paid rungs ride the value ladder the owner
   sets — it will keep rising as the
@@ -171,7 +171,7 @@ Notes:
   first release tag after that date): the paid ladder re-pegs to two
   rungs — Individual $99/year and Business $5,199/year merge into
   **Individual Business $2,199/year**, and Company moves from
-  $110,199 to **$9,199/year**; Personal stays free (GPL-3.0). The
+  $110,199 to **$9,199/year**; Personal stays free (AGPL-3.0). The
   rationale is the owner's, unchanged: the tool's value increases
   year by year, and the paid rungs ride the value ladder the owner
   sets — it will keep rising as the
@@ -210,7 +210,7 @@ Notes:
 ### Unauthorized Use
 
 zejtron's code is open to read, learn from, and build on — under
-GPL-3.0-only's honest terms, or under a paid Commercial License.
+AGPL-3.0-only's honest terms, or under a paid Commercial License.
 What is NOT open is taking it: stealing the code, forking it
 illegally, stripping or ignoring the license, or shipping it
 inside a closed-source commercial product — whether done by a
@@ -219,18 +219,18 @@ company or by an individual — without contacting the owner
 [with.rezky@gmail.com](mailto:with.rezky@gmail.com)) and paying
 for the license first. That is not a loophole, a gray area, or a
 clever business move. It is theft of one person's years of work,
-a breach of GPL-3.0-only and of this Commercial License, and —
+a breach of AGPL-3.0-only and of this Commercial License, and —
 in the owner's own words — the mark of the worst kind of human:
 a rotten one. If closed source is what you need, the Enterprise
 Internal tier exists precisely for that; buy it. If you cannot or will
-not pay, the GPL path is complete and free — open-source what
+not pay, the AGPL path is complete and free — open-source what
 you build. There is no third path that leaves you clean.
 
 ## 4. What Each Tier Grants
 
 Every paid tier grants, for the license term:
 
-- **Use without GPL copyleft** — the right to use, modify, and integrate
+- **Use without AGPL copyleft** — the right to use, modify, and integrate
   zejtron in your products and infrastructure without the obligation to
   open-source your modifications.
 - **Priority support** — your licensing and integration questions are

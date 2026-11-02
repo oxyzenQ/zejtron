@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The delta engine's pins (night-improve-48): the parsers every
 //! delta symptom rides on, pinned against synthetic /proc bytes -

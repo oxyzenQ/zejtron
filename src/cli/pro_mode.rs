@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The Pro mode section of the help surface (night-improve-25, the
 //! sibling's zelynic shape): every flag of every verb, complete, on

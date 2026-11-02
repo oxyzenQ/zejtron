@@ -37,12 +37,18 @@ v11.0.0
 
 ### License
 
+- **Migrated from GPL-3.0-only to AGPL-3.0-only.** This closes the SaaS
+  loophole. Any entity offering a modified version of zejtron as a
+  network service must now provide the source code under AGPL.
+  Entities that cannot comply with AGPL (e.g., closed-source SaaS,
+  proprietary redistribution) must purchase a Commercial License. All
+  new versions from this commit forward are AGPL-3.0-only.
 - **Documented why zejtron starts at Professional ($1,899), not $99.**
   The $99 entry tier other portfolio projects carry serves
   hobbyist-adjacent buyers; zejtron's commercial buyer is an SRE or
   incident responder whose hourly rate pays off the license in one
   shift. The $1,899 anchor is calibrated against the professional
-  forensic CLI market. Personal (Free, GPL-3.0) still covers hobby,
+  forensic CLI market. Personal (Free, AGPL-3.0) still covers hobby,
   learning, and open-source contributions. Docs-only; no tier price
   changed.
 - **Pricing restructured to the 5-tier portfolio model.** The

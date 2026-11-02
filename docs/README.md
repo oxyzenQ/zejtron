@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Documentation Index
 
@@ -30,7 +30,7 @@ carries the disclaimer and yields to it.
 
 | Document | What it owns |
 |---|---|
-| [../LICENSE](../LICENSE) | GPL-3.0-only, the full text. |
+| [../LICENSE](../LICENSE) | AGPL-3.0-only, the full text. |
 | [../NOTICE](../NOTICE) | The one-page license, trademark, and forking summary. |
 | [../COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) | The commercial license offer: tiers, payment, verification. |
 | [../CLA.md](../CLA.md) | The Contributor License Agreement (perpetual relicense grant; copyright stays with the contributor). |

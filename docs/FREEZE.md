@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # The v80.0.0 LTS Freeze Declaration
 
@@ -73,7 +73,7 @@ The honesty splits cleanly across the two layers:
 There is no ARM64, ppc64le, or RISC-V lane in the release matrix,
 no cross-compilation target in the build config, and no "coming
 soon" promise. If your infrastructure runs another architecture,
-build from source (pure Rust, GPL-3.0), or request an officially
+build from source (pure Rust, AGPL-3.0), or request an officially
 verified build through the enterprise license: we compile the
 shape, run the full test suite, and provide the verified artifact.
 

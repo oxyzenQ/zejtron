@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # The release lane (the sibling's mature shape, zejtron's two-leg
 # matrix). On a v* tag push:
@@ -266,7 +266,7 @@ jobs:
                 || { echo "::error::Expected embedded build label ${LABEL}"; exit 1; }
               grep -aFq "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)" "${BIN}" \
                 || { echo "::error::Expected embedded version-report literals"; exit 1; }
-              grep -aFq "License: GPL-3.0-only" "${BIN}" \
+              grep -aFq "License: AGPL-3.0-only" "${BIN}" \
                 || { echo "::error::Expected embedded license literal"; exit 1; }
               grep -aFq "${VERSION}" "${BIN}" \
                 || { echo "::error::Binary does not embed tag version '${VERSION}' (Cargo.toml/tag drift)"; exit 1; }

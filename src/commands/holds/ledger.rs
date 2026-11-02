@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The holds surface's Evidence Ledger (night-improve-3): the
 //! snapshot's facts (\[measured] - who holds the path NOW, from the

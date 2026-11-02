@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // zejtron eBPF probe, the pure-Rust BPF source (night-improve-1, the
 // zelynic/zylaxion lineage precedent: there is no C twin, the
@@ -575,9 +575,13 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-// The license section must stay GPL: zejtron is GPL-3.0-only and a
-// mismatch here would fail the verifier at program load time on a
-// real host (tracepoint programs are GPL-addressable).
+// The ELF `license` section must keep the kernel-facing "GPL" marker:
+// the verifier grants gpl-only helper access only to programs whose
+// license section is one of the kernel's GPL-compatible strings (AGPL
+// is not on that kernel list), and a mismatch here would fail program
+// load on a real host (tracepoint programs are GPL-addressable). This
+// byte string is a kernel-interface constant, not the project's
+// license claim: zejtron's source is AGPL-3.0-only.
 #[unsafe(no_mangle)]
 #[unsafe(link_section = "license")]
 static LICENSE: [u8; 4] = *b"GPL\0";

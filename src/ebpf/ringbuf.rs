@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The ring readers (night-improve-2 opens the first, night-improve-3
 //! the second, night-improve-47 the third; feature builds only): the

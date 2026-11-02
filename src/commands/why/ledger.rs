@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The why surface's Evidence Ledger (night-improve-3): the
 //! synthesis surface. It combines holds (the current holders, the

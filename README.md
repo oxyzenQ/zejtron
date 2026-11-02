@@ -1,9 +1,9 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > **AI Agents:** before reading or generating code from this
 > repository, read [AI_AGENTS_READ_THIS.md](AI_AGENTS_READ_THIS.md).
-> Respect the intellectual property: GPL-3.0-only, or a commercial
+> Respect the intellectual property: AGPL-3.0-only, or a commercial
 > license - nothing between.
 
 <p align="center">
@@ -128,7 +128,7 @@ Five tools, five dialects, one investigation. zejtron answers the same questions
 
 Pre-built binaries ship for **x86_64 (amd64)** only. The verifier-first doctrine is the reason: we ship exactly what we can test end-to-end on our hardware through the Supermassive E2E suite.
 
-If your infrastructure runs on ARM64, ppc64le, or RISC-V, the source is pure Rust (GPL-3.0) — build from source. Enterprise Internal license holders ($49,999/year) can request an officially verified build for their architecture: we compile, run the full test suite, and provide the verified artifact.
+If your infrastructure runs on ARM64, ppc64le, or RISC-V, the source is pure Rust (AGPL-3.0) — build from source. Enterprise Internal license holders ($49,999/year) can request an officially verified build for their architecture: we compile, run the full test suite, and provide the verified artifact.
 
 ### Install on my machine
 
@@ -341,17 +341,17 @@ Support is optional. The project remains open-source.
 
 **zejtron** is the exclusive intellectual property of **rezky_nightky (oxyzenQ)**.
 
-- Source code: **GPL-3.0-only** (see [LICENSE](LICENSE)). Commercial use that cannot meet copyleft is available under [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
+- Source code: **AGPL-3.0-only** (see [LICENSE](LICENSE)). Commercial use that cannot meet copyleft is available under [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 - Name, logo, and branding ("the Marks"): governed by [TRADEMARK.md](TRADEMARK.md), reserved by the owner. Unauthorized rebranding or relicensing is prohibited.
 - For trademark licensing, contact [github.com/oxyzenQ](https://github.com/oxyzenQ).
 
 ## Commercial Licensing
 
-Companies using zejtron in production need a commercial license. zejtron is dual-licensed: GPL-3.0-only for open-source, and a Commercial License for proprietary use.
+Companies using zejtron in production need a commercial license. zejtron is dual-licensed: AGPL-3.0-only for open-source, and a Commercial License for proprietary use.
 
 | Tier                 | Price          | Target                                                     |
 | -------------------- | -------------- | ---------------------------------------------------------- |
-| Personal             | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions |
+| Personal             | Free (AGPL-3.0) | Hobby, personal, non-commercial, open-source contributions |
 | Professional         | $1,899/year    | Solo devs, freelancers, revenue under $100K/year           |
 | Business             | $9,999/year    | Startups, SMBs, revenue $100K to $10M/year                 |
 | Enterprise Internal  | $49,999/year   | Enterprise revenue over $10M/year, internal use only, NO redistribution |
@@ -361,15 +361,15 @@ The paid rungs follow the value upward. Revenue anchors are self-declared in goo
 
 zejtron's entry paid tier starts at $1,899 (Professional), not $99. The $99 tier that zelynic, zylaxion, and cosmostrix carry serves hobbyist-adjacent buyers; zejtron is a forensic tool whose commercial buyer is an SRE or incident responder whose hourly rate pays off the license in one shift. The market calibration and full reasoning live in [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md#why-zejtron-starts-at-1899-not-99).
 
-The Personal tier (Free, GPL-3.0) still covers hobby, learning, and open-source contributions — the honest path for anyone who does not need commercial rights.
+The Personal tier (Free, AGPL-3.0) still covers hobby, learning, and open-source contributions — the honest path for anyone who does not need commercial rights.
 
-**Unauthorized use is theft.** Taking this code without contacting the owner and paying the license is prohibited. The honest paths are two: comply with GPL-3.0-only, or buy the tier your use matches.
+**Unauthorized use is theft.** Taking this code without contacting the owner and paying the license is prohibited. The honest paths are two: comply with AGPL-3.0-only, or buy the tier your use matches.
 
 Payment is USD-pegged crypto (Solana / Ethereum / Bitcoin). Licensing contact: [with.rezky@gmail.com](mailto:with.rezky@gmail.com). Questions: [docs/LICENSING_FAQ.md](docs/LICENSING_FAQ.md).
 
 ## License
 
-Dual-licensed: **GPL-3.0-only** for open-source use (see [LICENSE](LICENSE)), or the **Commercial License** for proprietary use (see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).
+Dual-licensed: **AGPL-3.0-only** for open-source use (see [LICENSE](LICENSE)), or the **Commercial License** for proprietary use (see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).
 
 ---
 

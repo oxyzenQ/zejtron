@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The netlink address-dump parser's pins (night-dragon-lts-4):
 //! every message shape the RTM_GETADDR dump rides, built as raw

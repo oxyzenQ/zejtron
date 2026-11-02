@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! zejtron package information constants and the version report
 //! (the sibling project's masterclass layout: brand header, then
@@ -12,7 +12,7 @@
 /// template would keep the prefix and the bare id would land
 /// elsewhere in rodata. This const IS the whole line, so the bytes
 /// stay contiguous by construction.
-const LICENSE_LINE: &str = "License: GPL-3.0-only";
+const LICENSE_LINE: &str = "License: AGPL-3.0-only";
 
 /// The `Signature:` line for the version report as ONE contiguous
 /// literal (night-dragon-maintenance-T1, the zelynic NIGHT-dinner-4
@@ -203,7 +203,7 @@ fn version_body() -> String {
 /// Build-time: 10/17/2026 09:15 (UTC)
 /// Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
 /// Copyright: (c) 2026 rezky_nightky (oxyzenQ)
-/// License: GPL-3.0-only
+/// License: AGPL-3.0-only
 /// Source: `<https://github.com/oxyzenQ/zejtron>`
 /// ```
 ///

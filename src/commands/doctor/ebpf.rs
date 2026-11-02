@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The doctor's \[eBPF\] section (night-improve-1). ALWAYS present and
 //! ALWAYS honest: the eBPF support is unconditional

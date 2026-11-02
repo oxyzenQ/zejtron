@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! holds parser and error-path pins (the render pins moved to
 //! holds/ledger_tests.rs with night-improve-3's Evidence Ledger).

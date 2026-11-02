@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 //! The BTF offsets parser (night-improve-3, feature builds only):
 //! the loud half of the offsets contract. Every struct walk the two

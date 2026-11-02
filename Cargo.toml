@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 
 [package]
 name = "zejtron"
@@ -7,7 +7,7 @@ version = "80.0.1"
 edition = "2024"
 description = "Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious."
 authors = ["rezky_nightky (oxyzenQ)"]
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 repository = "https://github.com/oxyzenQ/zejtron"
 readme = "README.md"
 keywords = ["linux", "cli", "introspection", "processes", "diagnostics"]

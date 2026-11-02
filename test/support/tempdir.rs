@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The std-only temp-dir guard (night-dragon-maintenance-T1, the
 //! tempfile retirement): the reference project's own shape - a
