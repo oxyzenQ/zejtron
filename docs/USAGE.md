@@ -70,10 +70,16 @@ zejtron is honest about both worlds, and neither one lies to you.
 
 - **Root (or CAP_BPF/CAP_PERFMON):** `zejtron doctor --attach` is the
   one privileged step - a one-shot that plants the kernel probes and
-  pins them under `/sys/fs/bpf/zejtron`, then exits. No daemon. While
-  the pins exist, `why`, `holds`, and `touch` get `[observed]` rows:
-  the kernel's own record of who opened or wrote what, with the pid
-  attributed. `zejtron doctor --detach` unpins everything.
+  pins them under `/sys/fs/bpf/zejtron`, then exits. No daemon. The
+  verbs are quiet by default: the attach answers with one line
+  (`eBPF probes attached successfully (6 programs, 6 links, 6 maps).
+  Lazy Camera is now recording.`), the detach with
+  (`eBPF probes detached (18 pins removed).`), and `-v` swaps the
+  line for the full report - every probe by name, the BTF
+  verification claims, the whole pin list. While the pins exist,
+  `why`, `holds`, and `touch` get `[observed]` rows: the kernel's
+  own record of who opened or wrote what, with the pid attributed.
+  `zejtron doctor --detach` unpins everything.
 - **Non-root:** every command still runs, on the snapshot lane -
   filesystem metadata plus whatever the audit log or journal recorded.
   When the pins exist but belong to root, the report does not fail: it

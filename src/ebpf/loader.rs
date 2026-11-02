@@ -93,12 +93,10 @@ pub fn attach() -> Result<String, String> {
         LaneVerdict::LiveAttached => {
             // Idempotence: a complete pin set IS attached. Read the
             // live counter for the honest report.
-            let count = super::readback::read_events_counter()
-                .map(|n| format!("N={n}"))
-                .unwrap_or_else(|e| format!("counter unreadable ({e})"));
-            return Ok(format!(
-                "probe is already attached - nothing to do (all pins present; \
-                 doctor --detach removes it); events since attach: {count}"
+            let count = super::readback::read_events_counter();
+            return Ok(attach_already_summary(
+                &count,
+                crate::output::verbose::enabled(),
             ));
         }
         LaneVerdict::Live => {
@@ -288,22 +286,15 @@ pub fn attach() -> Result<String, String> {
             //    N=0 shape. A freshly attached counter reads zero
             //    (the kernel zeroes new maps); the readback proves
             //    the whole chain - the loader CAN read what the
-            //    kernel holds.
-            let count = super::readback::read_events_counter()
-                .map(|n| format!("N={n}"))
-                .unwrap_or_else(|e| format!("counter unreadable ({e})"));
-            Ok(format!(
-                "probes attached: tracepoints sched/sched_process_exec + \
-                 sock/inet_sock_set_state + sched/sched_process_exit (the post-mortem \
-                 exit probe) + raw_syscalls/sys_enter (the write probe, verified by its \
-                 own recorded write), kprobes vfs_open + {writev_symbol} \
-                 (the vectorized-write probe, verified from this host's BTF), offsets \
-                 verified from this host's BTF, counter live; \
-                 events since attach: {count}\npins: {PIN_DIR} (probe, probe_link, stats, \
-                 sock_probe, sock_probe_link, sock_events, exit_probe, exit_probe_link, \
-                 proc_events, open_probe, open_probe_link, \
-                 write_probe, write_probe_link, writev_probe, writev_probe_link, \
-                 tracked_inodes, file_events, offsets)"
+            //    kernel holds. The summary the caller sees rides
+            //    the verbosity lane: one quiet success line by
+            //    default, the full probe/BTF/pin report under -v
+            //    (the quiet-by-default law).
+            let count = super::readback::read_events_counter();
+            Ok(attach_success_summary(
+                &count,
+                writev_symbol,
+                crate::output::verbose::enabled(),
             ))
         }
         Err(e) => {
@@ -374,16 +365,128 @@ pub fn detach() -> Result<String, String> {
             ));
         }
     }
+    Ok(detach_summary(
+        removed,
+        swept,
+        crate::output::verbose::enabled(),
+    ))
+}
+
+// ── The summary lane (quiet by default, loud on request) ────────────
+
+/// The estate's shape, classified from the pin base names: every pin
+/// is a program, a link, or a map, and the naming contract carries
+/// the role - `*_link` is a link, `probe` / `*_probe` is a program,
+/// everything else is a map. The attach summary's (programs, links,
+/// maps) counts derive from this one walk, so a future probe pair
+/// updates the success line without touching it. The loader_tests
+/// pin the classification against ALL_PINS, so a naming drift is
+/// caught, not printed wrong.
+pub(crate) fn estate_counts() -> (usize, usize, usize) {
+    let mut programs = 0;
+    let mut links = 0;
+    let mut maps = 0;
+    for pin in super::ALL_PINS {
+        let base = Path::new(pin)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(pin);
+        if base.ends_with("_link") {
+            links += 1;
+        } else if base == "probe" || base.ends_with("_probe") {
+            programs += 1;
+        } else {
+            maps += 1;
+        }
+    }
+    (programs, links, maps)
+}
+
+/// The counter readback as a display label: `N=<events>` when the
+/// pinned map answered, the honest unreadable note when it did not.
+fn count_label(count: &Result<u64, String>) -> String {
+    match count {
+        Ok(n) => format!("N={n}"),
+        Err(e) => format!("counter unreadable ({e})"),
+    }
+}
+
+/// The fresh-attach success summary. Default: ONE quiet line - the
+/// estate's shape and the camera's posture, no probe names, no pin
+/// list (the quiet-by-default law; the details are one `-v` away).
+/// Verbose: the full report the wall used to print by default -
+/// every probe by name and role, the BTF verification claims, the
+/// counter read, and the whole pin list, multi-line.
+pub(crate) fn attach_success_summary(
+    count: &Result<u64, String>,
+    writev_symbol: &str,
+    verbose: bool,
+) -> String {
+    let (programs, links, maps) = estate_counts();
+    if !verbose {
+        return format!(
+            "eBPF probes attached successfully ({programs} programs, {links} links, \
+             {maps} maps). Lazy Camera is now recording."
+        );
+    }
+    format!(
+        "probes attached: tracepoints sched/sched_process_exec + \
+         sock/inet_sock_set_state + sched/sched_process_exit (the post-mortem \
+         exit probe) + raw_syscalls/sys_enter (the write probe, verified by its \
+         own recorded write), kprobes vfs_open + {writev_symbol} \
+         (the vectorized-write probe, verified from this host's BTF), offsets \
+         verified from this host's BTF, counter live; \
+         events since attach: {}\npins: {PIN_DIR} (probe, probe_link, stats, \
+         sock_probe, sock_probe_link, sock_events, exit_probe, exit_probe_link, \
+         proc_events, open_probe, open_probe_link, \
+         write_probe, write_probe_link, writev_probe, writev_probe_link, \
+         tracked_inodes, file_events, offsets)",
+        count_label(count)
+    )
+}
+
+/// The idempotent already-attached summary. Default: one quiet line
+/// with the live counter; verbose: the same plus the pins-present
+/// claim and the detach pointer.
+pub(crate) fn attach_already_summary(count: &Result<u64, String>, verbose: bool) -> String {
+    if !verbose {
+        return format!(
+            "eBPF probes already attached; nothing to do \
+             (events since attach: {}).",
+            count_label(count)
+        );
+    }
+    format!(
+        "probe is already attached - nothing to do (all pins present; \
+         doctor --detach removes it); events since attach: {}",
+        count_label(count)
+    )
+}
+
+/// The detach summary. Default: one quiet line - the count that came
+/// down, and the swept note only when the sledgehammer actually
+/// swept something (a legacy or foreign leftover is an event worth
+/// surfacing even quietly). Verbose: the same facts with the pin
+/// directory named.
+pub(crate) fn detach_summary(removed: usize, swept: usize, verbose: bool) -> String {
+    if !verbose {
+        return if swept > 0 {
+            format!(
+                "eBPF probes detached ({removed} pins removed, {swept} \
+                 foreign entries swept)."
+            )
+        } else {
+            format!("eBPF probes detached ({removed} pins removed).")
+        };
+    }
     if swept > 0 {
-        return Ok(format!(
+        return format!(
             "probes detached: unpinned {removed} pin(s), swept {swept} foreign \
              entr{}; {PIN_DIR} is gone",
             if swept == 1 { "y" } else { "ies" }
-        ));
+        );
     }
-    Ok(format!(
-        "probes detached: unpinned {removed} pin(s); {PIN_DIR} is gone"
-    ))
+    format!("probes detached: unpinned {removed} pin(s); {PIN_DIR} is gone")
 }
 
 use std::path::Path;
