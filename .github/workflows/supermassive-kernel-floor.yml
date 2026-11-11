@@ -139,9 +139,28 @@ jobs:
       # flaky archive mirror is the same GitHub-infra class as the
       # curl 500s, and apt's default is zero retries).
       - name: Install qemu + cpio
-        run: >-
-          sudo apt-get -o Acquire::Retries=5 update -qq &&
-          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
+        # night-T-4: the runner's apt mirror (azure.archive.ubuntu.com)
+        # flakes on DNS some days - the Ubuntu apt hostnames broke while
+        # docker.io and github.com stayed reachable. Try the default
+        # mirror first with bounded retries; on a DNS break, switch to
+        # the canonical archive.ubuntu.com (a different CDN/hostname)
+        # and retry. No penalty on a healthy runner; a recovery path on
+        # a broken one. The whole step fits inside the five-minute job
+        # cap. (The kernel-fetch step below already rides
+        # archive.ubuntu.com via its own jammy-floor.list.)
+        run: |
+          set -e
+          if ! sudo apt-get -o Acquire::Retries=2 update -qq 2>/dev/null; then
+            echo "default apt mirror unreachable - switching to archive.ubuntu.com"
+            SRC=/etc/apt/sources.list.d/ubuntu.sources
+            [ -f "$SRC" ] || SRC=/etc/apt/sources.list
+            sudo sed -i \
+              -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+              -e 's|security.ubuntu.com|archive.ubuntu.com|g' \
+              "$SRC"
+            sudo apt-get -o Acquire::Retries=2 update -qq
+          fi
+          sudo apt-get -o Acquire::Retries=2 install -y --no-install-recommends qemu-system-x86 cpio
 
       # The release lane's own shape: the alias builds for the musl
       # triple, so the pinned toolchain needs its rust-std target
