@@ -94,16 +94,20 @@ buyer purchased.
 
 ### Why zejtron starts at $1,899, not $99.
 
-zejtron is a forensic tool. Its commercial buyer is an SRE, a
-security engineer, or an incident responder — someone whose hourly
-rate pays off the Professional license in a single shift. The $99
-entry tier that zelynic, zylaxion, and cosmostrix carry serves
-hobbyist-adjacent buyers (terminal aesthetics, keyboard sound,
-personal bandwidth) whose commercial use is small and personal.
-zejtron's Personal tier (Free, AGPL-3.0) already covers hobby,
-learning, and open-source contributions. Commercial use of a
-forensic tool is a different scale, and the pricing reflects that
-difference honestly rather than undercutting it.
+zejtron is a serious LTS project: audits, formal declarations,
+and verifiable claims sit behind every number the tool prints. Its
+commercial buyer is a professional — an SRE, a security engineer,
+or an incident responder — whose infrastructure value pays off the
+Professional license in a single shift. The $99 Individual tier
+was retired in this revision, portfolio-wide; the entry paid tier
+is Professional at $1,899, matching zelynic. zejtron's Personal
+tier (Free, AGPL-3.0) already covers hobby, learning, and
+open-source contributions. Commercial use of a forensic tool is a
+different scale, and the pricing reflects that difference honestly
+rather than undercutting it.
+
+Any Individual-tier customer who bought before this revision is
+grandfathered at $99 for the term they bought.
 
 The $1,899 anchor is calibrated against the market for
 professional forensic CLI tools — Security Ronin Katana, the
@@ -140,9 +144,10 @@ Notes:
   30% off a 3-year term.
 - **Grandfathering** — buyers who paid before a price move are
   grandfathered at the price they bought, for the term they bought.
-  Existing Company-tier customers at $49,999 keep their purchased
-  price for their purchased term; new licenses follow the current
-  table.
+  Any Individual-tier customer who bought before this revision is
+  grandfathered at $99 for the term they bought. Existing
+  Company-tier customers at $49,999 keep their purchased price for
+  their purchased term; new licenses follow the current table.
 - **2026-10-24 price move** (night-badass-8, effective from the
   first release tag after that date): the paid ladder grows a middle
   rung and the top re-pegs — Solo Dev Business holds at

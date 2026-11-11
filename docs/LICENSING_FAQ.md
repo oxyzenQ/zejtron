@@ -40,17 +40,19 @@ Redistribution under your own terms is the OEM / Redistribution tier
 regardless of revenue — it is the only tier that carries
 redistribution rights.
 
-## Why is there no $99 Individual tier like the other portfolio projects?
+## Why does the ladder start at $1,899 instead of $99?
 
-The $99 tier that zelynic, zylaxion, and cosmostrix carry serves
-hobbyist-adjacent commercial buyers — small-scale use of terminal
-aesthetics or personal bandwidth. zejtron is a forensic tool; its
-commercial buyer is an SRE, security engineer, or incident
-responder whose hourly rate pays off $1,899 in a single shift. The
-Personal tier (Free, AGPL-3.0) already covers hobby, learning, and
-open-source contributions. The $1,899 anchor is calibrated against
-the professional forensic CLI market (Security Ronin Katana sits in
-the $1,188–1,788/seat range). Full reasoning in
+The $99 Individual tier was retired across the portfolio; the entry
+paid tier is Professional at $1,899/year, matching zelynic. This is
+a serious LTS project with audits, formal declarations, and
+verifiable claims; its commercial buyer is an SRE, security
+engineer, or incident responder whose hourly rate pays off $1,899
+in a single shift. The Personal tier (Free, AGPL-3.0) already
+covers hobby, learning, and open-source contributions. The $1,899
+anchor is calibrated against the professional forensic CLI market
+(Security Ronin Katana sits in the $1,188–1,788/seat range). Any
+Individual-tier customer who bought before this revision is
+grandfathered at $99 for the term they bought. Full reasoning in
 [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md).
 
 ## Do contributors need to sign anything?
