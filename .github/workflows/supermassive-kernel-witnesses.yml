@@ -98,7 +98,12 @@ jobs:
   witness:
     name: ${{ matrix.title }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # The five-minute fail-fast law (night-T-4): a healthy witness
+    # finishes in under three minutes (the latest greens were
+    # 2.5-3.0m); the cap catches a wedged KVM boot or a flaky apt
+    # mirror at five minutes, never the thirty a hung guest used to
+    # burn.
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -218,7 +223,7 @@ jobs:
             --envelope "${{ matrix.envelope }}" \
             --binary "$PWD/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron" \
             --battery \
-            --timeout 900
+            --timeout 180
 
       # The sentinel rows for the run's page (the verdict itself is
       # the previous step's exit code; the twin always leaves vm.log

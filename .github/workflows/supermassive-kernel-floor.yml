@@ -98,7 +98,12 @@ jobs:
     # inside the VM against the quarter-core/eighth-RAM slice.
     name: supermassive kernel floor (jammy GA 5.15.0, KVM micro-VM)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # The five-minute fail-fast law (night-T-4): a healthy floor run
+    # finishes in under three minutes (the latest green was 2.7m); the
+    # cap catches a wedged KVM boot, a stalled docker pull, or a flaky
+    # apt mirror at five minutes, never the thirty a hung guest used
+    # to burn.
+    timeout-minutes: 5
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
@@ -292,7 +297,10 @@ jobs:
           MEM=$(( TOTAL_MB / 8 )); [ "$MEM" -lt 1024 ] && MEM=1024
           echo "envelope: $SMP vCPU / $MEM MB (low, of $CORES cores / $TOTAL_MB MB on the runner)"
           set +e
-          timeout 900 qemu-system-x86_64 \
+          # 180s: the KVM boot + low-leg run finishes in ~100s on a
+          # healthy runner; 180s gives headroom and dies fast on a
+          # wedged guest, inside the five-minute job cap (night-T-4).
+          timeout 180 qemu-system-x86_64 \
             -machine q35,accel=kvm -cpu host \
             -m "$MEM" -smp "$SMP" \
             -device isa-debug-exit,iobase=0xf4,iosize=0x04 \

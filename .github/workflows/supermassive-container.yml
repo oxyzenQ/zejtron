@@ -51,7 +51,12 @@ jobs:
   container-e2e:
     name: Container E2E - docker (musl static)
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # The five-minute fail-fast law (night-T-4, the owner's estate
+    # mandate): a healthy run finishes in under two minutes (the
+    # latest green was 1.9m); the cap catches a hung docker pull, a
+    # wedged binary, or a stalled build at five minutes instead of
+    # burning the runner for twenty-five.
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
@@ -78,11 +83,16 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Build the static musl binary
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          cargo build --release --locked --target x86_64-unknown-linux-musl
+      - name: Build the static musl binary (the release v3 alias)
+        # The alias carries rust-lld (the .cargo/config.toml contract),
+        # so the lane needs NO musl-tools apt-get - the bare
+        # `cargo build --release --target musl` this step used to run
+        # needed musl-gcc and burned six minutes on a flaky-archive
+        # DNS retry (night-T-4: the apt dependency was both the slow
+        # step and the flaky step; the alias is neither). The release
+        # v3 shape, the same one the e2e legs and the parity gate
+        # bind to.
+        run: cargo pro-linux-amd64-v3-musl --locked
 
       # The container round trip: the binary rides a scratch-like
       # image, reads the container's own /proc and sysfs, and must
@@ -104,7 +114,7 @@ jobs:
           set -euo pipefail
           docker build -t zejtron-e2e -f- . <<'DOCKERFILE'
           FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
-          COPY target/x86_64-unknown-linux-musl/release/zejtron /usr/local/bin/zejtron
+          COPY target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron /usr/local/bin/zejtron
           DOCKERFILE
 
           echo "=== -V report inside the container ==="
