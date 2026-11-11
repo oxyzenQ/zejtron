@@ -167,7 +167,7 @@ architectural, not accidental:
 - The standalone runners (`zejtron-qc.sh`, `scale-audit.sh`,
   `uninstall.sh`, `sandbox-init.sh`) run `-u` without `-e` on
   purpose: they count failures and print summaries; `-e` would
-  abort on the first red check and destroy the very report they
+  abort on the first red check and lose the very report they
   exist to produce. `scale-audit.sh` documents its fork-pressure
   clock design beside the flag.
 
@@ -248,8 +248,8 @@ output, no `now` comparison). The one wall-clock test
 (`fileprobe_tests.rs`, "within 2s of the wall clock") is a
 deliberate monotonic-to-UTC conversion contract between two reads
 microseconds apart, with no calendar arithmetic to trip on a date
-boundary. The window grammar's overflow time-bomb was already
-defused by `night-total-lts-1` (saturating multiply).
+boundary. The window grammar's overflow hazard was already
+handled by `night-total-lts-1` (saturating multiply).
 
 **eBPF prebuilt manifest parity** - verified live in this audit:
 `scripts/dev/regenerate-ebpf-prebuilt.sh --check` reports "in
