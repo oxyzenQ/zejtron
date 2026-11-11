@@ -194,28 +194,31 @@ jobs:
         # ubuntu.com zones (verified this night: the same hostnames
         # resolve and serve 200 from outside Azure), and the public
         # resolvers bypass that poisoned cache. Layer 2 is the fallback
-        # below - for a day when the azure mirror hostname alone is
-        # broken, it re-points at the canonical archive.ubuntu.com, and
-        # every apt call rides a hard timeout (the default
-        # Acquire::Retries hangs on slow-DNS lookups - each lookup times
-        # out at ~30s, many lookups, so the first update never fails
-        # fast enough to reach the fallback). timeout 60/90/120 bounds
-        # the default update, the fallback update, and the install so a
-        # broken mirror fails FAST (a clean error at ~2.5m, not a 5m
-        # cancel). No penalty on a healthy runner (the default mirror
-        # wins on the first try, ~30s).
+        # below - tonight's second symptom was the azure mirror itself
+        # DEGRADED: the update came back fine through the public
+        # resolvers while the qemu download stalled silently past any
+        # timeout (exit 124, zero output, one runner out of five). So
+        # the fallback now covers the install too: attempt 1 rides the
+        # default mirror with tight bounds (update 45s, install 70s -
+        # bail fast); any failure re-points at the canonical
+        # archive.ubuntu.com (Fastly, a different CDN) and retries with
+        # generous bounds; dpkg --configure -a cleans whatever a killed
+        # install left half-configured. No penalty on a healthy runner.
         run: |
           set -e
-          if ! timeout 60 sudo apt-get -o Acquire::Retries=1 update -qq 2>/dev/null; then
-            echo "default apt mirror unreachable - switching to archive.ubuntu.com"
-            SRC=/etc/apt/sources.list.d/ubuntu.sources
-            [ -f "$SRC" ] || SRC=/etc/apt/sources.list
-            sudo sed -i \
-              -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
-              -e 's|security.ubuntu.com|archive.ubuntu.com|g' \
-              "$SRC"
-            timeout 90 sudo apt-get -o Acquire::Retries=1 update -qq
+          if timeout 45 sudo apt-get -o Acquire::Retries=1 update -qq 2>/dev/null \
+            && timeout 70 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86; then
+            exit 0
           fi
+          echo "default mirror degraded (hung or erroring) - switching to archive.ubuntu.com"
+          sudo dpkg --configure -a > /dev/null 2>&1 || true
+          SRC=/etc/apt/sources.list.d/ubuntu.sources
+          [ -f "$SRC" ] || SRC=/etc/apt/sources.list
+          sudo sed -i \
+            -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            -e 's|security.ubuntu.com|archive.ubuntu.com|g' \
+            "$SRC"
+          timeout 45 sudo apt-get -o Acquire::Retries=1 update -qq
           timeout 120 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86
 
       # The warm witness cache: the suite's GA kernel deb + vmlinuz,

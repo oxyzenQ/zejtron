@@ -175,30 +175,34 @@ jobs:
         # ubuntu.com zones (verified this night: the same hostnames
         # resolve and serve 200 from outside Azure), and the public
         # resolvers bypass that poisoned cache. Layer 2 is the fallback
-        # below - for a day when the azure mirror hostname alone is
-        # broken, it re-points at the canonical archive.ubuntu.com, and
-        # every apt call rides a hard timeout (the default
-        # Acquire::Retries hangs on slow-DNS lookups - each lookup times
-        # out at ~30s, many lookups, so the first update never fails
-        # fast enough to reach the fallback). timeout 60/90/120 bounds
-        # the default update, the fallback update, and the install so a
-        # broken mirror fails FAST (a clean error at ~2.5m, not a 5m
-        # cancel). No penalty on a healthy runner (the default mirror
-        # wins on the first try, ~30s). The whole step fits inside the
-        # five-minute job cap. (The kernel-fetch step below already
-        # rides archive.ubuntu.com via its own jammy-floor.list.)
+        # below - tonight's second symptom was the azure mirror itself
+        # DEGRADED: the update came back fine through the public
+        # resolvers while the qemu download stalled silently past any
+        # timeout (exit 124, zero output, one runner out of five). So
+        # the fallback now covers the install too: attempt 1 rides the
+        # default mirror with tight bounds (update 45s, install 70s -
+        # bail fast); any failure re-points at the canonical
+        # archive.ubuntu.com (Fastly, a different CDN) and retries with
+        # generous bounds; dpkg --configure -a cleans whatever a killed
+        # install left half-configured. No penalty on a healthy runner.
+        # The whole step fits inside the five-minute job cap. (The
+        # kernel-fetch step below already rides archive.ubuntu.com via
+        # its own jammy-floor.list.)
         run: |
           set -e
-          if ! timeout 60 sudo apt-get -o Acquire::Retries=1 update -qq 2>/dev/null; then
-            echo "default apt mirror unreachable - switching to archive.ubuntu.com"
-            SRC=/etc/apt/sources.list.d/ubuntu.sources
-            [ -f "$SRC" ] || SRC=/etc/apt/sources.list
-            sudo sed -i \
-              -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
-              -e 's|security.ubuntu.com|archive.ubuntu.com|g' \
-              "$SRC"
-            timeout 90 sudo apt-get -o Acquire::Retries=1 update -qq
+          if timeout 45 sudo apt-get -o Acquire::Retries=1 update -qq 2>/dev/null \
+            && timeout 70 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86 cpio; then
+            exit 0
           fi
+          echo "default mirror degraded (hung or erroring) - switching to archive.ubuntu.com"
+          sudo dpkg --configure -a > /dev/null 2>&1 || true
+          SRC=/etc/apt/sources.list.d/ubuntu.sources
+          [ -f "$SRC" ] || SRC=/etc/apt/sources.list
+          sudo sed -i \
+            -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            -e 's|security.ubuntu.com|archive.ubuntu.com|g' \
+            "$SRC"
+          timeout 45 sudo apt-get -o Acquire::Retries=1 update -qq
           timeout 120 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86 cpio
 
       # The release lane's own shape: the alias builds for the musl
@@ -293,7 +297,15 @@ jobs:
           cd /tmp/kfloor
           docker pull -q ubuntu:24.04
           docker rm -f floor-rootfs >/dev/null 2>&1 || true
-          docker run --name floor-rootfs -d ubuntu:24.04 sleep infinity
+          # --dns pins the public resolvers INSIDE the container:
+          # docker's resolv.conf handling does not reliably inherit the
+          # host's hardened file (the daemon captured the poisoned
+          # Azure resolver at boot; tonight's evidence - the host
+          # fetched qemu through the public resolvers while this
+          # container could not resolve archive.ubuntu.com at all,
+          # E: Unable to locate package iproute2).
+          docker run --name floor-rootfs --dns 1.1.1.1 --dns 8.8.8.8 \
+            -d ubuntu:24.04 sleep infinity
           docker exec floor-rootfs apt-get update -qq
           # jq rides the typed JSON law's harness dependency
           # (night-dragon-4): without it the suite refuses at startup
