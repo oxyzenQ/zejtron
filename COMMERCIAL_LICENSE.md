@@ -218,13 +218,12 @@ company or by an individual — without contacting the owner
 (rezky_nightky / oxyzenQ,
 [with.rezky@gmail.com](mailto:with.rezky@gmail.com)) and paying
 for the license first. That is not a loophole, a gray area, or a
-clever business move. It is theft of one person's years of work,
-a breach of AGPL-3.0-only and of this Commercial License, and —
-in the owner's own words — the mark of the worst kind of human:
-a rotten one. If closed source is what you need, the Enterprise
-Internal tier exists precisely for that; buy it. If you cannot or will
-not pay, the AGPL path is complete and free — open-source what
-you build. There is no third path that leaves you clean.
+clever business move. It is theft of one person's years of work —
+a breach of AGPL-3.0-only and of this Commercial License. If
+closed source is what you need, the Enterprise Internal tier
+exists precisely for that; buy it. If you cannot or will not pay,
+the AGPL path is complete and free — open-source what you build.
+There is no third path that leaves you clean.
 
 ## 4. What Each Tier Grants
 
