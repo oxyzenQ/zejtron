@@ -161,14 +161,19 @@ jobs:
         # night-T-4: the runner's apt mirror (azure.archive.ubuntu.com)
         # flakes on DNS some days - the Ubuntu apt hostnames broke while
         # docker.io and github.com stayed reachable. Try the default
-        # mirror first with bounded retries; on a DNS break, switch to
-        # the canonical archive.ubuntu.com (a different CDN/hostname)
-        # and retry. No penalty on a healthy runner (the default mirror
-        # wins on the first try); a recovery path on a broken one. The
-        # whole step fits inside the five-minute job cap.
+        # mirror first; on a DNS break, switch to the canonical
+        # archive.ubuntu.com (a different CDN/hostname) and retry. Each
+        # apt call rides a hard timeout - the default Acquire::Retries
+        # hangs on slow-DNS lookups (each lookup times out at ~30s, many
+        # lookups, so the first update never fails fast enough to reach
+        # the fallback); timeout 60/90/120 bounds the default update,
+        # the fallback update, and the install so the step fails FAST on
+        # a broken mirror (a clean error at ~2.5m, not a 5m cancel) and
+        # leaves the fallback a chance to fire. No penalty on a healthy
+        # runner (the default mirror wins on the first try, ~30s).
         run: |
           set -e
-          if ! sudo apt-get -o Acquire::Retries=2 update -qq 2>/dev/null; then
+          if ! timeout 60 sudo apt-get -o Acquire::Retries=1 update -qq 2>/dev/null; then
             echo "default apt mirror unreachable - switching to archive.ubuntu.com"
             SRC=/etc/apt/sources.list.d/ubuntu.sources
             [ -f "$SRC" ] || SRC=/etc/apt/sources.list
@@ -176,9 +181,9 @@ jobs:
               -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
               -e 's|security.ubuntu.com|archive.ubuntu.com|g' \
               "$SRC"
-            sudo apt-get -o Acquire::Retries=2 update -qq
+            timeout 90 sudo apt-get -o Acquire::Retries=1 update -qq
           fi
-          sudo apt-get -o Acquire::Retries=2 install -y --no-install-recommends qemu-system-x86
+          timeout 120 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86
 
       # The warm witness cache: the suite's GA kernel deb + vmlinuz,
       # the cachyos repo's current flagship package + its .ver sidecar,
