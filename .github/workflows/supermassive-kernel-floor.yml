@@ -190,8 +190,9 @@ jobs:
         # its own jammy-floor.list.)
         run: |
           set -e
-          if timeout 45 sudo apt-get -o Acquire::Retries=1 update -qq 2>/dev/null \
-            && timeout 70 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86 cpio; then
+          if timeout 45 sudo apt-get -o Acquire::Retries=1 update -qq 2>/dev/null &&
+            timeout 70 sudo apt-get -o Acquire::Retries=1 install -y \
+            --no-install-recommends qemu-system-x86 cpio; then
             exit 0
           fi
           echo "default mirror degraded (hung or erroring) - switching to archive.ubuntu.com"
