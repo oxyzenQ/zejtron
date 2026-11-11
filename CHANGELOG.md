@@ -15,6 +15,7 @@ frozen verbatim.
 
 ## [Released]
 
+v80.1.1
 v80.1.0
 v80.0.1
 v80.0.1-citest.1
