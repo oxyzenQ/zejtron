@@ -32,9 +32,16 @@
 # future [target] block.
 #
 # aarch64 hosts: pro-native-musl is x86_64-only because cargo
-# aliases cannot detect the host arch - mirror the alias with the
-# aarch64 target triple if a static aarch64 native build is ever
-# needed.
+# aliases cannot detect the host arch. The arm64 twin is its own
+# explicit alias - pro-native-arm64-musl below - mirroring this
+# block onto the aarch64 target triple (the owner's arm64 mandate,
+# the sibling zelynic's shape). The nested eBPF build rides the
+# same BPF ISA on every host arch (the bpfel objects are
+# host-arch-independent), and the pinned bpf-linker ships an
+# aarch64 asset (bootstrap-ebpf.sh's own case), so the alias works
+# on an arm host unmodified. build.rs strips any target-cpu=/
+# target-feature= token from the nested eBPF build's environment,
+# so host-native arm codegen never reaches bpf-linker either.
 #
 # Prerequisites: the musl rust-std target
 # (`rustup target add x86_64-unknown-linux-musl`) and nothing else -
@@ -56,6 +63,34 @@ pro-native-musl = [
   "target.x86_64-unknown-linux-musl.linker=\"rust-lld\"",
   "--target",
   "x86_64-unknown-linux-musl",
+]
+
+# The arm64 twin (the owner's arm64 mandate, the sibling zelynic's
+# shape): pro-native-arm64-musl mirrors pro-native-musl onto the
+# aarch64 target triple - host-CPU native codegen (-C
+# target-cpu=native), fully static musl (the only libc shape),
+# the T1 build-label contract (`-V` names
+# "local-pro-native-arm64-musl"). The artifact lands in
+# target/aarch64-unknown-linux-musl/pro-native-arm64-musl/ so an
+# arm build never clobbers the x86 target tree or
+# target/release/zejtron. No x86-64-v3 equivalent: armv8-a IS the
+# universal arm64 baseline, so target-cpu=native is the only
+# codegen tier this family carries. Run on arm64 silicon
+# (ubuntu-24.04-arm in CI); a cross-compile from x86_64 would
+# mis-apply target-cpu=native, so the alias is a native lane, not
+# a cross lane - the same law the sibling's arm64 twin carries.
+pro-native-arm64-musl = [
+  "build",
+  "--profile",
+  "pro-native-arm64-musl",
+  "--config",
+  "env.ZEJTRON_BUILD=\"local-pro-native-arm64-musl\"",
+  "--config",
+  "target.aarch64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"target-feature=+crt-static\"]",
+  "--config",
+  "target.aarch64-unknown-linux-musl.linker=\"rust-lld\"",
+  "--target",
+  "aarch64-unknown-linux-musl",
 ]
 
 # Arch-baseline release aliases (the sibling's NIGHT-improve-22

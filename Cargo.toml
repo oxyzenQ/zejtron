@@ -188,6 +188,19 @@ incremental = false
 [profile.pro-native-musl]
 inherits = "release"
 
+# The arm64 twin profile (the owner's arm64 mandate; see
+# .cargo/config.toml [alias] pro-native-arm64-musl). Inherits
+# release unchanged - the only delta is the alias-injected -C
+# target-cpu=native (plus +crt-static), the same tier as the x86
+# native lane. armv8-a IS the universal arm64 baseline, so there is
+# no v3/v4 equivalent - target-cpu=native is the only codegen tier
+# this family carries. The separate profile name lands the binary
+# in target/aarch64-unknown-linux-musl/pro-native-arm64-musl/zejtron
+# so an arm build never clobbers target/release/zejtron or the x86
+# target tree.
+[profile.pro-native-arm64-musl]
+inherits = "release"
+
 # Arch-baseline release profiles for the cargo aliases
 # pro-linux-amd64-v3-musl / pro-linux-amd64-v4-musl
 # (the sibling's NIGHT-improve-22 lineage; see .cargo/config.toml
