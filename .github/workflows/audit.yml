@@ -32,12 +32,19 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Two parallel lanes instead of one serial job (night-T-1): the two
+  # `cargo install` compiles were the whole cost of the run, and
+  # serializing them pushed the wall clock past the estate's
+  # five-minute-per-job law (measured 5.5 minutes, 2026-11-02). Each
+  # lane now installs and runs one scanner; both land near three and
+  # a half minutes. The observation-only posture (continue-on-error)
+  # and the pinned scanners carry over unchanged.
   audit:
-    name: Observation-only audit
+    name: Advisory watch (cargo-audit)
     # Runner pinned to ubuntu-24.04, never a floating ubuntu-latest:
     # OS upgrades here are deliberate, matrix-tested changes.
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     continue-on-error: true
     steps:
       - name: Checkout repository
@@ -48,7 +55,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
 
-      # Scanner binaries pinned, advisory DB still refreshes every
+      # Scanner binary pinned, advisory DB still refreshes every
       # run: red means a new advisory, never a new release of the
       # scanner itself.
       - name: Install cargo-audit (pinned 0.22.2)
@@ -62,6 +69,22 @@ jobs:
         # exit code.
         run: cargo audit --deny warnings
 
+  deny:
+    name: Dependency policy (cargo-deny)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+
+      # Scanner binary pinned: red means a policy finding, never a
+      # new release of the scanner itself.
       - name: Install cargo-deny (pinned 0.20.2)
         run: cargo install cargo-deny --version 0.20.2 --locked
 
