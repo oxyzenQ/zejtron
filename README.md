@@ -60,7 +60,7 @@ zejtron is one binary that answers the incident questions in one dialect. The ou
 - **Deterministic output** — the same evidence, the same bytes, on every host. Piped output carries zero escape bytes.
 - **UTC everywhere** — evidence timestamps render `YYYY-MM-DD HH:MM:SS (UTC)`, computed by Howard Hinnant's civil_from_days on `std::time` only. No timezone database, no local guesses in containers.
 - **Root-honest** — `--check-update`, the one network surface, refuses sudo by name.
-- **Pro mode on `--help`** — the complete flag estate on one surface, grouped by the verbs that own them, aliases disclosed.
+- **Pro mode on `--help`** — the complete options estate on one surface, grouped by the verbs that own them, aliases disclosed.
 
 ### Where eBPF Meets Forensics
 

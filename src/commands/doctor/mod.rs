@@ -154,7 +154,7 @@ fn format_report(checks: &[CheckResult], summary: Summary) -> String {
     // (night-improve-42). In Mono every wrap is the identity,
     // byte-identical to the pinned shape.
     let mut lines = vec![
-        crate::output::banner("zejtron System Doctor"),
+        crate::output::banner("zejtron diagnostics report doctor"),
         String::new(),
         format!(
             "  {:<17}{}",
