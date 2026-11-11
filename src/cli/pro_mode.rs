@@ -30,7 +30,7 @@
 //! The section heading rides the sibling's heading law (night-weekly-
 //! maintenance-2, the family's one-frame rule): help-surface section
 //! headings paint brand purple bold - the same seat the sibling's
-//! flag estate gives "Global flags:", "Rate formats:", and "Pro
+//! options estate gives "Global options:", "Rate formats:", and "Pro
 //! mode:" ([`crate::output::brand_bold_out`], the stdout lane's bold
 //! brand wrapper). The group labels under it ("net:", "proc:", ...)
 //! stay plain - the sibling's Pro mode groups ride plain too, only
@@ -45,7 +45,7 @@ use crate::output::{brand_bold_out, grey_out};
 /// description's wrapped continuation, re-indented to the column).
 type Row = (&'static str, &'static str);
 
-/// The complete flag estate, grouped by the verb that owns each flag.
+/// The complete options estate, grouped by the verb that owns each option.
 /// The single wording authority for the section's rows; the renderer
 /// computes the column, the data never encodes geometry.
 const GROUPS: &[(&str, &[Row])] = &[
@@ -219,9 +219,9 @@ const GROUPS: &[(&str, &[Row])] = &[
 /// default-colored, and the two reassemble into the exact bytes the
 /// old single const carried (the Mono shape the tests pin).
 const INTRO: &str = "\
-  The complete flag estate - grouped by the verbs that own them.
-  Each verb's own -h/--help shows its lane; this is the whole
-  estate on one surface.
+  The complete options estate - grouped by the verbs that own
+  them. Each verb's own -h/--help shows its lane; this is the
+  whole estate on one surface.
 
 ";
 

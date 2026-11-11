@@ -17,6 +17,11 @@ fn branded_command() -> clap::Command {
     // verb's about carries its example line, green verb token on the
     // grey grammar line, the exact plain bytes on a pipe.
     examples::paint_verbs(&mut cmd);
+    // The banner opens the reference (night-T-2, the sibling's
+    // frame): the family's one title-line shape, bold brand purple,
+    // before the about prose - the same `━━━ <title> ━━━` frame every
+    // report surface carries.
+    cmd = cmd.before_help(brand_banner());
     // The Pro mode section paints at render time (night-improve-38):
     // grey grammar on a color stdout, the exact plain bytes on a
     // pipe - never a frozen string on either lane. The Quick
@@ -26,6 +31,15 @@ fn branded_command() -> clap::Command {
         pro_mode::painted(),
         examples::quick_section()
     ))
+}
+
+/// The help banner: the reference's opening title line, the same
+/// `━━━ <title> ━━━` bold-purple frame every report surface carries
+/// ([`crate::output::banner`], night-T-2). The stdout-lane gate is
+/// the one shared predicate with the Pro mode section, so a piped
+/// render and a NO_COLOR environment keep the exact plain bytes.
+fn brand_banner() -> String {
+    crate::output::banner("zejtron — read-only evidence ledger for the Linux host")
 }
 
 /// Parse argv through the branded builder. The UX bridge downstream
@@ -46,13 +60,17 @@ pub(crate) fn help_command() -> clap::Command {
 #[command(
     name = "zejtron",
     about = "Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious.",
+    // The usage grammar in the sibling's shape (night-T-2): one line,
+    // the whole top-level grammar plus one concrete e.g. invocation -
+    // the same spelling each verb's own usage line carries below.
+    override_usage = "zejtron [command] or [options] e.g zejtron port -v",
     disable_version_flag = true,
     // The mature help surface (night-improve-15, sibling shape): one
     // help authority - the -h/--help flags - and no auto-generated
     // `help` subcommand row padding the commands list on every
     // top-level render. night-improve-25 adds the Pro mode section:
-    // the complete flag estate, grouped by the verbs that own each
-    // flag, rendered plain through clap's after_help.
+    // the complete options estate, grouped by the verbs that own each
+    // option, rendered plain through clap's after_help.
     disable_help_subcommand = true,
     styles = crate::cli::styles::clap_styles()
 )]
@@ -92,14 +110,20 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    #[command(about = "Where does a command come from?")]
+    #[command(
+        about = "Where does a command come from?",
+        override_usage = "zejtron path <command> or [options] e.g zejtron path sh"
+    )]
     Path {
         #[arg(value_name = "COMMAND", help = "Command name to find in PATH")]
         command: String,
         #[arg(long, help = "Print the path resolution as JSON (one line, jq-ready)")]
         print_json: bool,
     },
-    #[command(about = "What changed here lately?")]
+    #[command(
+        about = "What changed here lately?",
+        override_usage = "zejtron recent [path] or [options] e.g zejtron recent --since 1h"
+    )]
     Recent {
         #[arg(value_name = "PATH", default_value = ".")]
         path: PathBuf,
@@ -122,7 +146,10 @@ pub enum Commands {
         )]
         print_json: bool,
     },
-    #[command(about = "Which ports are open, and who owns them?")]
+    #[command(
+        about = "Which ports are open, and who owns them?",
+        override_usage = "zejtron port [port] or [options] e.g zejtron port --tcp"
+    )]
     Port {
         #[arg(value_name = "PORT", help = "Port number to inspect")]
         port: Option<String>,
@@ -157,7 +184,11 @@ pub enum Commands {
         #[arg(long, help = "Print the port report as JSON (one line, jq-ready)")]
         print_json: bool,
     },
-    #[command(about = "What is running, and under whom?")]
+    #[command(
+        about = "What is running, and under whom?",
+        // The required group leads: a target is either a user or --me.
+        override_usage = "zejtron proc <user or --me> or [options] e.g zejtron proc --me",
+    )]
     #[command(group = clap::ArgGroup::new("proc_target").required(true).multiple(false).args(["user_or_uid", "me"]))]
     Proc {
         #[arg(
@@ -188,7 +219,10 @@ pub enum Commands {
         #[arg(long, help = "Print the process scan as JSON (one line, jq-ready)")]
         print_json: bool,
     },
-    #[command(about = "Who holds this file, port, or device?")]
+    #[command(
+        about = "Who holds this file, port, or device?",
+        override_usage = "zejtron holds <target> or [options] e.g zejtron holds /etc/resolv.conf"
+    )]
     Holds {
         #[arg(
             value_name = "TARGET",
@@ -204,7 +238,10 @@ pub enum Commands {
         #[arg(long, help = "Print the Evidence Ledger as JSON (one line, jq-ready)")]
         print_json: bool,
     },
-    #[command(about = "When did this path last change?")]
+    #[command(
+        about = "When did this path last change?",
+        override_usage = "zejtron touch <path> or [options] e.g zejtron touch /etc/hosts"
+    )]
     Touch {
         #[arg(value_name = "PATH", help = "Path to inspect without modifying it")]
         path: PathBuf,
@@ -217,7 +254,10 @@ pub enum Commands {
         #[arg(long, help = "Print the Evidence Ledger as JSON (one line, jq-ready)")]
         print_json: bool,
     },
-    #[command(about = "Evidence report for a path or port.")]
+    #[command(
+        about = "Evidence report for a path or port.",
+        override_usage = "zejtron why <target> or [options] e.g zejtron why /etc/passwd"
+    )]
     Why {
         #[arg(
             value_name = "TARGET",
@@ -244,7 +284,10 @@ pub enum Commands {
         )]
         print_json: bool,
     },
-    #[command(about = "Host readiness and symptom analysis.")]
+    #[command(
+        about = "Host readiness and symptom analysis.",
+        override_usage = "zejtron doctor [options] e.g zejtron doctor --symptom ram"
+    )]
     Doctor {
         #[arg(
             long,
@@ -278,7 +321,10 @@ pub enum Commands {
         )]
         print_json: bool,
     },
-    #[command(about = "Which interfaces exist, and how does traffic route?")]
+    #[command(
+        about = "Which interfaces exist, and how does traffic route?",
+        override_usage = "zejtron net [options] e.g zejtron net"
+    )]
     Net {
         #[arg(long, help = "Print the network report as JSON (one line, jq-ready)")]
         print_json: bool,

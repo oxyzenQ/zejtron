@@ -72,7 +72,7 @@ fn stable_output_shape() {
     let checks = [result(CheckStatus::Ok, "os", "linux")];
     let output = format_report(&checks, summarize(&checks));
 
-    assert!(output.starts_with("━━━ zejtron System Doctor ━━━\n\n  Mode: "));
+    assert!(output.starts_with("━━━ zejtron diagnostics report doctor ━━━\n\n  Mode: "));
     assert!(output.contains("  os:              OK    linux"));
     // The Summary row closes the report with no blank line above it,
     // and the build fact rides the build_meta row alone - no

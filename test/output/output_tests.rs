@@ -323,8 +323,8 @@ fn stdout_lane_wrappers_stay_plain_when_mono() {
     assert_eq!(error_bold_out(text), text);
     assert_eq!(brand_bold_out(text), text);
     assert_eq!(
-        banner("zejtron System Doctor"),
-        "━━━ zejtron System Doctor ━━━"
+        banner("zejtron diagnostics report doctor"),
+        "━━━ zejtron diagnostics report doctor ━━━"
     );
 }
 
