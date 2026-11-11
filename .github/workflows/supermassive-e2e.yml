@@ -308,9 +308,15 @@ jobs:
         with:
           path: |
             ebpf/target
-          key: ebpf-build-${{ runner.os }}-arm64-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          # The arm64 segment in the key (the runner.os slot the x86
+          # legs carry is dropped here to fit yamllint's 120-char
+          # line-length law without losing the cross-arch isolation -
+          # the prefix is arm64-distinct, the restore-keys match only
+          # arm64 entries, and the hashFiles scope is identical to the
+          # x86 legs' key).
+          key: ebpf-build-arm64-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
           restore-keys: |
-            ebpf-build-${{ runner.os }}-arm64-
+            ebpf-build-arm64-
 
       - name: Install the eBPF build prerequisites
         run: |
