@@ -49,7 +49,11 @@
 # made aya a plain dependency and no build flag can produce a
 # dormant binary). The lane-honesty checks in the suite pin the
 # honest unavailability rendering on unprivileged/old-kernel
-# runners instead - see scripts/supermassive/README.md.
+# runners instead - see scripts/supermassive/README.md. The arm64
+# lane below is the one exception to the v3 shape: it builds
+# pro-native-arm64-musl (armv8-a is the universal arm64 baseline,
+# no v3 equivalent), the native lane the owner's arm64 mandate
+# added - run host-native on ubuntu-24.04-arm.
 #
 # Trigger discipline (the owner's unfiltered-CI simplification):
 # every push (any branch, any tag) burns this lane - no path filter,
@@ -264,4 +268,75 @@ jobs:
             echo "| leg | toolchain | shape | verdict |"
             echo "|-----|-----------|-------|---------|"
             echo "| supermassive e2e - server simulation | stable | pro-v3-musl (ebpf always-on) | ${LEG_STATUS} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  supermassive-arm64:
+    # The arm64 lane (the owner's arm64 mandate, the sibling
+    # zelynic's supermassive arm64 shape): the same depth suite, run
+    # HOST-NATIVE on the free arm64 runner (ubuntu-24.04-arm). The
+    # lane builds the pro-native-arm64-musl alias once (armv8-a IS
+    # the universal arm64 baseline - no v3 equivalent, target-cpu=
+    # native is the only codegen tier), then runs the low leg
+    # host-native against the aarch64 binary. The low leg's 60s wall
+    # budget keeps the job inside the estate's five-minute-per-job
+    # law on arm64 silicon (slower than x86 but well within budget).
+    # The nested eBPF build rides the same bpfel ISA on every host
+    # arch (host-arch-independent), and bootstrap-ebpf.sh ships the
+    # aarch64 bpf-linker asset, so the lane needs no arm-specific
+    # carve-out beyond the runner and the target triple; the cache
+    # keys carry the arm64 segment so a cross-arch restore cannot
+    # poison the build.
+    name: supermassive e2e - arm64 (native, ubuntu-24.04-arm)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust (stable, the moving frontier)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: stable
+          targets: aarch64-unknown-linux-musl
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-arm64-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-arm64-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          prefix-key: supermassive-e2e-arm64
+
+      - name: Build the pro-native-arm64-musl binary
+        run: cargo pro-native-arm64-musl --locked
+
+      - name: Run the low leg host-native (60s wall budget, full depth)
+        run: |
+          ./scripts/supermassive/legs/low.sh \
+            --bin target/aarch64-unknown-linux-musl/pro-native-arm64-musl/zejtron
+
+      - name: Leg verdict
+        if: always()
+        env:
+          LEG_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "| leg | toolchain | shape | verdict |"
+            echo "|-----|-----------|-------|---------|"
+            echo "| supermassive e2e - arm64 | stable | pro-native-arm64-musl (ebpf always-on) | ${LEG_STATUS} |"
           } >> "$GITHUB_STEP_SUMMARY"
