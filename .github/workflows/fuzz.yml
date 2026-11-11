@@ -45,11 +45,16 @@
 # (fuzz/.gitignore); the seeds are the lane's definition, the same
 # law as the targets and the manifests.
 #
-# The weekly deep session (night-improve-50): the same three targets
-# run for 15 minutes each every Monday 07:30 WIB (00:30 UTC) - the
-# owner-lazy insurance the continuous 60s net cannot buy. The corpus
-# cache restores the accumulated corpus under the same restore-keys,
-# so the deep session and the push sessions grow one asset; a
+# The daily sweep (night-T-1): the scheduled session runs every day
+# at 07:30 WIB (00:30 UTC) with a 180-second budget per target - not
+# the old weekly 15-minute deep blob. The estate law is five minutes
+# per job, and a 900-second burn plus build overhead blew straight
+# through it (measured 15-16 minute scheduled runs, 2026-11-09). The
+# daily sweep beats the weekly blob on its own terms: 7 x 180s = 1260
+# seconds of fuzzing per target per week (+40% depth) and the corpus
+# is never more than a day old, while every job's wall clock lands
+# near four minutes. The corpus cache restores the accumulated corpus
+# under the same restore-keys, so every session grows one asset; a
 # scheduled run and a push on the same ref share the concurrency
 # group, the newer run wins (the estate shape).
 
@@ -60,8 +65,8 @@ name: zejtron - Fuzz
   push:
   pull_request:
   schedule:
-    # The weekly deep session: Monday 00:30 UTC = 07:30 WIB.
-    - cron: "30 0 * * 1"
+    # The daily sweep: every day 00:30 UTC = 07:30 WIB (night-T-1).
+    - cron: "30 0 * * *"
 
 permissions:
   contents: read
@@ -78,10 +83,14 @@ env:
 jobs:
   fuzz:
     # The budget rides the event (the Fuzz step's table): 60s on
-    # push and PR, 900s on the weekly deep session.
+    # push and PR, 180s on the daily sweep (night-T-1).
     name: cargo fuzz ${{ matrix.target }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    # The five-minute law, sized as a fail-fast line: a warm run
+    # lands near four minutes, so 10 gives the honest ceiling before
+    # a runaway build burns the runner (the miri lane's sizing
+    # formula, the sibling contract).
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -145,10 +154,11 @@ jobs:
       - name: Fuzz
         run: |
           # The budget table: 60s on every push and pull request (the
-          # regression net), 900s on the weekly deep session (the
-          # corpus keeps growing between runs either way).
+          # regression net), 180s on the daily sweep (the corpus
+          # grows every day; the estate law keeps each job's wall
+          # clock under five minutes).
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            BUDGET=900
+            BUDGET=180
           else
             BUDGET=60
           fi
