@@ -222,7 +222,7 @@ pub(super) fn write_offsets(offsets: &btf::ProbeOffsets) -> Result<(), String> {
     // its kernel. A value the map cannot hold fails right here, by
     // slot, never silently.
     for (slot, value) in offsets.iter().enumerate() {
-        map.set(slot as u32, *value, 0)
+        map.set(slot as u32, value, 0)
             .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
     }
     Ok(())
@@ -230,7 +230,7 @@ pub(super) fn write_offsets(offsets: &btf::ProbeOffsets) -> Result<(), String> {
 
 /// Plant ONE kprobe program (night-improve-3): load, attach at the
 /// symbol's entry (offset 0), pin the link first, then the program.
-/// The aya 0.14 chain is the tracepoint's: take_link, `TryInto<FdLink>`
+/// The aya 0.16 chain is the tracepoint's: take_link, `TryInto<FdLink>`
 /// (a kprobe attach is fd-backed), FdLink::pin - a PinnedLink with
 /// no detach-on-drop. An unknown symbol fails HERE, loudly, by name:
 /// that is the attach-time honesty a kprobe buys over a hardcoded
@@ -272,7 +272,7 @@ fn plant_kprobe(
 
 /// Plant ONE tracepoint program: load, attach, pin the link first
 /// (the pin is what keeps the probe alive after this process exits),
-/// then the program. aya 0.14's chain: take_link hands the link over
+/// then the program. aya 0.16's chain: take_link hands the link over
 /// from the program's registry (dropping the wrapper would detach
 /// it), the TracePointLink converts into its FdLink backing (a
 /// tracepoint attach is fd-backed), and FdLink::pin consumes the fd

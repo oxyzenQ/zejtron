@@ -24,7 +24,7 @@ rides the std-only guard (see the Removed table).
 | Dependency | Version | Justification (live call sites) |
 |---|---|---|
 | `clap` | 4.5 | The entire CLI surface: derive parser (`src/cli/mod.rs`), help rendering, the brand styles (`src/cli/styles.rs`), error + suggestion lanes. Default features ride (derive + std + color + help + usage + error-context + suggestions are what the surface consumes). |
-| `aya` | 0.14 | The eBPF userspace loader: loads the embedded kernel object (source-built on a git checkout, registry-prebuilt from `ebpf-prebuilt/` on a tarball install), attaches the tracepoints, pins and reads the maps (`src/ebpf/`). Unconditional since night-weekly-maintenance-1 - no feature toggle, no dormant binary; the target install needs no nightly and no bpf-linker. |
+| `aya` | 0.16 | The eBPF userspace loader: loads the embedded kernel object (source-built on a git checkout, registry-prebuilt from `ebpf-prebuilt/` on a tarball install), attaches the tracepoints, pins and reads the maps (`src/ebpf/`). Unconditional since night-weekly-maintenance-1 - no feature toggle, no dormant binary; the target install needs no nightly and no bpf-linker. Its own dependency pulls the object grammar (`aya-obj` 0.6) with it. |
 | `libc` (unix) | 0.2 | The one raw call: the SIGPIPE disposition reset to `SIG_DFL` at main's top (`src/main.rs`) - std has no signal API, and a closed pipe must kill the process the UNIX way (silent, exit 141), never a Rust print panic. night-dragon-6; the escape hatch the policy note above `aya` reserved. `cfg(unix)`-gated. |
 
 ## Removed
