@@ -3,7 +3,7 @@
 
 # the fuzz lane's seed anchors
 
-Three hand-built BTF blobs, one directory per fuzz target, seeded
+Six hand-built BTF blobs, one directory per fuzz target, seeded
 into the working corpus by the lane itself (`.github/workflows/
 fuzz.yml` copies them under `fuzz/corpus/<target>/` before every
 run, after the cache restore, so the fuzzer starts the session
@@ -44,8 +44,28 @@ carry those same shapes into the fuzz lane's own budget.
   so the fd-walk trio rides after the writev records): the parse
   answers `[48, 64, 16, 32, 8, 16, 0, 8, 16, 0, 0, 8]` and
   the writev walk resolves arg0 through the pointer to struct
-  file - the one anchor that exercises BOTH pure entry points
-  the harness drives.
+  file - the one anchor that exercises BOTH of the first two pure
+  entry points the harness drives.
+
+The night-frontier-2 anchors (the third pure entry point, the
+unlink/rename anchor walk) mirror the blobs
+`test/ebpf/btf_unlink_tests.rs` pins - and
+`the_committed_fuzz_seeds_verify_end_to_end` drives the committed
+bytes through the real verifiers, so a stale seed fails the unit
+suite instead of a fuzz run:
+
+- `vfs-unlink-dentry-at-arg2-plus-renamedata.bin` - the modern
+  idmap+ shape: `vfs_unlink(mnt_idmap *, inode *, dentry *,
+  inode **)` puts the dentry at argument index 2, and the rename
+  half carries `renamedata.old_dentry` direct at bit 64 (byte 8).
+  Both new verifiers' happy path in one blob.
+- `vfs-unlink-pre-idmap-dentry-at-arg1.bin` - the pre-5.12 shape:
+  dentry at argument index 1 - the scan must find the anchor
+  wherever the signature carries it.
+- `renamedata-old-dentry-in-unnamed-union.bin` - the 6.18 class
+  applied to renamedata: `old_dentry` rides an unnamed union at
+  bit 64, so the anonymous-aggregate descent (the walk that saved
+  struct file's f_path) is on the fuzzed path too.
 
 The other two targets carry no seeds yet: `proc_parser` and
 `sanitize_display` read byte grammars whose entry shapes are

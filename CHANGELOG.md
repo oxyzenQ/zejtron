@@ -70,6 +70,15 @@ v11.0.0
 
 ### Added
 
+- **The third pure entry point rides the fuzz lane** (night-frontier-3):
+  the btf_parser harness now drives `verify_unlink_lane_in` beside the
+  struct walk and the writev symbol walk - the parameter scan and the
+  renamedata member resolution are host-controlled-bytes surfaces from
+  the day they landed. Three seed anchors join the lane (the modern
+  idmap shape, the pre-idmap shape, the unnamed-union renamedata), and
+  `the_committed_fuzz_seeds_verify_end_to_end` drives the committed
+  bytes through the real verifiers, so a stale seed fails the unit
+  suite instead of a fuzz run that silently loses its starting shape.
 - **The unlink/rename forensic pair** (night-frontier-2): the ledger's
   oldest named hole closed - the README's Limitations carried "does
   not see unlink events" since phase 3, and op=3 sat reserved the
