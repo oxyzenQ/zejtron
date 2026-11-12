@@ -19,16 +19,16 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-12T14:31:00Z"
+generated = "2026-11-12T15:59:50Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "e2b6eb65fdb8ed29e49cf633e8d952438a245636e15619c16540bb78de5e80ea"
+ebpf_tree_blake3 = "9a21ed1300f3f734a179a892b6890fb0e4aacbd03936abd9ae04969990b95475"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "62c5be62b0bf9b3113d8ab05d1651db472d2868764319f467a67f4771ff08b0d"
-size = 15472
+blake3 = "5de1fc2ccb4595b3c8d14c9bd09b23eb3112d8ed4a244bca514ef0d6116eb81a"
+size = 15544
 
 [contract]
 # The six attach targets the loader plants (src/ebpf/loader.rs; the

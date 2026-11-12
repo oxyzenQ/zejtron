@@ -70,6 +70,14 @@ v11.0.0
 
 ### Added
 
+- **The unlink/rename proof rides the why surface** (night-verify-1):
+  the writev proof's shape applied to the forensic pair - one attach,
+  a real unlink(2) through syscall 87 and a real rename(2) through
+  syscall 82 crossing the watched window, and the render must name
+  `unlinked`/`renamed`, `op=unlink`/`op=rename`, the acting pid, and
+  the `[observed]` tag. The floor VM now proves the ledger's oldest
+  hole closed on the exact kernel the floor documents, and the
+  skipped direction stays honest (no attach or no perl).
 - **The kernel matrix harness, the ladder's local seat**
   (night-frontier-4): the four-witness ladder already burns per push
   in CI (supermassive-kernel-witnesses.yml: focal 5.4.0 below the
@@ -2624,6 +2632,19 @@ v11.0.0
 
 ### Fixed
 
+- The unlink probe's register read, fixed at the bytecode level
+  (night-frontier-2 fixup, found live by the VM lanes): aya's
+  runtime-index `ctx.arg(n)` folded in LLVM's lowering into
+  `ctx += computed; load *(ctx)` - a variable-offset context read -
+  and the 5.15 and 6.8 verifiers refuse that class while the newest
+  accept, so the same object attached on the 6.1x moving-latest
+  witness and was refused on the floor kernel. A source-level match
+  of fixed branches compiles to the same computed load; the honest
+  shape is six volatile register loads (each a fixed pt_regs offset,
+  unfoldable by construction) with the BTF-derived index selecting
+  among the pre-loaded values on the stack - the disassembly gate
+  carries six `ldx *(ctx + C)` and no arithmetic on the context
+  pointer. The prebuilt lane regenerated in the same commit.
 - Pre-release tags classify as prerelease GitHub releases now
   (night-dragon-1S): `release.yml`'s validate job picked the FIRST
   matching bash `case` branch, and the stable glob
