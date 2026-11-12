@@ -111,14 +111,6 @@ pub(crate) fn help_command() -> clap::Command {
     styles = crate::cli::styles::clap_styles()
 )]
 pub struct Cli {
-    #[arg(
-        short = 'V',
-        long = "version",
-        global = true,
-        help = "Print complete version and build information"
-    )]
-    pub version: bool,
-
     // The diagnostic trace lane (night-hunter-4): a global flag so it
     // parses before or after any subcommand. stderr-only by law - the
     // Evidence Ledger's stdout stays byte-clean on a pipe.

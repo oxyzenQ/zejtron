@@ -151,12 +151,10 @@ pub fn parse_duration(input: &str) -> Result<Duration, String> {
     // or one-char input fails structurally (no last char, or an
     // empty amount that parse() refuses).
     let Some(unit) = input.chars().next_back() else {
-        return Err(format!("invalid duration: {input}"));
+        return Err(invalid());
     };
     let amount = &input[..input.len() - unit.len_utf8()];
-    let amount: u64 = amount
-        .parse()
-        .map_err(|_| format!("invalid duration: {input}"))?;
+    let amount: u64 = amount.parse().map_err(|_| invalid())?;
 
     // Saturating on purpose (night-total-lts-1): the u64 amount times
     // the unit multiplier can overflow (the day arm multiplies by
@@ -179,7 +177,7 @@ pub fn parse_duration(input: &str) -> Result<Duration, String> {
                 .saturating_mul(60)
                 .saturating_mul(60),
         )),
-        _ => Err(format!("invalid duration: {input}")),
+        _ => Err(invalid()),
     }
 }
 

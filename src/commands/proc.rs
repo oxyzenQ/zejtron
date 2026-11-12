@@ -390,6 +390,17 @@ fn scan_processes_for_uid_at(proc_root: &Path, target_uid: u32) -> Result<ScanRe
     }
 
     processes.sort_by_key(|process| process.pid);
+    // The verb's own diagnostic lane (night-total-hardening-1): the
+    // scan reports what it saw - owned processes kept, unreadable
+    // statuses skipped, the uid the filter ran for. stderr only, the
+    // ledger's stdout stays byte-clean.
+    crate::output::verbose::vlog!(
+        "proc",
+        "scanned /proc: {} owned processes, {} unreadable statuses (target uid {})",
+        processes.len(),
+        unreadable_statuses,
+        target_uid
+    );
     Ok(ScanReport {
         processes,
         unreadable_statuses,
