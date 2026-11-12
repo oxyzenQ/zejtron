@@ -12,7 +12,6 @@
 //! tree so the pub(super) builders reach it.
 
 use super::tests::{StrTab, TypeWriter, build_btf};
-use super::*;
 use crate::ebpf::btf_unlink::verify_unlink_lane_in;
 
 /// The pointer-target structs every blob carries: the int filler
