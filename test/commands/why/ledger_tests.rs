@@ -188,7 +188,8 @@ fn the_trace_ladder_names_each_class_present() {
     assert!(section.contains("1 [measured] enrichment row: /proc/<pid>/cgroup"));
     assert!(section.contains("1 [measured] metadata row: stat(2)"));
     assert!(section.contains(
-        "2 [observed] event rows: vfs_open kprobe + the write probe (raw_syscalls/sys_enter)"
+        "2 [observed] event rows: vfs_open + vfs_writev + vfs_unlink + \
+         vfs_rename kprobes + the write probe (raw_syscalls/sys_enter)"
     ));
     assert!(section.contains("1 [inferred] event row: audit.log SYSCALL+PATH records"));
     assert!(section.contains("Unaccounted and the verdict: composed from the rows above"));
