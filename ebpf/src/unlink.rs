@@ -50,9 +50,11 @@
 // it; this one refuses instead of anchoring wrong).
 
 use aya_ebpf::{
+    bindings::pt_regs as PtRegs,
     helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns},
     macros::kprobe,
     programs::ProbeContext,
+    EbpfContext,
 };
 
 use super::{read_offset_set, read_ptr_at, read_u32_at, read_u64_at};
@@ -122,9 +124,55 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
     unsafe {
         let Some(o) = read_offset_set() else { return 0 };
         let arg = o[OFF_SLOT_UNLINK_DENTRY_ARG as usize] as usize;
-        // The BTF-derived position: extraction failure drops the
-        // event (never fail the probed path).
-        let Some(dentry) = ctx.arg::<u64>(arg) else { return 0 };
+        // The dentry read, FIXED-SHAPE AT THE BYTECODE LEVEL: the
+        // position is this host's data (the offsets map, BTF-derived
+        // at attach), but the context is touched ONLY through six
+        // fixed-register loads - every one unconditional, every one a
+        // compile-time pt_regs offset - and the BTF-derived index
+        // selects among the pre-loaded values on the stack. The
+        // pointer arithmetic aya's own arg(n) performs on the context
+        // is a coin flip in LLVM's lowering: the same source compiled
+        // into `ctx += computed; load *(ctx)` - a variable-offset
+        // context read, the exact class the 5.15 and 6.8 verifiers
+        // refuse while the newest accept - found live when the same
+        // object attached on the 6.1x moving-latest witness and was
+        // refused on the 5.15 floor kernel. A source-level match of
+        // fixed branches compiles to the same computed load (the
+        // constants fold), so the six-loads-first shape is the only
+        // honest guarantee: the disassembly carries six `ldx *(ctx +
+        // C)` and no arithmetic on the context pointer.
+        // Six volatile register reads: volatile cannot be folded by
+        // LLVM, so the disassembly carries six fixed `ldx *(ctx + C)`
+        // loads and the pointer arithmetic never returns - proven by
+        // the disassembly gate, not by hope (the fixed-branch shape
+        // folded into the same computed load).
+        let regs = ctx.as_ptr() as *const PtRegs;
+        let arg0 =
+            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).rdi)) } as u64;
+        let arg1 =
+            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).rsi)) } as u64;
+        let arg2 =
+            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).rdx)) } as u64;
+        let arg3 =
+            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).rcx)) } as u64;
+        let arg4 =
+            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).r8)) } as u64;
+        let arg5 =
+            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).r9)) } as u64;
+        let dentry = match arg {
+            0 => arg0,
+            1 => arg1,
+            2 => arg2,
+            3 => arg3,
+            4 => arg4,
+            5 => arg5,
+            _ => 0,
+        };
+        let dentry = dentry as usize;
+        if dentry == 0 {
+            return 0;
+        }
+        publish_if_tracked(dentry, FILE_OP_UNLINK);
         let dentry = dentry as usize;
         if dentry == 0 {
             return 0;
