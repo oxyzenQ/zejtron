@@ -92,7 +92,7 @@ The lane rides nightly Rust - the fuzzer's standard toolchain - with the main cr
 
 ## Dependency Maintenance
 
-The `zejtron - Dependency Maintenance` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update` in every workspace (the refresh auto-detects each committed `Cargo.toml` - root, `ebpf/`, `fuzz/`), executes `./scripts/build.sh`, and commits the refreshed `Cargo.lock` files directly back to the default branch only after validation passes.
+The `zejtron - Dependency Maintenance` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update` in every workspace (the refresh auto-detects each committed `Cargo.toml` - root, `ebpf/`, `fuzz/`), then proves the prebuilt lane through the ONE WRITER (the parity rider: the read-only verdict first, a rebuild only when the manifest pin lags the swept tree - see the sweep-staled prebuilt lane class in `MAINTENANCE.md`), executes `./scripts/build.sh`, and commits the validated dependency lane - every workspace `Cargo.lock` plus `ebpf-prebuilt/` - directly back to the default branch only after validation passes.
 
 Maintenance workflow commits use:
 

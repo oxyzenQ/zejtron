@@ -72,7 +72,8 @@ diff a later pull surfaced as "what is this new big file?".
 The shipped fix removes the phenomenon at three layers:
 
 1. the artifact now lands OUTSIDE the work tree
-   (`${RUNNER_TEMP}/validated-cargo-lock`), so no staging copy can
+   (under `${RUNNER_TEMP}`, named `validated-dependency-lane` since
+   night-zen-2), so no staging copy can
    ever exist at a tracked path;
 2. the commit job stages the EXACT lockfile set derived from the
    manifest walk (each `Cargo.toml` path rewritten to its sibling
@@ -90,6 +91,44 @@ git rm -rq .auto-update
 The rule going forward: a workflow that downloads an artifact before
 committing lands it under `RUNNER_TEMP`, never in-tree; and a
 `git add` in a bot lane stages an explicit path list, not a glob.
+
+## The sweep-staled prebuilt lane class (fixed, night-zen-2)
+
+The field report (2026-11-12, the bot commit `9708883`): the first
+full multi-workspace sweep moved `ebpf/Cargo.lock` (a transitive
+1.0.18 -> 1.0.19 and syn 3.0.9 -> 3.0.10 rode the refresh), which
+changed the git-tracked `ebpf/` tree, so the prebuilt manifest's
+`ebpf_tree_blake3` pin lagged HEAD the moment the bot pushed. The
+tree's own defenses never saw it coming: the pairing gate lives in
+the pre-commit hook, and the bot's ephemeral runner carries no hook;
+the build-time arm (`build/ebpf.rs`'s auto-heal) did rebuild the lane
+on the runner, but the dependency artifact carried only lockfiles,
+so the healed lane was discarded with the workspace. The next
+wholesale gate-keepers run would have gone red on check 16 (the
+push-time parity seat) with nobody left to heal it - the exact shape
+the zelynic tree already fixed there.
+
+The shipped fix is the parity rider, ported from the sibling: the
+maintenance validate job runs the ONE WRITER right after the manifest
+walk, where the full toolchain already lives - the read-only verdict
+first, the writer only when the pin lags, and a writer failure fails
+the job, so a sweep never ships a lane it cannot prove. The healed
+lane rides the widened artifact (the validated dependency lane: every
+workspace lockfile plus `ebpf-prebuilt/`) to the commit job, which
+has no toolchain and must never rebuild: the lane is mirrored over
+the checkout with `rsync --delete` (a retired object cannot linger)
+and staged explicitly, while both allow-lists widen to exactly the
+paths the sweep owns - lockfiles plus the prebuilt lane.
+
+The rule going forward: the sweep and the lane move together or not
+at all - no lockfile refresh may leave the prebuilt pin behind, and
+no allow-list may admit paths the sweep does not own. A checkout
+already carrying a staled pin recovers through the validated
+pipeline:
+
+```
+./scripts/dev/regenerate-ebpf-prebuilt.sh && git add ebpf-prebuilt
+```
 
 ## The unknown commit id class (armed since night-improve-5)
 
