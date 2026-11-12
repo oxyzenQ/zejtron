@@ -316,7 +316,7 @@ mod ctx_offsets {
 /// the return value is recorded but never acts as a filter.
 #[tracepoint(name = "sched_process_exec", category = "sched")]
 pub fn sched_process_exec(_ctx: TracePointContext) -> u32 {
-    // aya-ebpf 0.2.1's map API is safe code: the lookup is
+    // aya-ebpf 0.3's map API is safe code: the lookup is
     // bounds-checked (Array::get returns Option) and the verifier
     // re-proves the whole program at load time.
     if let Some(counter) = stats.get(STATS_EVENTS) {

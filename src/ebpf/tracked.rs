@@ -51,7 +51,7 @@ pub fn track_file(inode: u64, device: u64) -> Result<(), String> {
     let mut owned = Map::HashMap(map_data);
     let mut map: HashMap<_, u64, u8> = HashMap::try_from(&mut owned)
         .map_err(|e| format!("the pinned tracked_inodes map is not a hash map: {e}"))?;
-    map.insert(key, 1u8, 0)
+    map.insert(&key, &1u8, 0)
         .map_err(|e| format!("the tracked_inodes insert failed: {e}"))
 }
 

@@ -114,21 +114,23 @@ clap = { version = "4.5.40", features = ["derive"] }
 # hand-written escape_journal_regex for an EXTERNAL command's engine,
 # which needs no regex crate on this side. The runtime graph is
 # three crates now: clap, aya, libc.
-# night-improve-1, the eBPF lane: aya 0.14 is the userspace loader,
-# and since night-weekly-maintenance-1 it rides UNCONDITIONALLY (no
-# feature toggle) - the registry install lands the full-featured
-# binary through the prebuilt lane (see the note below the
-# dependencies). It is the upstream
-# pairing of the ebpf/ crate's aya-ebpf
-# 0.2.1 (the validated pair the zelynic and zylaxion lineages build
-# on): loads the embedded object, attaches the tracepoint, pins and
-# reads the maps. libc is deliberately NOT pulled in: every Phase 1
-# kernel fact is readable through std fs (/proc/sys/kernel/osrelease,
-# /proc/self/status CapEff, /sys/kernel/security/lockdown) and aya's
-# typed API covers the rest - an unused dependency would violate the
-# dependency policy; a later pass that needs a raw syscall adds it
-# feature-gated, one line.
-aya = { version = "0.14" }
+# night-improve-1, the eBPF lane; night-enhance-1 moved the family:
+# aya 0.16 is the userspace loader, and since night-weekly-maintenance-1
+# it rides UNCONDITIONALLY (no feature toggle) - the registry install
+# lands the full-featured binary through the prebuilt lane (see the
+# note below the dependencies). It is the upstream pairing of the
+# ebpf/ crate's aya-ebpf 0.3 (night-enhance-1's LTS swap: aya 0.16
+# declares aya-obj 0.6 itself, so the loader's object grammar rides
+# the same family without a direct dependency; aya-ebpf 0.3 still
+# build-deps aya-build 0.2.1, so the serde carve-out's shape is
+# unchanged): loads the embedded object, attaches the tracepoint,
+# pins and reads the maps. libc is deliberately NOT pulled in: every
+# Phase 1 kernel fact is readable through std fs
+# (/proc/sys/kernel/osrelease, /proc/self/status CapEff,
+# /sys/kernel/security/lockdown) and aya's typed API covers the rest
+# - an unused dependency would violate the dependency policy; a later
+# pass that needs a raw syscall adds it feature-gated, one line.
+aya = { version = "0.16" }
 
 # The eBPF support is UNCONDITIONAL (night-weekly-maintenance-1, the
 # owner's "always enable, permanent" law): night-improve-5 made `ebpf`
