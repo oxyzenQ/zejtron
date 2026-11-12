@@ -65,14 +65,19 @@ pub const WINDOW_DEFAULT: Duration = Duration::from_secs(60);
 // ── The window grammar (lane-independent) ──────────────────────────
 
 /// Parse a `--since` duration: an integer plus one unit from
-/// `s`/`m`/`h` (`60s`, `5m`, `1h`). Deliberately NOT recent's
-/// parser: that one speaks the file-age grammar (`m`/`h`/`d` - days
-/// are meaningless inside a one-hour window, seconds are meaningless
-/// for file ages); this one speaks the window grammar, and the two
-/// surfaces keep their own grammars rather than sharing a
-/// lowest-common denominator that serves neither.
+/// `s`/`m`/`h`/`d` (`60s`, `5m`, `1h`, `1d`). One grammar for the
+/// whole CLI (night-total-hardening-1): this used to deliberately
+/// split from recent's parser - days "meaningless inside a one-hour
+/// window" - but the split only taught users two vocabularies for
+/// one flag spelling, and the clamp already owns the semantics: a
+/// `1d` ask saturates above the ceiling and lands on the same
+/// named-truncation note an absurd `18446744073709551h` gets, so
+/// the grammar is uniform and the window contract is unchanged.
+/// The error names the grammar - the rejection used to render bare
+/// ("invalid duration: 2s" on the recent side, the owner's night-QC
+/// catch), with no example line to recover from.
 pub fn parse_window(input: &str) -> Result<Duration, PortError> {
-    let invalid = || PortError(format!("invalid duration: {input}"));
+    let invalid = || PortError(format!("invalid duration: {input} (use e.g. 30s, 10m, 1h)"));
     // The unit is the final CHARACTER, never the final byte
     // (night-dragon-lts-1): str::split_at panics when its index
     // lands inside a multibyte character, so a `--since 5分` or a
@@ -101,6 +106,9 @@ pub fn parse_window(input: &str) -> Result<Duration, PortError> {
         's' => Ok(Duration::from_secs(amount)),
         'm' => Ok(Duration::from_secs(amount.saturating_mul(60))),
         'h' => Ok(Duration::from_secs(amount.saturating_mul(3600))),
+        'd' => Ok(Duration::from_secs(
+            amount.saturating_mul(24).saturating_mul(3600),
+        )),
         _ => Err(invalid()),
     }
 }

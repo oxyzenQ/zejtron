@@ -101,6 +101,18 @@ pub fn run(
 }
 
 pub fn parse_duration(input: &str) -> Result<Duration, String> {
+    // One duration grammar for the whole CLI (night-total-hardening-1):
+    // `s`/`m`/`h`/`d` - the same four units the port window parser
+    // speaks, each surface keeping its own semantics (the window
+    // clamps into [1s, 1h]; the file-age filter takes the ask as-is).
+    // `s` joins the file-age grammar because the tool's own renderer
+    // speaks it: `rough_age` prints "59s ago", so a `--since 30s`
+    // ask was the tool refusing the very granularity it displays.
+    // The error names the grammar (the owner's night-QC catch: the
+    // rejection used to render bare - "invalid duration: 3" - with
+    // no example line, unlike every clap usage error that names its
+    // own help).
+    let invalid = || format!("invalid duration: {input} (use e.g. 30s, 10m, 2h, 7d)");
     // The unit is the final CHARACTER, never the final byte
     // (night-dragon-lts-1, the same law the port window parser
     // carries): str::split_at panics when its index lands inside a
@@ -128,6 +140,7 @@ pub fn parse_duration(input: &str) -> Result<Duration, String> {
     // the fix. The port window parser (window.rs) carries the same
     // law for the same reason.
     match unit {
+        's' => Ok(Duration::from_secs(amount)),
         'm' => Ok(Duration::from_secs(amount.saturating_mul(60))),
         'h' => Ok(Duration::from_secs(
             amount.saturating_mul(60).saturating_mul(60),
