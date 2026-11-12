@@ -110,7 +110,7 @@ fn sorts_newest_first() {
 }
 
 #[test]
-fn limit_zero_selects_no_files() {
+fn limit_zero_selects_no_files_but_names_the_match_count() {
     let now = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
     let files = vec![RecentFile {
         path: PathBuf::from("file"),
@@ -121,7 +121,13 @@ fn limit_zero_selects_no_files() {
         perms: 0o644,
     }];
 
-    assert!(select_recent_files(files, 0, None, now).is_empty());
+    // night-total-hardening-1: the selection is empty but the match
+    // count survives the cut, so the renderer can name a limit-0
+    // cut as a cut - never "no modified files found" over a tree
+    // that holds a match.
+    let (selected, matched) = select_recent_files(files, 0, None, now);
+    assert!(selected.is_empty());
+    assert_eq!(matched, 1);
 }
 
 #[test]

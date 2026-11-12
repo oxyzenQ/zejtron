@@ -62,11 +62,12 @@ pub fn run(
         files.len(),
         path.display()
     );
-    let files = select_recent_files(files, limit, since, SystemTime::now());
+    let (files, matched) = select_recent_files(files, limit, since, SystemTime::now());
     crate::output::verbose::vlog!(
         "recent",
-        "showing {} file(s) after the window and limit",
-        files.len()
+        "showing {} of {} file(s) after the window and limit",
+        files.len(),
+        matched
     );
 
     // The renderer branch (night-badass-9): the JSON lane speaks the
@@ -82,8 +83,23 @@ pub fn run(
     }
 
     if files.is_empty() {
-        // The empty-result line rides grey (the "no events" class).
-        println!("{}", crate::output::grey_out("no modified files found"));
+        // The cut is named, never silently rebranded
+        // (night-total-hardening-1): a --limit 0 ask over a tree
+        // that holds matches used to render "no modified files
+        // found" - a false statement about the host. The limit cut
+        // and the empty scan are different truths; the line says
+        // which one it is. Both ride grey (the "no events" class)
+        // and keep the never-all-white law (a non-empty render).
+        if matched > 0 {
+            println!(
+                "{}",
+                crate::output::grey_out(&format!(
+                    "0 of {matched} modified files shown (--limit 0)"
+                ))
+            );
+        } else {
+            println!("{}", crate::output::grey_out("no modified files found"));
+        }
         return Ok(());
     }
 
@@ -194,12 +210,17 @@ pub fn sort_newest_first(files: &mut [RecentFile]) {
     files.sort_by_key(|file| Reverse(file.modified));
 }
 
+/// The selection and the match count it cut: the tuple's second
+/// half is how many files the window passed (before the limit
+/// truncated), so the renderer can name a limit-0 cut as a cut -
+/// never as "no modified files found" over a tree that holds
+/// matches (night-total-hardening-1).
 fn select_recent_files(
     mut files: Vec<RecentFile>,
     limit: usize,
     since: Option<Duration>,
     now: SystemTime,
-) -> Vec<RecentFile> {
+) -> (Vec<RecentFile>, usize) {
     sort_newest_first(&mut files);
 
     if let Some(since) = since {
@@ -210,8 +231,9 @@ fn select_recent_files(
         });
     }
 
+    let matched = files.len();
     files.truncate(limit);
-    files
+    (files, matched)
 }
 
 fn scan_recent_files(path: &Path) -> io::Result<Vec<RecentFile>> {
