@@ -123,14 +123,10 @@ pub fn clamp_window(window: Duration) -> Duration {
 /// The clamp note (night-dragon-lts-T1 residual, both directions
 /// since night-total-hardening-1): an ask the clamp reshapes is a
 /// fact the user sees, not a surprise they diagnose - the ceiling
-/// side answered a silent one-hour wait, and the floor side
-/// ("--since 0s" rides as 1s) carried the same reshaping with the
-/// same silence. The note names the ask and the bound it landed on;
-/// the caller emits it on stderr (never stdout: the report stays
-/// byte-clean for pipes), once per invocation, and only when the
-/// parsed ask is actually out of bounds - in-bounds asks and an
-/// absent --since stay word-free. Pure: the string is the contract,
-/// and the tests pin it byte-for-byte in both directions.
+/// side answered a silent one-hour wait; the floor side ("--since
+/// 0s" rides as 1s) carried the same silence. Emitted on stderr,
+/// once per invocation; in-bounds asks and an absent --since stay
+/// word-free. Pure: the tests pin both directions byte-for-byte.
 pub fn truncation_note(raw: &str, parsed: Duration) -> Option<String> {
     if parsed > WINDOW_CEILING {
         Some(format!(
