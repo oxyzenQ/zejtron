@@ -39,11 +39,20 @@ pub fn run(
     // is the reportable fact; the per-entry skips inside the walk stay
     // silent by the scan contract above.
     let files = scan_recent_files(path).map_err(|error| match error.kind() {
+        // The echo is capped and sanitized (night-total-hardening-1):
+        // the scan root is the user's own bytes, and a pathological
+        // length is named, not flooded.
         io::ErrorKind::NotFound => {
-            format!("{}: no such file or directory", path.display())
+            format!(
+                "{}: no such file or directory",
+                crate::system::display_operand(&path.display().to_string())
+            )
         }
         io::ErrorKind::PermissionDenied => {
-            format!("{}: permission denied", path.display())
+            format!(
+                "{}: permission denied",
+                crate::system::display_operand(&path.display().to_string())
+            )
         }
         _ => error.to_string(),
     })?;

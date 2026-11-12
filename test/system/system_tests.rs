@@ -100,6 +100,60 @@ fn sanitize_display_neutralizes_escape_sequences() {
 }
 
 #[test]
+fn display_operand_keeps_honest_operands_byte_identical() {
+    // The refusal echo is the identity for every operand a real ask
+    // carries: short paths, ports, command names, multibyte text.
+    assert_eq!(display_operand("/etc/resolv.conf"), "/etc/resolv.conf");
+    assert_eq!(display_operand("22"), "22");
+    assert_eq!(display_operand("sh"), "sh");
+    assert_eq!(display_operand("café-owner"), "café-owner");
+    assert_eq!(display_operand(""), "");
+}
+
+#[test]
+fn display_operand_caps_pathological_echoes() {
+    // A pathological ask (a 100KB filename) is named by its first 96
+    // characters plus the cut marker - never flooded verbatim.
+    let hostile = "a".repeat(100_000);
+    let capped = display_operand(&hostile);
+    assert_eq!(capped.chars().count(), MAX_OPERAND_DISPLAY_CHARS + 3);
+    assert!(capped.ends_with("..."));
+    assert!(capped.starts_with(&"a".repeat(MAX_OPERAND_DISPLAY_CHARS)));
+    // The boundary itself rides uncapped: 96 is legal, 97 cuts.
+    assert_eq!(
+        display_operand(&"b".repeat(MAX_OPERAND_DISPLAY_CHARS))
+            .chars()
+            .count(),
+        MAX_OPERAND_DISPLAY_CHARS
+    );
+    assert_eq!(
+        display_operand(&"c".repeat(MAX_OPERAND_DISPLAY_CHARS + 1))
+            .chars()
+            .count(),
+        MAX_OPERAND_DISPLAY_CHARS + 3
+    );
+}
+
+#[test]
+fn display_operand_sanitizes_before_capping() {
+    // The cap rides the sanitized shape: a control byte near the head
+    // costs its six-character neutral form against the 96-char budget
+    // (the ESC lands inside the cap window), and the output never
+    // carries a raw control character.
+    let hostile = format!("{}\x1b[31m{}", "x".repeat(10), "y".repeat(200));
+    let capped = display_operand(&hostile);
+    assert!(!capped.chars().any(char::is_control));
+    assert!(capped.contains("\\u{1b}"));
+    assert!(capped.ends_with("..."));
+    // A multibyte operand is cut on a character boundary, never
+    // mid-byte: the take walks chars.
+    let multibyte = "é".repeat(200);
+    let capped = display_operand(&multibyte);
+    assert!(capped.chars().all(|c| c == 'é' || c == '.'));
+    assert!(capped.ends_with("..."));
+}
+
+#[test]
 fn read_status_name_sanitizes_hostile_name() {
     // The display-bound Name reader neutralizes a comm packed with an
     // escape sequence; the faithful grammar reader beside it keeps the

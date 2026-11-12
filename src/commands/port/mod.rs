@@ -111,11 +111,20 @@ pub fn parse_options(port: Option<&str>, flags: PortFlags) -> Result<PortOptions
 }
 
 pub fn validate_port(input: &str) -> Result<u16, PortError> {
-    let port: u16 = input
-        .parse()
-        .map_err(|_| PortError(format!("invalid port: {input}")))?;
+    // The refusal echoes ride the capped shape (night-total-
+    // hardening-1): an all-digits ask of pathological length is a
+    // parse refusal, not a terminal flood.
+    let port: u16 = input.parse().map_err(|_| {
+        PortError(format!(
+            "invalid port: {}",
+            crate::system::display_operand(input)
+        ))
+    })?;
     if port == 0 {
-        return Err(PortError(format!("invalid port: {input}")));
+        return Err(PortError(format!(
+            "invalid port: {}",
+            crate::system::display_operand(input)
+        )));
     }
     Ok(port)
 }
