@@ -21,148 +21,148 @@
 # Exercised flags: --trace, --raw, --since, positional TARGET.
 
 surface_why() {
-	local rc
-	# The fixture is the repo README: present on every host that has
-	# the tree, stable across the run (nothing rewrites it).
-	local file="$SUITE_README"
+        local rc
+        # The fixture is the repo README: present on every host that has
+        # the tree, stable across the run (nothing rewrites it).
+        local file="$SUITE_README"
 
-	# Success path: the battery-pinned verdict line. The window
-	# law: --since 1s (the clamp floor) bounds the live lane.
-	sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1s
-	sm_assert_rc 0 "$rc" "why <readme> exits 0"
-	sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "why renders content"
-	sm_assert_contains "$SM_SCRATCH/ok.out" "The evidence supports:" "why names the evidence verdict"
+        # Success path: the battery-pinned verdict line. The window
+        # law: --since 1s (the clamp floor) bounds the live lane.
+        sm_run "$SM_SCRATCH/ok.out" "$SM_SCRATCH/ok.err" rc 5 -- \
+                "$SM_DEFAULT_BIN" why "$file" --since 1s
+        sm_assert_rc 0 "$rc" "why <readme> exits 0"
+        sm_assert_file_nonempty "$SM_SCRATCH/ok.out" "why renders content"
+        sm_assert_contains "$SM_SCRATCH/ok.out" "The evidence supports:" "why names the evidence verdict"
 
-	# The typed JSON lane (night-dragon-4): the ledger's automation
-	# contract on the evidence report - pure JSON, silent stderr,
-	# the typed v3 keys.
-	sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1s --print-json
-	sm_assert_rc 0 "$rc" "why --print-json exits 0"
-	sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
-		"why --print-json keeps stderr silent"
-	sm_assert_pure_json "$SM_SCRATCH/json.out" \
-		"why --print-json stdout is pure JSON"
-	sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 4' \
-		"why --print-json names the ledger version"
-	sm_assert_json "$SM_SCRATCH/json.out" '.verdict | has("supports")' \
-		"why --print-json carries the typed verdict"
-	sm_assert_json "$SM_SCRATCH/json.out" '.subject | type == "string"' \
-		"why --print-json carries the typed subject"
-	sm_flag_used "why --print-json"
+        # The typed JSON lane (night-dragon-4): the ledger's automation
+        # contract on the evidence report - pure JSON, silent stderr,
+        # the typed v3 keys.
+        sm_run "$SM_SCRATCH/json.out" "$SM_SCRATCH/json.err" rc 5 -- \
+                "$SM_DEFAULT_BIN" why "$file" --since 1s --print-json
+        sm_assert_rc 0 "$rc" "why --print-json exits 0"
+        sm_assert_silent_stderr "$SM_SCRATCH/json.err" \
+                "why --print-json keeps stderr silent"
+        sm_assert_pure_json "$SM_SCRATCH/json.out" \
+                "why --print-json stdout is pure JSON"
+        sm_assert_json "$SM_SCRATCH/json.out" '.ledger_version == 4' \
+                "why --print-json names the ledger version"
+        sm_assert_json "$SM_SCRATCH/json.out" '.verdict | has("supports")' \
+                "why --print-json carries the typed verdict"
+        sm_assert_json "$SM_SCRATCH/json.out" '.subject | type == "string"' \
+                "why --print-json carries the typed subject"
+        sm_flag_used "why --print-json"
 
-	# --trace appends the explainability ladder.
-	sm_run "$SM_SCRATCH/trace.out" "$SM_SCRATCH/trace.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1s --trace
-	sm_assert_rc 0 "$rc" "why --trace exits 0"
-	if grep -qi "trace\|how zejtron knows" "$SM_SCRATCH/trace.out"; then
-		sm_pass "why --trace renders the ladder section"
-	else
-		sm_fail "why --trace renders the ladder section" "no trace section in the render"
-	fi
-	if [[ "$(wc -l <"$SM_SCRATCH/trace.out")" -ge "$(wc -l <"$SM_SCRATCH/ok.out")" ]]; then
-		sm_pass "why --trace renders at least the base report"
-	else
-		sm_fail "why --trace renders at least the base report" "trace render is shorter than the base"
-	fi
-	sm_flag_used "why --trace"
+        # --trace appends the explainability ladder.
+        sm_run "$SM_SCRATCH/trace.out" "$SM_SCRATCH/trace.err" rc 5 -- \
+                "$SM_DEFAULT_BIN" why "$file" --since 1s --trace
+        sm_assert_rc 0 "$rc" "why --trace exits 0"
+        if grep -qi "trace\|how zejtron knows" "$SM_SCRATCH/trace.out"; then
+                sm_pass "why --trace renders the ladder section"
+        else
+                sm_fail "why --trace renders the ladder section" "no trace section in the render"
+        fi
+        if [[ "$(wc -l <"$SM_SCRATCH/trace.out")" -ge "$(wc -l <"$SM_SCRATCH/ok.out")" ]]; then
+                sm_pass "why --trace renders at least the base report"
+        else
+                sm_fail "why --trace renders at least the base report" "trace render is shorter than the base"
+        fi
+        sm_flag_used "why --trace"
 
-	# --raw appends the drained kernel events.
-	sm_run "$SM_SCRATCH/raw.out" "$SM_SCRATCH/raw.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1s --raw
-	sm_assert_rc 0 "$rc" "why --raw exits 0"
-	if [[ "$(wc -l <"$SM_SCRATCH/raw.out")" -ge "$(wc -l <"$SM_SCRATCH/ok.out")" ]]; then
-		sm_pass "why --raw renders at least the base report"
-	else
-		sm_fail "why --raw renders at least the base report" "raw render is shorter than the base"
-	fi
-	sm_flag_used "why --raw"
+        # --raw appends the drained kernel events.
+        sm_run "$SM_SCRATCH/raw.out" "$SM_SCRATCH/raw.err" rc 5 -- \
+                "$SM_DEFAULT_BIN" why "$file" --since 1s --raw
+        sm_assert_rc 0 "$rc" "why --raw exits 0"
+        if [[ "$(wc -l <"$SM_SCRATCH/raw.out")" -ge "$(wc -l <"$SM_SCRATCH/ok.out")" ]]; then
+                sm_pass "why --raw renders at least the base report"
+        else
+                sm_fail "why --raw renders at least the base report" "raw render is shorter than the base"
+        fi
+        sm_flag_used "why --raw"
 
-	# Error ladder: invalid port numbers (runtime failures, exit 1).
-	local bad
-	for bad in 0 65536; do
-		sm_run "$SM_SCRATCH/bad.out" "$SM_SCRATCH/bad.err" rc 5 -- "$SM_DEFAULT_BIN" why "$bad"
-		sm_assert_rc 1 "$rc" "why $bad exits 1"
-		if grep -q "invalid port" "$SM_SCRATCH/bad.out" "$SM_SCRATCH/bad.err" 2>/dev/null; then
-			sm_pass "why $bad names the invalid port"
-		else
-			sm_fail "why $bad names the invalid port" "neither stream mentioned 'invalid port'"
-		fi
-	done
+        # Error ladder: invalid port numbers (runtime failures, exit 1).
+        local bad
+        for bad in 0 65536; do
+                sm_run "$SM_SCRATCH/bad.out" "$SM_SCRATCH/bad.err" rc 5 -- "$SM_DEFAULT_BIN" why "$bad"
+                sm_assert_rc 1 "$rc" "why $bad exits 1"
+                if grep -q "invalid port" "$SM_SCRATCH/bad.out" "$SM_SCRATCH/bad.err" 2>/dev/null; then
+                        sm_pass "why $bad names the invalid port"
+                else
+                        sm_fail "why $bad names the invalid port" "neither stream mentioned 'invalid port'"
+                fi
+        done
 
-	# Error path: missing filesystem target (battery-pinned).
-	sm_run "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$SM_SCRATCH/no-such-target"
-	sm_assert_rc 1 "$rc" "why <missing> exits 1"
-	if grep -q "path not found" "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" 2>/dev/null; then
-		sm_pass "why <missing> names the missing path"
-	else
-		sm_fail "why <missing> names the missing path" "neither stream mentioned 'path not found'"
-	fi
+        # Error path: missing filesystem target (battery-pinned).
+        sm_run "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" rc 5 -- \
+                "$SM_DEFAULT_BIN" why "$SM_SCRATCH/no-such-target"
+        sm_assert_rc 1 "$rc" "why <missing> exits 1"
+        if grep -q "path not found" "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" 2>/dev/null; then
+                sm_pass "why <missing> names the missing path"
+        else
+                sm_fail "why <missing> names the missing path" "neither stream mentioned 'path not found'"
+        fi
 
-	# --since grammar. The width is the clamp floor (the window law)
-	# - the flag's contract is acceptance and render, not a wait.
-	sm_run "$SM_SCRATCH/since.out" "$SM_SCRATCH/since.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1s
-	sm_assert_rc 0 "$rc" "why --since 1s exits 0"
-	sm_flag_used "why --since"
+        # --since grammar. The width is the clamp floor (the window law)
+        # - the flag's contract is acceptance and render, not a wait.
+        sm_run "$SM_SCRATCH/since.out" "$SM_SCRATCH/since.err" rc 5 -- \
+                "$SM_DEFAULT_BIN" why "$file" --since 1s
+        sm_assert_rc 0 "$rc" "why --since 1s exits 0"
+        sm_flag_used "why --since"
 
-	# Determinism on the pinned fixture. The window law: --since 1s.
-	sm_deterministic "why determinism (readme fixture)" 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1s
+        # Determinism on the pinned fixture. The window law: --since 1s.
+        sm_deterministic "why determinism (readme fixture)" 5 -- \
+                "$SM_DEFAULT_BIN" why "$file" --since 1s
 
-	# The color tri-test.
-	# The tri-test rides the normalized bytes: the render carries the
-	# evidence file's access time, and reading the file IS the act
-	# that moves it - the tool's own two passes land a second apart
-	# on hosts without relatime throttling. The volatile-field table
-	# owns that stamp; the strict raw claim cannot hold for it.
-	SM_TRITEST_NORMALIZE=1 sm_color_tritest "why" 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1s
+        # The color tri-test.
+        # The tri-test rides the normalized bytes: the render carries the
+        # evidence file's access time, and reading the file IS the act
+        # that moves it - the tool's own two passes land a second apart
+        # on hosts without relatime throttling. The volatile-field table
+        # owns that stamp; the strict raw claim cannot hold for it.
+        SM_TRITEST_NORMALIZE=1 sm_color_tritest "why" 5 -- \
+                "$SM_DEFAULT_BIN" why "$file" --since 1s
 
-	# Lane honesty: no dormant build exists (owner law); the lane
-	# declaration and the no-fake-observed-rows rule are the check.
-	# The window law: --since 1s.
-	sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- \
-		"$SM_DEFAULT_BIN" why "$file" --since 1s
-	sm_assert_rc 0 "$rc" "lane honesty: why renders its mode"
-	sm_assert_contains "$SM_SCRATCH/lane.out" "Mode:" "lane honesty: why declares its lane"
-	if grep -q "Mode: snapshot" "$SM_SCRATCH/lane.out"; then
-		sm_assert_not_contains "$SM_SCRATCH/lane.out" "\\[observed\\]" \
-			"lane honesty: snapshot mode renders no fake [observed] rows"
-	else
-		sm_pass "lane honesty: snapshot mode renders no fake [observed] rows (probe lane active)"
-	fi
+        # Lane honesty: no dormant build exists (owner law); the lane
+        # declaration and the no-fake-observed-rows rule are the check.
+        # The window law: --since 1s.
+        sm_run "$SM_SCRATCH/lane.out" "$SM_SCRATCH/lane.err" rc 5 -- \
+                "$SM_DEFAULT_BIN" why "$file" --since 1s
+        sm_assert_rc 0 "$rc" "lane honesty: why renders its mode"
+        sm_assert_contains "$SM_SCRATCH/lane.out" "Mode:" "lane honesty: why declares its lane"
+        if grep -q "Mode: snapshot" "$SM_SCRATCH/lane.out"; then
+                sm_assert_not_contains "$SM_SCRATCH/lane.out" "\\[observed\\]" \
+                        "lane honesty: snapshot mode renders no fake [observed] rows"
+        else
+                sm_pass "lane honesty: snapshot mode renders no fake [observed] rows (probe lane active)"
+        fi
 
-	# The writev proof (night-improve-42): the vectorized-write
-	# false-negative gap, closed and PROVEN live. A real writev(2) -
-	# two iovecs through syscall 20 (x86_64, the only architecture
-	# this project ships) - must surface as an [observed] row naming
-	# the write path and the writer's pid. Gated on the two facts the
-	# check needs: the probe can attach on THIS host (the doctor's own
-	# preflight), and perl - the battery's writev writer, present in
-	# the ubuntu base by construction - is on PATH. Hosts without
-	# either skip with the honest label; the refusal direction is
-	# already pinned by the doctor surface.
-	if command -v perl >/dev/null 2>&1 &&
-		"$SM_DEFAULT_BIN" doctor --attach >"$SM_SCRATCH/wv-attach.out" 2>"$SM_SCRATCH/wv-attach.err"; then
-		sm_pass "writev proof: the probe attaches on this host"
-		local wv_file="$SM_SCRATCH/writev-proof.txt"
-		local wv_why_pid wv_writer wv_rc wv_pid
-		: >"$wv_file"
-		# The window opens first: why inserts the filter key and
-		# collects for --since seconds while the writer crosses it.
-		# The timeout guard is the honest hang bound (20s for a 5s
-		# window plus render).
-		timeout 20 "$SM_DEFAULT_BIN" why "$wv_file" --since 5s --raw \
-			>"$SM_SCRATCH/wv-why.out" 2>"$SM_SCRATCH/wv-why.err" &
-		wv_why_pid=$!
-		sleep 1
-		# The writer: opens, writev's two buffers, prints its pid,
-		# then stays alive past the render (an exited writer reads
-		# as unaccounted by design - the attribution needs /proc).
-		perl -e '
+        # The writev proof (night-improve-42): the vectorized-write
+        # false-negative gap, closed and PROVEN live. A real writev(2) -
+        # two iovecs through syscall 20 (x86_64, the only architecture
+        # this project ships) - must surface as an [observed] row naming
+        # the write path and the writer's pid. Gated on the two facts the
+        # check needs: the probe can attach on THIS host (the doctor's own
+        # preflight), and perl - the battery's writev writer, present in
+        # the ubuntu base by construction - is on PATH. Hosts without
+        # either skip with the honest label; the refusal direction is
+        # already pinned by the doctor surface.
+        if command -v perl >/dev/null 2>&1 &&
+                "$SM_DEFAULT_BIN" doctor --attach >"$SM_SCRATCH/wv-attach.out" 2>"$SM_SCRATCH/wv-attach.err"; then
+                sm_pass "writev proof: the probe attaches on this host"
+                local wv_file="$SM_SCRATCH/writev-proof.txt"
+                local wv_why_pid wv_writer wv_rc wv_pid
+                : >"$wv_file"
+                # The window opens first: why inserts the filter key and
+                # collects for --since seconds while the writer crosses it.
+                # The timeout guard is the honest hang bound (20s for a 5s
+                # window plus render).
+                timeout 20 "$SM_DEFAULT_BIN" why "$wv_file" --since 5s --raw \
+                        >"$SM_SCRATCH/wv-why.out" 2>"$SM_SCRATCH/wv-why.err" &
+                wv_why_pid=$!
+                sleep 1
+                # The writer: opens, writev's two buffers, prints its pid,
+                # then stays alive past the render (an exited writer reads
+                # as unaccounted by design - the attribution needs /proc).
+                perl -e '
                         $| = 1;
                         my $f = shift;
                         open(my $fh, ">>", $f) or die "open: $!";
@@ -176,79 +176,79 @@ surface_why() {
                         print "pid=$$\n";
                         sleep 8;
                 ' "$wv_file" >"$SM_SCRATCH/wv-writer.out" 2>"$SM_SCRATCH/wv-writer.err" &
-		wv_writer=$!
-		wv_rc=0
-		wait "$wv_why_pid" || wv_rc=$?
-		sm_assert_rc 0 "$wv_rc" "writev proof: why --since 5s --raw exits 0"
-		wv_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/wv-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
-		if grep -q "wrote (writev)" "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
-			sm_pass "writev proof: the ledger names the vectorized write path"
-		else
-			sm_fail "writev proof: the ledger names the vectorized write path" \
-				"no 'wrote (writev)' row in the why render"
-		fi
-		if grep -q "op=write (writev)" "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
-			sm_pass "writev proof: the raw lane names op=write (writev)"
-		else
-			sm_fail "writev proof: the raw lane names op=write (writev)" \
-				"no 'op=write (writev)' record in the raw section"
-		fi
-		if [[ -n "$wv_pid" ]] && grep -q "pid $wv_pid," "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
-			sm_pass "writev proof: the row attributes the writer (pid $wv_pid)"
-		else
-			sm_fail "writev proof: the row attributes the writer (pid ${wv_pid:-unknown})" \
-				"the why render does not name the writer pid"
-		fi
-		if grep -q "\[observed\]" "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
-			sm_pass "writev proof: the writev row is [observed]"
-		else
-			sm_fail "writev proof: the writev row is [observed]" \
-				"no [observed] tag in the why render"
-		fi
-		kill "$wv_writer" 2>/dev/null || true
-		wait "$wv_writer" 2>/dev/null || true
-		# The surface ends clean: the probe it attached, it detaches.
-		sm_run "$SM_SCRATCH/wv-detach.out" "$SM_SCRATCH/wv-detach.err" rc 20 -- \
-			"$SM_DEFAULT_BIN" doctor --detach
-		sm_assert_rc 0 "$rc" "writev proof: doctor --detach returns the host to clean"
-		if [[ -e /sys/fs/bpf/zejtron ]]; then
-			sm_fail "writev proof: detach removes the pin directory" \
-				"/sys/fs/bpf/zejtron still exists after detach"
-		else
-			sm_pass "writev proof: detach removes the pin directory"
-		fi
-	else
-		sm_pass "writev proof: skipped on this host (no attach or no perl) - the refusal direction is the doctor surface's"
-	fi
+                wv_writer=$!
+                wv_rc=0
+                wait "$wv_why_pid" || wv_rc=$?
+                sm_assert_rc 0 "$wv_rc" "writev proof: why --since 5s --raw exits 0"
+                wv_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/wv-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
+                if grep -q "wrote (writev)" "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
+                        sm_pass "writev proof: the ledger names the vectorized write path"
+                else
+                        sm_fail "writev proof: the ledger names the vectorized write path" \
+                                "no 'wrote (writev)' row in the why render"
+                fi
+                if grep -q "op=write (writev)" "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
+                        sm_pass "writev proof: the raw lane names op=write (writev)"
+                else
+                        sm_fail "writev proof: the raw lane names op=write (writev)" \
+                                "no 'op=write (writev)' record in the raw section"
+                fi
+                if [[ -n "$wv_pid" ]] && grep -q "pid $wv_pid," "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
+                        sm_pass "writev proof: the row attributes the writer (pid $wv_pid)"
+                else
+                        sm_fail "writev proof: the row attributes the writer (pid ${wv_pid:-unknown})" \
+                                "the why render does not name the writer pid"
+                fi
+                if grep -q "\[observed\]" "$SM_SCRATCH/wv-why.out" 2>/dev/null; then
+                        sm_pass "writev proof: the writev row is [observed]"
+                else
+                        sm_fail "writev proof: the writev row is [observed]" \
+                                "no [observed] tag in the why render"
+                fi
+                kill "$wv_writer" 2>/dev/null || true
+                wait "$wv_writer" 2>/dev/null || true
+                # The surface ends clean: the probe it attached, it detaches.
+                sm_run "$SM_SCRATCH/wv-detach.out" "$SM_SCRATCH/wv-detach.err" rc 20 -- \
+                        "$SM_DEFAULT_BIN" doctor --detach
+                sm_assert_rc 0 "$rc" "writev proof: doctor --detach returns the host to clean"
+                if [[ -e /sys/fs/bpf/zejtron ]]; then
+                        sm_fail "writev proof: detach removes the pin directory" \
+                                "/sys/fs/bpf/zejtron still exists after detach"
+                else
+                        sm_pass "writev proof: detach removes the pin directory"
+                fi
+        else
+                sm_pass "writev proof: skipped on this host (no attach or no perl) - the refusal direction is the doctor surface's"
+        fi
 
-	# The unlink/rename proof (night-verify-1): the forensic pair the
-	# night-frontier-2 probes added, closed and PROVEN live on the
-	# same shape the writev proof rides. A real unlink(2) through
-	# syscall 87 and a real rename(2) through syscall 82 (x86_64, the
-	# only architecture this project ships) must surface as [observed]
-	# rows naming the action and the actor's pid - the ledger's oldest
-	# hole ("who deleted this file?") answered by a window that watches
-	# while the file dies. One attach, two proofs, one detach: the
-	# writev block's gate and the same honest skip (no attach or no
-	# perl means the refusal direction, already pinned by the doctor
-	# surface, carries the verdict).
-	if command -v perl >/dev/null 2>&1 &&
-		"$SM_DEFAULT_BIN" doctor --attach >"$SM_SCRATCH/ur-attach.out" 2>"$SM_SCRATCH/ur-attach.err"; then
-		sm_pass "unlink/rename proof: the probes attach on this host"
+        # The unlink/rename proof (night-verify-1): the forensic pair the
+        # night-frontier-2 probes added, closed and PROVEN live on the
+        # same shape the writev proof rides. A real unlink(2) through
+        # syscall 87 and a real rename(2) through syscall 82 (x86_64, the
+        # only architecture this project ships) must surface as [observed]
+        # rows naming the action and the actor's pid - the ledger's oldest
+        # hole ("who deleted this file?") answered by a window that watches
+        # while the file dies. One attach, two proofs, one detach: the
+        # writev block's gate and the same honest skip (no attach or no
+        # perl means the refusal direction, already pinned by the doctor
+        # surface, carries the verdict).
+        if command -v perl >/dev/null 2>&1 &&
+                "$SM_DEFAULT_BIN" doctor --attach >"$SM_SCRATCH/ur-attach.out" 2>"$SM_SCRATCH/ur-attach.err"; then
+                sm_pass "unlink/rename proof: the probes attach on this host"
 
-		# ── the unlink half ──────────────────────────────────────
-		local un_file="$SM_SCRATCH/unlink-proof.txt"
-		local un_why_pid un_writer un_rc un_pid
-		: >"$un_file"
-		timeout 20 "$SM_DEFAULT_BIN" why "$un_file" --since 5s --raw \
-			>"$SM_SCRATCH/ur-unlink.out" 2>"$SM_SCRATCH/ur-unlink.err" &
-		un_why_pid=$!
-		sleep 1
-		# The actor: removes the watched file by direct syscall, names
-		# itself, and stays alive past the render (the attribution
-		# needs /proc - the exited-writer shape is the unaccounted
-		# class the exit-ring pass owns, not this proof's).
-		perl -e '
+                # ── the unlink half ──────────────────────────────────────
+                local un_file="$SM_SCRATCH/unlink-proof.txt"
+                local un_why_pid un_writer un_rc un_pid un_rows un_raws
+                : >"$un_file"
+                timeout 20 "$SM_DEFAULT_BIN" why "$un_file" --since 5s --raw \
+                        >"$SM_SCRATCH/ur-unlink.out" 2>"$SM_SCRATCH/ur-unlink.err" &
+                un_why_pid=$!
+                sleep 1
+                # The actor: removes the watched file by direct syscall, names
+                # itself, and stays alive past the render (the attribution
+                # needs /proc - the exited-writer shape is the unaccounted
+                # class the exit-ring pass owns, not this proof's).
+                perl -e '
                         $| = 1;
                         my $f = shift;
                         my $r = syscall(87, $f);
@@ -256,48 +256,68 @@ surface_why() {
                         print "pid=$$\n";
                         sleep 8;
                 ' "$un_file" >"$SM_SCRATCH/ur-unlink-writer.out" 2>"$SM_SCRATCH/ur-unlink-writer.err" &
-		un_writer=$!
-		un_rc=0
-		wait "$un_why_pid" || un_rc=$?
-		sm_assert_rc 0 "$un_rc" "unlink proof: why --since 5s --raw exits 0"
-		un_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/ur-unlink-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
-		if grep -q "unlinked" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
-			sm_pass "unlink proof: the ledger names the unlink"
-		else
-			sm_fail "unlink proof: the ledger names the unlink" \
-				"no 'unlinked' row in the why render"
-		fi
-		if grep -q "op=unlink" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
-			sm_pass "unlink proof: the raw lane names op=unlink"
-		else
-			sm_fail "unlink proof: the raw lane names op=unlink" \
-				"no 'op=unlink' record in the raw section"
-		fi
-		if [[ -n "$un_pid" ]] && grep -q "pid $un_pid," "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
-			sm_pass "unlink proof: the row attributes the actor (pid $un_pid)"
-		else
-			sm_fail "unlink proof: the row attributes the actor (pid ${un_pid:-unknown})" \
-				"the why render does not name the unlinking pid"
-		fi
-		if grep -q "\[observed\]" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
-			sm_pass "unlink proof: the unlink row is [observed]"
-		else
-			sm_fail "unlink proof: the unlink row is [observed]" \
-				"no [observed] tag in the why render"
-		fi
-		kill "$un_writer" 2>/dev/null || true
-		wait "$un_writer" 2>/dev/null || true
+                un_writer=$!
+                un_rc=0
+                wait "$un_why_pid" || un_rc=$?
+                sm_assert_rc 0 "$un_rc" "unlink proof: why --since 5s --raw exits 0"
+                un_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/ur-unlink-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
+                if grep -q "unlinked" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
+                        sm_pass "unlink proof: the ledger names the unlink"
+                else
+                        sm_fail "unlink proof: the ledger names the unlink" \
+                                "no 'unlinked' row in the why render"
+                fi
+                if grep -q "op=unlink" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
+                        sm_pass "unlink proof: the raw lane names op=unlink"
+                else
+                        sm_fail "unlink proof: the raw lane names op=unlink" \
+                                "no 'op=unlink' record in the raw section"
+                fi
+                if [[ -n "$un_pid" ]] && grep -q "pid $un_pid," "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
+                        sm_pass "unlink proof: the row attributes the actor (pid $un_pid)"
+                else
+                        sm_fail "unlink proof: the row attributes the actor (pid ${un_pid:-unknown})" \
+                                "the why render does not name the unlinking pid"
+                fi
+                if grep -q "\[observed\]" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
+                        sm_pass "unlink proof: the unlink row is [observed]"
+                else
+                        sm_fail "unlink proof: the unlink row is [observed]" \
+                                "no [observed] tag in the why render"
+                fi
+                # The single-publish law (night-verify-1 fixup): one unlink(2)
+                # crossing vfs_unlink is one kernel fact, and the ledger owes it
+                # exactly one render row and the raw lane exactly one record. A
+                # duplicated publish tail rode right past the presence greps
+                # above - the twin rows were the live bug this count pins shut,
+                # on every leg, so no hand-run proof is ever needed again.
+                un_rows="$(grep -c " unlinked " "$SM_SCRATCH/ur-unlink.out" 2>/dev/null || true)"
+                un_raws="$(grep -c "op=unlink" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null || true)"
+                if [[ "$un_rows" == "1" ]]; then
+                        sm_pass "unlink proof: one act renders exactly one row (the single-publish law)"
+                else
+                        sm_fail "unlink proof: one act renders exactly one row (the single-publish law)" \
+                                "found ${un_rows:-0} 'unlinked' rows in the render (expected exactly 1)"
+                fi
+                if [[ "$un_raws" == "1" ]]; then
+                        sm_pass "unlink proof: one act drains exactly one raw record"
+                else
+                        sm_fail "unlink proof: one act drains exactly one raw record" \
+                                "found ${un_raws:-0} 'op=unlink' records in the raw section (expected exactly 1)"
+                fi
+                kill "$un_writer" 2>/dev/null || true
+                wait "$un_writer" 2>/dev/null || true
 
-		# ── the rename half ──────────────────────────────────────
-		local rn_file="$SM_SCRATCH/rename-proof.txt"
-		local rn_new="$SM_SCRATCH/rename-proof-moved.txt"
-		local rn_why_pid rn_writer rn_rc rn_pid
-		: >"$rn_file"
-		timeout 20 "$SM_DEFAULT_BIN" why "$rn_file" --since 5s --raw \
-			>"$SM_SCRATCH/ur-rename.out" 2>"$SM_SCRATCH/ur-rename.err" &
-		rn_why_pid=$!
-		sleep 1
-		perl -e '
+                # ── the rename half ──────────────────────────────────────
+                local rn_file="$SM_SCRATCH/rename-proof.txt"
+                local rn_new="$SM_SCRATCH/rename-proof-moved.txt"
+                local rn_why_pid rn_writer rn_rc rn_pid rn_rows rn_raws
+                : >"$rn_file"
+                timeout 20 "$SM_DEFAULT_BIN" why "$rn_file" --since 5s --raw \
+                        >"$SM_SCRATCH/ur-rename.out" 2>"$SM_SCRATCH/ur-rename.err" &
+                rn_why_pid=$!
+                sleep 1
+                perl -e '
                         $| = 1;
                         my ($f, $t) = @ARGV;
                         my $r = syscall(82, $f, $t);
@@ -305,48 +325,67 @@ surface_why() {
                         print "pid=$$\n";
                         sleep 8;
                 ' "$rn_file" "$rn_new" >"$SM_SCRATCH/ur-rename-writer.out" 2>"$SM_SCRATCH/ur-rename-writer.err" &
-		rn_writer=$!
-		rn_rc=0
-		wait "$rn_why_pid" || rn_rc=$?
-		sm_assert_rc 0 "$rn_rc" "rename proof: why --since 5s --raw exits 0"
-		rn_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/ur-rename-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
-		if grep -q "renamed" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
-			sm_pass "rename proof: the ledger names the rename"
-		else
-			sm_fail "rename proof: the ledger names the rename" \
-				"no 'renamed' row in the why render"
-		fi
-		if grep -q "op=rename" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
-			sm_pass "rename proof: the raw lane names op=rename"
-		else
-			sm_fail "rename proof: the raw lane names op=rename" \
-				"no 'op=rename' record in the raw section"
-		fi
-		if [[ -n "$rn_pid" ]] && grep -q "pid $rn_pid," "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
-			sm_pass "rename proof: the row attributes the actor (pid $rn_pid)"
-		else
-			sm_fail "rename proof: the row attributes the actor (pid ${rn_pid:-unknown})" \
-				"the why render does not name the renaming pid"
-		fi
-		if grep -q "\[observed\]" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
-			sm_pass "rename proof: the rename row is [observed]"
-		else
-			sm_fail "rename proof: the rename row is [observed]" \
-				"no [observed] tag in the why render"
-		fi
-		kill "$rn_writer" 2>/dev/null || true
-		wait "$rn_writer" 2>/dev/null || true
-		# The surface ends clean: the probe it attached, it detaches.
-		sm_run "$SM_SCRATCH/ur-detach.out" "$SM_SCRATCH/ur-detach.err" rc 20 -- \
-			"$SM_DEFAULT_BIN" doctor --detach
-		sm_assert_rc 0 "$rc" "unlink/rename proof: doctor --detach returns the host to clean"
-		if [[ -e /sys/fs/bpf/zejtron ]]; then
-			sm_fail "unlink/rename proof: detach removes the pin directory" \
-				"/sys/fs/bpf/zejtron still exists after detach"
-		else
-			sm_pass "unlink/rename proof: detach removes the pin directory"
-		fi
-	else
-		sm_pass "unlink/rename proof: skipped on this host (no attach or no perl) - the refusal direction is the doctor surface's"
-	fi
+                rn_writer=$!
+                rn_rc=0
+                wait "$rn_why_pid" || rn_rc=$?
+                sm_assert_rc 0 "$rn_rc" "rename proof: why --since 5s --raw exits 0"
+                rn_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/ur-rename-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
+                if grep -q "renamed" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
+                        sm_pass "rename proof: the ledger names the rename"
+                else
+                        sm_fail "rename proof: the ledger names the rename" \
+                                "no 'renamed' row in the why render"
+                fi
+                if grep -q "op=rename" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
+                        sm_pass "rename proof: the raw lane names op=rename"
+                else
+                        sm_fail "rename proof: the raw lane names op=rename" \
+                                "no 'op=rename' record in the raw section"
+                fi
+                if [[ -n "$rn_pid" ]] && grep -q "pid $rn_pid," "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
+                        sm_pass "rename proof: the row attributes the actor (pid $rn_pid)"
+                else
+                        sm_fail "rename proof: the row attributes the actor (pid ${rn_pid:-unknown})" \
+                                "the why render does not name the renaming pid"
+                fi
+                if grep -q "\[observed\]" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
+                        sm_pass "rename proof: the rename row is [observed]"
+                else
+                        sm_fail "rename proof: the rename row is [observed]" \
+                                "no [observed] tag in the why render"
+                fi
+                # The single-publish law, rename half: one rename(2) crossing
+                # vfs_rename is one kernel fact - exactly one render row and
+                # exactly one raw record, the same twin-row net the unlink half
+                # pins. The filter map keys the old dentry, the ring carries one
+                # record, and anything doubled is a regression, not proof.
+                rn_rows="$(grep -c " renamed " "$SM_SCRATCH/ur-rename.out" 2>/dev/null || true)"
+                rn_raws="$(grep -c "op=rename" "$SM_SCRATCH/ur-rename.out" 2>/dev/null || true)"
+                if [[ "$rn_rows" == "1" ]]; then
+                        sm_pass "rename proof: one act renders exactly one row (the single-publish law)"
+                else
+                        sm_fail "rename proof: one act renders exactly one row (the single-publish law)" \
+                                "found ${rn_rows:-0} 'renamed' rows in the render (expected exactly 1)"
+                fi
+                if [[ "$rn_raws" == "1" ]]; then
+                        sm_pass "rename proof: one act drains exactly one raw record"
+                else
+                        sm_fail "rename proof: one act drains exactly one raw record" \
+                                "found ${rn_raws:-0} 'op=rename' records in the raw section (expected exactly 1)"
+                fi
+                kill "$rn_writer" 2>/dev/null || true
+                wait "$rn_writer" 2>/dev/null || true
+                # The surface ends clean: the probe it attached, it detaches.
+                sm_run "$SM_SCRATCH/ur-detach.out" "$SM_SCRATCH/ur-detach.err" rc 20 -- \
+                        "$SM_DEFAULT_BIN" doctor --detach
+                sm_assert_rc 0 "$rc" "unlink/rename proof: doctor --detach returns the host to clean"
+                if [[ -e /sys/fs/bpf/zejtron ]]; then
+                        sm_fail "unlink/rename proof: detach removes the pin directory" \
+                                "/sys/fs/bpf/zejtron still exists after detach"
+                else
+                        sm_pass "unlink/rename proof: detach removes the pin directory"
+                fi
+        else
+                sm_pass "unlink/rename proof: skipped on this host (no attach or no perl) - the refusal direction is the doctor surface's"
+        fi
 }
