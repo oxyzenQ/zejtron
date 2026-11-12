@@ -296,6 +296,64 @@ fn truncation_refuses_before_any_scan() {
 }
 
 #[test]
+fn the_live_host_verifies_the_lane_when_btf_exists() {
+    // The live twin of the seed pin: on any host that ships
+    // /sys/kernel/btf/vmlinux, the lane's anchors verify against the
+    // REAL kernel's own BTF - the dentry argument index wherever
+    // this kernel's signature carries it (1 on the pre-idmap
+    // generations, 2 on the idmap+ ones), the renamedata member
+    // offset byte-aligned and bounded. Cross-version by
+    // construction: the CI runners ride 6.x HWE kernels, the floor
+    // lane rides 5.15.0, this sandbox host rode 5.10 - one pin, the
+    // whole range's live answer.
+    let Ok(data) = std::fs::read("/sys/kernel/btf/vmlinux") else {
+        return;
+    };
+    // The floor decides the expectation: at/above 5.15 the anchors
+    // verify (vfs_rename rides renamedata there); below it the
+    // refusal IS the honest answer - a pre-renamedata signature is a
+    // shape the lane refuses by name, the same direction the
+    // below-floor witness proves in the VM lane. This sandbox host
+    // rode 5.10 (refusal), the CI runners ride 6.x HWE (success with
+    // bounds), the floor lane rides 5.15.0 (success, the pin's real
+    // proof).
+    let release = std::fs::read_to_string("/proc/sys/kernel/osrelease")
+        .unwrap_or_else(|_| String::from("0.0"));
+    let mut parts = release.split('.');
+    let major: u32 = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
+    let minor: u32 = parts
+        .next()
+        .and_then(|p| {
+            p.trim_start_matches(|c: char| !c.is_ascii_digit())
+                .parse()
+                .ok()
+        })
+        .unwrap_or(0);
+    let lane_result = verify_unlink_lane_in(&data);
+    if (major, minor) < crate::ebpf::KERNEL_FLOOR {
+        let err = lane_result.expect_err("a below-floor host refuses the lane");
+        assert!(
+            err.contains("refusing")
+                || err.contains("not struct renamedata")
+                || err.contains("no BTF FUNC record"),
+            "the refusal names its stage, got: {err}"
+        );
+        return;
+    }
+    let lane = lane_result.expect("the at/above-floor host verifies the lane");
+    assert!(
+        lane.dentry_arg <= 5,
+        "the dentry argument index must land in the register range, got {}",
+        lane.dentry_arg
+    );
+    assert!(
+        lane.old_dentry_offset > 0 && lane.old_dentry_offset % 8 == 0,
+        "the old_dentry member offset must be a nonzero byte-aligned u64, got {}",
+        lane.old_dentry_offset
+    );
+}
+
+#[test]
 fn a_wrong_magic_refuses_before_any_scan() {
     let err = verify_unlink_lane_in(&[0; 64]).expect_err("non-BTF refuses");
     assert!(err.contains("not a BTF file"), "got: {err}");
