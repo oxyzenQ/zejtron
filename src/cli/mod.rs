@@ -29,12 +29,15 @@ fn branded_command() -> clap::Command {
     // through the UX bridge's DisplayVersion arm (the painted report,
     // exit 0, stdout). display_order pins the row where the old manual
     // flag sat, so the help bytes do not move.
-    // The version string rides a one-time leak: clap 4.6's Str only
-    // carries &'static str (no From<String>), and a CLI hands this
-    // exact report out for the whole process lifetime anyway - the
-    // ~300 bytes are the binary's own rodata, once.
-    let version_text: &'static str = Box::leak(crate::info::version_report_text().into_boxed_str());
-    cmd = cmd.version(version_text).arg(
+    // The version string rides a program-lifetime static: clap 4.6's
+    // Str only carries &'static str (no From<String>), and a CLI
+    // hands this exact report out for the whole process lifetime
+    // anyway - the ~300 bytes are the binary's own rodata, once. The
+    // OnceLock holds the one String as static storage (the same
+    // shape capability() rides): the Box::leak it replaced tripped
+    // Miri's leak detector on every test that builds the branded
+    // command, and re-allocated a fresh copy per call.
+    cmd = cmd.version(version_text()).arg(
         clap::Arg::new("version")
             .short('V')
             .long("version")
@@ -76,6 +79,18 @@ fn branded_command() -> clap::Command {
 /// render and a NO_COLOR environment keep the exact plain bytes.
 fn brand_banner() -> String {
     crate::output::banner("zejtron — read-only evidence ledger for the Linux host")
+}
+
+/// The version report as a program-lifetime str. clap's version arg
+/// needs &'static str, and the report is identical for the whole
+/// process - the OnceLock builds it once and keeps it alive as
+/// static storage, so repeated branded_command() calls share one
+/// copy and nothing is leaked (the one-shot Box::leak this replaces
+/// allocated a fresh ~408-byte string per call and failed the Miri
+/// leak check).
+fn version_text() -> &'static str {
+    static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VERSION.get_or_init(crate::info::version_report_text)
 }
 
 /// Parse argv through the branded builder. The UX bridge downstream
