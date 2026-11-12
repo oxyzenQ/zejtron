@@ -292,15 +292,21 @@ fi
 # walk - the word-splitting SC2086 warns about never happens).
 # --normalize takes a sed program applied to BOTH captures before
 # the compare, for verbs whose stdout names kernel-owned facts that
-# legitimately move between two spawns: proc renders pid= labels
-# (the two runs are different processes) and state= chars (a daemon
-# flips S/R between the captures - on the root leg the depth-2 tree
-# carries ~80 daemons and at least one is mid-flip). Normalizing
-# those annotations keeps the check on its actual contract - verbose
-# must not leak into stdout - instead of failing on scheduler noise
-# no read-only tool can promise to freeze. Any leaked diagnostic
-# line still fails the compare: the vlog wording carries no
-# pid=/state= tokens for the sed to eat.
+# legitimately move between two spawns. Three classes on the proc
+# leg: pid= labels (the two runs are different processes), state=
+# chars (a daemon flips S/R between the captures), and kworker rows
+# - kernel workers hang under kthreadd at depth 2 in the root
+# scan and spawn/exit with scheduler activity, so the two captures
+# legitimately hold different kworker sets (the root-native lane
+# failed twice in a row right after a cargo build for exactly this
+# reason; the micro-VM and non-root lanes, with no kthreadd in the
+# scanned tree, never saw it). The footer counts follow the rows,
+# so their numbers ride the same normalization. Normalizing keeps
+# the check on its actual contract - verbose must not leak into
+# stdout - instead of failing on scheduler noise no read-only tool
+# can promise to freeze. Any leaked diagnostic line still fails
+# the compare: the vlog wording carries no pid=/state= tokens and
+# no kworker glyphs for the sed to eat.
 stream_law() {
 	local label="$1" normalize=""
 	shift
@@ -321,12 +327,21 @@ stream_law() {
 		[ -s "$SCRATCH/s-verbose.err" ]; then
 		pass "verbose keeps stdout byte-clean ($label)"
 	else
-		fail "verbose keeps stdout byte-clean ($label)" \
-			"stdout drifted or stderr empty"
+		# Name the half that failed and show the drift: a failed
+		# compare prints the first eight diffing lines, an empty
+		# stderr prints both capture sizes. The next pair of eyes
+		# reads the cause from the log instead of re-deriving it.
+		if [ -s "$SCRATCH/s-verbose.err" ]; then
+			fail "verbose keeps stdout byte-clean ($label)" \
+				"stdout drifted: $(diff "$plain" "$verbose" | head -8 | tr '\n' ' ')"
+		else
+			fail "verbose keeps stdout byte-clean ($label)" \
+				"stderr empty: plain $(wc -c <"$SCRATCH/s-plain.out") bytes, verbose $(wc -c <"$SCRATCH/s-verbose.out") bytes on stdout"
+		fi
 	fi
 }
 stream_law "doctor" doctor
-stream_law "proc" --normalize 's/pid=[0-9]+/pid=N/g; s/state=[RSDZTt?]/state=X/g' proc --me --depth 2
+stream_law "proc" --normalize '/kworker/d; s/pid=[0-9]+/pid=N/g; s/state=[RSDZTt?]/state=X/g; s/^[0-9]+ roots Â· [0-9]+ processes$/N roots Â· M processes/' proc --me --depth 2
 stream_law "recent" recent "$SCRATCH/tree"
 stream_law "path" path sh
 stream_law "net" net
