@@ -383,6 +383,28 @@ readable above the floor), and the below-floor refusal direction
 unfiltered-CI posture), plus `workflow_dispatch`; no
 `pull_request` trigger (the fast lane owns PRs).
 
+## netrunner-night-C77 (the critical-usage simulation lane)
+
+`netrunner-night-C77` is the pre-critical-infrastructure gate
+(night-total-hardening-1): the whole estate runs end to end as a
+forensic tool - every verb, every JSON lane, the -V/-h sweep, the
+safety battery, the stream law, and the UX honesty battery - under
+BOTH identities. The root leg attaches the live eBPF chain and
+proves the forensic pair for real: create -> unlink ->
+"who deleted this file?" renders exactly one row and drains
+exactly one op=unlink record (the single-publish law), and the
+rename proof carries the same contract. The non-root leg asserts
+the refusal direction - the attach MUST refuse naming its reason,
+never fake a success. The third leg boots the same simulation
+inside the floor micro-VM (the jammy GA 5.15.0-25 kernel, the
+`Supermassive Kernel Floor` lane's own machinery). The simulation
+itself is ONE script (`scripts/netrunner/critical-sim.sh`),
+uid-adaptive, its last line the verdict
+(`NETRUNNER-C77: PASS|FAIL (n checks)`) and its exit code the
+gate; the workflow only makes the legs run. Triggers: every push,
+a nightly slot (01:37 UTC, off the top-of-hour herd), and
+`workflow_dispatch`.
+
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
