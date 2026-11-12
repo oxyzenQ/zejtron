@@ -82,8 +82,27 @@ fn fd_walk_slots_are_the_offsets_map_contract() {
     assert_eq!(OFF_SLOT_FILES_FDT, 9);
     assert_eq!(OFF_SLOT_FDT_MAX_FDS, 10);
     assert_eq!(OFF_SLOT_FDT_FD, 11);
+    // night-frontier-2's growth, pinned as a chain: the struct walk's
+    // last slot abuts the first anchor slot, the last anchor slot
+    // abuts the map's end - the two producers (the struct parse and
+    // the unlink/rename lane verifier) fill the map's slots with no
+    // gap, no overlap, and the parsed array's element count IS the
+    // struct-walk half of the map.
+    assert_eq!(crate::ebpf::events::OFF_SLOT_INODE_I_SB, 12);
+    assert_eq!(
+        crate::ebpf::events::OFF_SLOT_UNLINK_DENTRY_ARG,
+        crate::ebpf::events::OFF_SLOT_INODE_I_SB + 1
+    );
+    assert_eq!(
+        crate::ebpf::events::OFF_SLOT_RENAMEDATA_OLD_DENTRY,
+        crate::ebpf::events::OFF_SLOT_UNLINK_DENTRY_ARG + 1
+    );
+    assert_eq!(
+        crate::ebpf::events::OFF_SLOTS,
+        crate::ebpf::events::OFF_SLOT_RENAMEDATA_OLD_DENTRY + 1
+    );
     assert_eq!(
         std::mem::size_of::<crate::ebpf::btf::ProbeOffsets>() / std::mem::size_of::<u64>(),
-        crate::ebpf::events::OFF_SLOTS as usize
+        (crate::ebpf::events::OFF_SLOT_INODE_I_SB + 1) as usize
     );
 }

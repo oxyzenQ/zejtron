@@ -19,21 +19,21 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-12T11:06:19Z"
+generated = "2026-11-12T14:22:54Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "29bbc7d408a8d62bc75bc308b7177a2aa9171d6b7361d88597e8ebc9b630f6e1"
-built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
+ebpf_tree_blake3 = "a0466a768341ade134368554da9232968cc2598bf68fb6b45dfd2587390688be"
+built_by = "Z User <z@container>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "8e34953eca5b32670375a4605e11c81f1386f8ed85f90786918f4f449fb6504f"
-size = 13504
+blake3 = "62c5be62b0bf9b3113d8ab05d1651db472d2868764319f467a67f4771ff08b0d"
+size = 15472
 
 [contract]
 # The six attach targets the loader plants (src/ebpf/loader.rs; the
 # exit probe lives in ebpf/src/exits.rs), documented for the registry
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.
-attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "vfs_write", "vfs_writev", "sched_process_exit"]
+attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "raw_syscalls/sys_enter", "vfs_writev", "vfs_unlink", "vfs_rename", "sched_process_exit"]
 version = "80.1.1"

@@ -231,7 +231,7 @@ fn mode_row(verdict: &LaneVerdict) -> String {
 /// night-improve-42 adds the vectorized-write probe, night-improve-47
 /// adds the post-mortem exit probe): the events the
 /// probe listens to, by name - the binary's contract, not host state
-/// (the probe object carries all six programs whatever the host
+/// (the probe object carries all eight programs whatever the host
 /// allows).
 fn probes_row() -> String {
     probe_names().join(", ")
@@ -246,6 +246,8 @@ fn probe_names() -> Vec<&'static str> {
         "vfs_open",
         "raw_syscalls/sys_enter",
         "vfs_writev",
+        "vfs_unlink",
+        "vfs_rename",
         "sched_process_exit",
     ]
 }

@@ -143,17 +143,18 @@ pub const FILE_OP_OPEN: u8 = 1;
 /// the write(2) entry itself, not the inlinable interior).
 pub const FILE_OP_WRITE: u8 = 2;
 
-/// `op` for FileEvent: a file was unlinked. DEFINED but not produced
-/// (night-improve-3): the vfs_unlink kprobe was skipped - its
+/// `op` for FileEvent: a file was unlinked. DEFINED at night-improve-3
+/// but left unproduced there: the vfs_unlink kprobe was skipped - its
 /// signature churned across the floor (mnt_userns prepended in 5.12
 /// shifted dentry from arg1 to arg2, the idmap args landed in 6.x),
-/// so no single offset serves the floor-to-now range. The gap is
-/// named in README Limitations; op=3 stays reserved so the record
-/// contract never renumbers. The host's op label match carries the
-/// reserved arm; the BPF side compiles this file for the record
-/// contract and never reads the constant - the scoped allow names
-/// exactly that split.
-#[allow(dead_code)]
+/// so no single compiled offset serves the floor-to-now range. The
+/// gap stayed named in README Limitations while op=3 stayed reserved
+/// so the record contract never renumbers. night-frontier-2 produces
+/// it at last: the unlink probe's dentry argument position is derived
+/// from the host's own BTF at attach (src/ebpf/btf_unlink.rs) and
+/// rides the offsets map - the position is per-host data, not a
+/// compiled constant, and a signature move re-derives instead of
+/// misreading.
 pub const FILE_OP_UNLINK: u8 = 3;
 
 /// `op` for FileEvent: a file was written through the vectorized
@@ -167,6 +168,15 @@ pub const FILE_OP_UNLINK: u8 = 3;
 /// so the row tells the operator WHICH write path crossed. The op
 /// vocabulary renumbers never: 3 stays reserved for unlink.
 pub const FILE_OP_WRITEV: u8 = 4;
+
+/// `op` for FileEvent: a file was renamed (night-frontier-2): the
+/// vfs_rename kprobe fired on the queried inode's file - the rename
+/// half of the forensic pair (the ledger can now answer "who moved
+/// it" beside "who deleted it"). The record carries the OLD dentry's
+/// identity: at vfs_rename entry the file still sits at its old name,
+/// so the (inode, device) the filter map knows is the old side's.
+/// op=5, the vocabulary's sixth word; the numbering never renumbers.
+pub const FILE_OP_RENAME: u8 = 5;
 
 /// One file action, as the kernel saw it at the moment it happened.
 ///
@@ -186,8 +196,8 @@ pub const FILE_OP_WRITEV: u8 = 4;
 pub struct FileEvent {
     /// CLOCK_MONOTONIC nanoseconds at the action.
     pub timestamp_ns: u64,
-    /// One of FILE_OP_OPEN / FILE_OP_WRITE / FILE_OP_UNLINK (reserved)
-    /// / FILE_OP_WRITEV.
+    /// One of FILE_OP_OPEN / FILE_OP_WRITE / FILE_OP_UNLINK /
+    /// FILE_OP_WRITEV / FILE_OP_RENAME.
     pub op: u8,
     /// Padding to 8-byte alignment (pinned by test at 9..16).
     pub _pad: [u8; 7],
@@ -232,17 +242,20 @@ pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
 
 // ── The offsets config map slots ────────────────────────────────────
 //
-// Every struct offset the two kprobes read is written into the
+// Every struct offset the four kprobes read is written into the
 // `offsets` Array<u64> map at attach time, parsed from the host's
-// own /sys/kernel/btf/vmlinux (src/ebpf/btf.rs). The programs read
-// their offsets from the map; the slot indices below are the
-// contract between the host writer and the BPF readers. The eight
-// file-walk slots are frozen; night-improve-57 appends the four
-// fd-walk slots at 8..11 (the syscall-stub write probe), so the
-// legacy indices never renumber. The host writer rides the parsed
-// array whole (slot = index, the night-hunter-3 lesson), so the
-// host crate no longer names the eight file-walk constants - the
-// readers below are BPF-side, and the allows name that split.
+// own /sys/kernel/btf/vmlinux (src/ebpf/btf.rs, plus the two
+// BTF-derived kprobe anchors src/ebpf/btf_unlink.rs resolves). The
+// programs read their offsets from the map; the slot indices below
+// are the contract between the host writers and the BPF readers.
+// The eight file-walk slots are frozen; night-improve-57 appended
+// the four fd-walk slots at 8..11 (the syscall-stub write probe),
+// and night-frontier-2 appends the three unlink/rename slots at
+// 12..14, so the legacy indices never renumber. The host writer
+// rides the parsed array whole (slot = index, the night-hunter-3
+// lesson), so the host crate no longer names the eight file-walk
+// constants - the readers below are BPF-side, and the allows name
+// that split.
 
 /// `offsets[0]`: struct dentry, member d_inode.
 #[allow(dead_code)]
@@ -283,21 +296,43 @@ pub const OFF_SLOT_FDT_MAX_FDS: u32 = 10;
 /// the probe indexes it by the syscall's fd).
 #[allow(dead_code)]
 pub const OFF_SLOT_FDT_FD: u32 = 11;
+/// `offsets[12]`: struct inode, member i_sb (night-frontier-2, the
+/// unlink/rename probes' device hop: dentry->d_inode->i_sb->s_dev,
+/// the sb reach the file walks get from f_path->vfsmount instead).
+#[allow(dead_code)]
+pub const OFF_SLOT_INODE_I_SB: u32 = 12;
+/// `offsets[13]`: the vfs_unlink parameter index that carries the
+/// `struct dentry *` (night-frontier-2). A kprobe argument POSITION,
+/// not a byte offset: the BTF parameter scan (src/ebpf/btf_unlink.rs)
+/// resolves it at attach - 2 on the idmap+ kernels, 1 before them -
+/// and the probe reads its context argument through this slot, so a
+/// signature move re-derives per host instead of misreading.
+#[allow(dead_code)]
+pub const OFF_SLOT_UNLINK_DENTRY_ARG: u32 = 13;
+/// `offsets[14]`: struct renamedata, member old_dentry (night-
+/// frontier-2). vfs_rename funnels every rename through one
+/// renamedata argument; the member offset is BTF-derived at attach
+/// (direct or through anonymous aggregates - the 6.18 lesson), so
+/// the member's own reshuffles stay data, never a compiled guess.
+#[allow(dead_code)]
+pub const OFF_SLOT_RENAMEDATA_OLD_DENTRY: u32 = 14;
 
 /// The number of slots the offsets map carries (the map's
 /// max_entries on the BPF side, the write count on the host side).
-/// Twelve: the eight frozen file-walk slots plus the four fd-walk
-/// slots night-improve-57 appends (the syscall-stub write probe). The
-/// file slots were never renumbered - the five process-stream slots
-/// night-improve-4 appended (8..13) are gone with the lifecycle
-/// stream (night-improve-34), and the fd-walk slots reuse the free
-/// tail.
+/// Fifteen: the eight frozen file-walk slots, the four fd-walk
+/// slots night-improve-57 appends (the syscall-stub write probe),
+/// and the three unlink/rename slots night-frontier-2 appends (the
+/// inode-to-superblock hop plus the two BTF-derived kprobe anchors).
+/// The file slots were never renumbered - the five process-stream
+/// slots night-improve-4 appended (8..13) are gone with the
+/// lifecycle stream (night-improve-34), and the fd-walk slots reuse
+/// the free tail.
 ///
 /// BPF-side-only by design (the BPF crate sizes the offsets Array
 /// with it; the host writes the slots by OFF_SLOT_* index and never
 /// needs the count); the scoped allow names the split.
 #[allow(dead_code)]
-pub const OFF_SLOTS: u32 = 12;
+pub const OFF_SLOTS: u32 = 15;
 
 // ─────────────────────────────────────────────────────────────────────
 // night-improve-47, the process-exit record (the post-mortem doctor

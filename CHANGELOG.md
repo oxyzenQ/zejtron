@@ -70,6 +70,28 @@ v11.0.0
 
 ### Added
 
+- **The unlink/rename forensic pair** (night-frontier-2): the ledger's
+  oldest named hole closed - the README's Limitations carried "does
+  not see unlink events" since phase 3, and op=3 sat reserved the
+  whole wait, because the vfs_unlink signature churned across the
+  floor (mnt_userns in 5.12 moved dentry from arg1 to arg2) and a
+  kprobe argument position is compiled, so no single compiled
+  position served the range. The answer is data, not code: a BTF
+  parameter scan (src/ebpf/btf_unlink.rs) derives the dentry
+  argument index per host at attach (2 on the idmap+ kernels, 1
+  before them), and vfs_rename's old_dentry member offset is
+  resolved through the same anonymous-aggregate descent the struct
+  walk uses; both ride the offsets map's three new slots (the
+  inode-to-superblock device hop plus the two anchors), the object
+  grows to eight programs, and an unrecognizable shape refuses at
+  attach, by name, before anything is planted. The why surface's
+  live lane renders `unlinked` and `renamed` rows (the same
+  post-mortem attribution the writes get), the raw lane names the
+  ops, and the doctor's Probes row carries the two new names. The
+  prebuilt lane regenerated in the same commit (the manifest's
+  attach_targets contract rewritten to the true planting list - the
+  stale `vfs_write` name went with it; the write probe rides
+  raw_syscalls/sys_enter since night-improve-59).
 - **The pre-LTS real-usage audit** (docs/REAL_USAGE_AUDIT.md): the
   release binary driven end to end — every verb, every flag class,
   every error path, all nine `--print-json` lanes strict-parsed, the

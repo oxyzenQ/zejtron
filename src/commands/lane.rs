@@ -200,6 +200,7 @@ fn collect_live(
     let mut post_mortem: Vec<(usize, &crate::ebpf::events::FileEvent)> = Vec::new();
     let mut gone_opens: usize = 0;
     let mut gone_writes: usize = 0;
+    let mut gone_changes: usize = 0;
     for event in &events {
         let is_open = event.op == crate::ebpf::events::FILE_OP_OPEN;
         // Both write paths are writes: the plain write probe (op=2) and
@@ -209,10 +210,18 @@ fn collect_live(
         // false negative reborn one layer up.
         let is_write = event.op == crate::ebpf::events::FILE_OP_WRITE
             || event.op == crate::ebpf::events::FILE_OP_WRITEV;
+        // And the forensic pair (op=3 / op=5, night-frontier-2): the
+        // unlink and rename probes closed the ledger's oldest hole -
+        // the death and movement of the watched file. Both-filter
+        // runs (the why surface) see them as the changes they are;
+        // the Opens and Writes filters keep their exact meanings.
+        let is_change = is_write
+            || event.op == crate::ebpf::events::FILE_OP_UNLINK
+            || event.op == crate::ebpf::events::FILE_OP_RENAME;
         let wanted = match filter {
             OpFilter::Opens => is_open,
             OpFilter::Writes => is_write,
-            OpFilter::Both => is_open || is_write,
+            OpFilter::Both => is_open || is_change,
         };
         if !wanted {
             continue;
@@ -282,6 +291,10 @@ fn collect_live(
                 None => {
                     if event.op == crate::ebpf::events::FILE_OP_OPEN {
                         gone_opens += 1;
+                    } else if event.op == crate::ebpf::events::FILE_OP_UNLINK
+                        || event.op == crate::ebpf::events::FILE_OP_RENAME
+                    {
+                        gone_changes += 1;
                     } else {
                         gone_writes += 1;
                     }
@@ -304,6 +317,13 @@ fn collect_live(
         unaccounted.push(UnaccountedEntry::new(
             gone_writes,
             "writes",
+            "no visible PID - namespace boundary or exited before attribution",
+        ));
+    }
+    if gone_changes > 0 {
+        unaccounted.push(UnaccountedEntry::new(
+            gone_changes,
+            "changes",
             "no visible PID - namespace boundary or exited before attribution",
         ));
     }
@@ -331,6 +351,8 @@ fn event_kind(op: u8) -> EvidenceKind {
         crate::ebpf::events::FILE_OP_WRITEV => EvidenceKind::Wrote {
             via: Some("writev"),
         },
+        crate::ebpf::events::FILE_OP_UNLINK => EvidenceKind::Unlinked,
+        crate::ebpf::events::FILE_OP_RENAME => EvidenceKind::Renamed,
         _ => EvidenceKind::Wrote { via: None },
     }
 }

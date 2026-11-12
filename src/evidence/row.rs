@@ -233,6 +233,12 @@ pub enum EvidenceKind {
         /// The write-path qualifier, when the probe names one.
         via: Option<&'static str>,
     },
+    /// `unlinked` - the unlink probe's record (night-frontier-2): the
+    /// file the ledger watches was deleted, and the row names who.
+    Unlinked,
+    /// `renamed` - the rename probe's record (night-frontier-2): the
+    /// file moved away from the name the ledger knows it by.
+    Renamed,
     /// `journal mention` - the journal grep hit, the log lane's
     /// weakest record class.
     JournalMention,
@@ -257,6 +263,8 @@ impl EvidenceKind {
             Self::Runs { .. } => "runs",
             Self::Opened => "opened",
             Self::Wrote { .. } => "wrote",
+            Self::Unlinked => "unlinked",
+            Self::Renamed => "renamed",
             Self::JournalMention => "journal-mention",
         }
     }
@@ -303,6 +311,8 @@ impl EvidenceKind {
                 Some(family) => format!("wrote ({family})"),
                 None => "wrote".to_owned(),
             },
+            Self::Unlinked => "unlinked".to_owned(),
+            Self::Renamed => "renamed".to_owned(),
             Self::JournalMention => "journal mention".to_owned(),
         }
     }

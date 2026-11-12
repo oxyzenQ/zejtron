@@ -299,6 +299,8 @@ fn write_kind_fields(out: &mut String, kind: &EvidenceKind) {
                 None => out.push_str("null"),
             }
         }
+        K::Unlinked => {}
+        K::Renamed => {}
         K::JournalMention => {}
     }
 }

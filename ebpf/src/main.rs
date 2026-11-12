@@ -13,7 +13,10 @@
 // the post-mortem exit probe, the exit half of the lifecycle probe
 // returning with a new consumer and a new shape - a bounded
 // post-mortem record the doctor's ram symptom drains, not a live
-// stream.
+// stream. SEVENTH and EIGHTH in their own module (night-frontier-2,
+// unlink.rs): the unlink and rename probes, the forensic closer for
+// the file arena - the death-and-movement half the open/write
+// probes never saw.
 //
 //   1. sched_process_exec (phase 1, unchanged since): count process
 //      executions. The counter is the phase-1 chain proof, still the
@@ -132,11 +135,15 @@
 // uid, no address reads (the sock record carries the port and the
 // changer; the bind address stays the snapshot's truth), no
 // file-content or file-sequence reads anywhere (a path is metadata;
-// the record carries inode + device + action + pid, nothing else),
-// no vfs_unlink kprobe (its signature churned across the floor —
-// mnt_userns in 5.12 moved dentry from arg1 to arg2 — so no single
-// argument position serves the range; op=3 stays reserved and the
-// gap is named in README Limitations).
+// the record carries inode + device + action + pid, nothing else).
+// The vfs_unlink absence night-improve-3 named here is GONE as of
+// night-frontier-2: unlink.rs carries the unlink and rename probes,
+// and the signature churn that motivated the skip (mnt_userns in
+// 5.12 moved dentry from arg1 to arg2) is answered with data, not a
+// compiled position - the host's BTF parameter scan derives the
+// dentry argument index per host at attach
+// (src/ebpf/btf_unlink.rs), the index rides the offsets map, and an
+// unrecognizable shape refuses loudly instead of anchoring wrong.
 //
 // Map update discipline: the counter rides a 64-bit BPF_ATOMIC
 // fetch_add (the zelynic NIGHT-improve-29 lost-update lesson — the
@@ -188,6 +195,12 @@ mod exits;
 // fd-to-file walk - the exits.rs precedent (a dedicated module
 // under the 600-LOC no-mercy cap, same crate, same record).
 mod write;
+
+// The unlink/rename probes (night-frontier-2): the module owns both
+// forensic programs and the BTF-derived anchor story - the same
+// dedicated-module shape, publishing to the file_events ring the
+// file probes already carry.
+mod unlink;
 
 use events::{
     FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITEV, FileEvent, OFF_SLOTS,

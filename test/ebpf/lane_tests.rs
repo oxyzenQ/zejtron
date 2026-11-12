@@ -171,23 +171,27 @@ fn pin_constants_carry_the_removal_order() {
     assert_eq!(ALL_PINS[2], PIN_LINK_OPEN);
     assert_eq!(ALL_PINS[3], PIN_LINK_WRITE);
     assert_eq!(ALL_PINS[4], PIN_LINK_WRITEV);
-    assert_eq!(ALL_PINS[5], PIN_LINK_EXIT);
-    assert_eq!(ALL_PINS[6], PIN_PROG);
-    assert_eq!(ALL_PINS[7], PIN_PROG_SOCK);
-    assert_eq!(ALL_PINS[8], PIN_PROG_OPEN);
-    assert_eq!(ALL_PINS[9], PIN_PROG_WRITE);
-    assert_eq!(ALL_PINS[10], PIN_PROG_WRITEV);
-    assert_eq!(ALL_PINS[11], PIN_PROG_EXIT);
-    assert_eq!(ALL_PINS[12], PIN_MAP_STATS);
-    assert_eq!(ALL_PINS[13], PIN_MAP_SOCK_EVENTS);
-    assert_eq!(ALL_PINS[14], PIN_MAP_PROC_EVENTS);
-    assert_eq!(ALL_PINS[15], PIN_MAP_TRACKED_INODES);
-    assert_eq!(ALL_PINS[16], PIN_MAP_FILE_EVENTS);
-    assert_eq!(ALL_PINS[17], PIN_MAP_OFFSETS);
+    assert_eq!(ALL_PINS[5], PIN_LINK_UNLINK);
+    assert_eq!(ALL_PINS[6], PIN_LINK_RENAME);
+    assert_eq!(ALL_PINS[7], PIN_LINK_EXIT);
+    assert_eq!(ALL_PINS[8], PIN_PROG);
+    assert_eq!(ALL_PINS[9], PIN_PROG_SOCK);
+    assert_eq!(ALL_PINS[10], PIN_PROG_OPEN);
+    assert_eq!(ALL_PINS[11], PIN_PROG_WRITE);
+    assert_eq!(ALL_PINS[12], PIN_PROG_WRITEV);
+    assert_eq!(ALL_PINS[13], PIN_PROG_UNLINK);
+    assert_eq!(ALL_PINS[14], PIN_PROG_RENAME);
+    assert_eq!(ALL_PINS[15], PIN_PROG_EXIT);
+    assert_eq!(ALL_PINS[16], PIN_MAP_STATS);
+    assert_eq!(ALL_PINS[17], PIN_MAP_SOCK_EVENTS);
+    assert_eq!(ALL_PINS[18], PIN_MAP_PROC_EVENTS);
+    assert_eq!(ALL_PINS[19], PIN_MAP_TRACKED_INODES);
+    assert_eq!(ALL_PINS[20], PIN_MAP_FILE_EVENTS);
+    assert_eq!(ALL_PINS[21], PIN_MAP_OFFSETS);
     assert_eq!(
         ALL_PINS.len(),
-        18,
-        "eighteen pins: 6 links, 6 programs, 6 maps"
+        22,
+        "twenty-two pins: 8 links, 8 programs, 6 maps"
     );
     for pin in ALL_PINS {
         assert!(
