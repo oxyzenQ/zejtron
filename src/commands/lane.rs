@@ -45,8 +45,10 @@ pub const WINDOW_DEFAULT: Duration = Duration::from_secs(10);
 /// grammar, two surfaces, imported rather than duplicated), with
 /// the 10s default when the flag is absent. Every surface resolves
 /// through here so the default can never drift between them. An
-/// above-ceiling ask rides one stderr warning (the truncation note,
-/// night-dragon-lts-T1 residual) and never touches stdout.
+/// out-of-bounds ask - above the ceiling or below the floor - rides
+/// one stderr warning (the clamp note, night-dragon-lts-T1
+/// residual, both directions since night-total-hardening-1) and
+/// never touches stdout.
 pub fn resolve_window(since: Option<&str>) -> Result<(Duration, String), String> {
     use crate::commands::port::window::{
         clamp_window, parse_window, truncation_note, window_label,

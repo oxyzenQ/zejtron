@@ -155,20 +155,31 @@ fn the_truncation_note_names_the_ask_byte_for_byte() {
         truncation_note("7200s", parse_window("7200s").unwrap()).as_deref(),
         Some("warning: --since 7200s exceeds the 1h maximum — clamped to 1h"),
     );
+    // The floor direction (night-total-hardening-1): a below-floor
+    // ask is the same class of reshaping and now names itself too,
+    // byte-for-byte, in both spellings that parse to zero.
+    assert_eq!(
+        truncation_note("0s", parse_window("0s").unwrap()).as_deref(),
+        Some("warning: --since 0s below the 1s minimum — clamped to 1s"),
+    );
+    assert_eq!(
+        truncation_note("0m", parse_window("0m").unwrap()).as_deref(),
+        Some("warning: --since 0m below the 1s minimum — clamped to 1s"),
+    );
 }
 
 #[test]
-fn the_truncation_note_is_silent_within_and_below_the_range() {
+fn the_truncation_note_is_silent_within_the_range() {
     // In-bounds asks never warn - the ceiling itself included (the
-    // boundary is legal, not a truncation).
+    // boundary is legal, not a truncation), and the floor itself
+    // included for the same reason. The below-floor direction warns
+    // since night-total-hardening-1 (see the byte-for-byte test);
+    // only the interior stays word-free.
     for (raw, parsed) in [
         ("1s", parse_window("1s").unwrap()),
         ("30s", parse_window("30s").unwrap()),
         ("2700s", parse_window("2700s").unwrap()),
         ("1h", parse_window("1h").unwrap()),
-        // The below-floor direction stays word-free: 0s clamps up
-        // to 1s, and the residual named the ceiling side only.
-        ("0s", parse_window("0s").unwrap()),
     ] {
         assert!(
             truncation_note(raw, parsed).is_none(),
@@ -182,11 +193,17 @@ fn the_truncation_note_never_changes_the_clamped_window() {
     // The note is a word, not a behavior change: the clamped window
     // is byte-identical with and without the note path - a clamped
     // ask and the explicit ceiling feed the renderer the same
-    // Duration, so the reports cannot differ.
+    // Duration, so the reports cannot differ. The floor side rides
+    // the same law (night-total-hardening-1).
     for raw in ["999999h", "2h", "18446744073709551h"] {
         let parsed = parse_window(raw).unwrap();
         assert!(truncation_note(raw, parsed).is_some(), "{raw} warns");
         assert_eq!(clamp_window(parsed), WINDOW_CEILING, "{raw} clamps to 1h");
+    }
+    for raw in ["0s", "0m"] {
+        let parsed = parse_window(raw).unwrap();
+        assert!(truncation_note(raw, parsed).is_some(), "{raw} warns");
+        assert_eq!(clamp_window(parsed), WINDOW_FLOOR, "{raw} clamps to 1s");
     }
     assert_eq!(
         clamp_window(parse_window("1h").unwrap()),
