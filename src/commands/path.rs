@@ -20,8 +20,20 @@ pub struct PathMatch {
 }
 
 pub fn run(command: &str, print_json: bool) -> Result<(), Box<dyn std::error::Error>> {
+    // The empty-name guard (night-total-hardening-1): `zejtron path ""`
+    // used to fall through the whole lookup and render the absurd
+    // verdict "command not found in PATH: " - an empty command name
+    // is not a lookup, it is a missing operand, and the error says so
+    // with the verb's own example the way every grammar error does.
+    if command.trim().is_empty() {
+        return Err("the command name is empty (e.g. zejtron path sh)".into());
+    }
     let path_env = env::var_os("PATH");
     let matches = find_in_path(command, path_env.as_deref())?;
+    // The verb's own diagnostic lane (night-total-hardening-1): the
+    // resolution names its hit count on stderr, stdout stays the
+    // report only.
+    crate::output::verbose::vlog!("path", "{} PATH hit(s) for '{}'", matches.len(), command);
 
     // The renderer branch (night-badass-9): the JSON lane speaks the
     // same resolution - the same match set, the same owner lookup -
