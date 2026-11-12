@@ -167,7 +167,16 @@ pub enum Commands {
             long,
             value_name = "N",
             default_value_t = 20,
-            help = "Maximum files to show"
+            // The ceiling (night-total-hardening-1): a "maximum files
+            // to show" ask beyond a million is a log-shaped problem,
+            // not an evidence-shaped one - the same law the port
+            // window's one-hour ceiling carries. truncate() itself is
+            // allocation-free, so the bound is the LTS posture, not a
+            // crash guard: absurd numerics get a named refusal at
+            // parse time instead of a silent accept.
+            value_parser =
+                clap::builder::RangedI64ValueParser::<usize>::new().range(0..=1000000),
+            help = "Maximum files to show (0-1000000)"
         )]
         limit: usize,
         #[arg(
@@ -238,8 +247,18 @@ pub enum Commands {
             long,
             allow_hyphen_values = true,
             value_name = "N",
-            value_parser = clap::value_parser!(u64).range(1..),
-            help = "Limit rendered tree depth (minimum 1)"
+            // The ceiling (night-total-hardening-1): the old 1..
+            // floor answered the owner's own probe - `proc --me
+            // --depth 1000000000000000` - with a silent accept (the
+            // render naturally caps at the real tree, but the tool
+            // pretended a quadrillion-deep ask was reasonable). 1024
+            // is the LTS ceiling: the kernel's own PID space tops at
+            // 4194304, and no process forest on any host can hold a
+            // 1025-deep ancestor chain - every real ask fits, every
+            // absurd ask is a parse-time refusal with the range in
+            // the message.
+            value_parser = clap::value_parser!(u64).range(1..=1024),
+            help = "Limit rendered tree depth (1-1024)"
         )]
         depth: Option<u64>,
         #[arg(
