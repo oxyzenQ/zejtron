@@ -347,7 +347,7 @@ fn the_live_host_verifies_the_lane_when_btf_exists() {
         lane.dentry_arg
     );
     assert!(
-        lane.old_dentry_offset > 0 && lane.old_dentry_offset % 8 == 0,
+        lane.old_dentry_offset > 0 && lane.old_dentry_offset.is_multiple_of(8),
         "the old_dentry member offset must be a nonzero byte-aligned u64, got {}",
         lane.old_dentry_offset
     );
