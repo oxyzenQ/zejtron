@@ -17,6 +17,42 @@ fn branded_command() -> clap::Command {
     // verb's about carries its example line, green verb token on the
     // grey grammar line, the exact plain bytes on a pipe.
     examples::paint_verbs(&mut cmd);
+    // The verb version lane (night-total-hardening-1): one real clap
+    // version flag, global, with the short-circuiting Version action -
+    // `-V` now fires the moment the parser meets it, the way `-h`
+    // always has, BEFORE the required-positional validation that used
+    // to answer `zejtron path -V` (and proc, holds, touch, why) with
+    // a missing-argument error instead of the build report. The root
+    // keeps disable_version_flag: the derive adds no second version
+    // flag, and main's manual `cli.version` report path is retired
+    // with the field - every -V now rides this one arg and renders
+    // through the UX bridge's DisplayVersion arm (the painted report,
+    // exit 0, stdout). display_order pins the row where the old manual
+    // flag sat, so the help bytes do not move.
+    // The version string rides a one-time leak: clap 4.6's Str only
+    // carries &'static str (no From<String>), and a CLI hands this
+    // exact report out for the whole process lifetime anyway - the
+    // ~300 bytes are the binary's own rodata, once.
+    let version_text: &'static str = Box::leak(crate::info::version_report_text().into_boxed_str());
+    cmd = cmd.version(version_text).arg(
+        clap::Arg::new("version")
+            .short('V')
+            .long("version")
+            .global(true)
+            .action(clap::ArgAction::Version)
+            .display_order(0)
+            .help("Print complete version and build information"),
+    );
+    // The row-order pins (night-total-hardening-1): the old derive
+    // field order (version, verbose, check-update) numbered the
+    // globals 0, 1, 2, and every verb's help interleaved those values
+    // with the verb's own auto-numbered flags. With the version field
+    // gone from the derive, the two survivors would renumber and the
+    // help rows would drift. These explicit orders restore the exact
+    // pre-change row order on every surface, byte for byte.
+    cmd = cmd
+        .mut_arg("verbose", |arg| arg.display_order(1))
+        .mut_arg("check_update", |arg| arg.display_order(2));
     // The banner opens the reference (night-T-2, the sibling's
     // frame): the family's one title-line shape, bold brand purple,
     // before the about prose - the same `━━━ <title> ━━━` frame every

@@ -182,6 +182,21 @@ fn version_body() -> String {
     .join("\n")
 }
 
+/// The full version report as ONE plain string (night-total-hardening-1):
+/// the exact bytes [`print_version_report`] writes on a pipe - the
+/// capability ladder's plain rung. The verb version lane hands this to
+/// clap's version action so a raw DisplayVersion render (any path that
+/// bypasses the UX bridge) still prints the complete report, never a
+/// bare version number.
+pub(crate) fn version_report_text() -> String {
+    format!(
+        "{NAME}: v{}\n{}\n{}",
+        env!("CARGO_PKG_VERSION"),
+        env!("CARGO_PKG_DESCRIPTION"),
+        version_body()
+    )
+}
+
 /// Print the full version report for `-V` / `--version`.
 ///
 /// The sibling's masterclass layout (night-weekly-maintenance-2, the

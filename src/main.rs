@@ -65,11 +65,6 @@ fn main() {
     // stderr only; the Evidence Ledger's stdout stays pipe-clean.
     output::verbose::init(cli.verbose);
 
-    if cli.version {
-        info::print_version_report();
-        return;
-    }
-
     if cli.check_update {
         if let Err(error) = update::check_update(env!("CARGO_PKG_VERSION")) {
             output::eprintln_error_labeled(&format!("update check failed: {error}"));
