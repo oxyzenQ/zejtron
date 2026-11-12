@@ -60,7 +60,7 @@ pub fn run(
         "recent",
         "scanned {} files under {}",
         files.len(),
-        path.display()
+        crate::system::display_operand(&path.display().to_string())
     );
     let (files, matched) = select_recent_files(files, limit, since, SystemTime::now());
     crate::output::verbose::vlog!(

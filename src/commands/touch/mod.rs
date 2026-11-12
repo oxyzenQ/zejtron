@@ -104,9 +104,13 @@ pub(crate) fn inspect_path(path: &Path) -> Result<TouchInfo, TouchError> {
         Some(symlink_meta.clone())
     };
 
-    let modified = symlink_meta
-        .modified()
-        .map_err(|error| TouchError(format!("{}: {error}", path.display())))?;
+    let modified = symlink_meta.modified().map_err(|error| {
+        // The echo is capped and sanitized (night-total-hardening-1).
+        TouchError(format!(
+            "{}: {error}",
+            crate::system::display_operand(&path.display().to_string())
+        ))
+    })?;
 
     // Build full FileMeta
     let meta = build_file_meta(path, &symlink_meta, target_meta.as_ref());

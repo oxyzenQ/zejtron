@@ -44,10 +44,15 @@ pub fn build_path_report(
     // snapshot side will use (the parsers are untouched; this stat
     // only feeds the lane).
     let metadata = fs::metadata(path).map_err(|error| {
+        // The echo is capped and sanitized (night-total-hardening-1):
+        // this is the site the run() lane actually answers through -
+        // the sim battery caught it echoing verbatim after the
+        // sibling sites were capped.
+        let operand = crate::system::display_operand(&path.display().to_string());
         if error.kind() == std::io::ErrorKind::NotFound {
-            HoldsError(format!("{}: no such file or directory", path.display()))
+            HoldsError(format!("{operand}: no such file or directory"))
         } else {
-            HoldsError(format!("{}: {error}", path.display()))
+            HoldsError(format!("{operand}: {error}"))
         }
     })?;
     let inode = metadata.ino();
