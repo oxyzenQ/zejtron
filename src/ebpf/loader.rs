@@ -335,8 +335,13 @@ pub fn attach() -> Result<String, String> {
 fn fail(error: String) -> String {
     let removed = clear_pins();
     let _ = std::fs::remove_dir(PIN_DIR);
+    // The prefix is load-bearing: a plant-layer failure (a kprobe the
+    // host cannot attach, a verifier refusal) must read as an attach
+    // refusal wherever the message lands - the suite's refusal specs
+    // grep for it, and a plant error without the prefix reads as a
+    // different class than it is.
     format!(
-        "{error} (cleaned {} pin(s) - nothing of zejtron remains half-attached)",
+        "attach refused: {error} (cleaned {} pin(s) - nothing of zejtron remains half-attached)",
         removed
     )
 }
