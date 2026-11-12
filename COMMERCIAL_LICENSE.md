@@ -203,9 +203,9 @@ Notes:
   after that date): Business $1,000 → $1,990/year, Company
   $9,900 → $14,990/year; Individual holds at $99/year. Buyers who
   paid before the move are grandfathered — the price you paid
-  stands for the term you bought. Rationale record:
-  [docs/research/NIGHT_DINNER_14_PRICING_RESEARCH.md](docs/research/NIGHT_DINNER_14_PRICING_RESEARCH.md)
-  (section 7: the owner's executed decision).
+  stands for the term you bought. Rationale record: the
+  night-dinner-14 pricing research (section 7: the owner's executed
+  decision).
 - **Redistribution rights** are granted at the OEM / Redistribution
   tier only. Trademark licensing is separate — see
   [TRADEMARK.md](TRADEMARK.md).
