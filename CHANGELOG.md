@@ -70,6 +70,24 @@ v11.0.0
 
 ### Added
 
+- **The kernel matrix harness, the ladder's local seat**
+  (night-frontier-4): the four-witness ladder already burns per push
+  in CI (supermassive-kernel-witnesses.yml: focal 5.4.0 below the
+  floor, jammy 5.15.0 at it, noble 6.8.0 above it, cachyos as the
+  moving-latest witness - the line that caught the 6.18 anonymous
+  union live), but the estate had no LOCAL seat: an operator
+  debugging a kernel-specific refusal had no one-command way to run
+  the same ladder on the box in front of them.
+  scripts/sandbox/kernel-matrix.sh is that seat - the same
+  witnesses through the same sandbox code path, one command, one
+  verdict table (suite, kernel release, BTF, verdict, wall time),
+  per-witness logs under the matrix cache, whole-ladder reporting
+  by default with --stop for fail-fast, and the archive discipline
+  untouched (a mainline kernel the GA pockets do not carry still
+  rides the sandbox's arbitrary --kernel PATH lane). No CI lane
+  joins: one implementation, two seats, so the local instrument
+  cannot drift from what CI proves, and the witnesses lane's
+  5-minute budgets stay the only CI burn.
 - **The third pure entry point rides the fuzz lane** (night-frontier-3):
   the btf_parser harness now drives `verify_unlink_lane_in` beside the
   struct walk and the writev symbol walk - the parameter scan and the

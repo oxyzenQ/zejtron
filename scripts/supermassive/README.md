@@ -145,7 +145,11 @@ can succeed for real, which is exactly why the doctor surface's
 attach specs grew the success-direction contract the same night.
 The local twin is `scripts/sandbox/zejtron-sandbox.sh` (the same
 boot shape, rootless-packed, KVM when `/dev/kvm` is writable, TCG
-software emulation otherwise). This entry replaces the stale
+software emulation otherwise), and the witnesses lane's local seat
+is `scripts/sandbox/kernel-matrix.sh` (night-frontier-4): the same
+four-witness ladder, one command, one verdict table, per-witness
+logs under the matrix cache - the drift alarm the operator rings
+before pushing, not after the Actions tab turns red. This entry replaces the stale
 "the privileged attach leg belongs to the container lane" claim
 (night-total-lts-2): the container lane runs unprivileged docker
 and never attached - the claim documented a leg that did not
