@@ -238,7 +238,12 @@ jobs:
         run: cargo pro-linux-amd64-v3-musl --locked
 
       - name: Boot the floor micro-VM and run the critical simulation as root
+        # Arg order is load-bearing: --run owns the REST of argv as
+        # the payload command line, so --timeout must come BEFORE it
+        # (the trailing order this step shipped with packed
+        # "--timeout 1200" into the payload and the simulation died
+        # on the unknown flag, exit 2).
         run: |
           ./scripts/sandbox/zejtron-sandbox.sh \
-            --run 'bash scripts/netrunner/critical-sim.sh --bin /opt/zejtron/zejtron' \
-            --timeout 1200
+            --timeout 1200 \
+            --run 'bash scripts/netrunner/critical-sim.sh --bin /opt/zejtron/zejtron'
