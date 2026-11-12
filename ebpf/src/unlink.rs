@@ -50,12 +50,28 @@
 // it; this one refuses instead of anchoring wrong).
 
 use aya_ebpf::{
-    bindings::pt_regs as PtRegs,
     helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns},
     macros::kprobe,
     programs::ProbeContext,
     EbpfContext,
 };
+
+// The kprobe context's argument-register offsets: struct pt_regs, the
+// kernel's own x86_64 layout (r15..r10, then r9, r8, rax, rcx, rdx,
+// rsi, rdi - include/asm/ptrace.h ordering), pinned as constants by
+// the same law as the sock probe's verified ctx_offsets: the kprobes
+// attach to x86_64 kernels only (the estate's one architecture), so
+// the offsets are the OBJECT's truth, not the build host's. The aya
+// bindings' pt_regs type follows the host arch - a shape that broke
+// the arm64 e2e leg's cross-build (found live) and would have shipped
+// aarch64 register semantics into an x86_64 object - which is why
+// these reads carry their own offsets instead of the binding's fields.
+const PT_REGS_R9: usize = 64;
+const PT_REGS_R8: usize = 72;
+const PT_REGS_RCX: usize = 88;
+const PT_REGS_RDX: usize = 96;
+const PT_REGS_RSI: usize = 104;
+const PT_REGS_RDI: usize = 112;
 
 use super::{read_offset_set, read_ptr_at, read_u32_at, read_u64_at};
 use crate::{file_events, tracked_inodes};
@@ -141,24 +157,24 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
         // constants fold), so the six-loads-first shape is the only
         // honest guarantee: the disassembly carries six `ldx *(ctx +
         // C)` and no arithmetic on the context pointer.
-        // Six volatile register reads: volatile cannot be folded by
-        // LLVM, so the disassembly carries six fixed `ldx *(ctx + C)`
-        // loads and the pointer arithmetic never returns - proven by
-        // the disassembly gate, not by hope (the fixed-branch shape
-        // folded into the same computed load).
-        let regs = ctx.as_ptr() as *const PtRegs;
+        // Six volatile register reads at the pinned offsets: volatile
+        // cannot be folded by LLVM, so the disassembly carries six
+        // fixed `ldx *(ctx + C)` loads and the pointer arithmetic
+        // never returns - proven by the disassembly gate, not by hope
+        // (the fixed-branch shape folded into the same computed load).
+        let regs = ctx.as_ptr() as *const u8;
         let arg0 =
-            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).rdi)) } as u64;
+            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_RDI) as *const u64) };
         let arg1 =
-            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).rsi)) } as u64;
+            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_RSI) as *const u64) };
         let arg2 =
-            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).rdx)) } as u64;
+            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_RDX) as *const u64) };
         let arg3 =
-            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).rcx)) } as u64;
+            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_RCX) as *const u64) };
         let arg4 =
-            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).r8)) } as u64;
+            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_R8) as *const u64) };
         let arg5 =
-            unsafe { core::ptr::read_volatile(core::ptr::addr_of!((*regs).r9)) } as u64;
+            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_R9) as *const u64) };
         let dentry = match arg {
             0 => arg0,
             1 => arg1,
@@ -192,8 +208,15 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
 pub fn rename_probe(ctx: ProbeContext) -> u32 {
     unsafe {
         let Some(o) = read_offset_set() else { return 0 };
-        // arg0: struct renamedata * (BTF-verified at attach).
-        let Some(renamedata) = ctx.arg::<u64>(0) else { return 0 };
+        // arg0: struct renamedata * (BTF-verified at attach). The one
+        // register read carries the same pinned-offset volatile shape
+        // as the unlink probe's six: fixed load, host-independent,
+        // verifier-safe from the 5.15 floor up.
+        let renamedata = unsafe {
+            core::ptr::read_volatile(
+                (ctx.as_ptr() as *const u8).add(PT_REGS_RDI) as *const u64,
+            )
+        };
         let renamedata = renamedata as usize;
         if renamedata == 0 {
             return 0;
