@@ -78,15 +78,19 @@ is not asleep, it is absent.
 The lane's whole life, boot to boot:
 
 1. **Attach, once per boot.** `sudo zejtron doctor --attach` loads
-   the embedded pure-Rust object (six programs: the
+   the embedded pure-Rust object (eight programs: the
    `sched_process_exec` counter, the `inet_sock_set_state`
    socket-event probe, the `vfs_open`/`vfs_write`/`vfs_writev` file
-   probes, and the `sched_process_exit` post-mortem exit probe),
-   verifies every struct offset and the vectorized-
-   write symbol against the host's own BTF - the member lookups
-   descend the anonymous unions 6.18-line kernels wrap their
-   members in, and still refuse by name when a member cannot be
-   found - attaches each program,
+   probes, the `vfs_unlink`/`vfs_rename` forensic pair, and the
+   `sched_process_exit` post-mortem exit probe),
+   verifies every struct offset, the vectorized-
+   write symbol, and the unlink/rename anchors against the host's
+   own BTF - the member lookups descend the anonymous unions
+   6.18-line kernels wrap their members in, the unlink probe's
+   dentry argument position is scanned out of the host's BTF (the
+   signature moved its dentry across the floor), and every walk
+   still refuses by name when a shape cannot be verified -
+   attaches each program,
    and pins programs, links, and maps under `/sys/fs/bpf/zejtron`.
    The attach prints one quiet success line (`eBPF probes attached
    successfully (6 programs, 6 links, 6 maps). Lazy Camera is now

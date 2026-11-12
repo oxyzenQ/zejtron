@@ -31,16 +31,20 @@ fn file_event_offsets_are_pinned_field_by_field() {
 }
 
 #[test]
-fn op_numbering_is_open_write_unlink_writev() {
+fn op_numbering_is_open_write_unlink_writev_rename() {
     assert_eq!(FILE_OP_OPEN, 1);
     assert_eq!(FILE_OP_WRITE, 2);
-    // Reserved (the vfs_unlink skip is named in the module docs);
-    // the numbering never renumbers.
+    // Reserved at night-improve-3, produced since night-frontier-2
+    // (the unlink probe, the BTF-derived anchor); the numbering
+    // never renumbers.
     assert_eq!(FILE_OP_UNLINK, 3);
     // The vectorized-write path (night-improve-42): the op the
     // vfs_writev kprobe publishes, rendered "write (writev)" on the
     // raw lane and "wrote (writev)" in the ledger row.
     assert_eq!(FILE_OP_WRITEV, 4);
+    // The rename probe (night-frontier-2): the movement half of the
+    // forensic pair, the old dentry's identity in the record.
+    assert_eq!(FILE_OP_RENAME, 5);
 }
 
 #[test]
@@ -119,5 +123,11 @@ fn offsets_slots_are_frozen_then_appended() {
     assert_eq!(OFF_SLOT_FILES_FDT, 9);
     assert_eq!(OFF_SLOT_FDT_MAX_FDS, 10);
     assert_eq!(OFF_SLOT_FDT_FD, 11);
-    assert_eq!(OFF_SLOTS, 12);
+    // The unlink/rename slots (night-frontier-2): the inode-to-
+    // superblock hop and the two BTF-derived anchors, appended at
+    // the free tail - the legacy indices never renumber.
+    assert_eq!(OFF_SLOT_INODE_I_SB, 12);
+    assert_eq!(OFF_SLOT_UNLINK_DENTRY_ARG, 13);
+    assert_eq!(OFF_SLOT_RENAMEDATA_OLD_DENTRY, 14);
+    assert_eq!(OFF_SLOTS, 15);
 }

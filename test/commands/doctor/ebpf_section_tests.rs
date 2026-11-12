@@ -74,7 +74,7 @@ fn live_section_renders_the_separated_block() {
     );
     assert_eq!(
         lines[10],
-        "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, vfs_writev, sched_process_exit",
+        "  Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, vfs_writev, vfs_unlink, vfs_rename, sched_process_exit",
         "the probes row is the binary's contract, host-independent"
     );
 }
@@ -135,12 +135,16 @@ fn pins_row_lists_every_pin_in_planting_order() {
             "open_probe_link",
             "write_probe_link",
             "writev_probe_link",
+            "unlink_probe_link",
+            "rename_probe_link",
             "exit_probe_link",
             "probe",
             "sock_probe",
             "open_probe",
             "write_probe",
             "writev_probe",
+            "unlink_probe",
+            "rename_probe",
             "exit_probe",
             "stats",
             "sock_events",

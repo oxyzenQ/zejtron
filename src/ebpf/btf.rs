@@ -29,9 +29,14 @@
 //! offsets; a member still unfound after the descent is the named error, never a guess.
 //!
 //! The parser is deliberately minimal: a BTF header check, a type
-//! walk, nine struct lookups, twelve member lookups. Pure std, no
+//! walk, nine struct lookups, thirteen member lookups. Pure std, no
 //! unsafe - it reads a file, trusts nothing, returns what THE HOST
-//! says, and names every lookup failure.
+//! says, and names every lookup failure. night-frontier-2 grows the
+//! parse by one member (inode.i_sb, the unlink/rename probes' device
+//! hop) and widens the walker's seam to pub(crate) - the btf_writev
+//! sibling's precedent - so src/ebpf/btf_unlink.rs drives the same
+//! BtfFile for the FUNC-parameter scan the unlink/rename anchors
+//! ride; one walker serves every lane.
 //!
 //! night-improve-57: the plain-write probe left vfs_write behind
 //! (the newest -O3 distro builds inline it out of the executed
@@ -62,8 +67,15 @@ const BTF_HEADER_BYTES: usize = 24;
 /// path.dentry], every value a byte offset - the eight frozen
 /// file-walk slots - plus the four fd-walk slots night-improve-57
 /// appends for the syscall-stub write probe: [task_struct.files,
-/// files_struct.fdt, fdtable.max_fds, fdtable.fd].
-pub type ProbeOffsets = [u64; 12];
+/// files_struct.fdt, fdtable.max_fds, fdtable.fd], plus the inode
+/// i_sb hop night-frontier-2 appends for the unlink/rename probes'
+/// device walk (dentry->d_inode->i_sb->s_dev). The two remaining
+/// slots the offsets map carries (the vfs_unlink dentry argument
+/// index and the renamedata old_dentry member offset) are the
+/// FUNC-walk's own values, resolved by src/ebpf/btf_unlink.rs and
+/// merged at the attach boundary (src/ebpf/loader.rs) - the struct
+/// walk and the symbol walk are two parses of one blob.
+pub type ProbeOffsets = [u64; 13];
 
 /// Parse the host's own /sys/kernel/btf/vmlinux. Every error names
 /// its stage; nothing is guessed, ever.
@@ -124,6 +136,7 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
         member_offset(&ctx, files, "files_struct", "fdt")?,
         member_offset(&ctx, fdtable, "fdtable", "max_fds")?,
         member_offset(&ctx, fdtable, "fdtable", "fd")?,
+        member_offset(&ctx, inode, "inode", "i_sb")?,
     ])
 }
 
@@ -132,7 +145,7 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
 /// result (a bit offset that is not byte-aligned) is refused by
 /// name: no struct in the set carries one, and a straddled read
 /// would be a guess.
-fn member_offset(
+pub(crate) fn member_offset(
     ctx: &BtfFile<'_>,
     entry: StructEntry,
     sname: &str,
@@ -153,9 +166,9 @@ fn member_offset(
 /// The walked BTF file: the type records and the string section,
 /// sliced and bounds-checked once.
 pub(crate) struct BtfFile<'a> {
-    data: &'a [u8],
-    types_base: usize,
-    types_len: usize,
+    pub(crate) data: &'a [u8],
+    pub(crate) types_base: usize,
+    pub(crate) types_len: usize,
     strings_base: usize,
     strings_len: usize,
 }
@@ -164,7 +177,7 @@ pub(crate) struct BtfFile<'a> {
 /// and member count - the anonymous-descent walk rides the same
 /// pair for both aggregate kinds.
 #[derive(Clone, Copy)]
-struct StructEntry {
+pub(crate) struct StructEntry {
     members_pos: usize,
     vlen: usize,
 }
@@ -173,7 +186,7 @@ struct StructEntry {
 /// the FUNC_PROTO type id rides in the size/type field at pos+8.
 #[derive(Clone, Copy)]
 pub(crate) struct FuncEntry {
-    pos: usize,
+    pub(crate) pos: usize,
 }
 
 impl<'a> BtfFile<'a> {
@@ -228,7 +241,7 @@ impl<'a> BtfFile<'a> {
 
     /// The name at a string-table offset, or None when the offset is
     /// out of the section (anonymous names use offset 0).
-    fn name(&self, name_off: u32) -> Option<&'a str> {
+    pub(crate) fn name(&self, name_off: u32) -> Option<&'a str> {
         if name_off == 0 {
             return Some("");
         }
@@ -245,7 +258,7 @@ impl<'a> BtfFile<'a> {
     /// vlen*8, FUNC_PROTO vlen*8, VAR +4, DATASEC vlen*12, DECL_TAG
     /// +4, ENUM64 vlen*12) - one miscalculated kind desyncs the whole
     /// walk, so the bounds are checked at every step.
-    fn find_struct(&self, want: &str) -> Option<StructEntry> {
+    pub(crate) fn find_struct(&self, want: &str) -> Option<StructEntry> {
         let mut pos = self.types_base;
         let end = self.types_base + self.types_len;
         while pos + 12 <= end {
@@ -309,7 +322,7 @@ impl<'a> BtfFile<'a> {
     /// sequentially from 1 in section order (0 is the void type), so
     /// the position is the id-th record - one bounded walk. `None`
     /// when the id is out of the section; the caller refuses by name.
-    fn record_pos(&self, want_id: u32) -> Option<usize> {
+    pub(crate) fn record_pos(&self, want_id: u32) -> Option<usize> {
         if want_id == 0 {
             return None;
         }
@@ -532,7 +545,7 @@ fn kind_extra_bytes(kind: u32, vlen: usize) -> Option<usize> {
     }
 }
 
-fn u32_at(data: &[u8], off: usize) -> u32 {
+pub(crate) fn u32_at(data: &[u8], off: usize) -> u32 {
     let b = data.get(off..off + 4).unwrap_or(&[0; 4]);
     u32::from_le_bytes([b[0], b[1], b[2], b[3]])
 }
@@ -547,3 +560,11 @@ mod flatten_tests;
 #[cfg(test)]
 #[path = "../../test/ebpf/btf_writev_tests.rs"]
 mod writev_tests;
+
+// The unlink/rename anchor pins (night-frontier-2): a sibling test
+// module of the btf suite (the flatten-twin law) - it shares the
+// pub(super) blob builders and drives src/ebpf/btf_unlink.rs's
+// verifier against synthetic FUNC records.
+#[cfg(test)]
+#[path = "../../test/ebpf/btf_unlink_tests.rs"]
+mod unlink_lane_tests;

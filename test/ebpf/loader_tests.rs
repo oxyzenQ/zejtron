@@ -80,13 +80,13 @@ fn pin_paths_are_the_one_directory_contract() {
 #[test]
 fn estate_counts_classify_the_whole_pin_estate() {
     // The classifier's naming contract against the real constants:
-    // six programs, six links, six maps - and the three counts cover
+    // eight programs, eight links, six maps - and the three counts cover
     // every pin, so a future probe pair updates the summary line
     // without touching it, and a naming drift fails here instead of
     // printing a wrong count.
     let (programs, links, maps) = estate_counts();
-    assert_eq!(programs, 6, "the estate plants six probe programs");
-    assert_eq!(links, 6, "every program rides one link pin");
+    assert_eq!(programs, 8, "the estate plants eight probe programs");
+    assert_eq!(links, 8, "every program rides one link pin");
     assert_eq!(maps, 6, "the estate plants six maps");
     assert_eq!(
         programs + links + maps,
@@ -118,8 +118,8 @@ fn attach_success_default_is_one_quiet_line() {
     assert!(!concise.contains(PIN_DIR), "no pin directory: {concise}");
     assert!(!concise.contains("BTF"), "no BTF detail: {concise}");
     // The shape it DOES carry: the counts and the camera posture.
-    assert!(concise.contains("6 programs"));
-    assert!(concise.contains("6 links"));
+    assert!(concise.contains("8 programs"));
+    assert!(concise.contains("8 links"));
     assert!(concise.contains("6 maps"));
     assert!(concise.contains("probes attached successfully"));
     assert!(concise.contains("Lazy Camera is now recording"));
@@ -135,6 +135,8 @@ fn attach_verbose_carries_the_probe_and_pin_details() {
     assert!(verbose.contains("sched_process_exec"));
     assert!(verbose.contains("vfs_writev"));
     assert!(verbose.contains("vfs_open"));
+    assert!(verbose.contains("vfs_unlink"));
+    assert!(verbose.contains("vfs_rename"));
     assert!(verbose.contains("sys_enter"));
     assert!(verbose.contains("offsets verified from this host's BTF"));
     assert!(verbose.contains("pins:"));

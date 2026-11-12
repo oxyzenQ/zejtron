@@ -85,6 +85,20 @@ pub const PIN_PROG_EXIT: &str = "/sys/fs/bpf/zejtron/exit_probe";
 /// Link pin - the post-mortem exit probe's attachment.
 pub const PIN_LINK_EXIT: &str = "/sys/fs/bpf/zejtron/exit_probe_link";
 
+/// Program pin - the unlink probe (night-frontier-2): the vfs_unlink
+/// kprobe, the forensic closer for the file arena.
+pub const PIN_PROG_UNLINK: &str = "/sys/fs/bpf/zejtron/unlink_probe";
+
+/// Link pin - the unlink probe's attach link.
+pub const PIN_LINK_UNLINK: &str = "/sys/fs/bpf/zejtron/unlink_probe_link";
+
+/// Program pin - the rename probe (night-frontier-2): the vfs_rename
+/// kprobe, the movement half of the forensic pair.
+pub const PIN_PROG_RENAME: &str = "/sys/fs/bpf/zejtron/rename_probe";
+
+/// Link pin - the rename probe's attach link.
+pub const PIN_LINK_RENAME: &str = "/sys/fs/bpf/zejtron/rename_probe_link";
+
 /// Map pin - the tracked_inodes filter map (the in-kernel price
 /// control: the kprobes check it before recording; the holds/touch/
 /// why windows write and clear it through this pin).
@@ -106,29 +120,37 @@ pub const PIN_MAP_OFFSETS: &str = "/sys/fs/bpf/zejtron/offsets";
 
 /// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
-/// last). Eighteen pins: one link/program pair per probe (the exec
-/// tracepoint, the sock tracepoint, the three file kprobes - the
-/// open probe, the write probe, the writev probe - and the post-mortem
-/// exit tracepoint) and six maps (stats, sock_events, proc_events,
-/// tracked_inodes, file_events, offsets). The exec probe reuses its
-/// existing pins (the phase-1 program carries the counter, not a
-/// new section). Thirteen through night-improve-3, eighteen from
-/// night-improve-4, thirteen again since night-improve-34, fifteen
-/// from night-improve-42 (the writev probe's pair joined), eighteen
-/// from night-improve-47: the exit probe's pair and its proc_events
-/// ring joined when the post-mortem doctor grew its drain.
-pub const ALL_PINS: [&str; 18] = [
+/// last). Twenty-two pins: one link/program pair per probe (the exec
+/// tracepoint, the sock tracepoint, the five file kprobes - the
+/// open probe, the write probe, the writev probe, and since
+/// night-frontier-2 the unlink and rename probes - and the
+/// post-mortem exit tracepoint) and six maps (stats, sock_events,
+/// proc_events, tracked_inodes, file_events, offsets). The exec
+/// probe reuses its existing pins (the phase-1 program carries the
+/// counter, not a new section). Thirteen through night-improve-3,
+/// eighteen from night-improve-4, thirteen again since
+/// night-improve-34, fifteen from night-improve-42 (the writev
+/// probe's pair joined), eighteen from night-improve-47: the exit
+/// probe's pair and its proc_events ring joined when the
+/// post-mortem doctor grew its drain, twenty-two from
+/// night-frontier-2: the unlink and rename probes' pairs joined
+/// when the forensic question grew its answer.
+pub const ALL_PINS: [&str; 22] = [
     PIN_LINK,
     PIN_LINK_SOCK,
     PIN_LINK_OPEN,
     PIN_LINK_WRITE,
     PIN_LINK_WRITEV,
+    PIN_LINK_UNLINK,
+    PIN_LINK_RENAME,
     PIN_LINK_EXIT,
     PIN_PROG,
     PIN_PROG_SOCK,
     PIN_PROG_OPEN,
     PIN_PROG_WRITE,
     PIN_PROG_WRITEV,
+    PIN_PROG_UNLINK,
+    PIN_PROG_RENAME,
     PIN_PROG_EXIT,
     PIN_MAP_STATS,
     PIN_MAP_SOCK_EVENTS,
@@ -455,6 +477,7 @@ pub mod btf;
 /// The planting half of the loader (night-hunter-4's pure move at
 /// the 600 LOC cap): the probe-object names and the per-program
 /// plant chain the loader's attach orchestrates.
+mod btf_unlink;
 mod btf_writev;
 pub mod fileprobe;
 /// The loader (attach/detach), the counter readback, the two ring

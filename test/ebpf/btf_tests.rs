@@ -255,6 +255,7 @@ fn the_reference_probe_offsets_parse_end_to_end() {
             0,  // files_struct.fdt
             0,  // fdtable.max_fds
             8,  // fdtable.fd
+            40, // inode.i_sb (night-frontier-2, the device hop)
         ]
     );
 }
@@ -439,7 +440,7 @@ fn the_fd_walk_lookups_descend_anonymous_aggregates() {
     w.strukt_typed(&mut s, "task_struct", 4096, &[("", union_id, 0)]); // id 4
     w.strukt(&mut s, "fdtable", 32, &[("max_fds", 0), ("fd", 8 * 8)]); // id 5
     w.strukt(&mut s, "dentry", 208, &[("d_inode", 48 * 8)]);
-    w.strukt(&mut s, "inode", 656, &[("i_ino", 64 * 8)]);
+    w.strukt(&mut s, "inode", 656, &[("i_sb", 40 * 8), ("i_ino", 64 * 8)]);
     w.strukt(
         &mut s,
         "file",

@@ -40,7 +40,7 @@ fn the_six_point_eighteen_union_file_parses_end_to_end() {
         &[("", union_id, 0), ("f_inode", 1, 16 * 8)],
     ); // id 5
     w.strukt(&mut s, "dentry", 208, &[("d_inode", 48 * 8)]);
-    w.strukt(&mut s, "inode", 656, &[("i_ino", 64 * 8)]);
+    w.strukt(&mut s, "inode", 656, &[("i_sb", 40 * 8), ("i_ino", 64 * 8)]);
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "task_struct", 4096, &[("files", 16 * 8)]);
@@ -62,6 +62,7 @@ fn the_six_point_eighteen_union_file_parses_end_to_end() {
             0,  // files_struct.fdt
             0,  // fdtable.max_fds
             8,  // fdtable.fd
+            40, // inode.i_sb (night-frontier-2, the device hop)
         ]
     );
 }

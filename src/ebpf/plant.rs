@@ -22,10 +22,13 @@ use aya::programs::TracePoint;
 use aya::programs::links::FdLink;
 
 use super::btf;
+use super::btf_unlink::UnlinkLane;
+use super::events::{OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_UNLINK_DENTRY_ARG};
 use super::{
-    PIN_LINK, PIN_LINK_EXIT, PIN_LINK_OPEN, PIN_LINK_SOCK, PIN_LINK_WRITE, PIN_LINK_WRITEV,
-    PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS, PIN_MAP_PROC_EVENTS, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS,
-    PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_EXIT, PIN_PROG_OPEN, PIN_PROG_SOCK, PIN_PROG_WRITE,
+    PIN_LINK, PIN_LINK_EXIT, PIN_LINK_OPEN, PIN_LINK_RENAME, PIN_LINK_SOCK, PIN_LINK_UNLINK,
+    PIN_LINK_WRITE, PIN_LINK_WRITEV, PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS, PIN_MAP_PROC_EVENTS,
+    PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS, PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_EXIT,
+    PIN_PROG_OPEN, PIN_PROG_RENAME, PIN_PROG_SOCK, PIN_PROG_UNLINK, PIN_PROG_WRITE,
     PIN_PROG_WRITEV,
 };
 use crate::output::verbose::vlog;
@@ -96,6 +99,28 @@ pub(super) const WRITE_TRACEPOINT_EVENT: &str = "sys_enter";
 /// guessed argument position reads garbage silently.
 pub(super) const WRITEV_PROGRAM: &str = "writev_probe";
 
+/// The unlink program's name (night-frontier-2) - the ELF symbol in
+/// ebpf/src/unlink.rs, the forensic closer: the probe that answers
+/// WHO DELETED THIS FILE. The attach symbol is verified before
+/// anything is planted (the dentry argument position is derived
+/// from the host's own BTF by btf_unlink.rs and rides the offsets
+/// map), the argument-position sibling of the writev law.
+pub(super) const UNLINK_PROGRAM: &str = "unlink_probe";
+
+/// The kernel symbol the unlink probe attaches to (entry probe,
+/// offset 0) - the symbol the BTF scan's FUNC record lookup
+/// vouches for.
+pub(super) const UNLINK_SYMBOL: &str = "vfs_unlink";
+
+/// The rename program's name (night-frontier-2) - the ELF symbol in
+/// ebpf/src/unlink.rs, the movement half of the forensic pair.
+pub(super) const RENAME_PROGRAM: &str = "rename_probe";
+
+/// The kernel symbol the rename probe attaches to (entry probe,
+/// offset 0): vfs_rename, the funnel every rename(2) flavor passes
+/// through, its renamedata argument shape verified at attach.
+pub(super) const RENAME_SYMBOL: &str = "vfs_rename";
+
 /// The post-mortem exit program's name (night-improve-47) - the ELF
 /// symbol in ebpf/src/exits.rs, the program whose records name the
 /// processes that exited while nobody was asking.
@@ -118,7 +143,7 @@ pub(super) const MAP_PROC_EVENTS: &str = "proc_events";
 /// The offsets config map name in the probe object.
 pub(super) const MAP_OFFSETS: &str = "offsets";
 
-/// The plant step: load all six programs, attach each to its
+/// The plant step: load all eight programs, attach each to its
 /// point, pin programs + links + maps. Any error names itself; the
 /// caller's fail() protocol cleans up everything the attempt
 /// planted - never a half-attached probe.
@@ -154,6 +179,20 @@ pub(super) fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
         writev_symbol,
         PIN_PROG_WRITEV,
         PIN_LINK_WRITEV,
+    )?;
+    plant_kprobe(
+        bpf,
+        UNLINK_PROGRAM,
+        UNLINK_SYMBOL,
+        PIN_PROG_UNLINK,
+        PIN_LINK_UNLINK,
+    )?;
+    plant_kprobe(
+        bpf,
+        RENAME_PROGRAM,
+        RENAME_SYMBOL,
+        PIN_PROG_RENAME,
+        PIN_LINK_RENAME,
     )?;
     plant_tracepoint(
         bpf,
@@ -197,10 +236,14 @@ pub(super) fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
 }
 
 /// Write the BTF-parsed offsets through the pin, slot by slot in the
-/// events.rs order. Eight slots - the file walks the two kprobes
-/// read, parsed from the host's own BTF. Every write error names
-/// the slot.
-pub(super) fn write_offsets(offsets: &btf::ProbeOffsets) -> Result<(), String> {
+/// events.rs order. Thirteen slots from the struct walk - the walks
+/// the four kprobes read, parsed from the host's own BTF - plus the
+/// two anchor slots the unlink/rename lane's symbol walk resolved
+/// (the vfs_unlink dentry argument index and the renamedata
+/// old_dentry member offset), written through the OFF_SLOT_*
+/// constants so a contract drift names its slot. Every write error
+/// names the slot.
+pub(super) fn write_offsets(offsets: &btf::ProbeOffsets, lane: &UnlinkLane) -> Result<(), String> {
     vlog!(
         "engine",
         "writing the BTF-parsed offsets into the pinned map"
@@ -225,6 +268,14 @@ pub(super) fn write_offsets(offsets: &btf::ProbeOffsets) -> Result<(), String> {
         map.set(slot as u32, value, 0)
             .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
     }
+    // The two anchor slots, by their own constants: the night-hunter-3
+    // lesson names the failure class a lagging writer breeds, so the
+    // non-contiguous tail is written by the same OFF_SLOT_* contract
+    // the BPF readers use - a renumber names itself here.
+    map.set(OFF_SLOT_UNLINK_DENTRY_ARG, &u64::from(lane.dentry_arg), 0)
+        .map_err(|e| format!("offsets[{OFF_SLOT_UNLINK_DENTRY_ARG}] write failed: {e}"))?;
+    map.set(OFF_SLOT_RENAMEDATA_OLD_DENTRY, &lane.old_dentry_offset, 0)
+        .map_err(|e| format!("offsets[{OFF_SLOT_RENAMEDATA_OLD_DENTRY}] write failed: {e}"))?;
     Ok(())
 }
 

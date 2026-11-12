@@ -18,12 +18,13 @@
 //! proc_events ring, the drain the doctor's ram symptom reads).
 //!
 //! This is the privileged one-shot. `doctor --attach` loads the
-//! embedded probe object, loads ALL SIX programs (phase 1's
+//! embedded probe object, loads ALL EIGHT programs (phase 1's
 //! sched/sched_process_exec counter, phase 2's
 //! sock/inet_sock_set_state socket-event probe, phase 3's
 //! vfs_open/vfs_write file probes, night-improve-42's vfs_writev
 //! vectorized-write probe, night-improve-47's
-//! sched/sched_process_exit post-mortem exit probe), attaches each,
+//! sched/sched_process_exit post-mortem exit probe, night-frontier-2's
+//! unlink and rename probes), attaches each,
 //! and pins
 //! EVERYTHING to bpffs - programs, links, maps - then writes the
 //! BTF-parsed struct offsets into the `offsets` map, and the
@@ -47,6 +48,7 @@
 use aya::Ebpf;
 
 use super::btf;
+use super::btf_unlink;
 use super::btf_writev;
 use super::embedded;
 use super::plant;
@@ -132,7 +134,7 @@ pub fn attach() -> Result<String, String> {
     // law in fuzz/Cargo.toml). The pair order mirrors btf.rs's
     // ProbeOffsets slots exactly; a length drift is a bug in this
     // trace table, caught before a line is printed.
-    const OFF_TRACE: [(&str, &str); 12] = [
+    const OFF_TRACE: [(&str, &str); 13] = [
         ("dentry", "d_inode"),
         ("inode", "i_ino"),
         ("file", "f_path"),
@@ -145,6 +147,7 @@ pub fn attach() -> Result<String, String> {
         ("files_struct", "fdt"),
         ("fdtable", "max_fds"),
         ("fdtable", "fd"),
+        ("inode", "i_sb"),
     ];
     debug_assert_eq!(OFF_TRACE.len(), offsets.len());
     for ((sname, mname), offset) in OFF_TRACE.iter().zip(offsets.iter()) {
@@ -175,6 +178,27 @@ pub fn attach() -> Result<String, String> {
     vlog!(
         "btf",
         "writev attach symbol verified from BTF: {writev_symbol} (arg0: struct file)"
+    );
+
+    // 1.7. The unlink/rename anchor verification (night-frontier-2):
+    //      the two forensic kprobes' argument shapes are read from
+    //      the same host BTF, before anything is planted - the
+    //      parameter-index sibling of the offsets law above. The
+    //      vfs_unlink signature churned across the floor (mnt_userns
+    //      in 5.12 moved dentry from arg1 to arg2), so the dentry
+    //      argument position is DERIVED per host - a signature move
+    //      re-derives instead of misreading, and an unrecognizable
+    //      shape refuses here, by name, with zero pins touched.
+    let lane = btf_unlink::verify_unlink_lane().map_err(|e| {
+        format!(
+            "attach refused: cannot verify the unlink/rename probes' anchors              from BTF ({e}). The unlink probe reads the dentry at the argument              position the host's BTF vouches for, and the rename probe walks              renamedata.old_dentry at the member offset the same BTF vouches              for - a guessed position reads garbage silently. No probe is              planted"
+        )
+    })?;
+    vlog!(
+        "btf",
+        "unlink anchor verified from BTF: vfs_unlink's struct dentry * rides          argument {}; rename anchor verified: renamedata.old_dentry at offset {}",
+        lane.dentry_arg,
+        lane.old_dentry_offset
     );
 
     // 1.8. The mount prerequisites (night-improve-61): the tracepoint
@@ -252,7 +276,7 @@ pub fn attach() -> Result<String, String> {
     );
     let mut bpf =
         Ebpf::load(PROBE_ELF).map_err(|e| fail(format!("the probe object failed to load: {e}")))?;
-    vlog!("engine", "probe object loaded - planting six programs");
+    vlog!("engine", "probe object loaded - planting eight programs");
 
     let attach_result = plant::plant(&mut bpf, writev_symbol);
     match attach_result {
@@ -262,7 +286,7 @@ pub fn attach() -> Result<String, String> {
             //     rides on. A failure here cleans everything (the
             //     fail protocol); a probe whose offsets cannot be
             //     written is a probe that must not stay planted.
-            if let Err(e) = plant::write_offsets(&offsets) {
+            if let Err(e) = plant::write_offsets(&offsets, &lane) {
                 return Err(fail(e));
             }
             // 6.6. The write probe's own verification (night-improve-59):
@@ -434,12 +458,14 @@ pub(crate) fn attach_success_summary(
          sock/inet_sock_set_state + sched/sched_process_exit (the post-mortem \
          exit probe) + raw_syscalls/sys_enter (the write probe, verified by its \
          own recorded write), kprobes vfs_open + {writev_symbol} \
-         (the vectorized-write probe, verified from this host's BTF), offsets \
-         verified from this host's BTF, counter live; \
+         (the vectorized-write probe, verified from this host's BTF) + \
+         vfs_unlink + vfs_rename (the unlink/rename probes, verified from this \
+         host's BTF), offsets verified from this host's BTF, counter live; \
          events since attach: {}\npins: {PIN_DIR} (probe, probe_link, stats, \
          sock_probe, sock_probe_link, sock_events, exit_probe, exit_probe_link, \
          proc_events, open_probe, open_probe_link, \
          write_probe, write_probe_link, writev_probe, writev_probe_link, \
+         unlink_probe, unlink_probe_link, rename_probe, rename_probe_link, \
          tracked_inodes, file_events, offsets)",
         count_label(count)
     )
