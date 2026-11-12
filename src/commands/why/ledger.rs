@@ -43,10 +43,13 @@ pub fn build_path_report(
     print_json: bool,
 ) -> Result<String, super::WhyError> {
     let metadata = fs::metadata(path).map_err(|error| {
+        // The echo is capped and sanitized (night-total-hardening-1):
+        // a pathological operand is named, never flooded.
+        let operand = crate::system::display_operand(&path.display().to_string());
         if error.kind() == std::io::ErrorKind::NotFound {
-            super::WhyError(format!("path not found: {}", path.display()))
+            super::WhyError(format!("path not found: {operand}"))
         } else {
-            super::WhyError(format!("{}: {error}", path.display()))
+            super::WhyError(format!("{operand}: {error}"))
         }
     })?;
     let inode = metadata.ino();

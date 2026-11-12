@@ -33,7 +33,12 @@ pub fn run(command: &str, print_json: bool) -> Result<(), Box<dyn std::error::Er
     // The verb's own diagnostic lane (night-total-hardening-1): the
     // resolution names its hit count on stderr, stdout stays the
     // report only.
-    crate::output::verbose::vlog!("path", "{} PATH hit(s) for '{}'", matches.len(), command);
+    crate::output::verbose::vlog!(
+        "path",
+        "{} PATH hit(s) for '{}'",
+        matches.len(),
+        crate::system::display_operand(command)
+    );
 
     // The renderer branch (night-badass-9): the JSON lane speaks the
     // same resolution - the same match set, the same owner lookup -
@@ -62,8 +67,9 @@ pub fn run(command: &str, print_json: bool) -> Result<(), Box<dyn std::error::Er
         // "no events" line), the queried command is the value and
         // stays unwrapped.
         println!(
-            "{} {command}",
-            crate::output::grey_out("command not found in PATH:")
+            "{} {}",
+            crate::output::grey_out("command not found in PATH:"),
+            crate::system::display_operand(command)
         );
         flush_and_exit_not_found();
     }
@@ -259,7 +265,17 @@ pub fn find_in_path(command: &str, path_env: Option<&OsStr>) -> io::Result<Vec<P
             }
             Ok(_) => {}
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error),
+            // The named passthrough (night-total-hardening-1): a
+            // non-NotFound stat failure (a pathological command name
+            // dies in ENAMETOOLONG) used to surface as the bare OS
+            // text with no operand named - the law every sibling
+            // refusal carries, with the echo capped.
+            Err(error) => {
+                return Err(io::Error::new(
+                    error.kind(),
+                    format!("{}: {error}", crate::system::display_operand(command)),
+                ));
+            }
         }
     }
 

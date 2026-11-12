@@ -175,11 +175,20 @@ pub fn run(target: &str, since: Option<&str>, print_json: bool) -> Result<(), Bo
 
 fn parse_target(input: &str) -> Result<Target, HoldsError> {
     if input.chars().all(|character| character.is_ascii_digit()) {
-        let port = input
-            .parse::<u32>()
-            .map_err(|_| HoldsError(format!("invalid port: {input}")))?;
+        // The refusal echo rides the capped shape (night-total-
+        // hardening-1): a pathological all-digits ask (a megabyte of
+        // nines) is a parse refusal, not a terminal flood.
+        let port = input.parse::<u32>().map_err(|_| {
+            HoldsError(format!(
+                "invalid port: {}",
+                crate::system::display_operand(input)
+            ))
+        })?;
         if !(1..=u32::from(u16::MAX)).contains(&port) {
-            return Err(HoldsError(format!("invalid port: {input}")));
+            return Err(HoldsError(format!(
+                "invalid port: {}",
+                crate::system::display_operand(input)
+            )));
         }
         return Ok(Target::Port(port as u16));
     }
@@ -204,10 +213,14 @@ pub(crate) fn scan_port_holders(port: u16) -> Result<(Vec<Holder>, ScanStats), H
 
 pub(crate) fn scan_path_holders(path: &Path) -> Result<(Vec<Holder>, ScanStats), HoldsError> {
     let metadata = fs::metadata(path).map_err(|error| {
+        // The echo is capped and sanitized (night-total-hardening-1):
+        // the operand is the user's own bytes, and a pathological
+        // length is named, not flooded.
+        let operand = crate::system::display_operand(&path.display().to_string());
         if error.kind() == io::ErrorKind::NotFound {
-            HoldsError(format!("{}: no such file or directory", path.display()))
+            HoldsError(format!("{operand}: no such file or directory"))
         } else {
-            HoldsError(format!("{}: {error}", path.display()))
+            HoldsError(format!("{operand}: {error}"))
         }
     })?;
     scan_path_holders_for_file_id(FileId::from_metadata(&metadata))

@@ -88,10 +88,12 @@ pub fn run(path: &Path, since: Option<&str>, print_json: bool) -> Result<(), Box
 pub(crate) fn inspect_path(path: &Path) -> Result<TouchInfo, TouchError> {
     // Use symlink_metadata so we can detect symlinks and report their target
     let symlink_meta = fs::symlink_metadata(path).map_err(|error| {
+        // The echo is capped and sanitized (night-total-hardening-1).
+        let operand = crate::system::display_operand(&path.display().to_string());
         if error.kind() == io::ErrorKind::NotFound {
-            TouchError(format!("path not found: {}", path.display()))
+            TouchError(format!("path not found: {operand}"))
         } else {
-            TouchError(format!("{}: {error}", path.display()))
+            TouchError(format!("{operand}: {error}"))
         }
     })?;
 

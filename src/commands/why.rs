@@ -51,11 +51,19 @@ pub fn run(
 
 fn parse_target(input: &str) -> Result<Target, WhyError> {
     if input.chars().all(|character| character.is_ascii_digit()) {
-        let port = input
-            .parse::<u32>()
-            .map_err(|_| WhyError(format!("invalid port: {input}")))?;
+        // The refusal echo rides the capped shape (night-total-
+        // hardening-1), the same law holds' own parse carries.
+        let port = input.parse::<u32>().map_err(|_| {
+            WhyError(format!(
+                "invalid port: {}",
+                crate::system::display_operand(input)
+            ))
+        })?;
         if !(1..=u32::from(u16::MAX)).contains(&port) {
-            return Err(WhyError(format!("invalid port: {input}")));
+            return Err(WhyError(format!(
+                "invalid port: {}",
+                crate::system::display_operand(input)
+            )));
         }
         return Ok(Target::Port(port as u16));
     }

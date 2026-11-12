@@ -205,6 +205,29 @@ pub fn sanitize_display(input: &str) -> String {
         .collect()
 }
 
+/// The refusal-echo cap (night-total-hardening-1): an operand echoed
+/// back inside a refusal line is the user's own bytes, and a
+/// pathological ask - a 100KB filename, a megabyte of digits - used
+/// to ride the refusal verbatim, flooding the terminal and every CI
+/// log that captured it. Refusal lines carry the operand through
+/// [`sanitize_display`] and cap it at this many characters, with a
+/// trailing "..." naming the cut; honest short operands come back
+/// byte-identical.
+pub const MAX_OPERAND_DISPLAY_CHARS: usize = 96;
+
+/// The refusal-echo shape: [`sanitize_display`] plus the
+/// [`MAX_OPERAND_DISPLAY_CHARS`] cap. The take walks chars, never
+/// bytes, so a multibyte operand can never be cut mid-character.
+pub fn display_operand(input: &str) -> String {
+    let sanitized = sanitize_display(input);
+    if sanitized.chars().count() <= MAX_OPERAND_DISPLAY_CHARS {
+        return sanitized;
+    }
+    let mut capped: String = sanitized.chars().take(MAX_OPERAND_DISPLAY_CHARS).collect();
+    capped.push_str("...");
+    capped
+}
+
 /// Read `/proc/<pid>/cmdline` and split on NUL bytes into argv tokens.
 /// Returns `None` if the file is unreadable or empty.
 ///
