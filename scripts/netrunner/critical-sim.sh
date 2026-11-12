@@ -290,12 +290,34 @@ fi
 # 5. The stream law: -v speaks on stderr and stdout stays byte-clean.
 # The verb rides as separate argv words (quoted through the shift
 # walk - the word-splitting SC2086 warns about never happens).
+# --normalize takes a sed program applied to BOTH captures before
+# the compare, for verbs whose stdout names kernel-owned facts that
+# legitimately move between two spawns: proc renders pid= labels
+# (the two runs are different processes) and state= chars (a daemon
+# flips S/R between the captures - on the root leg the depth-2 tree
+# carries ~80 daemons and at least one is mid-flip). Normalizing
+# those annotations keeps the check on its actual contract - verbose
+# must not leak into stdout - instead of failing on scheduler noise
+# no read-only tool can promise to freeze. Any leaked diagnostic
+# line still fails the compare: the vlog wording carries no
+# pid=/state= tokens for the sed to eat.
 stream_law() {
-	local label="$1"
+	local label="$1" normalize=""
 	shift
+	if [ "${1:-}" = "--normalize" ]; then
+		normalize="$2"
+		shift 2
+	fi
 	"$BIN" "$@" >"$SCRATCH/s-plain.out" 2>/dev/null
 	"$BIN" "$@" -v >"$SCRATCH/s-verbose.out" 2>"$SCRATCH/s-verbose.err"
-	if cmp -s "$SCRATCH/s-plain.out" "$SCRATCH/s-verbose.out" &&
+	local plain="$SCRATCH/s-plain.out" verbose="$SCRATCH/s-verbose.out"
+	if [ -n "$normalize" ]; then
+		sed -E "$normalize" "$plain" >"$plain.norm"
+		sed -E "$normalize" "$verbose" >"$verbose.norm"
+		plain="$plain.norm"
+		verbose="$verbose.norm"
+	fi
+	if cmp -s "$plain" "$verbose" &&
 		[ -s "$SCRATCH/s-verbose.err" ]; then
 		pass "verbose keeps stdout byte-clean ($label)"
 	else
@@ -304,7 +326,7 @@ stream_law() {
 	fi
 }
 stream_law "doctor" doctor
-stream_law "proc" proc --me --depth 2
+stream_law "proc" --normalize 's/pid=[0-9]+/pid=N/g; s/state=[RSDZTt?]/state=X/g' proc --me --depth 2
 stream_law "recent" recent "$SCRATCH/tree"
 stream_law "path" path sh
 stream_law "net" net
