@@ -84,6 +84,17 @@ pub fn run(
     }
 
     let checks = collect_checks(git_hash);
+    // The verb's own diagnostic lane (night-total-hardening-1): the
+    // readiness pass names its check count and the effective uid it
+    // ran under - stderr only, the report lane stays clean.
+    crate::output::verbose::vlog!(
+        "doctor",
+        "running {} readiness checks (uid {})",
+        checks.len(),
+        crate::system::effective_uid()
+            .map(|uid| uid.to_string())
+            .unwrap_or_else(|| "unknown".to_owned())
+    );
     let summary = summarize(&checks);
     // The renderer branch (night-badass-5): the JSON lane speaks the
     // same readiness truth - checks, summary, eBPF facts - as one

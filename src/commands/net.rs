@@ -98,6 +98,16 @@ fn collect_report() -> NetReport {
         .find(|r| r.destination == "default")
         .map(|r| r.iface.clone());
     let resolver = read_resolver_config();
+    // The verb's own diagnostic lane (night-total-hardening-1): the
+    // collection names what it saw - stderr only, the report lane
+    // stays clean.
+    crate::output::verbose::vlog!(
+        "net",
+        "scanned {} interfaces, {} arp entries, {} routes",
+        interfaces.len(),
+        arp_neighbors.len(),
+        routes.len()
+    );
 
     NetReport {
         interfaces,
