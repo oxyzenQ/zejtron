@@ -153,13 +153,14 @@ for suite in ${SUITES}; do
 	binary_args=()
 	[ -n "${BINARY}" ] && binary_args=(--binary "${BINARY}")
 
-	set +e
+	# No set -e here on purpose: a failing witness must not end the
+	# ladder - the sentinel line is the verdict, the whole ladder
+	# reports, and the driver's own exit is the aggregate.
 	"${run_env[@]}" bash "${SANDBOX}" --battery --kernel "${suite}" \
 		"${timeout_args[@]}" "${binary_args[@]}" --keep \
 		>"${log_dir}/run.out" 2>&1
-	rc=$?
-	set -e
-	elapsed="${SECONDS}"; elapsed=$((elapsed - suite_start))
+	elapsed="${SECONDS}"
+	elapsed=$((elapsed - suite_start))
 	RAN=$((RAN + 1))
 
 	log="${log_dir}/vm.log"

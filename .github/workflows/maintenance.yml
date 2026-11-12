@@ -237,7 +237,11 @@ jobs:
           # The exact lockfile paths from the manifest walk plus the
           # prebuilt lane - the set the validate job proved, nothing
           # else can match.
-          git add -- $(find . -name Cargo.toml -not -path '*/target/*' \
-            | sed 's|Cargo\.toml$|Cargo.lock|') ebpf-prebuilt
+          find . -name Cargo.lock -type f -not -path '*/target/*' \
+            | xargs -0 -r git add --
+          # The prebuilt lane rides as a directory: rsync --delete may
+          # have retired files there, and only a directory add stages
+          # the deletions beside the modifications.
+          git add -- ebpf-prebuilt
           git commit -m "chore(deps): maintenance deps weekly"
           git push origin "HEAD:${DEFAULT_BRANCH}"
