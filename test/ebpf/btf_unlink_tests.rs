@@ -301,3 +301,28 @@ fn a_wrong_magic_refuses_before_any_scan() {
     let err = verify_unlink_lane_in(&[0; 64]).expect_err("non-BTF refuses");
     assert!(err.contains("not a BTF file"), "got: {err}");
 }
+
+#[test]
+fn the_committed_fuzz_seeds_verify_end_to_end() {
+    // The seed anchors (fuzz/seeds/btf_parser/) are the fuzz lane's
+    // own contract: the same shapes the tests above pin, carried as
+    // files. This pin keeps the mirror honest - a seed that stops
+    // verifying is a stale seed, caught here instead of in a fuzz
+    // run that silently loses its starting shape.
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/fuzz/seeds/btf_parser");
+    let modern = std::fs::read(format!(
+        "{dir}/vfs-unlink-dentry-at-arg2-plus-renamedata.bin"
+    ))
+    .expect("the modern seed is committed");
+    let lane = verify_unlink_lane_in(&modern).expect("the modern seed verifies");
+    assert_eq!(lane.dentry_arg, 2);
+    assert_eq!(lane.old_dentry_offset, 8);
+    let pre_idmap = std::fs::read(format!("{dir}/vfs-unlink-pre-idmap-dentry-at-arg1.bin"))
+        .expect("the pre-idmap seed is committed");
+    let lane = verify_unlink_lane_in(&pre_idmap).expect("the pre-idmap seed verifies");
+    assert_eq!(lane.dentry_arg, 1);
+    let nested = std::fs::read(format!("{dir}/renamedata-old-dentry-in-unnamed-union.bin"))
+        .expect("the union seed is committed");
+    let lane = verify_unlink_lane_in(&nested).expect("the union seed verifies");
+    assert_eq!(lane.old_dentry_offset, 8);
+}
