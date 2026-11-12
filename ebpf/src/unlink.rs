@@ -189,11 +189,6 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
             return 0;
         }
         publish_if_tracked(dentry, FILE_OP_UNLINK);
-        let dentry = dentry as usize;
-        if dentry == 0 {
-            return 0;
-        }
-        publish_if_tracked(dentry, FILE_OP_UNLINK);
     }
     0
 }
