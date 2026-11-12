@@ -97,8 +97,11 @@ only to commit a validated dependency refresh directly to the default branch.
 
 The dependency footprint must stay **minimal**. No new runtime dependencies
 should be added unless absolutely necessary. Dependency refreshes are handled by
-the weekly maintenance workflow, which runs `cargo update`, executes the full
-`./scripts/build.sh` suite, and commits `Cargo.lock` directly to the default branch only
+the weekly maintenance workflow, which runs `cargo update` in every workspace
+(auto-detected by walking each committed `Cargo.toml` - root, `ebpf/`, `fuzz/`),
+executes the full
+`./scripts/build.sh` suite, and commits the refreshed `Cargo.lock` files directly
+to the default branch only
 when validation succeeds.
 
 ## Code Quality
