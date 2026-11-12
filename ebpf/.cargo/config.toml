@@ -28,6 +28,30 @@
 # default: the tap uses legacy map definitions and needs no CO-RE
 # introspection. Phase 1 reads no tracepoint arguments, so there is
 # no context layout to introspect.
+#
+# night-frontier-1 measured the CO-RE frontier so this decision stays
+# decision-grade rather than habit. The estate's cross-kernel
+# contract is already the CO-RE shape: ONE kernel-agnostic object
+# (bpfel-unknown-none, no kernel headers in the build), with the
+# per-host struct offsets resolved at attach from the host's own
+# /sys/kernel/btf/vmlinux (src/ebpf/btf.rs) and the attach refused
+# when BTF cannot verify them - "compile once, run everywhere" via
+# runtime offsets instead of load-time relocations, and strictly
+# more flexible for a tap that reads kernel structs through a map.
+# True compile-time CO-RE field relocations are measured-impossible
+# in the rustc toolchain: with -Cdebuginfo=2 plus bpf-linker 0.11.1's
+# --btf the object carries a rich .BTF and a .BTF.ext whose
+# core_relo header field lands at length ZERO - rustc's frontend has
+# no preserve_access_index (clang-only), so there is nothing for the
+# loader to relocate. aya 0.16's loader already carries the full
+# 12-kind BPF_CORE relocation engine (FieldByteOffset through
+# EnumVariantValue), so the day rustc emits field relos this crate
+# needs no migration. The introspection-only recipe, should a later
+# pass want a type-carrying object, is measured too: the flags above
+# plus llvm-objcopy --strip-debug (llvm-tools-preview; GNU objcopy
+# cannot parse EM_BPF) yield a 37.4 KB object with a rich .BTF and
+# zero DWARF dead weight - deliberately not enabled here, per the
+# decision above.
 
 [build]
 target = "bpfel-unknown-none.json"
