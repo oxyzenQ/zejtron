@@ -30,6 +30,11 @@ jobs:
   validate:
     name: Maintenance deps weekly validate
     runs-on: ubuntu-24.04
+    # The runtime budget law (docs/RULES.md): 15 is the deliberate
+    # generous budget here - toolchain install, the eBPF bootstrap,
+    # the rider's possible object rebuild, and the wholesale check
+    # suite land in this one job.
+    timeout-minutes: 15
     permissions:
       contents: read
     outputs:
@@ -165,6 +170,7 @@ jobs:
   commit:
     name: Maintenance deps weekly commit
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     needs: validate
     if: needs.validate.outputs.changed == 'true'
     permissions:
