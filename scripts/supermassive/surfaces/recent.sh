@@ -84,14 +84,18 @@ surface_recent() {
 			"neither stream mentioned 'invalid duration'"
 	fi
 
-	# Error path: a path that does not exist. The verified contract:
-	# exit 1 with the OS error wording on stderr (this surface passes
-	# the OS error through - unlike touch/why, which name the path).
+	# Error path: a path that does not exist. The verified contract
+	# (night-total-hardening-1): exit 1 with the path-named OS
+	# wording on stderr - the same refusal shape `holds` carries
+	# ("<path>: no such file or directory"), not the bare OS text
+	# the scan used to pass through.
 	sm_run "$SM_SCRATCH/miss.out" "$SM_SCRATCH/miss.err" rc 5 -- \
 		"$SM_DEFAULT_BIN" recent "$SM_SCRATCH/no-such-dir"
 	sm_assert_rc 1 "$rc" "recent <missing> exits 1"
-	sm_assert_contains "$SM_SCRATCH/miss.err" "No such file or directory" \
+	sm_assert_contains "$SM_SCRATCH/miss.err" "no such file or directory" \
 		"recent <missing> names the OS error on stderr"
+	sm_assert_contains "$SM_SCRATCH/miss.err" "no-such-dir" \
+		"recent <missing> names the missing path"
 
 	# Determinism against the controlled fixture.
 	sm_deterministic "recent determinism (fixture)" 5 -- "$SM_DEFAULT_BIN" recent "$dir" --limit 5
