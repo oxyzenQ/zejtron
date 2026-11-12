@@ -31,6 +31,17 @@ fn target_detection_invalid_port() {
 }
 
 #[test]
+fn target_detection_empty_target_refuses_with_the_examples_named() {
+    // night-total-hardening-1: the vacuous all-digits check used to
+    // send "" down the port lane and the refusal echoed nothing; the
+    // guard names the operand class with the verb's own examples.
+    assert_eq!(
+        parse_target("").unwrap_err().to_string(),
+        "the target is empty (e.g. zejtron holds /etc/resolv.conf or zejtron holds 22)"
+    );
+}
+
+#[test]
 fn target_detection_path() {
     assert_eq!(
         parse_target("/tmp/file with spaces").unwrap(),

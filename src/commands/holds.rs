@@ -174,6 +174,17 @@ pub fn run(target: &str, since: Option<&str>, print_json: bool) -> Result<(), Bo
 }
 
 fn parse_target(input: &str) -> Result<Target, HoldsError> {
+    // The empty-target guard (night-total-hardening-1): the vacuous
+    // all-digits check below (all() on an empty iterator is true)
+    // used to send "" down the port lane, and the refusal echoed
+    // nothing ("invalid port: "). An empty target is a missing
+    // operand, not a lookup - the guard names it with the verb's own
+    // examples, the same law path's empty-name guard carries.
+    if input.is_empty() {
+        return Err(HoldsError(
+            "the target is empty (e.g. zejtron holds /etc/resolv.conf or zejtron holds 22)".into(),
+        ));
+    }
     if input.chars().all(|character| character.is_ascii_digit()) {
         // The refusal echo rides the capped shape (night-total-
         // hardening-1): a pathological all-digits ask (a megabyte of

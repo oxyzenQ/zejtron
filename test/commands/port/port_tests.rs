@@ -56,6 +56,17 @@ fn validates_port_range() {
 }
 
 #[test]
+fn the_empty_port_operand_refuses_with_the_example_named() {
+    // night-total-hardening-1: "" used to render "invalid port: " -
+    // nothing named. A missing operand is not a parse failure; the
+    // refusal names the verb's own example, byte-pinned.
+    assert_eq!(
+        validate_port("").unwrap_err().to_string(),
+        "the port is empty (e.g. zejtron port 22)"
+    );
+}
+
+#[test]
 fn filters_by_protocol() {
     let sockets = vec![
         socket(Protocol::Tcp, 80, Some("LISTEN")),
