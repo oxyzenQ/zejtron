@@ -289,7 +289,15 @@ fn enrich_subcommand_flag_redirect(e: &mut Error, cmd: &Command) {
 /// otherwise - and the process exits 2 (the clap usage-error code).
 /// Runtime failures keep exit 1 in `main`.
 pub(crate) fn exit_clap_error(e: Error) -> ! {
-    if matches!(e.kind(), ErrorKind::DisplayHelp | ErrorKind::DisplayVersion) {
+    if matches!(e.kind(), ErrorKind::DisplayVersion) {
+        // The version report rides zejtron's own paint (the capability
+        // ladder), not clap's raw render - the same bytes `-V` has
+        // always printed at the top level, now shared by every verb
+        // (night-total-hardening-1): stdout, exit 0, no stderr noise.
+        crate::info::print_version_report();
+        std::process::exit(0);
+    }
+    if matches!(e.kind(), ErrorKind::DisplayHelp) {
         e.exit(); // stdout + exit 0, clap's own path
     }
     let mut e = e;
