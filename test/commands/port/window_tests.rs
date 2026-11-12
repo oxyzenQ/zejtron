@@ -34,18 +34,25 @@ fn options() -> PortOptions {
 }
 
 #[test]
-fn window_grammar_accepts_s_m_h() {
+fn window_grammar_accepts_s_m_h_d() {
     assert_eq!(parse_window("60s").unwrap(), Duration::from_secs(60));
     assert_eq!(parse_window("5m").unwrap(), Duration::from_secs(300));
     assert_eq!(parse_window("1h").unwrap(), Duration::from_secs(3600));
     assert_eq!(parse_window("90s").unwrap(), Duration::from_secs(90));
+    // night-total-hardening-1, the one-grammar law: days join the
+    // window grammar - the ask saturates above the ceiling and the
+    // clamp (not the grammar) shapes it into the honest 1h maximum,
+    // the same path an absurd hour ask rides.
+    assert_eq!(parse_window("1d").unwrap(), Duration::from_secs(86400));
+    assert_eq!(parse_window("7d").unwrap(), Duration::from_secs(7 * 86400));
 }
 
 #[test]
 fn window_grammar_rejects_the_shapes_it_does_not_speak() {
-    // Days are the file-age grammar (recent's); bare numbers, empty
-    // strings, and floats are nobody's grammar.
-    for bad in ["", "5", "s", "60x", "5d", "1.5m", "-60s", "60S"] {
+    // One grammar for the whole CLI (night-total-hardening-1):
+    // s/m/h/d everywhere; bare numbers, empty strings, and floats
+    // are nobody's grammar.
+    for bad in ["", "5", "s", "60x", "1.5m", "-60s", "60S"] {
         assert!(parse_window(bad).is_err(), "must reject {bad:?}");
     }
 }
@@ -233,14 +240,18 @@ fn parse_options_carries_the_window_grammar() {
     .unwrap();
     assert_eq!(clamped_high.window, Duration::from_secs(3600));
 
-    let invalid = super::super::parse_options(
+    // night-total-hardening-1: a day ask now parses (the one-grammar
+    // law) and rides the clamp into the ceiling - the same contract
+    // an above-ceiling hour ask has always had.
+    let clamped_days = super::super::parse_options(
         None,
         PortFlags {
-            since: Some("5d".to_owned()),
+            since: Some("1d".to_owned()),
             ..PortFlags::default()
         },
-    );
-    assert!(invalid.is_err());
+    )
+    .unwrap();
+    assert_eq!(clamped_days.window, Duration::from_secs(3600));
 }
 
 #[test]
