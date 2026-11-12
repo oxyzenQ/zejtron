@@ -46,6 +46,20 @@ fn branded_command() -> clap::Command {
             .display_order(0)
             .help("Print complete version and build information"),
     );
+    // The version string must reach every subcommand too (the debug
+    // assert's law): a global arg with ArgAction::Version propagates
+    // to each verb, and clap's debug_asserts (every cargo run and
+    // cargo test build) then require that verb to carry its own
+    // version string - the root-only version left every subcommand
+    // invocation panicking in debug builds since the flag went
+    // global (release builds skip the asserts, so the CI lanes never
+    // saw it; a plain `cargo run -- proc` did). The same &'static
+    // str rides everywhere; no help row moves (the -V row already
+    // sat on each verb through the global arg) and every -V keeps
+    // answering with the one report.
+    for subcommand in cmd.get_subcommands_mut() {
+        *subcommand = std::mem::take(subcommand).version(version_text());
+    }
     // The row-order pins (night-total-hardening-1): the old derive
     // field order (version, verbose, check-update) numbered the
     // globals 0, 1, 2, and every verb's help interleaved those values
