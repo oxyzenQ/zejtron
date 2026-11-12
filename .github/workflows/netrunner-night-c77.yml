@@ -1,0 +1,244 @@
+---
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+# =============================================================================
+#
+# zejtron - netrunner-night-C77 (the critical-usage simulation lane).
+#
+# The contract (the owner's night-total-hardening-1 ask): before
+# zejtron lands on critical infrastructure, the whole estate runs
+# end to end as a forensic tool - every verb, every JSON lane, the
+# -V/-h sweep, the safety battery (the absurd numeric asks are
+# parse-time refusals), the stream law - under BOTH identities:
+#
+#   root        - the live eBPF forensic pair: create -> write ->
+#                 unlink -> "who deleted this file?"; create ->
+#                 rename -> the renamed row. One attach, the
+#                 single-publish law counted, one detach.
+#   non-root    - the same estate minus the privileged leg, and the
+#                 refusal direction asserted: the attach MUST refuse
+#                 naming its reason, never fake a success.
+#
+# The third leg rides the kernel-floor micro-VM: the same simulation
+# as root INSIDE the booted floor kernel (the jammy GA 5.15.0-25 the
+# README documents) - the sandbox lane proves the probes on the
+# oldest kernel the project promises, the local twin
+# (scripts/sandbox/zejtron-sandbox.sh) runs the same shape anywhere.
+#
+# The simulation itself is scripts/netrunner/critical-sim.sh - one
+# script, uid-adaptive, its last line is the verdict
+# ("NETRUNNER-C77: PASS|FAIL (n checks)") and its exit code is
+# trustworthy. This file only makes the legs run.
+#
+# Trigger discipline: the estate's unfiltered-push posture (every
+# push burns the lane, no path filter), plus a nightly slot (the
+# name's own word) and the manual dispatch. The jobs fail on any
+# FAIL; the script's exit code is the verdict.
+
+name: netrunner-night-C77
+
+"on":
+  workflow_dispatch:
+  push:
+  schedule:
+    # 01:37 UTC, nightly - off the top-of-hour herd.
+    - cron: "37 1 * * *"
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  root-native:
+    # The root leg: real uid 0 on the hosted runner's 6.x kernel -
+    # the eBPF chain attaches live and the forensic pair proves the
+    # unlink/rename probes end to end.
+    name: netrunner-C77 - root (live eBPF forensic pair)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust (1.98.1, the MSRV floor)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          prefix-key: netrunner-c77
+
+      - name: Build the pro-v3 binary (the release amd64-v3 shape)
+        run: cargo pro-linux-amd64-v3-musl --locked
+
+      - name: Run the critical simulation as root
+        run: |
+          sudo --preserve-env=PATH \
+            ./scripts/netrunner/critical-sim.sh \
+            --bin "$PWD/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron"
+
+  non-root-native:
+    # The non-root leg: the same estate, and the refusal direction is
+    # the assertion - the privileged attach must refuse with its
+    # reason named, never fake a success.
+    name: netrunner-C77 - non-root (the refusal direction)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust (1.98.1, the MSRV floor)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          prefix-key: netrunner-c77
+
+      - name: Build the pro-v3 binary (the release amd64-v3 shape)
+        run: cargo pro-linux-amd64-v3-musl --locked
+
+      - name: Run the critical simulation as non-root
+        run: |
+          ./scripts/netrunner/critical-sim.sh \
+            --bin "$PWD/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron"
+
+  microvm-floor-root:
+    # The micro-VM leg: the same simulation as root, INSIDE the
+    # booted floor kernel (the jammy GA 5.15.0-25) - the sandbox lane
+    # proves the whole estate and the probes on the oldest kernel the
+    # project promises. KVM host-passthrough on the hosted runner;
+    # the payload's exit code is the verdict (the sandbox relays it
+    # through the SANDBOX-VERDICT sentinel line).
+    name: netrunner-C77 - micro-VM floor (root, kernel 5.15.0)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      # The floor lane's own hardening: the runner's Azure resolver
+      # has served dead answers for the ubuntu.com zones (the floor
+      # workflow's verified outage) - the public resolvers go first,
+      # and the assertion stays loud.
+      - name: Harden DNS (bypass the runner resolver's dead ubuntu.com answers)
+        run: |
+          if grep -q 'nameserver 1.1.1.1' /etc/resolv.conf; then
+            echo "public resolvers already first - nothing to do"
+            exit 0
+          fi
+          { printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n'; cat /etc/resolv.conf; } \
+            | sudo tee /etc/resolv.conf > /dev/null
+          getent hosts archive.ubuntu.com > /dev/null || {
+            echo "FAIL: archive.ubuntu.com unreachable even via the public resolvers"
+            exit 1
+          }
+          echo "OK: archive.ubuntu.com resolves via the public resolvers"
+
+      - name: Verify KVM
+        run: |
+          test -e /dev/kvm || {
+            echo "FAIL: /dev/kvm is absent - this runner image cannot boot the floor micro-VM"
+            exit 1
+          }
+          test -w /dev/kvm || sudo chmod 666 /dev/kvm
+          test -w /dev/kvm || {
+            echo "FAIL: /dev/kvm is not usable even after chmod"
+            ls -l /dev/kvm
+            exit 1
+          }
+          echo "OK: /dev/kvm present and usable"
+
+      - name: Install qemu
+        run: |
+          set -e
+          sudo apt-get -o Acquire::Retries=3 update -qq
+          sudo apt-get -o Acquire::Retries=3 install -y \
+            --no-install-recommends qemu-system-x86 cpio
+
+      - name: Install Rust (1.98.1, the MSRV floor)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          prefix-key: netrunner-c77
+
+      - name: Build the pro-v3 binary (the release amd64-v3 shape)
+        run: cargo pro-linux-amd64-v3-musl --locked
+
+      - name: Boot the floor micro-VM and run the critical simulation as root
+        run: |
+          ./scripts/sandbox/zejtron-sandbox.sh \
+            --run 'bash scripts/netrunner/critical-sim.sh --bin /opt/zejtron/zejtron' \
+            --timeout 1200
