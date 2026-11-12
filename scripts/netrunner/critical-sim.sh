@@ -95,17 +95,19 @@ json_ok() {
 	local file="$1"
 	if command -v jq >/dev/null 2>&1; then
 		jq -e . "$file" >/dev/null 2>&1
-	else
-		local line
-		line="$(tr -d '\n' <"$file")"
-		case "$line" in
-		"{"*"}") return 0 ;;
-		*) return 1 ;;
-		esac
+		return $?
 	fi
+	local line
+	line="$(tr -d '\n' <"$file")"
+	case "$line" in
+	"{"*"}") return 0 ;;
+	*) return 1 ;;
+	esac
 }
 
-command -v jq >/dev/null 2>&1 || note "jq absent - the JSON lane rides the structural floor"
+if ! command -v jq >/dev/null 2>&1; then
+	note "jq absent - the JSON lane rides the structural floor"
+fi
 
 UID_NOW="$(id -u)"
 IS_ROOT=0
@@ -122,7 +124,7 @@ VERBS="path recent port proc holds touch why doctor net"
 #    the report, never a missing-argument impostor.
 "$BIN" -V >"$SCRATCH/v-root.out" 2>&1
 v_rc=$?
-if [ $v_rc -eq 0 ] && grep -q "^zejtron: v" "$SCRATCH/v-root.out"; then
+if [ "$v_rc" -eq 0 ] && grep -q "^zejtron: v" "$SCRATCH/v-root.out"; then
 	pass "root -V renders the report"
 else
 	fail "root -V renders the report" "rc=$v_rc: $(head -1 "$SCRATCH/v-root.out")"
@@ -147,7 +149,7 @@ fi
 for verb in $VERBS; do
 	"$BIN" "$verb" -h >"$SCRATCH/h-$verb.out" 2>"$SCRATCH/h-$verb.err"
 	h_rc=$?
-	if [ $h_rc -eq 0 ] && [ -s "$SCRATCH/h-$verb.out" ] &&
+	if [ "$h_rc" -eq 0 ] && [ -s "$SCRATCH/h-$verb.out" ] &&
 		[ ! -s "$SCRATCH/h-$verb.err" ]; then
 		pass "$verb -h exits 0 with stdout-only help"
 	else
@@ -163,44 +165,56 @@ done
 
 # 3. The full estate, text lane: every verb runs and renders.
 "$BIN" path sh >"$SCRATCH/run-path.out" 2>&1
-if [ $? -eq 0 ] && grep -q "sh" "$SCRATCH/run-path.out"; then
+run_path_rc=$?
+if [ "$run_path_rc" -eq 0 ] && grep -q "sh" "$SCRATCH/run-path.out"; then
 	pass "path sh resolves"
 else
 	fail "path sh resolves" "$(head -1 "$SCRATCH/run-path.out")"
 fi
 
 "$BIN" proc --me --depth 2 >"$SCRATCH/run-proc.out" 2>&1
-if [ $? -eq 0 ] && grep -q "pid=" "$SCRATCH/run-proc.out"; then
+run_proc_rc=$?
+if [ "$run_proc_rc" -eq 0 ] && grep -q "pid=" "$SCRATCH/run-proc.out"; then
 	pass "proc --me renders the tree"
 else
 	fail "proc --me renders the tree" "$(head -1 "$SCRATCH/run-proc.out")"
 fi
 
-"$BIN" holds /etc/resolv.conf >/dev/null 2>&1 &&
-	pass "holds /etc/resolv.conf runs" ||
+if "$BIN" holds /etc/resolv.conf >/dev/null 2>&1; then
+	pass "holds /etc/resolv.conf runs"
+else
 	fail "holds /etc/resolv.conf runs" "non-zero exit"
+fi
 
-"$BIN" touch /etc/hosts >/dev/null 2>&1 &&
-	pass "touch /etc/hosts runs" ||
+if "$BIN" touch /etc/hosts >/dev/null 2>&1; then
+	pass "touch /etc/hosts runs"
+else
 	fail "touch /etc/hosts runs" "non-zero exit"
+fi
 
-"$BIN" why /etc/hosts >/dev/null 2>&1 &&
-	pass "why /etc/hosts runs" ||
+if "$BIN" why /etc/hosts >/dev/null 2>&1; then
+	pass "why /etc/hosts runs"
+else
 	fail "why /etc/hosts runs" "non-zero exit"
+fi
 
-"$BIN" net >/dev/null 2>&1 &&
-	pass "net renders" ||
+if "$BIN" net >/dev/null 2>&1; then
+	pass "net renders"
+else
 	fail "net renders" "non-zero exit"
+fi
 
-"$BIN" port --listen --no-pid >/dev/null 2>&1 &&
-	pass "port --listen renders" ||
+if "$BIN" port --listen --no-pid >/dev/null 2>&1; then
+	pass "port --listen renders"
+else
 	fail "port --listen renders" "non-zero exit"
+fi
 
 # doctor's exit contract: FAIL count > 0 exits non-zero either lane,
 # so the verdict is the report rendering, not the code.
 "$BIN" doctor >"$SCRATCH/run-doctor.out" 2>&1
 doc_rc=$?
-if [ $doc_rc -eq 0 ] || grep -qi "summary" "$SCRATCH/run-doctor.out"; then
+if [ "$doc_rc" -eq 0 ] || grep -qi "summary" "$SCRATCH/run-doctor.out"; then
 	pass "doctor renders the readiness report (exit $doc_rc)"
 else
 	fail "doctor renders the readiness report" "rc=$doc_rc, no summary line"
@@ -209,7 +223,9 @@ fi
 mkdir -p "$SCRATCH/tree/nested"
 echo "c77 fixture" >"$SCRATCH/tree/nested/recent-fixture.txt"
 "$BIN" recent "$SCRATCH/tree" --since 5m >"$SCRATCH/run-recent.out" 2>&1
-if [ $? -eq 0 ] && grep -q "recent-fixture.txt" "$SCRATCH/run-recent.out"; then
+run_recent_rc=$?
+if [ "$run_recent_rc" -eq 0 ] &&
+	grep -q "recent-fixture.txt" "$SCRATCH/run-recent.out"; then
 	pass "recent finds the fresh fixture"
 else
 	fail "recent finds the fresh fixture" "$(head -1 "$SCRATCH/run-recent.out")"
@@ -217,92 +233,153 @@ fi
 
 # 4. The JSON lane: every verb's --print-json parses.
 "$BIN" path sh --print-json >"$SCRATCH/j-path.out" 2>/dev/null
-json_ok "$SCRATCH/j-path.out" && pass "path --print-json parses" ||
+if json_ok "$SCRATCH/j-path.out"; then
+	pass "path --print-json parses"
+else
 	fail "path --print-json parses" "$(head -c 80 "$SCRATCH/j-path.out")"
+fi
 "$BIN" proc --me --depth 2 --print-json >"$SCRATCH/j-proc.out" 2>/dev/null
-json_ok "$SCRATCH/j-proc.out" && pass "proc --print-json parses" ||
+if json_ok "$SCRATCH/j-proc.out"; then
+	pass "proc --print-json parses"
+else
 	fail "proc --print-json parses" "$(head -c 80 "$SCRATCH/j-proc.out")"
+fi
 "$BIN" recent "$SCRATCH/tree" --limit 5 --print-json >"$SCRATCH/j-recent.out" 2>/dev/null
-json_ok "$SCRATCH/j-recent.out" && pass "recent --print-json parses" ||
+if json_ok "$SCRATCH/j-recent.out"; then
+	pass "recent --print-json parses"
+else
 	fail "recent --print-json parses" "$(head -c 80 "$SCRATCH/j-recent.out")"
+fi
 "$BIN" holds /etc/resolv.conf --print-json >"$SCRATCH/j-holds.out" 2>/dev/null
-json_ok "$SCRATCH/j-holds.out" && pass "holds --print-json parses" ||
+if json_ok "$SCRATCH/j-holds.out"; then
+	pass "holds --print-json parses"
+else
 	fail "holds --print-json parses" "$(head -c 80 "$SCRATCH/j-holds.out")"
+fi
 "$BIN" touch /etc/hosts --print-json >"$SCRATCH/j-touch.out" 2>/dev/null
-json_ok "$SCRATCH/j-touch.out" && pass "touch --print-json parses" ||
+if json_ok "$SCRATCH/j-touch.out"; then
+	pass "touch --print-json parses"
+else
 	fail "touch --print-json parses" "$(head -c 80 "$SCRATCH/j-touch.out")"
+fi
 "$BIN" why /etc/hosts --print-json >"$SCRATCH/j-why.out" 2>/dev/null
-json_ok "$SCRATCH/j-why.out" && pass "why --print-json parses" ||
+if json_ok "$SCRATCH/j-why.out"; then
+	pass "why --print-json parses"
+else
 	fail "why --print-json parses" "$(head -c 80 "$SCRATCH/j-why.out")"
+fi
 "$BIN" doctor --print-json >"$SCRATCH/j-doctor.out" 2>/dev/null
-json_ok "$SCRATCH/j-doctor.out" && pass "doctor --print-json parses" ||
+if json_ok "$SCRATCH/j-doctor.out"; then
+	pass "doctor --print-json parses"
+else
 	fail "doctor --print-json parses" "$(head -c 80 "$SCRATCH/j-doctor.out")"
+fi
 "$BIN" net --print-json >"$SCRATCH/j-net.out" 2>/dev/null
-json_ok "$SCRATCH/j-net.out" && pass "net --print-json parses" ||
+if json_ok "$SCRATCH/j-net.out"; then
+	pass "net --print-json parses"
+else
 	fail "net --print-json parses" "$(head -c 80 "$SCRATCH/j-net.out")"
+fi
 "$BIN" port --listen --no-pid --print-json >"$SCRATCH/j-port.out" 2>/dev/null
-json_ok "$SCRATCH/j-port.out" && pass "port --print-json parses" ||
+if json_ok "$SCRATCH/j-port.out"; then
+	pass "port --print-json parses"
+else
 	fail "port --print-json parses" "$(head -c 80 "$SCRATCH/j-port.out")"
+fi
 
 # 5. The stream law: -v speaks on stderr and stdout stays byte-clean.
-for verb in "doctor" "proc --me --depth 2" "recent $SCRATCH/tree" "path sh" "net"; do
-	"$BIN" $verb >"$SCRATCH/s-plain.out" 2>/dev/null
-	"$BIN" $verb -v >"$SCRATCH/s-verbose.out" 2>"$SCRATCH/s-verbose.err"
+# The verb rides as separate argv words (quoted through the shift
+# walk - the word-splitting SC2086 warns about never happens).
+stream_law() {
+	local label="$1"
+	shift
+	"$BIN" "$@" >"$SCRATCH/s-plain.out" 2>/dev/null
+	"$BIN" "$@" -v >"$SCRATCH/s-verbose.out" 2>"$SCRATCH/s-verbose.err"
 	if cmp -s "$SCRATCH/s-plain.out" "$SCRATCH/s-verbose.out" &&
 		[ -s "$SCRATCH/s-verbose.err" ]; then
-		pass "verbose keeps stdout byte-clean ($verb)"
+		pass "verbose keeps stdout byte-clean ($label)"
 	else
-		fail "verbose keeps stdout byte-clean ($verb)" \
+		fail "verbose keeps stdout byte-clean ($label)" \
 			"stdout drifted or stderr empty"
 	fi
-done
+}
+stream_law "doctor" doctor
+stream_law "proc" proc --me --depth 2
+stream_law "recent" recent "$SCRATCH/tree"
+stream_law "path" path sh
+stream_law "net" net
 
 # 6. The safety battery (night-total-hardening-1): the absurd asks are
 #    parse-time refusals (exit 2), the sane asks ride, every refusal
 #    names its grammar or its operand.
 "$BIN" proc --me --depth 1000000000000000 >/dev/null 2>&1
-[ $? -eq 2 ] && pass "proc --depth 10^15 is a parse-time refusal" ||
+if [ $? -eq 2 ]; then
+	pass "proc --depth 10^15 is a parse-time refusal"
+else
 	fail "proc --depth 10^15 is a parse-time refusal" "wrong exit"
+fi
 "$BIN" proc --me --depth 0 >/dev/null 2>&1
-[ $? -eq 2 ] && pass "proc --depth 0 is a parse-time refusal" ||
+if [ $? -eq 2 ]; then
+	pass "proc --depth 0 is a parse-time refusal"
+else
 	fail "proc --depth 0 is a parse-time refusal" "wrong exit"
-"$BIN" proc --me --depth 1024 >/dev/null 2>&1 &&
-	pass "proc --depth 1024 (the ceiling) rides" ||
+fi
+if "$BIN" proc --me --depth 1024 >/dev/null 2>&1; then
+	pass "proc --depth 1024 (the ceiling) rides"
+else
 	fail "proc --depth 1024 (the ceiling) rides" "non-zero exit"
+fi
 "$BIN" recent "$SCRATCH/tree" --limit 99999999999999999999 >/dev/null 2>&1
-[ $? -eq 2 ] && pass "recent --limit overflow is a refusal" ||
+if [ $? -eq 2 ]; then
+	pass "recent --limit overflow is a refusal"
+else
 	fail "recent --limit overflow is a refusal" "wrong exit"
-"$BIN" recent "$SCRATCH/tree" --since 2s >/dev/null 2>&1 &&
-	pass "recent --since 2s rides (one duration grammar)" ||
+fi
+if "$BIN" recent "$SCRATCH/tree" --since 2s >/dev/null 2>&1; then
+	pass "recent --since 2s rides (one duration grammar)"
+else
 	fail "recent --since 2s rides (one duration grammar)" "non-zero exit"
+fi
 "$BIN" recent "$SCRATCH/tree" --since 3 >"$SCRATCH/s-bad-dur.out" 2>&1
-if [ $? -eq 1 ] && grep -q "(use e.g." "$SCRATCH/s-bad-dur.out"; then
+bad_dur_rc=$?
+if [ "$bad_dur_rc" -eq 1 ] && grep -q "(use e.g." "$SCRATCH/s-bad-dur.out"; then
 	pass "bad duration refusal names the grammar"
 else
 	fail "bad duration refusal names the grammar" "$(head -1 "$SCRATCH/s-bad-dur.out")"
 fi
 "$BIN" holds /etc/resolv.conf --since 1d >"$SCRATCH/s-clamp.out" 2>"$SCRATCH/s-clamp.err"
-if [ $? -eq 0 ] && grep -qi "clamp" "$SCRATCH/s-clamp.err"; then
+clamp_rc=$?
+if [ "$clamp_rc" -eq 0 ] && grep -qi "clamp" "$SCRATCH/s-clamp.err"; then
 	pass "window --since 1d rides with the named clamp note"
 else
 	fail "window --since 1d rides with the named clamp note" \
 		"stderr: $(head -1 "$SCRATCH/s-clamp.err")"
 fi
 "$BIN" path "" >/dev/null 2>&1
-[ $? -eq 1 ] && pass "path '' refuses with the operand named" ||
+if [ $? -eq 1 ]; then
+	pass "path '' refuses with the operand named"
+else
 	fail "path '' refuses with the operand named" "wrong exit"
+fi
 "$BIN" recent /no/such/dir/c77 >"$SCRATCH/s-nodir.out" 2>&1
-if [ $? -eq 1 ] && grep -q "/no/such/dir/c77" "$SCRATCH/s-nodir.out"; then
+nodir_rc=$?
+if [ "$nodir_rc" -eq 1 ] && grep -q "/no/such/dir/c77" "$SCRATCH/s-nodir.out"; then
 	pass "recent missing dir refusal names the path"
 else
 	fail "recent missing dir refusal names the path" "$(head -1 "$SCRATCH/s-nodir.out")"
 fi
 "$BIN" proc --me root >/dev/null 2>&1
-[ $? -eq 2 ] && pass "proc --me + user conflict is a usage error" ||
+if [ $? -eq 2 ]; then
+	pass "proc --me + user conflict is a usage error"
+else
 	fail "proc --me + user conflict is a usage error" "wrong exit"
+fi
 "$BIN" definitely-not-a-verb >/dev/null 2>&1
-[ $? -eq 2 ] && pass "unknown verb is a usage error" ||
+if [ $? -eq 2 ]; then
+	pass "unknown verb is a usage error"
+else
 	fail "unknown verb is a usage error" "wrong exit"
+fi
 
 # 7. The privileged leg: root gets the live forensic pair, non-root
 #    gets the honest refusal. One attach, two proofs, one detach.
@@ -332,17 +409,17 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	un_why=$!
 	sleep 1
 	perl -e '
-		$| = 1;
-		my $f = shift;
-		my $r = syscall(87, $f);
-		die "unlink failed: $!" unless $r == 0;
-		print "pid=$$\n";
-		sleep 8;
-	' "$un_file" >"$SCRATCH/unlink-writer.out" 2>/dev/null &
+                $| = 1;
+                my $f = shift;
+                my $r = syscall(87, $f);
+                die "unlink failed: $!" unless $r == 0;
+                print "pid=$$\n";
+                sleep 8;
+        ' "$un_file" >"$SCRATCH/unlink-writer.out" 2>/dev/null &
 	un_writer=$!
 	un_rc=0
 	wait "$un_why" || un_rc=$?
-	if [ $un_rc -eq 0 ]; then
+	if [ "$un_rc" -eq 0 ]; then
 		pass "unlink proof: why --since 5s --raw exits 0"
 	else
 		fail "unlink proof: why --since 5s --raw exits 0" "rc=$un_rc"
@@ -383,17 +460,17 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	rn_why=$!
 	sleep 1
 	perl -e '
-		$| = 1;
-		my ($f, $t) = @ARGV;
-		my $r = syscall(82, $f, $t);
-		die "rename failed: $!" unless $r == 0;
-		print "pid=$$\n";
-		sleep 8;
-	' "$rn_file" "$rn_new" >"$SCRATCH/rename-writer.out" 2>/dev/null &
+                $| = 1;
+                my ($f, $t) = @ARGV;
+                my $r = syscall(82, $f, $t);
+                die "rename failed: $!" unless $r == 0;
+                print "pid=$$\n";
+                sleep 8;
+        ' "$rn_file" "$rn_new" >"$SCRATCH/rename-writer.out" 2>/dev/null &
 	rn_writer=$!
 	rn_rc=0
 	wait "$rn_why" || rn_rc=$?
-	if [ $rn_rc -eq 0 ]; then
+	if [ "$rn_rc" -eq 0 ]; then
 		pass "rename proof: why --since 5s --raw exits 0"
 	else
 		fail "rename proof: why --since 5s --raw exits 0" "rc=$rn_rc"
@@ -413,15 +490,20 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	kill "$rn_writer" 2>/dev/null || true
 	wait "$rn_writer" 2>/dev/null || true
 
-	"$BIN" doctor --detach >/dev/null 2>&1 &&
-		pass "doctor --detach leaves the host clean" ||
+	if "$BIN" doctor --detach >/dev/null 2>&1; then
+		pass "doctor --detach leaves the host clean"
+	else
 		fail "doctor --detach leaves the host clean" "non-zero exit"
+	fi
 fi
 
 TOTAL=$((PASS + FAIL))
-if [ $FAIL -eq 0 ]; then
-	echo "NETRUNNER-C77: PASS ($TOTAL checks)"
+VERDICT="FAIL"
+if [ "$FAIL" -eq 0 ]; then
+	VERDICT="PASS"
+fi
+echo "NETRUNNER-C77: $VERDICT ($TOTAL checks)"
+if [ "$VERDICT" = "PASS" ]; then
 	exit 0
 fi
-echo "NETRUNNER-C77: FAIL ($TOTAL checks)"
 exit 1
