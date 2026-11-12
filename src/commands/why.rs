@@ -50,6 +50,14 @@ pub fn run(
 }
 
 fn parse_target(input: &str) -> Result<Target, WhyError> {
+    // The empty-target guard (night-total-hardening-1): the vacuous
+    // all-digits check below sent "" down the port lane and the
+    // refusal echoed nothing - the same law holds' guard carries.
+    if input.is_empty() {
+        return Err(WhyError(
+            "the target is empty (e.g. zejtron why /etc/passwd or zejtron why 22)".into(),
+        ));
+    }
     if input.chars().all(|character| character.is_ascii_digit()) {
         // The refusal echo rides the capped shape (night-total-
         // hardening-1), the same law holds' own parse carries.

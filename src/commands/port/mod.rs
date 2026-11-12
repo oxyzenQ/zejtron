@@ -111,6 +111,13 @@ pub fn parse_options(port: Option<&str>, flags: PortFlags) -> Result<PortOptions
 }
 
 pub fn validate_port(input: &str) -> Result<u16, PortError> {
+    // The empty-operand guard (night-total-hardening-1): "" parsed
+    // as a port refused with nothing named ("invalid port: ") - a
+    // missing operand is not a parse failure, and the guard names it
+    // with the verb's own example, the path empty-name law.
+    if input.is_empty() {
+        return Err(PortError("the port is empty (e.g. zejtron port 22)".into()));
+    }
     // The refusal echoes ride the capped shape (night-total-
     // hardening-1): an all-digits ask of pathological length is a
     // parse refusal, not a terminal flood.
