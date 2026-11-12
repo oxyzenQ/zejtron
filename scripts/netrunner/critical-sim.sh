@@ -52,18 +52,29 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$BIN" ]; then
-	# The repo build probe: the NEWEST build product wins, by
-	# mtime across every lane the repo produces (night-total-
-	# hardening-1: the candidate list did not know the
-	# pro-profile musl dir and the loop took the first existing
-	# path, so a stale plain-release binary from an earlier
-	# session silently answered for a fresh pro-v3 build - the
-	# "newest wins" the comment always claimed, now the code's
-	# own law). CI passes --bin explicitly and never rides here.
-	BIN="$(ls -t \
+	# The repo build probe: the NEWEST build product wins, by mtime
+	# across every lane the repo produces (night-total-hardening-1:
+	# the candidate list did not know the pro-profile musl dir and
+	# the loop took the first existing path, so a stale plain-release
+	# binary from an earlier session silently answered for a fresh
+	# pro-v3 build - the "newest wins" the comment always claimed,
+	# now the code's own law). The stat walk keeps shellcheck's
+	# SC2012 law (no ls parsing). CI passes --bin explicitly and
+	# never rides here.
+	newest_bin=""
+	newest_mtime=0
+	for cand in \
 		target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron \
 		target/x86_64-unknown-linux-musl/release/zejtron \
-		target/release/zejtron 2>/dev/null | head -1)"
+		target/release/zejtron; do
+		[ -x "$cand" ] || continue
+		cand_mtime="$(stat -c %Y "$cand" 2>/dev/null)" || continue
+		if [ "$cand_mtime" -gt "$newest_mtime" ]; then
+			newest_mtime="$cand_mtime"
+			newest_bin="$cand"
+		fi
+	done
+	BIN="$newest_bin"
 fi
 if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
 	echo "[c77] FAIL: no zejtron binary (build one or pass --bin PATH)" >&2
