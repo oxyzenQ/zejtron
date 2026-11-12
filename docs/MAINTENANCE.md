@@ -58,6 +58,39 @@ so the one-file shape IS the fix for that class. The marker retires
 the day the provisioner learns a split that imports nothing
 repo-local (or the cap discipline demands it).
 
+## The in-tree artifact staging class (fixed, night-zen-1 hotfix)
+
+The field report (2026-11-12, the bot commit `9708883`): the weekly
+maintenance lane's commit job downloaded its validated lockfile
+artifact into an IN-TREE staging directory (`.auto-update/`), and the
+`git add ':(glob)**/Cargo.lock'` sweep matched the staged copies
+too — the commit landed three lockfiles at their staging paths
+(`.auto-update/Cargo.lock`, `.auto-update/ebpf/Cargo.lock`,
+`.auto-update/fuzz/Cargo.lock`) on top of the real ones, a 724-line
+diff a later pull surfaced as "what is this new big file?".
+
+The shipped fix removes the phenomenon at three layers:
+
+1. the artifact now lands OUTSIDE the work tree
+   (`${RUNNER_TEMP}/validated-cargo-lock`), so no staging copy can
+   ever exist at a tracked path;
+2. the commit job stages the EXACT lockfile set derived from the
+   manifest walk (each `Cargo.toml` path rewritten to its sibling
+   `Cargo.lock`) — never a glob, so nothing outside the walked set
+   can match;
+3. `.gitignore` ignores `.auto-update/`, so even a future edit that
+   moves the download back in-tree cannot track the staging tree.
+
+The recovery for a checkout already carrying the leak is one command:
+
+```
+git rm -rq .auto-update
+```
+
+The rule going forward: a workflow that downloads an artifact before
+committing lands it under `RUNNER_TEMP`, never in-tree; and a
+`git add` in a bot lane stages an explicit path list, not a glob.
+
 ## The unknown commit id class (armed since night-improve-5)
 
 A binary that cannot name its commit prints `unknown` in the version

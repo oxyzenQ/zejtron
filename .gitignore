@@ -27,6 +27,14 @@ codex/
 agent/
 other ai/
 
+# CI artifact staging (night-zen-1 hotfix, the .auto-update leak
+# class): the maintenance workflow's download-artifact step must land
+# its staging directory outside the work tree (RUNNER_TEMP), but this
+# ignore line is the second wall - an in-tree staging directory named
+# .auto-update can never ride a commit even if a future edit moves
+# the download back in-tree.
+.auto-update/
+
 # Python bytecode (night-dragon-maintenance-T1, the zelynic
 # root-owned __pycache__ class): the interpreter writes caches beside
 # imported sources with the invoking user's ownership; a root-run
