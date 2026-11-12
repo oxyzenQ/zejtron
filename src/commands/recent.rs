@@ -30,7 +30,35 @@ pub fn run(
     print_json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let since = since.map(parse_duration).transpose()?;
-    let files = select_recent_files(scan_recent_files(path)?, limit, since, SystemTime::now());
+    // The scan error carries the path (night-total-hardening-1): a
+    // missing or unreadable root used to surface as the bare OS text
+    // ("No such file or directory (os error 2)") - the one runtime
+    // error in the CLI that did not name what was missing, unlike
+    // every sibling (`why`: "path not found: X", `holds`: "X: no such
+    // file or directory"). The root's own NotFound/PermissionDenied
+    // is the reportable fact; the per-entry skips inside the walk stay
+    // silent by the scan contract above.
+    let files = scan_recent_files(path).map_err(|error| match error.kind() {
+        io::ErrorKind::NotFound => {
+            format!("{}: no such file or directory", path.display())
+        }
+        io::ErrorKind::PermissionDenied => {
+            format!("{}: permission denied", path.display())
+        }
+        _ => error.to_string(),
+    })?;
+    crate::output::verbose::vlog!(
+        "recent",
+        "scanned {} files under {}",
+        files.len(),
+        path.display()
+    );
+    let files = select_recent_files(files, limit, since, SystemTime::now());
+    crate::output::verbose::vlog!(
+        "recent",
+        "showing {} file(s) after the window and limit",
+        files.len()
+    );
 
     // The renderer branch (night-badass-9): the JSON lane speaks the
     // same selection - the same limit, the same window, the same
