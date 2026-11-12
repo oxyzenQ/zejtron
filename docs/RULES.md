@@ -99,8 +99,11 @@ The dependency footprint must stay **minimal**. No new runtime dependencies
 should be added unless absolutely necessary. Dependency refreshes are handled by
 the weekly maintenance workflow, which runs `cargo update` in every workspace
 (auto-detected by walking each committed `Cargo.toml` - root, `ebpf/`, `fuzz/`),
-executes the full
-`./scripts/build.sh` suite, and commits the refreshed `Cargo.lock` files directly
+proves the prebuilt lane through the ONE WRITER (the parity rider: the
+read-only verdict first, a rebuild only when the manifest pin lags the swept
+tree), executes the full
+`./scripts/build.sh` suite, and commits the validated dependency lane (the
+refreshed `Cargo.lock` files plus `ebpf-prebuilt/`) directly
 to the default branch only
 when validation succeeds.
 
