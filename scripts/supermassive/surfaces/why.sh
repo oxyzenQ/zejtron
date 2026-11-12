@@ -220,4 +220,133 @@ surface_why() {
 	else
 		sm_pass "writev proof: skipped on this host (no attach or no perl) - the refusal direction is the doctor surface's"
 	fi
+
+	# The unlink/rename proof (night-verify-1): the forensic pair the
+	# night-frontier-2 probes added, closed and PROVEN live on the
+	# same shape the writev proof rides. A real unlink(2) through
+	# syscall 87 and a real rename(2) through syscall 82 (x86_64, the
+	# only architecture this project ships) must surface as [observed]
+	# rows naming the action and the actor's pid - the ledger's oldest
+	# hole ("who deleted this file?") answered by a window that watches
+	# while the file dies. One attach, two proofs, one detach: the
+	# writev block's gate and the same honest skip (no attach or no
+	# perl means the refusal direction, already pinned by the doctor
+	# surface, carries the verdict).
+	if command -v perl >/dev/null 2>&1 &&
+		"$SM_DEFAULT_BIN" doctor --attach >"$SM_SCRATCH/ur-attach.out" 2>"$SM_SCRATCH/ur-attach.err"; then
+		sm_pass "unlink/rename proof: the probes attach on this host"
+
+		# ── the unlink half ──────────────────────────────────────
+		local un_file="$SM_SCRATCH/unlink-proof.txt"
+		local un_why_pid un_writer un_rc un_pid
+		: >"$un_file"
+		timeout 20 "$SM_DEFAULT_BIN" why "$un_file" --since 5s --raw \
+			>"$SM_SCRATCH/ur-unlink.out" 2>"$SM_SCRATCH/ur-unlink.err" &
+		un_why_pid=$!
+		sleep 1
+		# The actor: removes the watched file by direct syscall, names
+		# itself, and stays alive past the render (the attribution
+		# needs /proc - the exited-writer shape is the unaccounted
+		# class the exit-ring pass owns, not this proof's).
+		perl -e '
+                        $| = 1;
+                        my $f = shift;
+                        my $r = syscall(87, $f);
+                        die "unlink failed: $!" unless $r == 0;
+                        print "pid=$$\n";
+                        sleep 8;
+                ' "$un_file" >"$SM_SCRATCH/ur-unlink-writer.out" 2>"$SM_SCRATCH/ur-unlink-writer.err" &
+		un_writer=$!
+		un_rc=0
+		wait "$un_why_pid" || un_rc=$?
+		sm_assert_rc 0 "$un_rc" "unlink proof: why --since 5s --raw exits 0"
+		un_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/ur-unlink-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
+		if grep -q "unlinked" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
+			sm_pass "unlink proof: the ledger names the unlink"
+		else
+			sm_fail "unlink proof: the ledger names the unlink" \
+				"no 'unlinked' row in the why render"
+		fi
+		if grep -q "op=unlink" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
+			sm_pass "unlink proof: the raw lane names op=unlink"
+		else
+			sm_fail "unlink proof: the raw lane names op=unlink" \
+				"no 'op=unlink' record in the raw section"
+		fi
+		if [[ -n "$un_pid" ]] && grep -q "pid $un_pid," "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
+			sm_pass "unlink proof: the row attributes the actor (pid $un_pid)"
+		else
+			sm_fail "unlink proof: the row attributes the actor (pid ${un_pid:-unknown})" \
+				"the why render does not name the unlinking pid"
+		fi
+		if grep -q "\[observed\]" "$SM_SCRATCH/ur-unlink.out" 2>/dev/null; then
+			sm_pass "unlink proof: the unlink row is [observed]"
+		else
+			sm_fail "unlink proof: the unlink row is [observed]" \
+				"no [observed] tag in the why render"
+		fi
+		kill "$un_writer" 2>/dev/null || true
+		wait "$un_writer" 2>/dev/null || true
+
+		# ── the rename half ──────────────────────────────────────
+		local rn_file="$SM_SCRATCH/rename-proof.txt"
+		local rn_new="$SM_SCRATCH/rename-proof-moved.txt"
+		local rn_why_pid rn_writer rn_rc rn_pid
+		: >"$rn_file"
+		timeout 20 "$SM_DEFAULT_BIN" why "$rn_file" --since 5s --raw \
+			>"$SM_SCRATCH/ur-rename.out" 2>"$SM_SCRATCH/ur-rename.err" &
+		rn_why_pid=$!
+		sleep 1
+		perl -e '
+                        $| = 1;
+                        my ($f, $t) = @ARGV;
+                        my $r = syscall(82, $f, $t);
+                        die "rename failed: $!" unless $r == 0;
+                        print "pid=$$\n";
+                        sleep 8;
+                ' "$rn_file" "$rn_new" >"$SM_SCRATCH/ur-rename-writer.out" 2>"$SM_SCRATCH/ur-rename-writer.err" &
+		rn_writer=$!
+		rn_rc=0
+		wait "$rn_why_pid" || rn_rc=$?
+		sm_assert_rc 0 "$rn_rc" "rename proof: why --since 5s --raw exits 0"
+		rn_pid="$(grep -o "pid=[0-9]*" "$SM_SCRATCH/ur-rename-writer.out" 2>/dev/null | head -1 | cut -d= -f2 || true)"
+		if grep -q "renamed" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
+			sm_pass "rename proof: the ledger names the rename"
+		else
+			sm_fail "rename proof: the ledger names the rename" \
+				"no 'renamed' row in the why render"
+		fi
+		if grep -q "op=rename" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
+			sm_pass "rename proof: the raw lane names op=rename"
+		else
+			sm_fail "rename proof: the raw lane names op=rename" \
+				"no 'op=rename' record in the raw section"
+		fi
+		if [[ -n "$rn_pid" ]] && grep -q "pid $rn_pid," "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
+			sm_pass "rename proof: the row attributes the actor (pid $rn_pid)"
+		else
+			sm_fail "rename proof: the row attributes the actor (pid ${rn_pid:-unknown})" \
+				"the why render does not name the renaming pid"
+		fi
+		if grep -q "\[observed\]" "$SM_SCRATCH/ur-rename.out" 2>/dev/null; then
+			sm_pass "rename proof: the rename row is [observed]"
+		else
+			sm_fail "rename proof: the rename row is [observed]" \
+				"no [observed] tag in the why render"
+		fi
+		kill "$rn_writer" 2>/dev/null || true
+		wait "$rn_writer" 2>/dev/null || true
+		# The surface ends clean: the probe it attached, it detaches.
+		sm_run "$SM_SCRATCH/ur-detach.out" "$SM_SCRATCH/ur-detach.err" rc 20 -- \
+			"$SM_DEFAULT_BIN" doctor --detach
+		sm_assert_rc 0 "$rc" "unlink/rename proof: doctor --detach returns the host to clean"
+		if [[ -e /sys/fs/bpf/zejtron ]]; then
+			sm_fail "unlink/rename proof: detach removes the pin directory" \
+				"/sys/fs/bpf/zejtron still exists after detach"
+		else
+			sm_pass "unlink/rename proof: detach removes the pin directory"
+		fi
+	else
+		sm_pass "unlink/rename proof: skipped on this host (no attach or no perl) - the refusal direction is the doctor surface's"
+	fi
 }
