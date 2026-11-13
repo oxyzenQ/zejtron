@@ -72,9 +72,9 @@ zejtron is honest about both worlds, and neither one lies to you.
   one privileged step - a one-shot that plants the kernel probes and
   pins them under `/sys/fs/bpf/zejtron`, then exits. No daemon. The
   verbs are quiet by default: the attach answers with one line
-  (`eBPF probes attached successfully (6 programs, 6 links, 6 maps).
+  (`eBPF probes attached successfully (8 programs, 8 links, 6 maps).
   Lazy Camera is now recording.`), the detach with
-  (`eBPF probes detached (18 pins removed).`), and `-v` swaps the
+  (`eBPF probes detached (22 pins removed).`), and `-v` swaps the
   line for the full report - every probe by name, the BTF
   verification claims, the whole pin list. While the pins exist,
   `why`, `holds`, and `touch` get `[observed]` rows: the kernel's

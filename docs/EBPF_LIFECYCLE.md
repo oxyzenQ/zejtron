@@ -93,7 +93,7 @@ The lane's whole life, boot to boot:
    attaches each program,
    and pins programs, links, and maps under `/sys/fs/bpf/zejtron`.
    The attach prints one quiet success line (`eBPF probes attached
-   successfully (6 programs, 6 links, 6 maps). Lazy Camera is now
+   successfully (8 programs, 8 links, 6 maps). Lazy Camera is now
    recording.`) and exits; `-v` swaps the line for the full report -
    every probe by name, the BTF verification claims, the whole pin
    list. Because bpffs is a
@@ -139,7 +139,7 @@ The lane's whole life, boot to boot:
    everything (links first, so an interrupted cleanup leaves a
    detached probe, never a half-attached one) and removes the pin
    directory. The detach answers with one quiet line
-   (`eBPF probes detached (18 pins removed).`); `-v` names the pin
+   (`eBPF probes detached (22 pins removed).`); `-v` names the pin
    directory it removed. The kernel footprint is exactly zero again - the
    same state a host that never attached has.
 

@@ -23,7 +23,7 @@
 
 </div>
 
-zejtron's output complies with the [Evidence Ledger Specification v3](docs/EVIDENCE-LEDGER.md). See [docs/EVIDENCE-LEDGER.md](docs/EVIDENCE-LEDGER.md) for the citable format.
+zejtron's output complies with the [Evidence Ledger Specification v4](docs/EVIDENCE-LEDGER.md). See [docs/EVIDENCE-LEDGER.md](docs/EVIDENCE-LEDGER.md) for the citable format.
 
 <p align="center">
   <a href="https://ko-fi.com/rezky">
@@ -188,7 +188,7 @@ The build cross-compiles `ebpf/` (pure Rust, aya-ebpf) into eight programs: `sch
 sudo zejtron doctor --attach   # plant the probes
 sudo zejtron doctor --detach   # the sledgehammer: unpin everything, idempotent
 ```
-After `--attach`, the process may exit. The pinned links keep programs attached; the pinned maps keep data. `--detach` sweeps the whole pin estate (legacy pins, foreign entries) — no manual `rm` is ever needed. Both verbs are quiet by default: the attach answers with one line — `eBPF probes attached successfully (6 programs, 6 links, 6 maps). Lazy Camera is now recording.` — and the detach with `eBPF probes detached (18 pins removed).`; run either with `-v` when you want the full report instead (every probe by name, the BTF verification claims, the whole pin list). The Lazy Camera architecture is exactly this: the kernel records into bounded rings, nothing streams to userspace, and the CLI wakes only to drain the window it was asked for, then exits. The doctor's `[eBPF]` section carries the camera's posture: `Mode: Lazy Camera (Kernel: recording | CLI: asleep)`.
+After `--attach`, the process may exit. The pinned links keep programs attached; the pinned maps keep data. `--detach` sweeps the whole pin estate (legacy pins, foreign entries) — no manual `rm` is ever needed. Both verbs are quiet by default: the attach answers with one line — `eBPF probes attached successfully (8 programs, 8 links, 6 maps). Lazy Camera is now recording.` — and the detach with `eBPF probes detached (22 pins removed).`; run either with `-v` when you want the full report instead (every probe by name, the BTF verification claims, the whole pin list). The Lazy Camera architecture is exactly this: the kernel records into bounded rings, nothing streams to userspace, and the CLI wakes only to drain the window it was asked for, then exits. The doctor's `[eBPF]` section carries the camera's posture: `Mode: Lazy Camera (Kernel: recording | CLI: asleep)`.
 
 ### Usage
 
@@ -203,7 +203,7 @@ zejtron holds /etc/resolv.conf
 zejtron touch /etc/resolv.conf
 zejtron why /etc/resolv.conf --since 30s --trace --raw
 
-# Typed JSON for automation (Spec v3)
+# Typed JSON for automation (Spec v4)
 zejtron why /etc/passwd --print-json | jq '.measured[] | select(.kind=="size") | .bytes'
 zejtron holds 53 --print-json | jq '.verdict.supports'
 zejtron doctor --print-json | jq '.os, .kernel, .ebpf_lane'
@@ -314,7 +314,7 @@ zejtron writes nothing. Its attack surface is the network lane (`--check-update`
 
 ## Test Results
 
-The suite is the contract: 441+ tests green at every landing, plus the CLI battery per supermassive leg (MSRV/stable, host/musl), the miri UB lane, the cargo-fuzz lane (three hostile-input targets), the container E2E leg, and the alpine musl smoke proof (ten probes on the digest-pinned alpine:3.20 rootfs). CI blocks the merge on every one of them.
+The suite is the contract: green at every landing, plus the CLI battery per supermassive leg (MSRV/stable, host/musl), the miri UB lane, the cargo-fuzz lane (three hostile-input targets), the container E2E leg, and the alpine musl smoke proof (ten probes on the digest-pinned alpine:3.20 rootfs). CI blocks the merge on every one of them.
 
 ## Release Verification
 
