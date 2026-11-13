@@ -1164,6 +1164,16 @@ v11.0.0
 
 ### Fixed
 
+- **The Pro mode estate's two ceiling rows now mirror the CLI
+  structs again (night-total-hardening-1's own drift, caught in the
+  follow-up audit).** The `--limit` and `--depth` ceiling edits
+  renamed the help strings on the CLI structs ("Maximum files to
+  show (0-1000000)", "Limit rendered tree depth (1-1024)") but left
+  the Pro mode rows at the pre-ceiling wording ("default 20",
+  "minimum 1") - the one wording authority the section's own
+  contract names, violated on the one surface that promises
+  verbatim mirrors. Both rows carry the struct help verbatim now;
+  the pinned spellings (`--limit N`, `--depth N`) never moved.
 - **The JSON automation lane's empty-window crash: `changes.events`
   is always an array now, never `null`.** A real buyer simulation
   (an SRE wiring `why --print-json` into a cron/Slack bot) hit
