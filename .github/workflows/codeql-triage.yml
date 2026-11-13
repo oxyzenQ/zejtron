@@ -71,6 +71,9 @@ jobs:
   triage:
     name: Triage Guard - close the standing false positive
     runs-on: ubuntu-24.04
+    # The measured wedge-detector (docs/RULES.md): the triage verdict
+    # lands in seconds (the measured median was 0.1m); the cap catches
+    # a wedged runner at five minutes.
     timeout-minutes: 5
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
 

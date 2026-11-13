@@ -66,6 +66,10 @@ jobs:
   ship-set:
     name: Registry ship-set verification (package dry run)
     runs-on: ubuntu-24.04
+    # A deliberate generous lane (docs/RULES.md): the ship-set has no
+    # recorded run duration to shrink against (it rides release
+    # tags); 15 keeps the dry-run package honest while the publish
+    # lane stays wider.
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -119,6 +123,9 @@ jobs:
   publish:
     name: Publish to crates.io (${{ github.ref_name }})
     runs-on: ubuntu-24.04
+    # The deliberate generous lane (docs/RULES.md): the publish job
+    # is rare, human-watched, and unmeasured - the cap exists to fail
+    # a wedged publish, not to hurry crates.io.
     timeout-minutes: 30
     needs: [ship-set]
     steps:

@@ -94,7 +94,10 @@ jobs:
     # on, 60s wall budget inside the leg script.
     name: supermassive e2e - low specs (MSRV)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The runtime budget law (docs/RULES.md): 10 is the standard
+    # budget - the measured workflow max was 5.5m, the cap keeps
+    # honest headroom over the worst observed leg.
+    timeout-minutes: 10
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
@@ -153,7 +156,10 @@ jobs:
     # 300s wall budget inside the leg script. Same suite, same depth.
     name: supermassive e2e - best specs (stable)
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # The runtime budget law (docs/RULES.md): 10 is the standard
+    # budget - the measured workflow max was 5.5m, the cap keeps
+    # honest headroom over the worst observed leg.
+    timeout-minutes: 10
     env:
       RUSTUP_TOOLCHAIN: stable
     steps:
@@ -216,7 +222,10 @@ jobs:
     # build).
     name: supermassive e2e - server simulation (stable)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The runtime budget law (docs/RULES.md): 10 is the standard
+    # budget - the leg shares the best specs cache, the measured
+    # workflow max was 5.5m, and 10 keeps honest headroom.
+    timeout-minutes: 10
     env:
       RUSTUP_TOOLCHAIN: stable
     steps:

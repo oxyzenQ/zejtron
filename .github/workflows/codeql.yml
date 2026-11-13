@@ -40,7 +40,10 @@ jobs:
   analyze:
     name: Dragon Guard - CodeQL Analyze
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # The runtime budget law (docs/RULES.md): 10 is the standard
+    # budget - the measured workflow median was 4.3m, max 6.7m, so 10
+    # keeps honest headroom over the worst observed analysis.
+    timeout-minutes: 10
 
     steps:
       - name: Checkout

@@ -61,7 +61,10 @@ jobs:
     # unlink/rename probes end to end.
     name: netrunner-C77 - root (live eBPF forensic pair)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The runtime budget law (docs/RULES.md): 10 is the standard
+    # budget - the measured workflow median was 2.7m across the three
+    # legs, so 10 keeps wide headroom over the root sim.
+    timeout-minutes: 10
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
@@ -110,7 +113,9 @@ jobs:
     # reason named, never fake a success.
     name: netrunner-C77 - non-root (the refusal direction)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The runtime budget law (docs/RULES.md): 10 is the standard
+    # budget - the same measured estate backs this leg.
+    timeout-minutes: 10
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
@@ -161,6 +166,10 @@ jobs:
     # through the SANDBOX-VERDICT sentinel line).
     name: netrunner-C77 - micro-VM floor (root, kernel 5.15.0)
     runs-on: ubuntu-24.04
+    # The one deliberate generous lane (docs/RULES.md): a cold KVM
+    # boot on a hosted runner has wedged to 17.9m once, and the cap
+    # exists to fail that guest - 30 names the boundary the hang
+    # actually needed, everything else lands near three minutes.
     timeout-minutes: 30
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
