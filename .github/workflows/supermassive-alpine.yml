@@ -60,7 +60,10 @@ jobs:
   alpine-smoke:
     name: Alpine smoke proof - alpine:3.20 (musl static)
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # The runtime budget law (docs/RULES.md): 10 is the standard
+    # budget - the measured workflow max was 2.6m, so 10 keeps wide
+    # headroom over the alpine smoke proof.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin

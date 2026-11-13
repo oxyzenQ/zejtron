@@ -46,9 +46,9 @@
 # pull_request trigger on purpose: the fast lane (ci.yml) owns PRs;
 # this lane's budget is for the wide cross, not per-PR churn.
 #
-# Budget: timeout-minutes stays generous (a wedged leg fails the leg,
-# not the lane) but the lane as a whole stays off the PR path, so the
-# cost lands where the owner approved it: the wide cross.
+# Budget: the runtime budget law (docs/RULES.md) caps the leg at the
+# standard 10 - the measured workflow median was 3.5m, max 6.7m, and
+# a wedged leg fails the leg, not the lane.
 name: zejtron - Supermassive
 
 "on":
@@ -69,7 +69,7 @@ jobs:
   supermassive:
     name: ${{ matrix.title }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 10
     env:
       # The declared toolchain IS the running toolchain (see the
       # Toolchain span paragraph above): rust-toolchain.toml's

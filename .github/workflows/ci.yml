@@ -52,7 +52,10 @@ jobs:
     # locally.
     name: build.sh check-all -q
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # The runtime budget law (docs/RULES.md): 10 is the standard
+    # budget - the measured workflow median was 3.6m, max 4.3m, so 10
+    # keeps more than double headroom over the worst observed run.
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
