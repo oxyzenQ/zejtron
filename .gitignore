@@ -44,3 +44,23 @@ other ai/
 __pycache__/
 __pycache__
 *.pyc
+
+# Local release-rehearsal staging (night-cafe-1, the sibling's
+# release.yml "Prepare release artifacts" class): a release flow run
+# outside CI builds its artifacts in dist/; staging is a product of
+# the machine, never a commit.
+dist/
+
+# The night-cafe-1 vendored fixed CLI (scripts/labs-exp/, the
+# sibling's labs-exp law): a locally built or patched zejtron binary
+# is an extraction product of the machine, never a tracked file. The
+# tracked lane is the packaged pair - the .gz archive and its .b3sum
+# sidecar, produced by scripts/package/pack-local.sh and verified by
+# `b3sum -c` on extraction. The raw name class is ignored at any
+# suffix shape (a bare binary, a .o, a .exe) so a future hardening
+# drop cannot ride a commit, while the .gz and .b3sum sidecars of the
+# same name stay trackable - the archive bytes are what another
+# machine verifies, the raw bytes are what this machine runs.
+scripts/labs-exp/zejtron-fixed-*
+!scripts/labs-exp/zejtron-fixed-*.gz
+!scripts/labs-exp/zejtron-fixed-*.b3sum
