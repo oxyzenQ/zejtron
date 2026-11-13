@@ -64,7 +64,10 @@ release binaries embed, BLAKE3-pinned in
 `ebpf-prebuilt/manifest.toml`. Either way the TARGET machine needs
 no nightly toolchain, no bpf-linker, no clang, and no separate
 object files. `-V`'s `Signature: Pure eBPF builtin` line is the
-lane-honest claim that the objects are in there.
+lane-honest claim that the objects are in there. The build's own
+authenticity is checkable too: the `Depth-sig:` line and
+`zejtron sig` carry the depth-matrix signature (night-signature-1),
+the verification recipe in `docs/VERIFY_RELEASE.md`.
 
 ## The JSON lane
 

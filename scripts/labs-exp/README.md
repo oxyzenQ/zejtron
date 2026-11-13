@@ -11,9 +11,10 @@ the crate's include list by the manifest rule.
 
 ## zejtron-cli-ux-verify.sh
 
-The CLI UX hardening verifier (night-total-hardening-1 follow-up):
-the complete usage-error contract against a built binary in one
-shot, 25 checks, the exit code is the verdict (0 = all green).
+The CLI UX hardening verifier (night-total-hardening-1 follow-up,
+extended by night-signature-1): the complete usage-error contract
+plus the depth-matrix signature contract against a built binary in
+one shot, 31 checks, the exit code is the verdict (0 = all green).
 
 The fixes it verifies (all on main):
 
@@ -45,6 +46,19 @@ refusal with the one-line build remedy, never a silent pass.
 Root is never required: every check rides the usage layer (usage
 errors, help, the version banner, one runtime probe that fails on a
 missing path), so the lab runs the same with or without sudo.
+
+### Section 10 - the depth-matrix signature (night-signature-1)
+
+Six checks pin the anti-fake chain on the running binary: the `-V`
+`Depth-sig:` line (the identity claim `rezky_nightky (oxyzenQ) 2026`
+plus the anchor), `zejtron sig` and the `signature` alias both exit
+0, the matrix closes with
+`verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)`, the JSON lane
+speaks one line with `"verdict":"AUTHENTIC"`, and the binary image
+itself carries the `ZJNS1` marker whose commit matches the `-V`
+Build line (the D1 depth, grep-verified without executing the
+artifact). The full mechanism story lives in
+[docs/VERIFY_RELEASE.md](../../docs/VERIFY_RELEASE.md).
 
 ### The build-fingerprint guard
 

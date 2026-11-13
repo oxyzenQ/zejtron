@@ -405,6 +405,18 @@ pub enum Commands {
         #[arg(long, help = "Print the network report as JSON (one line, jq-ready)")]
         print_json: bool,
     },
+    #[command(
+        about = "Verify the embedded build signature (the depth-matrix self-check).",
+        alias = "signature",
+        override_usage = "zejtron sig [options] e.g zejtron sig"
+    )]
+    Sig {
+        #[arg(
+            long,
+            help = "Print the signature depth matrix as JSON (one line, jq-ready)"
+        )]
+        print_json: bool,
+    },
 }
 
 impl Cli {

@@ -190,6 +190,36 @@ expect_exit 0 "-V exits 0 on stdout" -V
 expect_exit 0 "verb -V short-circuits before required args" path -V
 expect_exit 1 "runtime failure keeps exit 1" path /definitely/not/a/real/command-xyz
 
+echo "-- 10. the depth-matrix signature (night-signature-1) --"
+expect_output "Depth-sig: rezky_nightky (oxyzenQ) 2026 b3:" "-V carries the D0 identity claim + anchor" -V
+expect_exit 0 "sig verifies the running binary" sig
+expect_exit 0 "the long 'signature' spelling rides the same arm" signature
+sigverdict=$("$BIN" sig 2>/dev/null | tail -n 1)
+if [[ "$sigverdict" == "verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)" ]]; then
+        echo "PASS verdict : the matrix closes with the full-authentic line"
+        PASS=$((PASS + 1))
+else
+        echo "FAIL verdict : $sigverdict"
+        FAIL=$((FAIL + 1))
+fi
+sigjson=$("$BIN" sig --print-json 2>/dev/null)
+if [[ "$sigjson" == *'"verdict":"AUTHENTIC"'* ]] && [[ "$sigjson" == *'"payload_tag":"ns1"'* ]] \
+        && [[ "$sigjson" != *$'\n'* ]]; then
+        echo "PASS json : the depth matrix speaks one jq-ready line"
+        PASS=$((PASS + 1))
+else
+        echo "FAIL json : $sigjson"
+        FAIL=$((FAIL + 1))
+fi
+marker_commit=$(grep -ao 'ZJNS1|rezky_nightky (oxyzenQ) 2026|[0-9a-f]\{7\}' "$BIN" | head -n 1 | cut -d'|' -f3)
+if [[ -n "$marker_commit" && "$marker_commit" == "$("$BIN" -V | sed -n 's/^Build:.*(\([0-9a-f]\{7\}\)).*/\1/p')" ]]; then
+        echo "PASS marker : the image carries the ZJNS1 marker for this exact commit"
+        PASS=$((PASS + 1))
+else
+        echo "FAIL marker : image marker commit '$marker_commit'"
+        FAIL=$((FAIL + 1))
+fi
+
 echo
 echo "== verdict: $PASS passed, $FAIL failed =="
 if [[ "$FAIL" -eq 0 ]]; then

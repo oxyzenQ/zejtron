@@ -212,6 +212,25 @@ binary end to end - every verb, every JSON lane strict-parsed, the
 degradation lanes below the eBPF floor, a 400-run stability loop -
 before the freeze was declared.
 
+**15. The depth-matrix signature** (night-signature-1;
+`build/sig.rs`, `src/info/signature.rs`, `src/commands/sig.rs`,
+`docs/VERIFY_RELEASE.md`). The hole: identity claims that only the
+license files carry can be copied verbatim by a thief, and a
+rebuilt or hacked binary claims whatever its `-V` report says. The
+signature chain makes the claim checkable at four depths - D0, the
+`Depth-sig:` identity + anchor line on `-V`; D1, the `ZJNS1` marker
+burned into the binary image (grep-able without executing the
+artifact); D2, the runtime-recomputed BLAKE3 anchor over the
+`ns1|identity|commit|build-time` payload (a mismatch refuses, exit
+1, naming the depth); D3, the b3sum-verifiable self-hash of the
+running image, the hash the owner pins per release. One shared
+module (`build/sig.rs`) feeds both the build lane and the runtime,
+so the format cannot drift; the hash family is the estate's own
+std-only BLAKE3, zero new dependencies. Live proof, one command:
+`zejtron sig`; the grep recipe and the honest limits (what AUTHENTIC
+proves and what only the pinned D3 hash proves) live in
+[VERIFY_RELEASE.md](VERIFY_RELEASE.md).
+
 ## How a newcomer reads this tree
 
 This page for the shape, [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md)

@@ -192,3 +192,42 @@ fn version_report_body_is_plain_and_signature_literal_is_contiguous() {
         "Signature: Pure eBPF builtin \u{2014} Official Build by rezky_nightky (oxyzenQ)"
     );
 }
+
+/// night-signature-1 contract: the Depth-sig line appears exactly
+/// once, directly after the Signature line, and carries the identity
+/// claim plus the anchor (or the honest unstamped guard line). The
+/// line is the D0 depth's surface - the report a verifier greps
+/// before recomputing the anchor.
+#[test]
+fn depth_sig_line_is_pinned_after_the_signature_line() {
+    let body = version_body();
+    let count = body
+        .lines()
+        .filter(|l| l.starts_with("Depth-sig: "))
+        .count();
+    assert_eq!(count, 1, "the Depth-sig line must appear exactly once");
+    let lines: Vec<&str> = body.lines().collect();
+    let sig_idx = lines
+        .iter()
+        .position(|l| l.starts_with("Signature: "))
+        .expect("the Signature line present");
+    assert_eq!(
+        lines[sig_idx + 1],
+        signature::depth_sig_line(),
+        "the Depth-sig line must follow the Signature line"
+    );
+    match option_env!("ZEJTRON_SIG_ANCHOR") {
+        Some(anchor) if !anchor.is_empty() => {
+            assert_eq!(
+                lines[sig_idx + 1],
+                format!("Depth-sig: {} b3:{anchor}", signature::sig::SIG_IDENTITY)
+            );
+        }
+        _ => {
+            assert_eq!(
+                lines[sig_idx + 1],
+                "Depth-sig: unstamped — the anchor was never stamped (a build outside the estate build script)"
+            );
+        }
+    }
+}

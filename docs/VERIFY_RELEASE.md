@@ -34,6 +34,54 @@ honest claim ("Pure eBPF builtin" - the objects ride inside the
 binary on both lanes). The release lane's own Verify step greps these
 literals as bytes out of every matrix artifact before it ships.
 
+## The depth-matrix signature (night-signature-1)
+
+Every build embeds a verifiable signature chain, and the binary
+verifies itself. Four depths, each checkable on its own:
+
+| Depth | What it proves | How to check |
+|---|---|---|
+| D0 runtime identity | The owner's claim `rezky_nightky (oxyzenQ) 2026` rides the report with the anchor over it | `zejtron -V \| grep Depth-sig` |
+| D1 embedded marker | The binary IMAGE carries `ZJNS1\|identity\|commit\|build-time\|anchor` in its own bytes | `grep -a ZJNS1 <binary>` (no execution needed) |
+| D2 anchor integrity | The runtime recomputes the anchor over the payload and refuses any mismatch | `zejtron sig` |
+| D3 binary self-hash | The BLAKE3 of the exact bytes the process runs from | `zejtron sig` (compare against `b3sum <binary>` or the pinned release hash) |
+
+`zejtron sig` (alias `zejtron signature`) renders the whole matrix
+and closes with `verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)`
+on an intact build. A tampered, hand-patched, or foreign-rebuilt
+binary gets `SIGNATURE: REFUSED (...)` naming the contradicting
+depth, exit 1; `--print-json` speaks the same matrix as one jq-ready
+line. The payload format is
+`ns1|rezky_nightky (oxyzenQ) 2026|<commit>|<build-time>`, hashed with
+BLAKE3 - the same family the release checksum files use.
+
+### Recompute the anchor from the -V report alone
+
+Every payload ingredient is visible in the report (identity on the
+Depth-sig line, commit on the Build line, build-time on the
+Build-time line), so a verifier never needs to execute the artifact:
+
+```bash
+ANCHOR=$(zejtron -V | sed -n 's/^Depth-sig:.*b3:\([0-9a-f]\{64\}\)$/\1/p')
+COMMIT=$(zejtron -V | sed -n 's/^Build:.*(\([0-9a-f]\{7\}\)).*/\1/p')
+BTIME=$(zejtron -V | sed -n 's/^Build-time: \(.*\)$/\1/p')
+printf '%s' "ns1|rezky_nightky (oxyzenQ) 2026|${COMMIT}|${BTIME}" | b3sum
+# the first field must equal ANCHOR
+```
+
+### What AUTHENTIC proves, and what it does not
+
+The D0-D2 chain proves the binary is internally consistent with a
+build the estate build script drove: identity, commit, build-time,
+marker, and anchor all tell one story. It does not prove WHO ran
+that build - any rebuild of the same sources carries the same
+identity and a fresh, internally consistent anchor. That is D3's
+seat: every build hashes uniquely (the build-time rides the anchor,
+so two builds of one commit differ), and the owner pins the expected
+D3 hash per release. Compare the pinned hash with `zejtron sig`'s
+D3 line (or `b3sum` of the installed binary) - a mismatch is a
+rebuilt, hacked, or fake binary, whatever its report claims.
+
 ## Checksum files
 
 | File | Algorithm | Family | Quantum-safe? |
