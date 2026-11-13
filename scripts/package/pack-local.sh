@@ -44,11 +44,19 @@
 
 set -euo pipefail
 
+# The brand palette (night-cafe-1): verdicts and the digest line ride
+# the same tiers the CLI renders. Defaults first so a missing lib
+# degrades to mono; the source overrides with the depth-correct
+# escapes (the depth ladder probes stdout once at source time).
+UX_BRAND="" UX_OK="" UX_ERR="" UX_WARN="" UX_GREY="" UX_WHITE="" UX_RESET=""
+# shellcheck disable=SC1091 # the palette lib sits one directory up in scripts/lib
+. "$(dirname "$0")/../lib/ux_palette.sh" || true
+
 LABS_DIR="scripts/labs-exp"
 
-die() { echo "pack-local: error: $*" >&2; exit 1; }
-ok() { echo "pack-local: ok: $*"; }
-warn() { echo "pack-local: warn: $*" >&2; }
+die() { echo "${UX_ERR}pack-local: error: $*${UX_RESET}" >&2; exit 1; }
+ok() { echo "${UX_OK}pack-local: ok: $*${UX_RESET}"; }
+warn() { echo "${UX_WARN}pack-local: warn: $*${UX_RESET}" >&2; }
 
 usage() {
 	echo "usage: $0 <binary> [name]" >&2
@@ -123,6 +131,6 @@ ok "walls hold: sidecars $GZ and $B3 stay trackable"
 SZ_RAW=$(wc -c < "$BINARY")
 SZ_GZ=$(wc -c < "$GZ")
 SUMMARY=$(b3sum "$GZ" | cut -d' ' -f1)
-echo "pack-local: packed $NAME: ${SZ_RAW} raw bytes -> ${SZ_GZ} archive bytes"
-echo "pack-local: blake3($GZ) = $SUMMARY"
-echo "pack-local: verify on another machine: b3sum -c $B3 && gunzip -c $GZ > $NAME"
+echo "${UX_WHITE}pack-local: packed $NAME: ${SZ_RAW} raw bytes -> ${SZ_GZ} archive bytes${UX_RESET}"
+echo "${UX_WHITE}pack-local: blake3($GZ) = $SUMMARY${UX_RESET}"
+echo "${UX_GREY}pack-local: verify on another machine: b3sum -c $B3 && gunzip -c $GZ > $NAME${UX_RESET}"

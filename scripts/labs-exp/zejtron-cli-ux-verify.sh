@@ -28,6 +28,14 @@ set -u
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 1
 REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd) || exit 1
 
+# The brand palette (night-cafe-1): verdict tokens, rails, and the
+# emphasized lines ride the same tiers the CLI renders. Defaults come
+# first so a missing lib degrades to mono, never to a set -u crash;
+# the source overrides them with the depth-correct escapes.
+UX_BRAND="" UX_OK="" UX_ERR="" UX_WARN="" UX_GREY="" UX_WHITE="" UX_RESET=""
+# shellcheck disable=SC1091 # the palette lib sits beside this lab in scripts/lib
+. "$SCRIPT_DIR/../lib/ux_palette.sh" || true
+
 # The shared resolver (one authority for every script that exercises
 # the binary): explicit arg, then ZEJTRON_BIN_PATH, then target
 # discovery with the profile-over-basic preference.
@@ -36,11 +44,11 @@ REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd) || exit 1
 
 zejtron_resolve_bin BIN "$REPO_ROOT" "${1:-}"
 if [[ -z "$BIN" || ! -x "$BIN" ]]; then
-	echo "verify: no zejtron binary found (tried the argument, ZEJTRON_BIN_PATH, and target/ discovery)" >&2
-	echo "verify: build one first - cargo build --release (or scripts/build.sh check-all)" >&2
+	echo "${UX_ERR}verify: no zejtron binary found (tried the argument, ZEJTRON_BIN_PATH, and target/ discovery)${UX_RESET}" >&2
+	echo "${UX_ERR}verify: build one first - cargo build --release (or scripts/build.sh check-all)${UX_RESET}" >&2
 	exit 2
 fi
-echo "verify: binary $BIN"
+echo "${UX_GREY}verify: binary $BIN${UX_RESET}"
 
 # The build-fingerprint guard: the verdict is only honest when the
 # binary under test was built from the tree the lab rides in. A
@@ -57,12 +65,12 @@ fi
 bin_commit=$("$BIN" -V 2>/dev/null | sed -n 's/^Build:.*(\([0-9a-f]\{7,40\}\)).*/\1/p' | cut -c1-7)
 if [[ -n "$head_commit" && -n "$bin_commit" && "$bin_commit" != "$head_commit" ]]; then
 	if [[ -n "${1:-}" || -n "${ZEJTRON_BIN_PATH:-}" || "${ZEJTRON_ALLOW_STALE:-0}" == 1 ]]; then
-		echo "verify: WARNING the binary is built from $bin_commit, the tree is at $head_commit - the verdict covers the binary, not the tree"
+		echo "${UX_WARN}verify: WARNING the binary is built from $bin_commit, the tree is at $head_commit - the verdict covers the binary, not the tree${UX_RESET}"
 	else
-		echo "verify: the binary is built from $bin_commit, but the tree is at $head_commit" >&2
-		echo "verify: a stale target binary makes the verdict lie - rebuild first, then re-run" >&2
-		echo "verify:   cargo build --release   (or scripts/package/install-on-my-machine.sh)" >&2
-		echo "verify: set ZEJTRON_ALLOW_STALE=1 to verify the old binary on purpose" >&2
+		echo "${UX_ERR}verify: the binary is built from $bin_commit, but the tree is at $head_commit${UX_RESET}" >&2
+		echo "${UX_ERR}verify: a stale target binary makes the verdict lie - rebuild first, then re-run${UX_RESET}" >&2
+		echo "${UX_ERR}verify:   cargo build --release   (or scripts/package/install-on-my-machine.sh)${UX_RESET}" >&2
+		echo "${UX_ERR}verify: set ZEJTRON_ALLOW_STALE=1 to verify the old binary on purpose${UX_RESET}" >&2
 		exit 2
 	fi
 fi
@@ -77,10 +85,10 @@ expect_exit() {
 	"$BIN" "$@" >/dev/null 2>&1
 	local got=$?
 	if [[ "$got" -eq "$want" ]]; then
-		echo "PASS exit=$want : $desc"
+		echo "${UX_OK}PASS exit=$want : $desc${UX_RESET}"
 		PASS=$((PASS + 1))
 	else
-		echo "FAIL exit=$got (want $want) : $desc"
+		echo "${UX_ERR}FAIL exit=$got (want $want) : $desc${UX_RESET}"
 		FAIL=$((FAIL + 1))
 	fi
 }
@@ -94,10 +102,10 @@ expect_tip() {
 	local out
 	out=$("$BIN" "$@" 2>&1 >/dev/null)
 	if [[ "$out" == *"$needle"* ]]; then
-		echo "PASS tip '$needle' : $desc"
+		echo "${UX_OK}PASS tip '$needle' : $desc${UX_RESET}"
 		PASS=$((PASS + 1))
 	else
-		echo "FAIL tip '$needle' missing : $desc"
+		echo "${UX_ERR}FAIL tip '$needle' missing : $desc${UX_RESET}"
 		FAIL=$((FAIL + 1))
 	fi
 }
@@ -109,10 +117,10 @@ expect_no_tip() {
 	local out
 	out=$("$BIN" "$@" 2>&1 >/dev/null)
 	if [[ "$out" != *"$needle"* ]]; then
-		echo "PASS absent '$needle' : $desc"
+		echo "${UX_OK}PASS absent '$needle' : $desc${UX_RESET}"
 		PASS=$((PASS + 1))
 	else
-		echo "FAIL found '$needle' : $desc"
+		echo "${UX_ERR}FAIL found '$needle' : $desc${UX_RESET}"
 		FAIL=$((FAIL + 1))
 	fi
 }
@@ -124,107 +132,107 @@ expect_output() {
 	local out
 	out=$("$BIN" "$@" 2>/dev/null)
 	if [[ "$out" == *"$needle"* ]]; then
-		echo "PASS output '$needle' : $desc"
+		echo "${UX_OK}PASS output '$needle' : $desc${UX_RESET}"
 		PASS=$((PASS + 1))
 	else
-		echo "FAIL output '$needle' missing : $desc"
+		echo "${UX_ERR}FAIL output '$needle' missing : $desc${UX_RESET}"
 		FAIL=$((FAIL + 1))
 	fi
 }
 
-echo "-- 1. the ceiling wording (the pro-mode row sync) --"
+echo "${UX_BRAND}-- 1. the ceiling wording (the pro-mode row sync) --${UX_RESET}"
 expect_output "(0-1000000)" "--limit row mirrors the CLI struct" -h
 expect_output "(1-1024)" "--depth row mirrors the CLI struct" -h
 expect_no_tip "default 20)" "stale --limit wording is gone" -h
 expect_no_tip "minimum 1)" "stale --depth wording is gone" -h
 
-echo "-- 2. the case-variant subcommand rescue --"
+echo "${UX_BRAND}-- 2. the case-variant subcommand rescue --${UX_RESET}"
 expect_tip "a similar subcommand exists: 'port'" "PORT names the real verb" PORT
 expect_tip "a similar subcommand exists: 'holds'" "WHOHOLDS lands on the successor" WHOHOLDS
 expect_exit 2 "case-variant verbs stay usage errors" PORT
 
-echo "-- 3. clap's own tips survive (the fallback never doubles) --"
+echo "${UX_BRAND}-- 3. clap's own tips survive (the fallback never doubles) --${UX_RESET}"
 expect_tip "a similar subcommand exists: 'proc'" "prco keeps clap's own tip" prco
 
-echo "-- 4. the migration redirects (exact spellings) --"
+echo "${UX_BRAND}-- 4. the migration redirects (exact spellings) --${UX_RESET}"
 expect_tip "'holds'" "whoholds redirects to holds" whoholds
 expect_tip "'touch'" "lasttouch redirects to touch" lasttouch
 expect_tip "'why'" "whyopen redirects to why" whyopen
 expect_tip "'path'" "envpath redirects to path" envpath
 expect_tip "zejtron --help" "help lands on the reference" help
 
-echo "-- 5. the non-UTF-8 argv contract (no panic) --"
+echo "${UX_BRAND}-- 5. the non-UTF-8 argv contract (no panic) --${UX_RESET}"
 expect_exit 2 "invalid UTF-8 is a usage error, not exit 101" holds $'\xff'
 rendered=$("$BIN" holds $'\xff' 2>&1 >/dev/null || true)
 if [[ "$rendered" == *"invalid UTF-8"* ]] && [[ "$rendered" != *"panicked"* ]]; then
-	echo "PASS clean render : the UTF-8 refusal renders, no backtrace note"
+	echo "${UX_OK}PASS clean render : the UTF-8 refusal renders, no backtrace note${UX_RESET}"
 	PASS=$((PASS + 1))
 else
-	echo "FAIL render : $rendered"
+	echo "${UX_ERR}FAIL render : $rendered${UX_RESET}"
 	FAIL=$((FAIL + 1))
 fi
 
-echo "-- 6. the case-variant flag rescue (proc lane) --"
+echo "${UX_BRAND}-- 6. the case-variant flag rescue (proc lane) --${UX_RESET}"
 expect_tip "a similar argument exists: '--me'" "proc --ME names the real flag" proc --ME
 expect_tip "a similar argument exists: '--depth'" "proc --Depth rescues" proc --Depth
 
-echo "-- 7. the top-level authority rescue --"
+echo "${UX_BRAND}-- 7. the top-level authority rescue --${UX_RESET}"
 expect_tip "--check-update" "subcommand-scoped --check-updated names the top level" proc --check-updated
 
-echo "-- 8. the one-tip contract (rescued errors carry exactly one tip) --"
+echo "${UX_BRAND}-- 8. the one-tip contract (rescued errors carry exactly one tip) --${UX_RESET}"
 for probe in PORT WHOHOLDS; do
 	tips=$("$BIN" "$probe" 2>&1 >/dev/null | grep -c "tip: " || true)
 	if [[ "$tips" -eq 1 ]]; then
-		echo "PASS one tip : $probe"
+		echo "${UX_OK}PASS one tip : $probe${UX_RESET}"
 		PASS=$((PASS + 1))
 	else
-		echo "FAIL tip count $tips : $probe"
+		echo "${UX_ERR}FAIL tip count $tips : $probe${UX_RESET}"
 		FAIL=$((FAIL + 1))
 	fi
 done
 
-echo "-- 9. the exit-code law (help 0, usage 2, runtime 1) --"
+echo "${UX_BRAND}-- 9. the exit-code law (help 0, usage 2, runtime 1) --${UX_RESET}"
 expect_exit 0 "-h exits 0" -h
 expect_exit 0 "--help exits 0" --help
 expect_exit 0 "-V exits 0 on stdout" -V
 expect_exit 0 "verb -V short-circuits before required args" path -V
 expect_exit 1 "runtime failure keeps exit 1" path /definitely/not/a/real/command-xyz
 
-echo "-- 10. the depth-matrix signature (night-signature-advanced-1) --"
+echo "${UX_BRAND}-- 10. the depth-matrix signature (night-signature-advanced-1) --${UX_RESET}"
 expect_output "Depth-sig: fp=" "-V carries the masked scheme's status line" -V
 expect_output "status=verified anchor=b3:" "-V reports the verified anchor over the masked payload" -V
 expect_exit 0 "sig verifies the running binary" sig
 expect_exit 0 "the long 'signature' spelling rides the same arm" signature
 sigverdict=$("$BIN" sig 2>/dev/null | sed -n 's/^verdict: //p')
 if [[ "$sigverdict" == "SIGNATURE: AUTHENTIC (4/4 depths verified)" ]]; then
-	echo "PASS verdict : the matrix closes with the full-authentic line"
+	echo "${UX_OK}PASS verdict : the matrix closes with the full-authentic line${UX_RESET}"
 	PASS=$((PASS + 1))
 else
-	echo "FAIL verdict : $sigverdict"
+	echo "${UX_ERR}FAIL verdict : $sigverdict${UX_RESET}"
 	FAIL=$((FAIL + 1))
 fi
 sigjson=$("$BIN" sig --print-json 2>/dev/null)
 if [[ "$sigjson" == *'"verdict":"AUTHENTIC"'* ]] && [[ "$sigjson" == *'"payload_tag":"zejtron/depth-matrix/v1"'* ]] &&
 	[[ "$sigjson" != *$'\n'* ]]; then
-	echo "PASS json : the depth matrix speaks one jq-ready line"
+	echo "${UX_OK}PASS json : the depth matrix speaks one jq-ready line${UX_RESET}"
 	PASS=$((PASS + 1))
 else
-	echo "FAIL json : $sigjson"
+	echo "${UX_ERR}FAIL json : $sigjson${UX_RESET}"
 	FAIL=$((FAIL + 1))
 fi
 masked_hits=$(grep -ac "rezky_nightky" "$BIN" || true)
 if [[ "$masked_hits" == "0" ]]; then
-	echo "PASS masked : the artifact carries no greppable identity (the at-rest contract)"
+	echo "${UX_OK}PASS masked : the artifact carries no greppable identity (the at-rest contract)${UX_RESET}"
 	PASS=$((PASS + 1))
 else
-	echo "FAIL masked : $masked_hits identity hits in the artifact"
+	echo "${UX_ERR}FAIL masked : $masked_hits identity hits in the artifact${UX_RESET}"
 	FAIL=$((FAIL + 1))
 fi
 
 echo
-echo "== verdict: $PASS passed, $FAIL failed =="
+echo "${UX_WHITE}== verdict: $PASS passed, $FAIL failed ==${UX_RESET}"
 if [[ "$FAIL" -eq 0 ]]; then
-	echo "ALL GREEN - the CLI UX contract holds."
+	echo "${UX_OK}ALL GREEN - the CLI UX contract holds.${UX_RESET}"
 	exit 0
 fi
 exit 1
