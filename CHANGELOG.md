@@ -1206,6 +1206,22 @@ v11.0.0
 
 ### Fixed
 
+- **The eBPF probe build is warning-free** (the owner's directive,
+  "all should clean, don't warning"): the unlink/rename module
+  carried seven redundant nested `unsafe` blocks - six per-read
+  wrappers around the volatile register reads in unlink_probe and
+  one around the renamedata read in rename_probe - each already
+  covered by its probe's single outer scope, so rustc flagged every
+  one `unused_unsafe` and the probe build printed seven warnings on
+  every regeneration. The wrappers are gone; the volatile reads ride
+  the same outer block they always did, and the module comment names
+  the zero-warnings release bar so the wrappers stay out. No A/B
+  benchmark per house rule at the strongest tier of proof available:
+  the rebuilt probe object is byte-identical (blake3
+  3e0d2e6aa6269d32d85ced361a3a2b1cc7df71922820c89d27e6036004c3f927
+  before and after) - the removed tokens never reached the bytecode,
+  so no runtime behavior or performance surface moved; the manifest
+  carries the refreshed tree hash only.
 - **Case-variant subcommand spellings get the same case-insensitive
   rescue the flags got.** clap's suggestion engine is case-sensitive
   on both lanes; the flag fallback (night-improve-19) closed the

@@ -163,18 +163,17 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
         // never returns - proven by the disassembly gate, not by hope
         // (the fixed-branch shape folded into the same computed load).
         let regs = ctx.as_ptr() as *const u8;
-        let arg0 =
-            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_RDI) as *const u64) };
-        let arg1 =
-            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_RSI) as *const u64) };
-        let arg2 =
-            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_RDX) as *const u64) };
-        let arg3 =
-            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_RCX) as *const u64) };
-        let arg4 =
-            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_R8) as *const u64) };
-        let arg5 =
-            unsafe { core::ptr::read_volatile(regs.add(PT_REGS_R9) as *const u64) };
+        // The volatile reads ride the probe's single unsafe scope above
+        // (the aya API-contract block); a per-read unsafe block nested
+        // here is flagged unused_unsafe by the compiler - the warning
+        // sweep that keeps the build output clean (zero warnings is the
+        // release bar).
+        let arg0 = core::ptr::read_volatile(regs.add(PT_REGS_RDI) as *const u64);
+        let arg1 = core::ptr::read_volatile(regs.add(PT_REGS_RSI) as *const u64);
+        let arg2 = core::ptr::read_volatile(regs.add(PT_REGS_RDX) as *const u64);
+        let arg3 = core::ptr::read_volatile(regs.add(PT_REGS_RCX) as *const u64);
+        let arg4 = core::ptr::read_volatile(regs.add(PT_REGS_R8) as *const u64);
+        let arg5 = core::ptr::read_volatile(regs.add(PT_REGS_R9) as *const u64);
         let dentry = match arg {
             0 => arg0,
             1 => arg1,
@@ -207,11 +206,8 @@ pub fn rename_probe(ctx: ProbeContext) -> u32 {
         // register read carries the same pinned-offset volatile shape
         // as the unlink probe's six: fixed load, host-independent,
         // verifier-safe from the 5.15 floor up.
-        let renamedata = unsafe {
-            core::ptr::read_volatile(
-                (ctx.as_ptr() as *const u8).add(PT_REGS_RDI) as *const u64,
-            )
-        };
+        let renamedata =
+            core::ptr::read_volatile((ctx.as_ptr() as *const u8).add(PT_REGS_RDI) as *const u64);
         let renamedata = renamedata as usize;
         if renamedata == 0 {
             return 0;
