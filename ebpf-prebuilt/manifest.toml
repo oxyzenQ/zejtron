@@ -19,16 +19,16 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-13T11:17:48Z"
+generated = "2026-11-13T11:37:47Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "9f3e237d8029bcb322dd77a6a44fd913d6b9dd545fbb0d984434cbdedeb96b89"
-built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
+ebpf_tree_blake3 = "fef34e6e948017bb99e98dc2582c19fb3a371a8da295d96fbec7eddaedbb833b"
+built_by = "rezky_nightky <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "3e0d2e6aa6269d32d85ced361a3a2b1cc7df71922820c89d27e6036004c3f927"
-size = 15496
+blake3 = "cb1ab8968476491e5160b29f368c495bf9b9709fe832fbd7ec695e084b6b537e"
+size = 15504
 
 [contract]
 # The six attach targets the loader plants (src/ebpf/loader.rs; the
@@ -36,4 +36,4 @@ size = 15496
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.
 attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "raw_syscalls/sys_enter", "vfs_writev", "vfs_unlink", "vfs_rename", "sched_process_exit"]
-version = "80.1.1"
+version = "80.2.0"
