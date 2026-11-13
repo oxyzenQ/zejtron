@@ -1164,6 +1164,18 @@ v11.0.0
 
 ### Fixed
 
+- **Case-variant subcommand spellings get the same case-insensitive
+  rescue the flags got.** clap's suggestion engine is case-sensitive
+  on both lanes; the flag fallback (night-improve-19) closed the
+  flag lane only, so `zejtron PORT` or `zejtron WHOHOLDS` died
+  tip-less on the most natural capitalization slips. When clap was
+  silent and neither redirect table fired, the best
+  case-insensitive match at the failing command now lands in clap's
+  own SuggestedSubcommand slot - the same one-tip contract, the
+  same safety argument: for already-lowercase input the score is
+  identical to clap's engine, so the fallback never fires where
+  clap spoke. One matcher (`jaro_ci`) now serves both lanes, so a
+  drift between them is impossible.
 - **The UX bridge no longer panics on a non-UTF-8 argument (the argv
   walk is lossy now).** `zejtron holds <byte-sequence>` - any glob
   expansion carrying invalid UTF-8, the one input class a shell
