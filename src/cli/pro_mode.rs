@@ -59,7 +59,7 @@ const GROUPS: &[(&str, &[Row])] = &[
     (
         "recent:",
         &[
-            ("--limit N", "Maximum files to show (default 20)"),
+            ("--limit N", "Maximum files to show (0-1000000)"),
             (
                 "--since DURATION",
                 "Only show files modified since this duration",
@@ -102,7 +102,7 @@ const GROUPS: &[(&str, &[Row])] = &[
         "proc:",
         &[
             ("--me", "Show processes owned by the current user"),
-            ("--depth N", "Limit rendered tree depth (minimum 1)"),
+            ("--depth N", "Limit rendered tree depth (1-1024)"),
             (
                 "--find PATTERN",
                 "Show process families matching a case-insensitive name substring",
