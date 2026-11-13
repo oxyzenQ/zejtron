@@ -6,7 +6,9 @@
 //! being clap's bare default render and get the mature treatment -
 //! removed-subcommand redirects for the migration vocabulary, the
 //! `help` muscle-memory rescue, the case-insensitive flag fallback,
-//! the one-tip contract, and the brand styles applied at render time
+//! the case-insensitive subcommand fallback (the sibling-engine
+//! mirror of the flag lane, night-total-hardening-1), the one-tip
+//! contract, and the brand styles applied at render time
 //! through the same capability ladder every other surface answers to.
 //!
 //! Wiring: `main` parses with [`crate::cli::parse_branded`] and hands
@@ -120,14 +122,16 @@ fn jaro_ci(a: &str, b: &str) -> f64 {
     }
 }
 
-/// Closest long-flag name by case-insensitive Jaro (clap's > 0.7
-/// confidence threshold), or `None`. Input and candidates are BARE
-/// names (no leading dashes). Used only as the fallback when clap's
-/// own case-sensitive engine found nothing. Ties resolve to the LAST
+/// Closest candidate by case-insensitive Jaro (clap's > 0.7
+/// confidence threshold), or `None`. Inputs and candidates are BARE
+/// names (no dashes). Used only as the fallback when clap's own
+/// case-sensitive engine found nothing. Ties resolve to the LAST
 /// candidate in declaration order, mirroring clap's ascending-sort-
 /// then-pop tie-break so the lowercase twin of a rescued typo
-/// suggests the same flag clap would have.
-fn closest_long_flag_ci(input: &str, candidates: &[&str]) -> Option<String> {
+/// suggests the same name clap would have. The one matcher both
+/// suggestion fallbacks share - the flag lane and the subcommand
+/// lane - so a drift between the two lanes is impossible.
+fn closest_candidate_ci(input: &str, candidates: &[&str]) -> Option<String> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return None;
@@ -147,6 +151,12 @@ fn closest_long_flag_ci(input: &str, candidates: &[&str]) -> Option<String> {
         }
     }
     best.map(|(name, _)| name)
+}
+
+/// The long-flag seat of [`closest_candidate_ci`]: the same engine,
+/// the name the flag rescue reads.
+fn closest_long_flag_ci(input: &str, candidates: &[&str]) -> Option<String> {
+    closest_candidate_ci(input, candidates)
 }
 
 /// The command the failing argument belongs to, found by walking argv
@@ -269,6 +279,48 @@ fn enrich_removed_subcommand_redirect(e: &mut Error) {
     }
 }
 
+/// The case-insensitive subcommand-suggestion fallback for
+/// InvalidSubcommand errors: clap's own engine is case-sensitive, so
+/// a case-variant spelling of a verb (`zejtron PORT`, `zejtron
+/// WHOHOLDS`) renders tip-less. When clap was silent AND neither
+/// redirect table fired, the best case-insensitive match at the
+/// failing command ([`failing_command`]'s walk, the same pool the
+/// flag fallback answers to) is injected as clap's OWN
+/// SuggestedSubcommand context - the canonical position and style,
+/// no custom printing, the one-tip contract intact. The same safety
+/// argument the flag fallback carries: for already-lowercase input
+/// the score is identical to clap's engine, so the fallback only
+/// ever fires where clap was silent.
+fn enrich_subcommand_ci_fallback(e: &mut Error, cmd: &Command, argv: &[String]) {
+    if e.kind() != ErrorKind::InvalidSubcommand {
+        return;
+    }
+    if e.get(ContextKind::SuggestedSubcommand).is_some() || e.get(ContextKind::Suggested).is_some()
+    {
+        return; // clap or a redirect table already named a successor
+    }
+    let Some(ContextValue::String(typed)) = e.get(ContextKind::InvalidSubcommand) else {
+        return;
+    };
+    let typed = typed.trim();
+    if typed.is_empty() || typed.starts_with('-') {
+        return;
+    }
+    let failing = failing_command(cmd, argv);
+    let candidates: Vec<&str> = failing
+        .get_subcommands()
+        .filter(|sub| !sub.is_hide_set())
+        .flat_map(|sub| {
+            let mut names = vec![sub.get_name()];
+            names.extend(sub.get_visible_aliases());
+            names
+        })
+        .collect();
+    if let Some(best) = closest_candidate_ci(typed, &candidates) {
+        e.insert(ContextKind::SuggestedSubcommand, ContextValue::String(best));
+    }
+}
+
 /// Inject the flag successor for a subcommand spelling in the flag
 /// redirect table as a canonical `tip:` line. The plain `Suggested`
 /// context is the only render slot that can carry a non-subcommand
@@ -302,8 +354,9 @@ fn enrich_subcommand_flag_redirect(e: &mut Error, cmd: &Command) {
 /// Render a clap parse error in the canonical zejtron shape and exit.
 ///
 /// Help/version requests exit 0 on stdout through clap's own path;
-/// every other kind gets the three enrichers (unknown-arg rescue,
-/// removed-subcommand redirects, the `help` flag redirect), then the
+/// every other kind gets the four enrichers (unknown-arg rescue,
+/// removed-subcommand redirects, the `help` flag redirect, the
+/// case-insensitive subcommand fallback), then the
 /// brand styles applied at render time, then the bytes route through
 /// the shared capability ladder - plain in Mono, clap's ANSI
 /// otherwise - and the process exits 2 (the clap usage-error code).
@@ -326,6 +379,9 @@ pub(crate) fn exit_clap_error(e: Error) -> ! {
     enrich_unknown_arg_suggestion(&mut e, &cmd, &argv);
     enrich_removed_subcommand_redirect(&mut e);
     enrich_subcommand_flag_redirect(&mut e, &cmd);
+    // The CI subcommand fallback runs LAST: it only ever fires where
+    // clap was silent and neither redirect table landed a tip.
+    enrich_subcommand_ci_fallback(&mut e, &cmd, &argv);
     let e = e.format(&mut cmd);
     let rendered = e.render();
     // Broken pipe is swallowed (a downstream `| head` closing early

@@ -88,6 +88,56 @@ fn help_muscle_memory_lands_on_the_reference() {
 }
 
 #[test]
+fn case_variant_subcommand_gets_the_ci_fallback() {
+    // clap's engine is case-sensitive: a case-variant verb spelling
+    // renders tip-less, and the fallback names the real verb.
+    let mut e = parse_err(&["PORT"]);
+    assert_eq!(e.kind(), ErrorKind::InvalidSubcommand);
+    assert!(e.get(ContextKind::SuggestedSubcommand).is_none());
+    let cmd = Cli::command();
+    let argv: Vec<String> = Vec::new();
+    enrich_subcommand_ci_fallback(&mut e, &cmd, &argv);
+    assert_eq!(
+        e.get(ContextKind::SuggestedSubcommand),
+        Some(&ContextValue::String("port".to_string()))
+    );
+}
+
+#[test]
+fn case_variant_retired_verb_lands_on_its_successor() {
+    // The exact-match redirect table cannot rescue a case variant;
+    // the CI fallback names the same successor the exact spelling
+    // gets, through clap's own slot.
+    let mut e = parse_err(&["WHOHOLDS"]);
+    enrich_removed_subcommand_redirect(&mut e);
+    assert!(e.get(ContextKind::SuggestedSubcommand).is_none());
+    let cmd = Cli::command();
+    let argv: Vec<String> = Vec::new();
+    enrich_subcommand_ci_fallback(&mut e, &cmd, &argv);
+    assert_eq!(
+        e.get(ContextKind::SuggestedSubcommand),
+        Some(&ContextValue::String("holds".to_string()))
+    );
+}
+
+#[test]
+fn subcommand_typos_clap_already_named_stay_untouched() {
+    // The one-tip contract on the subcommand lane: clap's own fuzzy
+    // suggestion is the last word, the fallback must stay silent.
+    let mut e = parse_err(&["prco"]);
+    let before = e.get(ContextKind::SuggestedSubcommand).cloned();
+    assert!(before.is_some());
+    let cmd = Cli::command();
+    let argv: Vec<String> = Vec::new();
+    enrich_subcommand_ci_fallback(&mut e, &cmd, &argv);
+    assert_eq!(
+        e.get(ContextKind::SuggestedSubcommand),
+        before.as_ref(),
+        "clap's own tip must survive untouched"
+    );
+}
+
+#[test]
 #[cfg(unix)]
 fn argv_collection_survives_non_utf8_bytes() {
     use std::os::unix::ffi::OsStringExt;
