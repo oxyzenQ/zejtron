@@ -57,7 +57,10 @@ UX_BRAND="" UX_OK="" UX_ERR="" UX_WARN="" UX_GREY="" UX_WHITE="" UX_RESET=""
 
 LABS_DIR="scripts/labs-exp"
 
-die() { echo "${UX_ERR}pack-local: error: $*${UX_RESET}" >&2; exit 1; }
+die() {
+	echo "${UX_ERR}pack-local: error: $*${UX_RESET}" >&2
+	exit 1
+}
 ok() { echo "${UX_OK}pack-local: ok: $*${UX_RESET}"; }
 warn() { echo "${UX_WARN}pack-local: warn: $*${UX_RESET}" >&2; }
 
@@ -70,7 +73,10 @@ usage() {
 }
 
 [ "${1:-}" = "--help" ] && usage
-[ $# -ge 1 ] && [ $# -le 2 ] || usage
+case "$#" in
+1 | 2) ;;
+*) usage ;;
+esac
 
 BINARY=$1
 NAME=${2:-$(basename "$BINARY")}
@@ -95,15 +101,15 @@ B3="$LABS_DIR/$NAME.b3sum"
 mkdir -p "$LABS_DIR"
 
 # 2. Package: timestamp-free archive, then the blake3 sidecar.
-gzip -9 -n -c "$BINARY" > "$GZ"
-b3sum "$GZ" > "$B3"
+gzip -9 -n -c "$BINARY" >"$GZ"
+b3sum "$GZ" >"$B3"
 
 # 3. Verify: the round-trip probe, then the sidecar probe. Both must
 # pass or the pair is removed - a half-shipped package is worse than
 # no package.
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-gunzip -c "$GZ" > "$TMP/$NAME"
+gunzip -c "$GZ" >"$TMP/$NAME"
 ORIG=$(b3sum "$BINARY" | cut -d' ' -f1)
 ROUND=$(b3sum "$TMP/$NAME" | cut -d' ' -f1)
 if [ "$ORIG" != "$ROUND" ]; then
@@ -131,8 +137,8 @@ for sidecar in "$GZ" "$B3"; do
 done
 ok "walls hold: sidecars $GZ and $B3 stay trackable"
 
-SZ_RAW=$(wc -c < "$BINARY")
-SZ_GZ=$(wc -c < "$GZ")
+SZ_RAW=$(wc -c <"$BINARY")
+SZ_GZ=$(wc -c <"$GZ")
 SUMMARY=$(b3sum "$GZ" | cut -d' ' -f1)
 echo "${UX_WHITE}pack-local: packed $NAME: ${SZ_RAW} raw bytes -> ${SZ_GZ} archive bytes${UX_RESET}"
 echo "${UX_WHITE}pack-local: blake3($GZ) = $SUMMARY${UX_RESET}"
