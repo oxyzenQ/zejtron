@@ -88,6 +88,22 @@ fn help_muscle_memory_lands_on_the_reference() {
 }
 
 #[test]
+#[cfg(unix)]
+fn argv_collection_survives_non_utf8_bytes() {
+    use std::os::unix::ffi::OsStringExt;
+    let raw = [
+        std::ffi::OsString::from_vec(vec![0xff]),
+        std::ffi::OsString::from("proc"),
+    ];
+    let argv = argv_lossy(raw);
+    assert_eq!(
+        argv,
+        vec![String::from("\u{FFFD}"), String::from("proc")],
+        "the lossy walk must keep every element, replacement char in the invalid place"
+    );
+}
+
+#[test]
 fn case_variant_flag_gets_the_ci_fallback() {
     let mut e = parse_err(&["proc", "--ME"]);
     assert_eq!(e.kind(), ErrorKind::UnknownArgument);
