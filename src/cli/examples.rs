@@ -50,6 +50,7 @@ const VERB_EXAMPLES: &[VerbExample] = &[
     ("why", "/etc/passwd"),
     ("doctor", "--symptom ram"),
     ("net", ""),
+    ("sig", ""),
 ];
 
 /// The Quick examples: the annotated pairs a new user meets first -

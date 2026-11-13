@@ -55,7 +55,7 @@ zejtron is one binary that answers the incident questions in one dialect. The ou
 
 ### What makes zejtron sharp
 
-- **One binary, nine surfaces** — path, recent, port, proc, holds, touch, why, net, doctor. For the single-question case, kernel-native tools are faster. zejtron is the tool for the multi-question case: when you would otherwise string five tools together and parse five dialects, zejtron answers in one grammar with diffable output.
+- **One binary, ten surfaces** — path, recent, port, proc, holds, touch, why, net, doctor, plus `sig` (the build-signature self-check). For the single-question case, kernel-native tools are faster. zejtron is the tool for the multi-question case: when you would otherwise string five tools together and parse five dialects, zejtron answers in one grammar with diffable output.
 - **Read-only by design** — it does not kill processes, close ports, start or stop services, or modify files. Ever.
 - **Deterministic output** — the same evidence, the same bytes, on every host. Piped output carries zero escape bytes.
 - **UTC everywhere** — evidence timestamps render `YYYY-MM-DD HH:MM:SS (UTC)`, computed by Howard Hinnant's civil_from_days on `std::time` only. No timezone database, no local guesses in containers.
@@ -76,7 +76,7 @@ Two structural decisions define the tool's footprint. Both are audited facts, no
 
 **Peak lean dependency.** The runtime graph is exactly three crates: `clap` (CLI), `aya` (eBPF loader), and `libc` (the one raw call for SIGPIPE reset). There is no `serde`, no `tokio`, no `libbpf`, no `chrono` (banned in `deny.toml`, replaced by Hinnant's `civil_from_days`), and no regex crate of any size - the pattern filter is std-only substring matching, and the one regex-shaped call site escapes its argument for `journalctl`'s own engine by hand (`night-dragon-maintenance-T1` removed a dead `regex-lite` that zero call sites imported). The JSON output lane hand-writes its serializer to keep the crate count at three. In comparison: `sysdig` carries libbpf and Lua; `bpftrace` carries LLVM and BCC.
 
-**Native kernel reader, not a wrapper.** The nine surfaces read `/proc` and `/sys` directly. Delete `ss`, `lsof`, and `ps` from the system — zejtron still answers byte for byte. The complete external-binary census is short, and every entry is an optional lane that degrades honestly when absent: `curl` (for `--check-update`), `journalctl` (optional log fallback), `dpkg`/`rpm`/`apk` (optional package ownership on those distros), and `uname` (readiness check). The Arch pacman database is read directly from `/var/lib/pacman`.
+**Native kernel reader, not a wrapper.** The ten surfaces read `/proc` and `/sys` directly. Delete `ss`, `lsof`, and `ps` from the system — zejtron still answers byte for byte. The complete external-binary census is short, and every entry is an optional lane that degrades honestly when absent: `curl` (for `--check-update`), `journalctl` (optional log fallback), `dpkg`/`rpm`/`apk` (optional package ownership on those distros), and `uname` (readiness check). The Arch pacman database is read directly from `/var/lib/pacman`.
 
 ### Origin projects (consolidated)
 
@@ -213,9 +213,10 @@ zejtron doctor --symptom ram --print-json | jq '.processes[] | select(.pss_bytes
 zejtron port 9999 --print-json | jq '.ports[].owners'
 zejtron path "$(which python3)" --print-json | jq '.active.package'
 
-# Network, readiness, version
+# Network, readiness, version, build signature
 zejtron net
 zejtron doctor
+zejtron sig
 zejtron -V
 
 # The diagnostic trace (engine logs to stderr, report stays clean)
@@ -228,7 +229,7 @@ zejtron why /etc/passwd -v
 
 - **v80.0.0 LTS freeze is in effect.** The CLI contract takes no breaking changes from v80.0.0 on; future releases carry bug fixes, compatibility, and performance only.
 - **Without sudo**, port owners and some holder details show as `unknown`. The kernel hides other users' context; zejtron reports what is visible.
-- **No subcommand wraps an external tool.** The nine surfaces read `/proc` and `/sys` directly. Optional external commands are `journalctl`, `dpkg`/`rpm`/`apk`, and `uname` — all degrade honestly when absent.
+- **No subcommand wraps an external tool.** The ten surfaces read `/proc` and `/sys` directly. Optional external commands are `journalctl`, `dpkg`/`rpm`/`apk`, and `uname` — all degrade honestly when absent.
 - **Audit and journal evidence is best-effort**, depending on `/var/log/audit/audit.log` readability, `journalctl` availability, and retention.
 - **Inside a container**, zejtron sees the container's `/proc`. Host processes are not visible unless `--pid=host` is used.
 - **The eBPF lane ships unconditionally.** There is no snapshot-only build; the doctor names the lane in every binary.
@@ -250,7 +251,7 @@ One crate, one binary, one discipline:
 src/
   main.rs        — entry point + dispatch (the ONLY file at src/ root)
   cli/           — clap derive definition, brand styling, the UX bridge
-  commands/      — the nine read-only surfaces (+ lane/, the fallback ladder)
+  commands/      — the ten surfaces (+ lane/, the fallback ladder)
   evidence/      — the Evidence Ledger format (rows, tiers, render)
   info/          — the -V report + the std-only civil clock
   output/        — the runtime color tier (capability ladder, error lane)

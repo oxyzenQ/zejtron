@@ -168,6 +168,7 @@ fn main() {
             print_json,
         ),
         Some(cli::Commands::Net { print_json }) => commands::net::run(print_json),
+        Some(cli::Commands::Sig { print_json }) => commands::sig::run(print_json),
         None => {
             // The branded builder, not the raw derive command: the
             // bare help render obeys the same capability rule as -h.

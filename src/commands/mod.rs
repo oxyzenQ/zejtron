@@ -15,6 +15,7 @@ pub mod path;
 pub mod port;
 pub mod proc;
 pub mod recent;
+pub mod sig;
 pub mod touch;
 pub mod why;
 

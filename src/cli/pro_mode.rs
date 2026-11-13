@@ -195,6 +195,13 @@ const GROUPS: &[(&str, &[Row])] = &[
         )],
     ),
     (
+        "sig:",
+        &[(
+            "--print-json",
+            "Print the signature depth matrix as JSON (one line, jq-ready)",
+        )],
+    ),
+    (
         "global:",
         &[
             (

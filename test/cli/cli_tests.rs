@@ -40,7 +40,7 @@ fn pro_mode_covers_every_flag_owning_verb() {
     let help = help_command().render_help().to_string();
     for group in [
         "path:", "recent:", "port:", "proc:", "holds:", "touch:", "why:", "doctor:", "net:",
-        "global:",
+        "sig:", "global:",
     ] {
         assert!(help.contains(group), "Pro mode must own the {group} group");
     }
@@ -79,6 +79,34 @@ fn parses_net_print_json() {
         }
         other => panic!("unexpected command: {other:?}"),
     }
+}
+
+/// The sig surface (night-signature-1): the verb parses bare and
+/// with --print-json, and the long `signature` spelling rides the
+/// same arm (the alias is part of the verb's public vocabulary).
+#[test]
+fn parses_sig_bare_and_json() {
+    let cli = Cli::try_parse_from(["zejtron", "sig"]).unwrap();
+    match cli.command {
+        Some(Commands::Sig { print_json }) => {
+            assert!(!print_json, "the JSON lane must default off");
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+
+    let cli = Cli::try_parse_from(["zejtron", "sig", "--print-json"]).unwrap();
+    match cli.command {
+        Some(Commands::Sig { print_json }) => {
+            assert!(print_json, "--print-json must parse on the sig verb");
+        }
+        other => panic!("unexpected command: {other:?}"),
+    }
+}
+
+#[test]
+fn parses_signature_alias() {
+    let cli = Cli::try_parse_from(["zejtron", "signature"]).unwrap();
+    assert!(matches!(cli.command, Some(Commands::Sig { .. })));
 }
 
 #[test]

@@ -30,6 +30,14 @@ mod prebuilt;
 #[path = "build/blake3.rs"]
 mod blake3;
 
+// The depth-matrix signature's payload format (night-signature-1):
+// the shared definition build.rs anchors with the same std-only
+// BLAKE3, and src/info/signature.rs re-verifies at runtime. One
+// module, two inclusion sites, one format - drift between the build
+// lane and the runtime is impossible by construction.
+#[path = "build/sig.rs"]
+mod sig;
+
 fn main() {
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs/heads");
@@ -84,6 +92,34 @@ fn main() {
     // family `M/D/YYYY HH:MM (UTC)` contract the `-V` report carries.
     let build_time = format_build_time_utc();
     println!("cargo:rustc-env=ZEJTRON_BUILD_TIME={build_time}");
+
+    // The depth-matrix signature anchor (night-signature-1): BLAKE3
+    // over the shared payload format - `ns1|identity|commit|build-time`
+    // - stamped as ZEJTRON_SIG_ANCHOR and burned into the image as the
+    // ZJNS1 marker (OUT_DIR/nz_sig.bin, include_bytes! by
+    // src/info/signature.rs). Both values derive from the exact commit
+    // and build-time strings stamped above, so the -V report alone
+    // carries every payload ingredient and the anchor is externally
+    // recomputable with a b3sum (docs/VERIFY_RELEASE.md). Stamped
+    // before the eBPF staging so the marker exists in every build the
+    // script drives, independent of which eBPF lane runs.
+    let anchor = blake3::blake3_hex(sig::sig_payload(&hash, &build_time).as_bytes());
+    println!("cargo:rustc-env=ZEJTRON_SIG_ANCHOR={anchor}");
+    let marker_path =
+        std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR")).join("nz_sig.bin");
+    let marker = sig::sig_marker(&hash, &build_time, &anchor);
+    std::fs::write(&marker_path, &marker).expect("write the ZJNS1 signature marker");
+
+    // The build lane's own roundtrip check (night-signature-1): the
+    // marker this script stages must parse back to the exact facts it
+    // carries - a payload-format drift fails the build here, not a
+    // release day. The same strict parser the runtime's D1 depth
+    // drives (build/sig.rs, the one shared definition).
+    let parsed = sig::parse_sig_marker(marker.as_bytes()).expect("the staged marker must parse");
+    assert_eq!(parsed.identity, sig::SIG_IDENTITY);
+    assert_eq!(parsed.commit, hash);
+    assert_eq!(parsed.build_time, build_time);
+    assert_eq!(parsed.anchor, anchor);
 
     // night-improve-1, retargeted by night-improve-5 and made
     // unconditional by night-weekly-maintenance-1: stage the eBPF

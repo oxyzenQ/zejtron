@@ -100,8 +100,8 @@ fn example_rows_render_plain_in_mono() {
         .collect();
     assert_eq!(
         example_lines.len(),
-        9,
-        "one example line per verb, nine verbs on the CLI"
+        10,
+        "one example line per verb, ten verbs on the CLI (sig joined with night-signature-1)"
     );
     for line in example_lines {
         assert!(

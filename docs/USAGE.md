@@ -248,6 +248,7 @@ zejtron recent /etc --limit 20      # what changed here lately
 zejtron port --all --numeric        # every socket, no name resolution
 zejtron proc --me --depth 2         # the process tree, mine, shallow
 zejtron net                         # interfaces and routes
+zejtron sig                         # the depth-matrix build signature self-check
 zejtron -v <any command>            # stderr lane trace, stdout stays ledger-clean
 ```
 

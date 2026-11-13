@@ -170,11 +170,17 @@ fn build_hash() -> &'static str {
 /// the contiguity contract and the plain-body law agree. The Signature
 /// line (night-dragon-maintenance-T1) sits on its own line directly
 /// after Build-time, easy to grep (`zejtron -V | grep Signature`).
+/// The Depth-sig line (night-signature-1) rides directly after it:
+/// the identity claim plus the anchor over the payload - every
+/// payload ingredient visible in the report (commit on Build:,
+/// build-time on Build-time:), so the anchor is externally
+/// recomputable and `zejtron sig` verifies the whole matrix.
 fn version_body() -> String {
     [
         format!("Build: {} ({})", build_label(), build_hash()),
         format!("Build-time: {}", build_time()),
         signature_line().to_owned(),
+        signature::depth_sig_line(),
         "Copyright: (c) 2026 rezky_nightky (oxyzenQ)".to_owned(),
         LICENSE_LINE.to_owned(),
         "Source: https://github.com/oxyzenQ/zejtron".to_owned(),
@@ -217,6 +223,7 @@ pub(crate) fn version_report_text() -> String {
 /// Build: local-pro-linux-amd64-v3-musl (3ae9dda)
 /// Build-time: 10/17/2026 09:15 (UTC)
 /// Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
+/// Depth-sig: rezky_nightky (oxyzenQ) 2026 b3:<64 lowercase hex>
 /// Copyright: (c) 2026 rezky_nightky (oxyzenQ)
 /// License: AGPL-3.0-only
 /// Source: `<https://github.com/oxyzenQ/zejtron>`
@@ -229,6 +236,7 @@ pub(crate) fn version_report_text() -> String {
 /// `local-`), and `local-` + the detected `linux-<arch>-<libc>`
 /// shape for plain local builds (a crates.io install included).
 pub mod clock;
+pub mod signature;
 pub fn print_version_report() {
     println!(
         "{}",
