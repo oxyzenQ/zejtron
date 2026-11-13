@@ -54,7 +54,7 @@ refactored later.
 
 ## Q5 - How is the documentation organized?
 
-The docs tree (see [docs/README.md](README.md) for the index): the
+The docs tree (see [docs/README.md](docs/README.md) for the index): the
 top-level user docs (BRANDING, RULES, VERIFY_RELEASE, ROADMAP,
 DEPENDENCY_AUDIT, LICENSING_FAQ), the workflow note
 (docs/workflow/about-ci.md), and the frozen archive
@@ -64,8 +64,8 @@ does not carry it.
 
 ## Q6 - What is the future?
 
-The roadmap lives in [docs/ROADMAP.md](ROADMAP.md) and
-[docs/ROADMAP-current.md](ROADMAP-current.md) and is the Owner's call,
+The roadmap lives in [docs/ROADMAP.md](docs/ROADMAP.md) and
+[docs/ROADMAP-current.md](docs/ROADMAP-current.md) and is the Owner's call,
 like every version number. The standing constraints: read-only stays
 read-only, the dependency set stays boring, and no surface ships a
 claim its code cannot back.

@@ -70,6 +70,22 @@ v11.0.0
 
 ### Added
 
+- **The depth-matrix build signature** (night-signature-1): an
+  identity claim that only the license files carry can be pasted
+  verbatim by a thief, and a rebuilt binary claims whatever its `-V`
+  report says. The D0-D3 chain makes the claim checkable at four
+  depths: the `Depth-sig:` identity + anchor line on `-V` (D0), the
+  `ZJNS1` marker grep-able in the binary image without executing the
+  artifact (D1), the runtime-recomputed BLAKE3 anchor that refuses,
+  exit 1, naming the depth, on a mismatch (D2), and the
+  b3sum-verifiable self-hash the owner pins per release (D3). One
+  shared module (`build/sig.rs`) feeds both the build lane and the
+  runtime so the format cannot drift, and the hash family is the
+  estate's own std-only BLAKE3 - zero new dependencies. The verb is
+  `zejtron sig` (a jq-ready JSON lane rides beside it); the grep
+  recipe and the honest limits live in
+  [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md), the map entry in
+  [docs/INNOVATIONS.md](docs/INNOVATIONS.md) (#15).
 - **The unlink/rename proof rides the why surface** (night-verify-1):
   the writev proof's shape applied to the forensic pair - one attach,
   a real unlink(2) through syscall 87 and a real rename(2) through
