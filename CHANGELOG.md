@@ -70,6 +70,32 @@ v11.0.0
 
 ### Added
 
+- **The masked depth-matrix signature** (night-signature-advanced-1):
+  the night-signature-1 chain embedded the ownership claim as
+  plaintext constants and a `ZJNS1|identity|commit|build-time|anchor`
+  marker line - a thief could `strings` the artifact, find the
+  wording, and patch it out. The claim now exists in the binary ONLY
+  as opaque XOR-masked 64-bit words (splitmix64-masked, two
+  independent layers bound to one identity), `strings | grep rezky`
+  finds nothing, and the plaintext materializes only at runtime
+  through one black-boxed unmask pass whose bytes feed both the
+  display and the integrity fold. Three verifications guard the
+  render: the FNV-1a 64 fingerprints (const-evaluated, the `fp=`
+  token), the cross-layer identity binding, and the BLAKE3 anchor
+  over the framed payload (the estate's own std-only BLAKE3, zero
+  new dependencies). The `-V` Depth-sig line speaks the new status
+  shape (`fp=... status=verified anchor=b3:... layers=...`) and
+  rides the report's green provenance seat on a terminal; `zejtron
+  sig` gains the dual-layer fingerprint row and the honest self-hash
+  note; the release lane's Verify step asserts the identity ABSENCE
+  on every artifact. The retired seats: the ZJNS1 plaintext marker,
+  the ZEJTRON_SIG_ANCHOR stamp, and the per-build anchor (the anchor
+  now seals the identity layers; the D3 self-hash pins the build).
+  The constants come from
+  scripts/release/generate-provenance-words.py - the committed truth
+  source. No A/B benchmark per house rule: the change touches the
+  -V/sig identity render only, and the benched surfaces (proc --me,
+  holds, doctor --symptom ram) are untouched code paths.
 - **The depth-matrix build signature** (night-signature-1): an
   identity claim that only the license files carry can be pasted
   verbatim by a thief, and a rebuilt binary claims whatever its `-V`

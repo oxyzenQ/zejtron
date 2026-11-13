@@ -272,8 +272,16 @@ jobs:
             *-v4-*)
               grep -aFq "${LABEL}" "${BIN}" \
                 || { echo "::error::Expected embedded build label ${LABEL}"; exit 1; }
-              grep -aFq "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)" "${BIN}" \
+              grep -aFq "Signature: Pure eBPF builtin" "${BIN}" \
                 || { echo "::error::Expected embedded version-report literals"; exit 1; }
+              # night-signature-advanced-1: the identity is masked at
+              # rest (the anti-grep contract), so the artifact-level
+              # probe asserts the ABSENCE of the owner wording - the
+              # masked layers must materialize it only at runtime.
+              if grep -aq "rezky_nightky" "${BIN}"; then
+                echo "::error::Plaintext identity found in the artifact (the masked provenance contract broke)"
+                exit 1
+              fi
               grep -aFq "License: AGPL-3.0-only" "${BIN}" \
                 || { echo "::error::Expected embedded license literal"; exit 1; }
               grep -aFq "${VERSION}" "${BIN}" \

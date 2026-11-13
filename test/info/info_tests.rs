@@ -27,7 +27,7 @@ fn version_report_carries_build_time_line() {
     let body = version_body();
     for line in [
         "Build-time: ",
-        "Copyright: (c) 2026 rezky_nightky (oxyzenQ)",
+        "Copyright: (c) 2026 rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>",
         "License: AGPL-3.0-only",
         "Source: https://github.com/oxyzenQ/zejtron",
     ] {
@@ -179,7 +179,10 @@ fn signature_line_is_pinned_after_build_time_and_lane_honest() {
 /// any capability, and the Signature literal rides the body as ONE
 /// contiguous line (the release lane's byte-grep probe greps
 /// exactly those bytes, grep -aFq, against v4 artifacts it cannot
-/// execute).
+/// execute). Since night-signature-advanced-1 the literal carries
+/// the eBPF claim only: the identity moved to the masked provenance
+/// layers, and a plaintext identity here would be the exact grep
+/// target the scheme denies.
 #[test]
 fn version_report_body_is_plain_and_signature_literal_is_contiguous() {
     let body = version_body();
@@ -187,17 +190,22 @@ fn version_report_body_is_plain_and_signature_literal_is_contiguous() {
         !body.contains('\x1b'),
         "the -V body must print plain - no color wrap around the build facts"
     );
-    assert_eq!(
-        SIGNATURE_LINE,
-        "Signature: Pure eBPF builtin \u{2014} Official Build by rezky_nightky (oxyzenQ)"
+    assert_eq!(SIGNATURE_LINE, "Signature: Pure eBPF builtin");
+    // The identity must not ride the body as plaintext anywhere: the
+    // at-rest invisibility contract, pinned at the report level (the
+    // masked layers materialize it only at the render site).
+    assert!(
+        !body.contains("rezky_nightky (oxyzenQ) 2026"),
+        "the version body must not carry the identity claim as plaintext"
     );
 }
 
-/// night-signature-1 contract: the Depth-sig line appears exactly
-/// once, directly after the Signature line, and carries the identity
-/// claim plus the anchor (or the honest unstamped guard line). The
-/// line is the D0 depth's surface - the report a verifier greps
-/// before recomputing the anchor.
+/// night-signature-1 contract, the masked night-signature-advanced-1
+/// shape: the Depth-sig line appears exactly once, directly after the
+/// Signature line, and carries the masked scheme's status line (the
+/// fp= fingerprint, the status=verified verdict, the b3: anchor, the
+/// layers token). The line renders from ONE unmask pass per render
+/// (the single-pass invariant in the provenance module).
 #[test]
 fn depth_sig_line_is_pinned_after_the_signature_line() {
     let body = version_body();
@@ -211,23 +219,18 @@ fn depth_sig_line_is_pinned_after_the_signature_line() {
         .iter()
         .position(|l| l.starts_with("Signature: "))
         .expect("the Signature line present");
+    let view = provenance::provenance_view();
     assert_eq!(
         lines[sig_idx + 1],
-        signature::depth_sig_line(),
+        view.depth_line,
         "the Depth-sig line must follow the Signature line"
     );
-    match option_env!("ZEJTRON_SIG_ANCHOR") {
-        Some(anchor) if !anchor.is_empty() => {
-            assert_eq!(
-                lines[sig_idx + 1],
-                format!("Depth-sig: {} b3:{anchor}", signature::sig::SIG_IDENTITY)
-            );
-        }
-        _ => {
-            assert_eq!(
-                lines[sig_idx + 1],
-                "Depth-sig: unstamped — the anchor was never stamped (a build outside the estate build script)"
-            );
-        }
-    }
+    assert!(
+        lines[sig_idx + 1].starts_with("Depth-sig: fp="),
+        "the fp= token leads the masked scheme's line"
+    );
+    assert!(
+        lines[sig_idx + 1].contains(" status=verified "),
+        "a pristine build reports verified"
+    );
 }

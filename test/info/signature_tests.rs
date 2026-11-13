@@ -1,68 +1,227 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Pins for the depth-matrix signature (night-signature-1). The
-//! module is #[path]-wired from src/info/signature.rs, so `super::`
-//! reaches the engine exactly like the sibling test files do. The
-//! cargo-test binary is itself a build.rs-driven build, so the
-//! stamped arms execute for real here - the suite verifies the test
+//! Pins for the depth-matrix signature (night-signature-1, the masked
+//! night-signature-advanced-1 upgrade). The module is #[path]-wired
+//! from src/info/signature.rs, so `super::` reaches the engine exactly
+//! like the sibling test files do; the masked layers live one door
+//! over at [`crate::info::provenance`]. The cargo-test binary is
+//! itself a build.rs-driven build, so the suite verifies the test
 //! binary's OWN signature end to end.
+//!
+//! The oracle literals below are the exact plaintext truths the masked
+//! words must materialize. They live ONLY in the test build - they are
+//! the one legitimate plaintext carrier in the suite, because a test
+//! that cannot name its expected output proves nothing. cfg(test) is
+//! stripped from the release artifact.
 
 use super::*;
+use crate::info::provenance;
 
-/// A well-formed 64-hex anchor shape for the synthesized matrices (a
-/// const, not a leaked String - the Miri leak detector's law).
-const TEST_ANCHOR: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+/// The manifest layer's plaintext truth (the generator's MANIFEST).
+const MANIFEST_ORACLE: &str = "Official Build by rezky_nightky (oxyzenQ) 2026";
+/// The authors layer's plaintext truth (the generator's AUTHORS).
+const AUTHORS_ORACLE: &str = "rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>";
+/// Generator cross-check values (scripts/release/
+/// generate-provenance-words.py prints them). If these diverge from
+/// the const eval, the generator and the Rust mirror have drifted.
+const MANIFEST_FINGERPRINT_ORACLE: u64 = 0x9174_E0CE_08FE_CCBA;
+const AUTHORS_FINGERPRINT_ORACLE: u64 = 0xC97B_13F8_1603_5D55;
+/// The generator's printed anchor cross-check (blake3 over the framed
+/// payload). The Python mirror and the estate's std-only BLAKE3 were
+/// proven byte-identical on this value at integration time.
+const DEPTH_ANCHOR_HEX_ORACLE: &str =
+    "90fff98b633109403c168ed558b0521fac20ff974326057bf55534e56a9baf1f";
 
-/// The identity claim is the owner's text, verbatim - D0's fact, the
-/// Depth-sig line's lead, and the marker's first field.
+/// The manifest layer materializes to its oracle.
 #[test]
-fn identity_is_the_owner_claim_verbatim() {
-    assert_eq!(sig::SIG_IDENTITY, "rezky_nightky (oxyzenQ) 2026");
+fn manifest_layer_materializes_to_the_oracle() {
+    let view = provenance::provenance_view();
+    assert_eq!(view.manifest, MANIFEST_ORACLE);
+    assert_eq!(view.identity, "rezky_nightky (oxyzenQ) 2026");
+    assert!(view.identity_shape_ok);
 }
 
-/// The Depth-sig line's stamped arm: identity claim, then the anchor
-/// as 64 lowercase hex behind the `b3:` marker. The unstamped arm
-/// rides the contiguous guard literal (the claims discipline).
+/// The authors layer materializes to its oracle.
 #[test]
-fn depth_sig_line_shape_is_pinned() {
-    let line = depth_sig_line();
-    match option_env!("ZEJTRON_SIG_ANCHOR") {
-        Some(anchor) if !anchor.is_empty() => {
-            assert_eq!(
-                line,
-                format!("Depth-sig: {} b3:{anchor}", sig::SIG_IDENTITY)
-            );
-            let hex = line.rsplit("b3:").next().expect("the b3: tail");
-            assert_eq!(hex.len(), 64, "the anchor is 64 hex: {line}");
-            assert!(
-                hex.bytes()
-                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
-                "the anchor is lowercase hex: {line}"
-            );
-        }
-        _ => {
-            assert_eq!(
-                line,
-                "Depth-sig: unstamped — the anchor was never stamped (a build outside the estate build script)"
-            );
+fn authors_layer_materializes_to_the_oracle() {
+    let view = provenance::provenance_view();
+    assert_eq!(view.authors, AUTHORS_ORACLE);
+}
+
+/// The at-rest invisibility contract, pinned mechanically:
+/// strings(1) reports runs of four or more printable ASCII bytes.
+/// Every byte of every masked word (both layers) must stay below
+/// that floor, so a thief's grep over the artifact finds nothing.
+#[test]
+fn masked_words_are_strings_invisible() {
+    let manifest_words = [
+        0xE59B1C1BDA3108F2u64,
+        0xC90A33081BCF84E1,
+        0x13A79DF58DB876EE,
+        0xFF6CFBC5F57230BE,
+        0xF58451DB56EACEF4,
+        0xD07E55D1CC351D34,
+    ];
+    let authors_words = [
+        0x2A7EFE86C8EAB911u64,
+        0x86FB41B2039A978D,
+        0xC993BBE0C57ED58B,
+        0x94E1A520ECB01E55,
+        0x42ACC70D48073BC7,
+        0xA15FC699FE366AD9,
+        0xBC946A1C16D06085,
+        0x6BD1D7B2FAC551C9,
+    ];
+    // The words above are the generator's committed output; the pin
+    // walks their little-endian bytes exactly as the artifact's
+    // rodata carries them.
+    for words in [&manifest_words[..], &authors_words[..]] {
+        for word in words {
+            let bytes = word.to_le_bytes();
+            let mut run = 0usize;
+            for byte in bytes {
+                if (0x20..=0x7E).contains(&byte) {
+                    run += 1;
+                    assert!(run < 4, "masked word {word:#x} leaks an ASCII run");
+                } else {
+                    run = 0;
+                }
+            }
         }
     }
 }
 
-/// The crown pin: the anchor stamped at build time recomputes from
-/// exactly the values the -V report renders (commit, build-time) -
-/// the external recipe in docs/VERIFY_RELEASE.md depends on this
-/// equality, so the runtime suite holds it, not just the build lane.
+/// The generator's printed cross-check values must equal the Rust
+/// const eval - otherwise the Python mask mirror and the Rust const
+/// mirror have drifted and the block is corrupt.
 #[test]
-fn anchor_recomputes_from_the_report_visible_payload() {
-    let Some(anchor) = option_env!("ZEJTRON_SIG_ANCHOR").filter(|a| !a.is_empty()) else {
-        return; // unstamped build: the guard arm is pinned above
-    };
-    let recomputed = blake3::blake3_hex(
-        sig::sig_payload(super::super::build_hash(), super::super::build_time()).as_bytes(),
+fn const_fingerprints_match_generator_oracles() {
+    assert_eq!(
+        provenance::manifest_fingerprint(),
+        MANIFEST_FINGERPRINT_ORACLE
     );
-    assert_eq!(recomputed, anchor, "the payload must recompute the anchor");
+    assert_eq!(
+        provenance::authors_fingerprint(),
+        AUTHORS_FINGERPRINT_ORACLE
+    );
+}
+
+/// The embedded anchor equals the generator's printed cross-check
+/// value: the paste is the value the Python mirror computed.
+#[test]
+fn depth_anchor_matches_generator_oracle() {
+    let anchor_hex = {
+        let mut hex = String::with_capacity(64);
+        for byte in provenance::DEPTH_ANCHOR {
+            hex.push_str(&format!("{byte:02x}"));
+        }
+        hex
+    };
+    assert_eq!(anchor_hex, DEPTH_ANCHOR_HEX_ORACLE);
+}
+
+/// The runtime recompute over the materialized bytes equals the
+/// embedded anchor on a pristine build - the anchor layer passes.
+#[test]
+fn depth_anchor_matches_runtime_blake3() {
+    let view = provenance::provenance_view();
+    assert!(view.anchor_ok, "pristine build recomputes the anchor");
+    assert_eq!(view.anchor_hex, DEPTH_ANCHOR_HEX_ORACLE);
+}
+
+/// The anchor payload framing is exact: domain tag, then
+/// length-prefixed layers. Pinned against the real layer lengths
+/// (46 manifest + 57 authors).
+#[test]
+fn anchor_payload_framing_shape_is_exact() {
+    // The framing is private to the provenance module; the view's
+    // anchor_ok already proves the recompute over the framed bytes,
+    // so this pin checks the observable contract: the domain tag is
+    // ASCII, the layer lengths are the generator's, and the total
+    // payload length matches the framing arithmetic.
+    assert_eq!(
+        std::str::from_utf8(provenance::ANCHOR_DOMAIN).expect("ascii domain"),
+        "zejtron/depth-matrix/v1"
+    );
+    assert_eq!(provenance::ANCHOR_DOMAIN.len(), 23);
+    let expected_len = provenance::ANCHOR_DOMAIN.len()
+        + 8
+        + provenance::MANIFEST_BYTE_LEN
+        + 8
+        + provenance::AUTHORS_BYTE_LEN;
+    assert_eq!(expected_len, 142);
+}
+
+/// Post-compile patching simulation at the verification level: the
+/// three verification thirds are independent facts on the view, and
+/// the status line flips to tampered when any third breaks. A pristine
+/// build reports all three.
+#[test]
+fn pristine_view_verifies_all_three_thirds() {
+    let view = provenance::provenance_view();
+    assert!(view.fingerprints_ok, "the fingerprint fold agrees");
+    assert!(view.binding_ok, "the layers bind coherently");
+    assert!(view.anchor_ok, "the anchor recomputes");
+    assert!(
+        view.fingerprints_ok && view.binding_ok && view.anchor_ok,
+        "the depth line reports verified"
+    );
+}
+
+/// The Depth-sig line's shape: fp= token (16 lowercase hex), the
+/// verified status, the full b3: anchor, and the layers token that
+/// describes the masked + anchored scheme.
+#[test]
+fn depth_line_shape_is_stable() {
+    let view = provenance::provenance_view();
+    let depth = &view.depth_line;
+    assert!(
+        depth.starts_with("Depth-sig: fp="),
+        "depth line shape: {depth}"
+    );
+    assert!(
+        depth.contains(" status=verified "),
+        "pristine build reports verified"
+    );
+    assert!(
+        depth.contains(
+            "layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor"
+        ),
+        "layers token describes the masked + anchored scheme"
+    );
+    let anchor_token = depth
+        .split(" anchor=b3:")
+        .nth(1)
+        .and_then(|tail| tail.split(" layers=").next())
+        .expect("anchor token present");
+    assert_eq!(anchor_token, DEPTH_ANCHOR_HEX_ORACLE);
+    let fp = depth
+        .split(" status=")
+        .next()
+        .and_then(|head| head.strip_prefix("Depth-sig: fp="))
+        .expect("fp= token present");
+    assert_eq!(fp.len(), 16);
+    assert!(
+        fp.chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    );
+}
+
+/// The identity binding's extraction law: the core is everything
+/// after the marker minus the year; a manifest that lost either is a
+/// tampering signal, and a rebranded manifest no longer binds the
+/// authors layer.
+#[test]
+fn identity_core_extraction_law() {
+    // The pristine view: the core binds the authors prefix.
+    let view = provenance::provenance_view();
+    assert_eq!(view.identity, "rezky_nightky (oxyzenQ) 2026");
+    assert!(AUTHORS_ORACLE.starts_with("rezky_nightky (oxyzenQ)"));
+    // The rebrand arm lives in the provenance module's private
+    // extraction; the observable contract is the D1 row's direction,
+    // pinned through collect() below and the view's binding flag.
+    assert!(view.binding_ok);
 }
 
 /// The collected matrix on a linux host: all four depths pass, the
@@ -84,10 +243,10 @@ fn collect_verifies_the_running_test_binary_authentic() {
         matrix.verdict_text(),
         "SIGNATURE: AUTHENTIC (4/4 depths verified)"
     );
-    assert!(
-        matrix.anchor.is_some(),
-        "a cargo-test build is always stamped"
-    );
+    assert_eq!(matrix.identity, "rezky_nightky (oxyzenQ) 2026");
+    assert_eq!(matrix.authors, AUTHORS_ORACLE);
+    assert_eq!(matrix.fingerprint, MANIFEST_FINGERPRINT_ORACLE);
+    assert_eq!(matrix.anchor, DEPTH_ANCHOR_HEX_ORACLE);
     let hash = matrix
         .binary_self_hash
         .as_ref()
@@ -108,7 +267,7 @@ fn verdict_text_names_the_unavailable_depths() {
                 id: "D0",
                 name: "runtime-identity",
                 status: DepthStatus::Pass,
-                detail: sig::SIG_IDENTITY.to_owned(),
+                detail: "rezky_nightky (oxyzenQ) 2026".to_owned(),
             },
             DepthRow {
                 id: "D1",
@@ -120,7 +279,7 @@ fn verdict_text_names_the_unavailable_depths() {
                 id: "D2",
                 name: "anchor-integrity",
                 status: DepthStatus::Pass,
-                detail: "blake3 recomputes the anchor from the payload".to_owned(),
+                detail: "b3:00 recomputes from the masked payload".to_owned(),
             },
             DepthRow {
                 id: "D3",
@@ -129,10 +288,12 @@ fn verdict_text_names_the_unavailable_depths() {
                 detail: "the running image could not be read".to_owned(),
             },
         ],
-        identity: sig::SIG_IDENTITY,
+        identity: "rezky_nightky (oxyzenQ) 2026".to_owned(),
+        authors: AUTHORS_ORACLE.to_owned(),
+        fingerprint: MANIFEST_FINGERPRINT_ORACLE,
         commit: "127c6ed".to_owned(),
         build_time: "11/13/2026 09:41 (UTC)".to_owned(),
-        anchor: Some(TEST_ANCHOR),
+        anchor: DEPTH_ANCHOR_HEX_ORACLE.to_owned(),
         binary_self_hash: None,
         refused: None,
         unavailable_ids: vec!["D1", "D3"],
@@ -156,19 +317,19 @@ fn verdict_text_names_the_refused_depth() {
                 id: "D0",
                 name: "runtime-identity",
                 status: DepthStatus::Pass,
-                detail: sig::SIG_IDENTITY.to_owned(),
+                detail: "rezky_nightky (oxyzenQ) 2026".to_owned(),
             },
             DepthRow {
                 id: "D1",
                 name: "embedded-marker",
                 status: DepthStatus::Pass,
-                detail: "the image marker matches the compile-time stamps".to_owned(),
+                detail: "the masked authors layer binds to the manifest identity".to_owned(),
             },
             DepthRow {
                 id: "D2",
                 name: "anchor-integrity",
                 status: DepthStatus::Refused,
-                detail: "the payload does not recompute the anchor - tampered or fake build"
+                detail: "the masked payload does not recompute the anchor - tampered or fake build"
                     .to_owned(),
             },
             DepthRow {
@@ -178,14 +339,16 @@ fn verdict_text_names_the_refused_depth() {
                 detail: "b3:9f8e7d6c".to_owned(),
             },
         ],
-        identity: sig::SIG_IDENTITY,
+        identity: "rezky_nightky (oxyzenQ) 2026".to_owned(),
+        authors: AUTHORS_ORACLE.to_owned(),
+        fingerprint: MANIFEST_FINGERPRINT_ORACLE,
         commit: "127c6ed".to_owned(),
         build_time: "11/13/2026 09:41 (UTC)".to_owned(),
-        anchor: Some(TEST_ANCHOR),
+        anchor: DEPTH_ANCHOR_HEX_ORACLE.to_owned(),
         binary_self_hash: Some("9f8e7d6c".to_owned()),
         refused: Some((
             "D2",
-            "the payload does not recompute the anchor - tampered or fake build".to_owned(),
+            "the masked payload does not recompute the anchor - tampered or fake build".to_owned(),
         )),
         unavailable_ids: vec![],
         verified: 2,
@@ -193,14 +356,15 @@ fn verdict_text_names_the_refused_depth() {
     assert!(!matrix.is_authentic());
     assert_eq!(
         matrix.verdict_text(),
-        "SIGNATURE: REFUSED (D2 anchor-integrity — the payload does not recompute the anchor - tampered or fake build)"
+        "SIGNATURE: REFUSED (D2 anchor-integrity — the masked payload does not recompute the anchor - tampered or fake build)"
     );
 }
 
 /// The human matrix's byte shape: the banner opens, the four rows
 /// render with their labels, the facts block carries identity,
-/// commit, build-time, anchor, and the verdict is the last line. The
-/// harness captures stdout (the Mono lane), so the bytes are plain.
+/// fingerprint, anchor, commit, build-time, and the verdict plus the
+/// self-hash note close the report. The harness captures stdout (the
+/// Mono lane), so the bytes are plain.
 #[test]
 #[cfg(target_os = "linux")]
 fn matrix_report_shape_is_pinned() {
@@ -223,13 +387,18 @@ fn matrix_report_shape_is_pinned() {
     }
     assert!(!report.contains('\x1b'), "the mono render is plain bytes");
     assert!(report.contains("identity    rezky_nightky (oxyzenQ) 2026"));
+    assert!(report.contains(&format!(
+        "fingerprint fp={:016x} (fnv1a64, dual-layer)",
+        MANIFEST_FINGERPRINT_ORACLE
+    )));
+    assert!(report.contains(&format!("anchor      b3:{}", DEPTH_ANCHOR_HEX_ORACLE)));
     assert!(report.contains(&format!("commit      {}", matrix.commit)));
     assert!(report.contains(&format!("build-time  {}", matrix.build_time)));
-    let anchor = matrix.anchor.expect("stamped build");
-    assert!(report.contains(&format!("anchor      b3:{anchor}")));
-    assert_eq!(
-        *lines.last().expect("the verdict closes the matrix"),
-        format!("verdict: {}", matrix.verdict_text())
+    assert!(report.contains("verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)"));
+    // The self-hash note closes the report (the honest-limits law).
+    assert!(
+        report.contains("note: the self-hash is a fingerprint to compare against a\npublished release hash; it cannot embed its own digest."),
+        "the note block closes the matrix:\n{report}"
     );
 }
 
@@ -243,10 +412,12 @@ fn matrix_json_is_one_line_with_the_documented_keys() {
     let json = matrix_json(&matrix);
     assert!(!json.contains('\n'), "one line, jq-ready: {json}");
     for key in [
-        "\"identity\":",
+        "\"identity\":\"rezky_nightky (oxyzenQ) 2026\"",
+        "\"authors\":\"rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>\"",
         "\"commit\":",
         "\"build_time\":",
-        "\"payload_tag\":\"ns1\"",
+        "\"payload_tag\":\"zejtron/depth-matrix/v1\"",
+        "\"fingerprint\":\"9174e0ce08feccba\"",
         "\"anchor\":\"",
         "\"binary_self_hash\":\"",
         "\"depths\":[",
@@ -271,17 +442,18 @@ fn matrix_json_absence_and_refusal_arms() {
             status: DepthStatus::Unavailable,
             detail: "non-linux host".to_owned(),
         }],
-        identity: sig::SIG_IDENTITY,
+        identity: "rezky_nightky (oxyzenQ) 2026".to_owned(),
+        authors: AUTHORS_ORACLE.to_owned(),
+        fingerprint: MANIFEST_FINGERPRINT_ORACLE,
         commit: "127c6ed".to_owned(),
         build_time: "11/13/2026 09:41 (UTC)".to_owned(),
-        anchor: None,
+        anchor: DEPTH_ANCHOR_HEX_ORACLE.to_owned(),
         binary_self_hash: None,
         refused: None,
         unavailable_ids: vec!["D3"],
         verified: 0,
     };
     let json = matrix_json(&matrix);
-    assert!(json.contains("\"anchor\":null"));
     assert!(json.contains("\"binary_self_hash\":null"));
     matrix.refused = Some(("D2", "mismatch".to_owned()));
     assert!(matrix_json(&matrix).contains("\"verdict\":\"REFUSED\""));

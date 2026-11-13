@@ -24,8 +24,13 @@ const LICENSE_LINE: &str = "License: AGPL-3.0-only";
 /// toolchain, no clang, no separate object files ever touch the
 /// target machine. The eBPF support is UNCONDITIONAL, so every
 /// build that compiles is a full-life build and carries this line.
-const SIGNATURE_LINE: &str =
-    "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)";
+/// The identity tail this line carried through night-signature-1
+/// moved to the masked provenance layers (night-signature-advanced-1):
+/// a plaintext identity here would hand a thief the exact grep target
+/// the masked scheme exists to deny, so the claim line keeps the
+/// eBPF fact only and the identity renders from the masked words (the
+/// Copyright line, the `sig` report).
+const SIGNATURE_LINE: &str = "Signature: Pure eBPF builtin";
 
 /// The degraded Signature (night-dragon-maintenance-T1): the guard
 /// arm of the claims discipline. build/ebpf.rs stamps
@@ -35,8 +40,7 @@ const SIGNATURE_LINE: &str =
 /// guard exists so the version report can never claim embedded
 /// objects a stamp never proved: if the impossible happens, the
 /// report says the lane is unstamped instead of claiming purity.
-const SIGNATURE_UNSTAMPED_LINE: &str =
-    "Signature: eBPF lane unstamped — Official Build by rezky_nightky (oxyzenQ)";
+const SIGNATURE_UNSTAMPED_LINE: &str = "Signature: eBPF lane unstamped";
 
 /// The eBPF object lane this binary was built through, stamped by
 /// build/ebpf.rs as `ZEJTRON_EBPF_LANE`:
@@ -162,26 +166,28 @@ fn build_hash() -> &'static str {
 /// The sibling's -V law (night-weekly-maintenance-2, the masterclass
 /// color pass): the header carries the purple - the name, the version,
 /// and the description ride brand regular #A855F7 in ONE wrap, exactly
-/// the sibling's construction - and the body renders PLAIN. The build
-/// facts are the data a script greps, and the sibling's version body
-/// wraps nothing: no label paint, no value paint, zero escape bytes on
-/// a color terminal too. The License line stays ONE contiguous literal
-/// (the release lanes' `strings` contract), now rendered unwrapped -
-/// the contiguity contract and the plain-body law agree. The Signature
+/// the sibling's construction. The body renders plain, with the one
+/// green seat the owner's spec gives the provenance line: the
+/// `Depth-sig:` line is the strongest provenance tag in the report and
+/// rides the Ok tier on a terminal (night-signature-advanced-1),
+/// plain bytes in a pipe. The License line stays ONE contiguous
+/// literal (the release lanes' `strings` contract). The Signature
 /// line (night-dragon-maintenance-T1) sits on its own line directly
-/// after Build-time, easy to grep (`zejtron -V | grep Signature`).
-/// The Depth-sig line (night-signature-1) rides directly after it:
-/// the identity claim plus the anchor over the payload - every
-/// payload ingredient visible in the report (commit on Build:,
-/// build-time on Build-time:), so the anchor is externally
-/// recomputable and `zejtron sig` verifies the whole matrix.
+/// after Build-time, easy to grep (`zejtron -V | grep Signature`);
+/// since the advanced scheme it carries the eBPF claim only - the
+/// identity is NOT in the artifact as plaintext (the masked provenance
+/// layers' whole point). The Depth-sig line rides directly after it:
+/// the masked scheme's status line (fingerprint, status, anchor,
+/// layers), materialized from one unmask pass per render (the
+/// single-pass invariant in [`provenance`]).
 fn version_body() -> String {
+    let view = provenance::provenance_view();
     [
         format!("Build: {} ({})", build_label(), build_hash()),
         format!("Build-time: {}", build_time()),
         signature_line().to_owned(),
-        signature::depth_sig_line(),
-        "Copyright: (c) 2026 rezky_nightky (oxyzenQ)".to_owned(),
+        view.depth_line,
+        format!("Copyright: (c) 2026 {}", view.authors),
         LICENSE_LINE.to_owned(),
         "Source: https://github.com/oxyzenQ/zejtron".to_owned(),
     ]
@@ -203,6 +209,7 @@ pub(crate) fn version_report_text() -> String {
     )
 }
 
+pub mod clock;
 /// Print the full version report for `-V` / `--version`.
 ///
 /// The sibling's masterclass layout (night-weekly-maintenance-2, the
@@ -222,12 +229,17 @@ pub(crate) fn version_report_text() -> String {
 /// Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious.
 /// Build: local-pro-linux-amd64-v3-musl (3ae9dda)
 /// Build-time: 10/17/2026 09:15 (UTC)
-/// Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
-/// Depth-sig: rezky_nightky (oxyzenQ) 2026 b3:<64 lowercase hex>
-/// Copyright: (c) 2026 rezky_nightky (oxyzenQ)
+/// Signature: Pure eBPF builtin
+/// Depth-sig: fp=<16 lowercase hex> status=verified anchor=b3:<64 lowercase hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
+/// Copyright: (c) 2026 rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>
 /// License: AGPL-3.0-only
 /// Source: `<https://github.com/oxyzenQ/zejtron>`
 /// ```
+///
+/// The `Depth-sig:` line rides the status-green tier on a terminal
+/// (the owner's spec mark, night-signature-advanced-1) and stays
+/// plain bytes in a pipe - the paint decision anchors on the STDOUT
+/// lane's capability ladder, the same gate every data surface uses.
 ///
 /// The `Build:` line carries the canonical label from
 /// [`build_label`]: `local-pro-<alias>` for local alias builds (the
@@ -235,7 +247,7 @@ pub(crate) fn version_report_text() -> String {
 /// release binaries a user downloaded (the estate `pro-` prefix, no
 /// `local-`), and `local-` + the detected `linux-<arch>-<libc>`
 /// shape for plain local builds (a crates.io install included).
-pub mod clock;
+pub(crate) mod provenance;
 pub mod signature;
 pub fn print_version_report() {
     println!(
@@ -246,7 +258,13 @@ pub fn print_version_report() {
             env!("CARGO_PKG_DESCRIPTION")
         ))
     );
-    println!("{}", version_body());
+    for line in version_body().lines() {
+        if line.starts_with("Depth-sig: ") {
+            println!("{}", crate::output::ok_out(line));
+        } else {
+            println!("{line}");
+        }
+    }
 }
 
 #[cfg(test)]
