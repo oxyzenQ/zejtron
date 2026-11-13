@@ -40,6 +40,14 @@ set -u
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 1
 REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd) || exit 1
 
+# The brand palette (night-cafe-1): verdict tokens, rails, and
+# refusal lines ride the same tiers the CLI renders. Defaults come
+# first so a missing lib degrades to mono, never to a set -u crash;
+# the source overrides them with the depth-correct escapes.
+UX_BRAND="" UX_OK="" UX_ERR="" UX_WARN="" UX_GREY="" UX_WHITE="" UX_RESET=""
+# shellcheck disable=SC1091 # the palette lib sits beside this lab in scripts/lib
+. "$SCRIPT_DIR/../lib/ux_palette.sh" || true
+
 # The shared resolver (one authority for every script that exercises
 # the binary): explicit arg, then ZEJTRON_BIN_PATH, then target
 # discovery with the profile-over-basic preference.
@@ -48,18 +56,18 @@ REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd) || exit 1
 
 zejtron_resolve_bin BIN "$REPO_ROOT" "${1:-}"
 if [[ -z "$BIN" || ! -x "$BIN" ]]; then
-	echo "proof: no zejtron binary found (tried the argument, ZEJTRON_BIN_PATH, and target/ discovery)" >&2
-	echo "proof: build one first - cargo build --release (or scripts/build.sh check-all)" >&2
+	echo "${UX_ERR}proof: no zejtron binary found (tried the argument, ZEJTRON_BIN_PATH, and target/ discovery)${UX_RESET}" >&2
+	echo "${UX_ERR}proof: build one first - cargo build --release (or scripts/build.sh check-all)${UX_RESET}" >&2
 	exit 2
 fi
-echo "proof: binary $BIN"
+echo "${UX_GREY}proof: binary $BIN${UX_RESET}"
 
 # Root comes before the fingerprint guard: there is no point
 # fingerprinting a binary the caller is not privileged enough to
 # exercise. The event lane is the whole proof.
 if [[ "$(id -u)" -ne 0 ]]; then
-	echo "proof: refused - the live forensic pair needs root (the event lane reads the root-pinned maps)" >&2
-	echo "proof: re-run me as: sudo scripts/labs-exp/zejtron-forensic-proof.sh" >&2
+	echo "${UX_ERR}proof: refused - the live forensic pair needs root (the event lane reads the root-pinned maps)${UX_RESET}" >&2
+	echo "proof: re-run me as: (sudo scripts/labs-exp/zejtron-forensic-proof.sh)${UX_RESET}" >&2
 	exit 2
 fi
 
@@ -78,12 +86,12 @@ fi
 bin_commit=$("$BIN" -V 2>/dev/null | sed -n 's/^Build:.*(\([0-9a-f]\{7,40\}\)).*/\1/p' | cut -c1-7)
 if [[ -n "$head_commit" && -n "$bin_commit" && "$bin_commit" != "$head_commit" ]]; then
 	if [[ -n "${1:-}" || -n "${ZEJTRON_BIN_PATH:-}" || "${ZEJTRON_ALLOW_STALE:-0}" == 1 ]]; then
-		echo "proof: WARNING the binary is built from $bin_commit, the tree is at $head_commit - the verdict covers the binary, not the tree"
+		echo "${UX_WARN}proof: WARNING the binary is built from $bin_commit, the tree is at $head_commit - the verdict covers the binary, not the tree${UX_RESET}"
 	else
-		echo "proof: the binary is built from $bin_commit, but the tree is at $head_commit" >&2
-		echo "proof: a stale target binary makes the verdict lie - rebuild first, then re-run" >&2
-		echo "proof:   cargo build --release   (or scripts/package/install-on-my-machine.sh)" >&2
-		echo "proof: set ZEJTRON_ALLOW_STALE=1 to prove the old binary on purpose" >&2
+		echo "${UX_ERR}proof: the binary is built from $bin_commit, but the tree is at $head_commit${UX_RESET}" >&2
+		echo "${UX_ERR}proof: a stale target binary makes the verdict lie - rebuild first, then re-run${UX_RESET}" >&2
+		echo "${UX_ERR}proof:   cargo build --release   (or scripts/package/install-on-my-machine.sh)${UX_RESET}" >&2
+		echo "${UX_ERR}proof: set ZEJTRON_ALLOW_STALE=1 to prove the old binary on purpose${UX_RESET}" >&2
 		exit 2
 	fi
 fi
@@ -91,35 +99,35 @@ fi
 SCRATCH=$(mktemp -d) || exit 1
 trap 'rm -rf "$SCRATCH"' EXIT
 
-echo "-- attach (the privileged one-shot) --"
+echo "${UX_BRAND}-- attach (the privileged one-shot) --${UX_RESET}"
 attach_out=$("$BIN" doctor --attach 2>&1)
 attach_rc=$?
 echo "$attach_out"
 if [[ "$attach_rc" -ne 0 ]]; then
 	echo
-	echo "FORENSIC-PROOF: FAIL (the attach refused on this host - the reason is named above)"
+	echo "${UX_ERR}FORENSIC-PROOF: FAIL (the attach refused on this host - the reason is named above)${UX_RESET}"
 	exit 1
 fi
 was_attached=0
 if [[ "$attach_out" == *"already attached"* ]]; then
 	was_attached=1
-	echo "proof: the probes were recording before this lab started - they stay attached (leave-as-found)"
+	echo "${UX_GREY}proof: the probes were recording before this lab started - they stay attached (leave-as-found)"
 fi
 
 PASS=0
 FAIL=0
 
 pass() {
-	echo "PASS $*"
+	echo "${UX_OK}PASS $*${UX_RESET}"
 	PASS=$((PASS + 1))
 }
 fail() {
-	echo "FAIL $*"
+	echo "${UX_ERR}FAIL $*${UX_RESET}"
 	FAIL=$((FAIL + 1))
 }
 
 echo
-echo "-- 1. the unlink proof (who deleted this file?) --"
+echo "${UX_BRAND}-- 1. the unlink proof (who deleted this file?) --${UX_RESET}"
 un_file="$SCRATCH/unlink-proof.txt"
 echo evidence >"$un_file"
 timeout 30 "$BIN" why "$un_file" --since 10s --raw >"$SCRATCH/unlink.out" 2>"$SCRATCH/unlink.err" &
@@ -168,7 +176,7 @@ else
 fi
 
 echo
-echo "-- 2. the rename proof (the renamed row, vfs_rename) --"
+echo "${UX_BRAND}-- 2. the rename proof (the renamed row, vfs_rename) --${UX_RESET}"
 rn_a="$SCRATCH/rename-a.txt"
 rn_b="$SCRATCH/rename-b.txt"
 echo move-me >"$rn_a"
@@ -219,15 +227,15 @@ fi
 
 if [[ "$was_attached" -eq 0 ]]; then
 	echo
-	echo "-- detach (leave-as-found: this lab attached, this lab detaches) --"
+	echo "${UX_BRAND}-- detach (leave-as-found: this lab attached, this lab detaches) --${UX_RESET}"
 	"$BIN" doctor --detach || true
 fi
 
 echo
 TOTAL=$((PASS + FAIL))
 if [[ "$FAIL" -eq 0 ]]; then
-	echo "FORENSIC-PROOF: PASS ($TOTAL checks)"
+	echo "${UX_OK}FORENSIC-PROOF: PASS ($TOTAL checks)${UX_RESET}"
 	exit 0
 fi
-echo "FORENSIC-PROOF: FAIL ($FAIL of $TOTAL checks failed)"
+echo "${UX_ERR}FORENSIC-PROOF: FAIL ($FAIL of $TOTAL checks failed)${UX_RESET}"
 exit 1
