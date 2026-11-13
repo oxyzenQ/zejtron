@@ -20,6 +20,8 @@
 # Usage:
 #   scripts/labs-exp/zejtron-cli-ux-verify.sh [path-to-binary]
 #   ZEJTRON_BIN_PATH=/path/to/zejtron scripts/labs-exp/zejtron-cli-ux-verify.sh
+#   ZEJTRON_ALLOW_STALE=1 ... (verify a binary built from another
+#   commit on purpose; see the build-fingerprint guard below)
 
 set -u
 
@@ -39,6 +41,31 @@ if [[ -z "$BIN" || ! -x "$BIN" ]]; then
         exit 2
 fi
 echo "verify: binary $BIN"
+
+# The build-fingerprint guard: the verdict is only honest when the
+# binary under test was built from the tree the lab rides in. A
+# target/ discovery that resolves a binary from an older commit
+# reports the fixed contract as failing - it reads like a regression
+# when it is only a stale build. An explicit target (the argument or
+# ZEJTRON_BIN_PATH) is deliberate and only warns; ZEJTRON_ALLOW_STALE=1
+# is the on-purpose bypass for either lane. A tree without git or a
+# binary without a Build commit skips the guard silently.
+head_commit=""
+if command -v git >/dev/null 2>&1 && git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        head_commit=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null | cut -c1-7)
+fi
+bin_commit=$("$BIN" -V 2>/dev/null | sed -n 's/^Build:.*(\([0-9a-f]\{7,40\}\)).*/\1/p' | cut -c1-7)
+if [[ -n "$head_commit" && -n "$bin_commit" && "$bin_commit" != "$head_commit" ]]; then
+        if [[ -n "${1:-}" || -n "${ZEJTRON_BIN_PATH:-}" || "${ZEJTRON_ALLOW_STALE:-0}" == 1 ]]; then
+                echo "verify: WARNING the binary is built from $bin_commit, the tree is at $head_commit - the verdict covers the binary, not the tree"
+        else
+                echo "verify: the binary is built from $bin_commit, but the tree is at $head_commit" >&2
+                echo "verify: a stale target binary makes the verdict lie - rebuild first, then re-run" >&2
+                echo "verify:   cargo build --release   (or scripts/package/install-on-my-machine.sh)" >&2
+                echo "verify: set ZEJTRON_ALLOW_STALE=1 to verify the old binary on purpose" >&2
+                exit 2
+        fi
+fi
 
 PASS=0
 FAIL=0
