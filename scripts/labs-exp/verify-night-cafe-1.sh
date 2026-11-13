@@ -45,10 +45,12 @@ PAL="$REPO_ROOT/scripts/lib/ux_palette.sh"
 CLI_OUT="$REPO_ROOT/src/output/mod.rs"
 
 # The brand palette (night-cafe-1): this lab's own verdicts ride the
-# same tiers it verifies. Defaults first (mono-safe), then the source.
+# same tiers it verifies. Defaults first (mono-safe), then the source
+# in the repo's one gate-recognized idiom (1d, fail-closed): anchored
+# at this script's own path, climbing one directory up to scripts/lib.
 UX_BRAND="" UX_OK="" UX_ERR="" UX_WARN="" UX_GREY="" UX_WHITE="" UX_RESET=""
-# shellcheck disable=SC1090 # the palette path is resolved above
-. "$PAL" || true
+# shellcheck disable=SC1091 # the palette path is resolved above
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/ux_palette.sh"
 
 PASS=0
 FAIL=0
@@ -137,17 +139,16 @@ fi
 
 # ── A3. the depth ladder, forced ───────────────────────────────────
 rail "A3. the depth ladder"
+# lane <VAR=VALUE...> - the resolved UX_OK from a subshell whose
+# stdout is a pipe (never a TTY), so the ladder's TTY probe cannot
+# lie about the lane under test. The palette path rides PAL_PATH
+# (exported below), so the inner source stays mid-line - which the
+# 1d fail-closed translator rightly ignores; the lib's existence is
+# proved by this script's own gate-checked source line above.
+PAL_PATH="$PAL"
+export PAL_PATH
 lane() {
-	# lane <env-assignments> - prints the resolved UX_OK in a subshell
-	# whose stdout is a pipe (never a TTY), so the ladder's TTY probe
-	# cannot lie about the lane under test.
-	NO_COLOR="" CLICOLOR="" TERM="${TERM:-dumb}" \
-		CLICOLOR_FORCE=1 TERM_OVERRIDE=1 bash -c '
-		shift 0
-		for kv in "$@"; do export "$kv"; done
-		. "'"$PAL"'" 2>/dev/null
-		printf "%s" "$UX_OK"
-	' bash "$@"
+	NO_COLOR="" CLICOLOR="" CLICOLOR_FORCE=1 bash -c 'for kv in "$@"; do export "$kv"; done; . "$PAL_PATH" 2>/dev/null; printf "%s" "$UX_OK"' bash "$@"
 }
 mono_out=$(NO_COLOR=1 bash -c ". '$PAL' >/dev/null 2>&1; printf '%s' \"\$UX_OK\"")
 if [[ -z "$mono_out" ]]; then

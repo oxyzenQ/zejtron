@@ -47,7 +47,7 @@ REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd) || exit 1
 # shellcheck disable=SC2034 # the full tier set pre-seeds mono-safe; the source overrides
 UX_BRAND="" UX_OK="" UX_ERR="" UX_WARN="" UX_GREY="" UX_WHITE="" UX_RESET=""
 # shellcheck disable=SC1091 # the palette lib sits beside this lab in scripts/lib
-. "$SCRIPT_DIR/../lib/ux_palette.sh" || true
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/ux_palette.sh"
 
 # The shared resolver (one authority for every script that exercises
 # the binary): explicit arg, then ZEJTRON_BIN_PATH, then target
