@@ -46,7 +46,10 @@ records into bounded rings, nothing streams to userspace, and the
 CLI wakes only to drain the window it was asked for, then exits.
 Attach is a one-shot that may exit; the pins keep the camera alive.
 `--detach` sweeps the whole pin estate, legacy and foreign entries
-included - no manual `rm` is ever needed. The doctrine (why none of
+included - no manual `rm` is ever needed. And the camera's own
+footprint is honest: the watcher's self-exits are facts about the
+observer, counted beside the evidence (`observer_excluded`), never
+laundered into the host's record. The doctrine (why none of
 it is monitoring) lives in [EBPF_LIFECYCLE.md](EBPF_LIFECYCLE.md);
 the lifecycle is pinned by `test/ebpf/loader_tests.rs` and
 `test/ebpf/ringbuf_tests.rs`.
@@ -78,7 +81,10 @@ and `vfs_rename`'s `old_dentry` member offset resolves through the
 same anonymous-aggregate descent. One unlink(2) renders exactly one
 `unlinked` row and drains exactly one `op=unlink` record; one
 rename(2) the renamed twin (the record carries who acted, not the
-new name - stated, not hidden). Pinned by `test/ebpf/btf_unlink_tests.rs`;
+new name - stated, not hidden). The rings are gated by the
+`tracked_inodes` filter - only inodes an operator asked about enter
+the record, so the camera's cost stays bounded by the questions,
+not by the host's file activity. Pinned by `test/ebpf/btf_unlink_tests.rs`;
 hostile input is a fuzz surface (`fuzz/fuzz_targets/btf_parser.rs`,
 night-frontier-3, with the committed seeds driven through the real
 verifiers by unit test). Live proof, one command:
@@ -129,14 +135,21 @@ alias, or a verb escapes the surface (the pro-mode estate is
 exhaustive by construction, not by discipline). Pinned by
 `test/cli/cli_tests.rs` and `test/cli/examples_tests.rs`.
 
-**9. The dependency doctrine** (`deny.toml`, `src/info/clock.rs`,
-`src/evidence/json.rs`). The hole: forensic tools that carry LLVM,
-Lua, or a framework. The runtime graph is exactly three crates -
-`clap`, `aya`, `libc` - with `serde` banned outright, `chrono`
-replaced by Howard Hinnant's `civil_from_days` on `std::time` only
-(no timezone database, no local guesses in containers), and no regex
-crate at any size (the pattern filter is std-only substring
-matching). The full justification ledger and the rules going forward
+**9. The dependency & wrapper doctrine** (`deny.toml`, `src/info/clock.rs`,
+`src/evidence/json.rs`, `src/system/`). The hole: forensic tools
+that carry LLVM, Lua, or a framework, and wrappers that shell out to
+the tools they claim to replace. The runtime graph is exactly three
+crates - `clap`, `aya`, `libc` - with `serde` banned outright,
+`chrono` replaced by Howard Hinnant's `civil_from_days` on
+`std::time` only (no timezone database, no local guesses in
+containers), and no regex crate at any size (the pattern filter is
+std-only substring matching). And the nine surfaces read `/proc`
+and `/sys` directly - delete `ss`, `lsof`, and `ps` from the system
+and zejtron still answers byte for byte; the external-binary census
+is short (`curl`, `journalctl`, `dpkg`/`rpm`/`apk`, `uname`), every
+entry an optional lane that degrades honestly when absent - the Arch
+pacman database is read straight from `/var/lib/pacman`. The full
+justification ledger and the rules going forward
 live in [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md); the ban lane
 runs in CI (`cargo-deny`, `cargo-audit`).
 
