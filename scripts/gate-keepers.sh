@@ -264,7 +264,7 @@ fi
 # script's own directory; any other shape fails loudly, and a new
 # idiom must extend this translator (fail-closed, never fail-open).
 QUAD_FAIL=0
-SRC_RE='^[[:space:]]*(source|\.)[[:space:]]+"\$\(cd[[:space:]]+"\$\(dirname[[:space:]]+"\$\{BASH_SOURCE\[0\]\}"\)(/(\.\.)+)*"[[:space:]]+&&[[:space:]]+pwd\)/([^"]+)"$'
+SRC_RE='^[[:space:]]*(source|\.)[[:space:]]+"\$\(cd[[:space:]]+"\$\(dirname[[:space:]]+"\$\{BASH_SOURCE\[0\]\}"\)((/\.\.)+)?"[[:space:]]+&&[[:space:]]+pwd\)/([^"]+)"$'
 SRC_PLAIN='^[[:space:]]*(source|\.)[[:space:]]+([^"$][^[:space:]]*)[[:space:]]*$'
 for f in ${SHELL_FILES} .githooks/pre-commit; do
 	fdir="$(dirname "$f")"

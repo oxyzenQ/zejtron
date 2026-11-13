@@ -47,11 +47,13 @@ set -euo pipefail
 # The brand palette (night-cafe-1): verdicts and the digest line ride
 # the same tiers the CLI renders. Defaults first so a missing lib
 # degrades to mono; the source overrides with the depth-correct
-# escapes (the depth ladder probes stdout once at source time).
+# escapes (the depth ladder probes stdout once at source time). The
+# source is the repo's one gate-recognized idiom (1d, fail-closed):
+# anchored at this script's own path, climbing one directory up.
 # shellcheck disable=SC2034 # the full tier set pre-seeds mono-safe; the source overrides
 UX_BRAND="" UX_OK="" UX_ERR="" UX_WARN="" UX_GREY="" UX_WHITE="" UX_RESET=""
 # shellcheck disable=SC1091 # the palette lib sits one directory up in scripts/lib
-. "$(dirname "$0")/../lib/ux_palette.sh" || true
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/ux_palette.sh"
 
 LABS_DIR="scripts/labs-exp"
 
