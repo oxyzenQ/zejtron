@@ -167,6 +167,26 @@ fn failing_command<'a>(cmd: &'a Command, argv: &[String]) -> &'a Command {
     current
 }
 
+/// The argv walk's input, collected lossily. The walk only feeds the
+/// flag pool (never the verdict - [`failing_command`]'s own contract),
+/// and a non-UTF-8 argument - a glob expansion into `holds` or
+/// `touch`, the one input class a shell hands over without asking -
+/// must reach the clap usage error, not panic the bridge:
+/// `std::env::args` panics on the first non-UTF-8 element, which
+/// turned every such invocation into exit 101 with a backtrace note
+/// on stderr instead of the brand render and exit 2. Each element
+/// keeps U+FFFD in the invalid bytes' place; every token the walk
+/// ever descends on is dash-free, so the replacement is inert here.
+fn argv_lossy<I>(args: I) -> Vec<String>
+where
+    I: IntoIterator,
+    I::Item: AsRef<std::ffi::OsStr>,
+{
+    args.into_iter()
+        .map(|arg| arg.as_ref().to_string_lossy().into_owned())
+        .collect()
+}
+
 /// Every visible long-flag spelling of `cmd` (primary longs and
 /// visible aliases), bare (no dashes) for the matcher.
 fn long_flag_candidates(cmd: &Command) -> Vec<&str> {
@@ -302,7 +322,7 @@ pub(crate) fn exit_clap_error(e: Error) -> ! {
     }
     let mut e = e;
     let mut cmd = help_command();
-    let argv: Vec<String> = std::env::args().skip(1).collect();
+    let argv: Vec<String> = argv_lossy(std::env::args_os().skip(1));
     enrich_unknown_arg_suggestion(&mut e, &cmd, &argv);
     enrich_removed_subcommand_redirect(&mut e);
     enrich_subcommand_flag_redirect(&mut e, &cmd);

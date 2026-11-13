@@ -1164,6 +1164,16 @@ v11.0.0
 
 ### Fixed
 
+- **The UX bridge no longer panics on a non-UTF-8 argument (the argv
+  walk is lossy now).** `zejtron holds <byte-sequence>` - any glob
+  expansion carrying invalid UTF-8, the one input class a shell
+  hands over without asking - reached the bridge's argv walk through
+  `std::env::args`, whose first non-UTF-8 element panics (exit 101,
+  a backtrace note on stderr, no usage error). The walk only feeds
+  the flag pool and never the verdict, so it now rides `args_os`
+  with a lossy collect: the clap InvalidUtf8 usage error renders in
+  the brand shape and exits 2, the same contract every other usage
+  error answers to.
 - **The Pro mode estate's two ceiling rows now mirror the CLI
   structs again (night-total-hardening-1's own drift, caught in the
   follow-up audit).** The `--limit` and `--depth` ceiling edits
