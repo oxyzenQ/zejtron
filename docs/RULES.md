@@ -133,23 +133,25 @@ All code must pass:
 
 ## Major Release Design Gates
 
-Major releases (e.g. v5.0.0) carry additional requirements beyond normal
-maintenance. These gates must be satisfied before a major version tag is
-created:
+Major releases (e.g. v81.0.0, the next major after the v80 LTS line)
+carry additional requirements beyond normal maintenance. These gates must be
+satisfied before a major version tag is created:
 
-- All tests pass, including new namespace tests.
+- All tests pass.
 - `actionlint .github/workflows/*` and `yamllint .github/workflows/*` pass.
-- No source file exceeds 1000 LOC.
+- The LOC caps hold: 600 for Rust sources, 1000 for scripts (see the
+  LOC Discipline above).
 - No new high-risk dependencies without written justification in the commit
   message.
 - The release CI workflow stays green on the tagged commit.
 - Documentation and command help text remain consistent with actual behavior.
 - `git diff --check` reports no whitespace errors.
-- `bash -n check.sh version-to.sh` passes syntax validation.
+- `bash -n scripts/dev/version-to.sh` passes syntax validation.
 - No regression against the previous stable release for any existing command.
 
-The major release design plan is documented in [ROADMAP-current.md](ROADMAP-current.md) and
-[v5.md](v5.md).
+The direction is documented in [ROADMAP-current.md](ROADMAP-current.md);
+the superseded pre-freeze v5.0.0 design specification lives in
+[archive/v5.md](archive/v5.md).
 
 ## Version Bumps
 

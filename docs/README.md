@@ -26,6 +26,9 @@ carries the disclaimer and yields to it.
 | [LICENSING_FAQ.md](LICENSING_FAQ.md) | The licensing quick answers: who needs the commercial license, tiers, contact. |
 | [FAQ.md](FAQ.md) | The user FAQ: root and privileges, kernel support, where the eBPF objects come from, the JSON lane, privacy, colors - and the deployment shapes (desktop, server, ultra scale). |
 | [MAINTENANCE.md](MAINTENANCE.md) | The maintenance record: the incident classes the tree is armed against (the root-owned `__pycache__` class, the in-tree artifact staging class, the sweep-staled prebuilt lane class, the unknown commit id class) and the one-command recovery for each. |
+| [FREEZE.md](FREEZE.md) | The v80.0.0 LTS freeze declaration: what the CLI contract promises from the freeze onward, and what it refuses. |
+| [REAL_USAGE_AUDIT.md](REAL_USAGE_AUDIT.md) | The pre-LTS real-usage audit: the release binary driven end to end (every verb, every JSON lane strict-parsed, the degradation lanes below the eBPF floor, the 400-run stability loop) with the verdict that cleared the LTS production floor. |
+| [LTS_FORTRESS_AUDIT.md](LTS_FORTRESS_AUDIT.md) | The fortress audit record: the final pre-release audit before the v80.0.0 tag (night-last-total-lts), the sub-task verdicts and their peaks. |
 
 ## Governance (repository root)
 
@@ -45,7 +48,7 @@ carries the disclaimer and yields to it.
 | Document | What it owns |
 |---|---|
 | [workflow/about-ci.md](workflow/about-ci.md) | How the CI estate is shaped and why. |
-| [archive/](archive/) | Frozen changelog eras - never rewritten, the header gate exempts them for exactly that reason. |
+| [archive/](archive/) | Frozen history - the retired changelog eras and the superseded v5.0.0 design specification - never rewritten, the header gate exempts them for exactly that reason. |
 
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
