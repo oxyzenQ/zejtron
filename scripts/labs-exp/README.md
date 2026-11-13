@@ -47,17 +47,20 @@ Root is never required: every check rides the usage layer (usage
 errors, help, the version banner, one runtime probe that fails on a
 missing path), so the lab runs the same with or without sudo.
 
-### Section 10 - the depth-matrix signature (night-signature-1)
+### Section 10 - the depth-matrix signature (night-signature-advanced-1)
 
 Six checks pin the anti-fake chain on the running binary: the `-V`
-`Depth-sig:` line (the identity claim `rezky_nightky (oxyzenQ) 2026`
-plus the anchor), `zejtron sig` and the `signature` alias both exit
-0, the matrix closes with
+`Depth-sig:` line (the masked scheme's status line, `fp=` fingerprint
+plus `status=verified` plus the anchor over the masked payload),
+`zejtron sig` and the `signature` alias both exit 0, the matrix
+carries
 `verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)`, the JSON lane
-speaks one line with `"verdict":"AUTHENTIC"`, and the binary image
-itself carries the `ZJNS1` marker whose commit matches the `-V`
-Build line (the D1 depth, grep-verified without executing the
-artifact). The full mechanism story lives in
+speaks one line with `"verdict":"AUTHENTIC"` and the
+`zejtron/depth-matrix/v1` payload tag, and the at-rest contract
+holds: the artifact carries NO greppable identity - `grep -a
+rezky_nightky <binary>` finds nothing, because the claim exists only
+as masked words that materialize at runtime (the D0/D1 depths, the
+anti-grep law). The full mechanism story lives in
 [docs/VERIFY_RELEASE.md](../../docs/VERIFY_RELEASE.md).
 
 ### The build-fingerprint guard
