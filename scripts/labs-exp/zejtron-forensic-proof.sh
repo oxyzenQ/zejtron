@@ -44,6 +44,7 @@ REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd) || exit 1
 # refusal lines ride the same tiers the CLI renders. Defaults come
 # first so a missing lib degrades to mono, never to a set -u crash;
 # the source overrides them with the depth-correct escapes.
+# shellcheck disable=SC2034 # the full tier set pre-seeds mono-safe; the source overrides
 UX_BRAND="" UX_OK="" UX_ERR="" UX_WARN="" UX_GREY="" UX_WHITE="" UX_RESET=""
 # shellcheck disable=SC1091 # the palette lib sits beside this lab in scripts/lib
 . "$SCRIPT_DIR/../lib/ux_palette.sh" || true
