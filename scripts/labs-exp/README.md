@@ -82,6 +82,39 @@ case-variant subcommand rescue, the case-variant retired-verb
 rescue, and the non-UTF-8 argv collection) and rides CI's
 cargo-test lane.
 
+## zejtron-forensic-proof.sh
+
+The live forensic pair proof (night-frontier-2, one command): the
+who-deleted-this-file innovation proven on THIS host, end to end.
+
+- attach (idempotent, privileged one-shot), create a file, unlink
+  it two seconds into a live watch: the ledger must name the actor
+  (an `unlinked` row carrying `rm` and its pid) and drain exactly
+  one `op=unlink` record - the single-publish law;
+- the same contract for `mv`: exactly one `renamed` row and one
+  `op=rename` record;
+- 14 checks, the last line is always `FORENSIC-PROOF: PASS|FAIL`
+  so the verdict relays without parsing prose.
+
+### Run
+
+```sh
+sudo scripts/labs-exp/zejtron-forensic-proof.sh
+```
+
+Root is the law (the event lane reads the root-pinned maps under
+/sys/fs/bpf/zejtron): a non-root run is a named refusal, never a
+snapshot pretending to be a proof. The kernel floor is 5.15; a host
+below it gets the attach refusal named, and the lab fails honestly.
+
+Leave-as-found: probes already recording before the lab started
+stay attached; a probe the lab attached itself is detached after.
+
+The build-fingerprint guard rides here too (the same law the CLI
+UX lab carries): a discovered binary built from another commit is a
+named refusal - rebuild first, or set ZEJTRON_ALLOW_STALE=1 to
+prove the old binary on purpose.
+
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
