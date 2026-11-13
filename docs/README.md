@@ -22,6 +22,7 @@ carries the disclaimer and yields to it.
 | [ROADMAP.md](ROADMAP.md) / [ROADMAP-current.md](ROADMAP-current.md) | Where the project is going; the owner's call. |
 | [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) | The supply-chain ledger: every direct dependency's justification, the removed set, the rules going forward. |
 | [DOC_AUDIT.md](DOC_AUDIT.md) | The documentation depth audit: the master ruleset every doc is measured against - tell once (one home per fact, no duplicates), the depth bar, the registry, same-pass sync. |
+| [INNOVATIONS.md](INNOVATIONS.md) | The innovation ledger: the fourteen named mechanisms that define the investigative core, each with the problem it kills, the file where the truth lives, and the proof that pins it. The map, not the ledger. |
 | [LICENSING_FAQ.md](LICENSING_FAQ.md) | The licensing quick answers: who needs the commercial license, tiers, contact. |
 | [FAQ.md](FAQ.md) | The user FAQ: root and privileges, kernel support, where the eBPF objects come from, the JSON lane, privacy, colors - and the deployment shapes (desktop, server, ultra scale). |
 | [MAINTENANCE.md](MAINTENANCE.md) | The maintenance record: the incident classes the tree is armed against (the root-owned `__pycache__` class, the in-tree artifact staging class, the sweep-staled prebuilt lane class, the unknown commit id class) and the one-command recovery for each. |

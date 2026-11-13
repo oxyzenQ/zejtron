@@ -301,6 +301,7 @@ zejtron writes nothing. Its attack surface is the network lane (`--check-update`
 ## Documentation
 
 - [docs/USAGE.md](docs/USAGE.md) — the usage playbook: investigation scenarios and how to read the Evidence Ledger
+- [docs/INNOVATIONS.md](docs/INNOVATIONS.md) — the innovation ledger: the named mechanisms behind the tool and where their truth lives
 - [docs/FAQ.md](docs/FAQ.md) — the FAQ: root and privileges, kernel support, where the eBPF objects come from, and the deployment shapes (desktop, server, ultra scale)
 - [docs/BRANDING.md](docs/BRANDING.md) — the brand and color system
 - [docs/RULES.md](docs/RULES.md) — the engineering rules
