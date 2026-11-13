@@ -42,6 +42,29 @@ profile-over-basic preference), so a named-profile build on this
 machine is found without any flag. A missing binary is a named
 refusal with the one-line build remedy, never a silent pass.
 
+Root is never required: every check rides the usage layer (usage
+errors, help, the version banner, one runtime probe that fails on a
+missing path), so the lab runs the same with or without sudo.
+
+### The build-fingerprint guard
+
+The verdict is only honest when the binary under test was built from
+the tree the lab rides in. After resolution the lab fingerprints the
+binary (the commit in the `-V` Build line) against `git rev-parse
+HEAD`:
+
+- target/ discovery that lands on a binary built from another commit
+  is a named refusal (exit 2) with the rebuild remedy - a stale
+  build reports the fixed contract as failing, which reads like a
+  regression;
+- an explicit target (the argument or `$ZEJTRON_BIN_PATH`) is
+  deliberate and only warns;
+- `ZEJTRON_ALLOW_STALE=1` verifies the old binary on purpose through
+  either lane.
+
+A tree without git, or a binary without a Build commit, skips the
+guard silently (release artifacts fingerprint differently).
+
 ### Gate results at the commit this lab landed (69d5dc6 tree)
 
 | Gate | Result |
