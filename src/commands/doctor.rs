@@ -297,5 +297,5 @@ fn check_build_metadata(git_hash: &str) -> CheckResult {
 }
 
 #[cfg(test)]
-#[path = "../../../test/commands/doctor/doctor_tests.rs"]
+#[path = "../../test/commands/doctor/doctor_tests.rs"]
 mod tests;

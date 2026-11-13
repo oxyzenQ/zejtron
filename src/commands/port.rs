@@ -171,5 +171,5 @@ pub(crate) fn filter_sockets(sockets: &[SocketEntry], options: &PortOptions) -> 
 }
 
 #[cfg(test)]
-#[path = "../../../test/commands/port/port_tests.rs"]
+#[path = "../../test/commands/port/port_tests.rs"]
 mod tests;

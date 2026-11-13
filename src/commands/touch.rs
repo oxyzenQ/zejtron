@@ -215,5 +215,5 @@ pub(crate) fn uid_to_user(uid: u32, users: &HashMap<u32, String>) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../../test/commands/touch/touch_tests.rs"]
+#[path = "../../test/commands/touch/touch_tests.rs"]
 mod tests;
