@@ -334,6 +334,45 @@ pub const OFF_SLOT_RENAMEDATA_OLD_DENTRY: u32 = 14;
 #[allow(dead_code)]
 pub const OFF_SLOTS: u32 = 15;
 
+// ── The drop-census map slots ───────────────────────────────────────
+//
+// night-frontier-Z1, the drop-truth half of the Unaccounted law: a
+// bounded ring whose reserve fails drops the event SILENTLY - the
+// kernel cannot remember what it did not record, but it CAN count
+// how many times it failed to record. Every failed
+// `RingBuf::output` reservation bumps one slot in the `drop_census`
+// map (Array<AtomicU64>, BPF_ATOMIC fetch_add - the phase-1 counter
+// discipline: RMW atomics, no plain shared-field access, exact and
+// race-free), and the userspace drains read the census through the
+// pin so a lane that renders kernel events can also name how many
+// the kernel saw but could not hold. The slot indices below are the
+// contract between the BPF writers (ebpf/src/main.rs's
+// count_ring_drop call sites and ebpf/src/exits.rs) and the host
+// readers (src/ebpf/readback.rs's DropCensus) - both sides compile
+// this file, one truth, no drift.
+
+/// `drop_census[0]`: sock_events reserve failures since attach - the
+/// transitions the port surface's camera saw but the ring could not
+/// hold.
+pub const DROP_SLOT_SOCK: u32 = 0;
+
+/// `drop_census[1]`: file_events reserve failures since attach - the
+/// file actions (opens, writes, writevs, unlinks, renames) five
+/// probes saw but the ring could not hold.
+pub const DROP_SLOT_FILE: u32 = 1;
+
+/// `drop_census[2]`: proc_events reserve failures since attach - the
+/// process exits the post-mortem camera saw but the ring could not
+/// hold.
+pub const DROP_SLOT_PROC: u32 = 2;
+
+/// The number of slots the drop_census map carries (the map's
+/// max_entries on the BPF side). BPF-side-only by design (the host
+/// reader names the three slots by constant and never needs the
+/// count); the scoped allow names the split.
+#[allow(dead_code)]
+pub const DROP_SLOTS: u32 = 3;
+
 // ─────────────────────────────────────────────────────────────────────
 // night-improve-47, the process-exit record (the post-mortem doctor
 // pass). Same file, same discipline: the record the proc_events

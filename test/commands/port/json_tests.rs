@@ -207,6 +207,7 @@ mod post_mortem {
             false,
             None,
             Some(exits),
+            None,
         );
         let stats = ScanStats::default();
         let opts = options(false);
@@ -217,6 +218,7 @@ mod post_mortem {
             &opts,
             Some(events),
             Some(exits),
+            None,
             None,
             None,
         );
@@ -526,4 +528,63 @@ mod post_mortem {
             "the fixture pid is free on this host: {pid}"
         );
     }
+}
+
+// ── night-frontier-Z1, the drop truth typed ─────────────────────────
+
+#[test]
+fn the_changes_block_carries_the_drop_truth_typed() {
+    // The typed lane's explicit zero is the machine-honest shape its
+    // text lane renders as silence: number when the census answered,
+    // null when it did not - the field never disappears, so a
+    // consumer diffs the shape, not the field list.
+    let json = super::port_report_json_with_exits(
+        &[],
+        &HashMap::new(),
+        &ScanStats::default(),
+        &options(false),
+        Some(&[]),
+        None,
+        None,
+        Some(5),
+        None,
+    );
+    assert!(json.contains("\"ring_drops\":5"), "{json}");
+    let zero = super::port_report_json_with_exits(
+        &[],
+        &HashMap::new(),
+        &ScanStats::default(),
+        &options(false),
+        Some(&[]),
+        None,
+        None,
+        Some(0),
+        None,
+    );
+    assert!(zero.contains("\"ring_drops\":0"), "{zero}");
+    let unknown = super::port_report_json_with_exits(
+        &[],
+        &HashMap::new(),
+        &ScanStats::default(),
+        &options(false),
+        Some(&[]),
+        None,
+        None,
+        None,
+        None,
+    );
+    assert!(unknown.contains("\"ring_drops\":null"), "{unknown}");
+    // A lane-down shape consults no camera: null, not a guess.
+    let down = super::port_report_json_with_exits(
+        &[],
+        &HashMap::new(),
+        &ScanStats::default(),
+        &options(false),
+        None,
+        None,
+        None,
+        None,
+        Some(LaneUnavailable::NotAttached),
+    );
+    assert!(down.contains("\"ring_drops\":null"), "{down}");
 }

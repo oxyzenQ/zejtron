@@ -40,6 +40,43 @@ v11.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **night-frontier-Z1, the drop truth (the rings stopped dropping in
+  silence).** A bounded ring whose reserve fails drops the event - the
+  kernel cannot remember what it did not record, but it CAN count how
+  many times it failed to record. Every failed `RingBuf::output`
+  reservation now bumps the `drop_census` map (one AtomicU64 slot per
+  ring, BPF_ATOMIC fetch_add, the stats counter's own discipline), the
+  drains read the census through the new `drop_census` pin
+  (`readback::read_drop_census`), and each camera surface names the
+  count in its Unaccounted block when it is nonzero: the evidence
+  ledgers (holds/touch/why) name the file ring's failures, the doctor's
+  ram symptom names the exit ring's (text and JSON), and the port
+  window names the sock ring's (text) or carries it typed
+  (`changes.ring_drops`, null when the census did not answer, never a
+  guessed zero). The counts are cumulative since attach - the only
+  form a cross-run reader can compare without a reset write - and the
+  entries say so. No flag, no subcommand, no schema break: additive
+  Unaccounted data.
+- **night-frontier-Z1, the drain-boundary offsets re-verification (the
+  verification loop closes around the recording boundary).** Attach
+  verified the parse before anything was planted; the FILE ring's
+  drain now re-derives the planted walk table (all fifteen offsets-map
+  slots - the thirteen struct offsets plus the vfs_unlink dentry
+  argument position and the renamedata old_dentry member offset) from
+  the host's CURRENT /sys/kernel/btf/vmlinux before one record is
+  trusted, refusing by slot, planted value beside the current word
+  (`offsets drift at the drain boundary: ...`), on the one boundary
+  where offsets trust is load-bearing. The sock probe's records ride
+  verified tracepoint-context constants and the exit probe's ride
+  helpers alone - neither reads the offsets map, so neither drain is
+  gated: a refusal on records the drift cannot corrupt would be a
+  refusal that lies. Read-only end to end (two file reads and a
+  compare); the estate grew one pin (23) and the sock probe moved to
+  its own module (ebpf/src/sock.rs, the pure move the 600-LOC cap
+  owns).
+
 ### License
 
 - **Migrated from GPL-3.0-only to AGPL-3.0-only.** This closes the SaaS

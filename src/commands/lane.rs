@@ -329,6 +329,25 @@ fn collect_live(
             "no visible PID - namespace boundary or exited before attribution",
         ));
     }
+    // night-frontier-Z1, the drop-truth: the camera's own failures,
+    // named where the boundaries are named. The census is cumulative
+    // since attach - the only form a cross-run reader can compare
+    // without a reset write (a fresh process inherits no previous
+    // count) - so the entry says what the number IS, and the window
+    // above may be missing records the same way. A count-backed
+    // boundary (the extend_stats_entries pattern): it rides only
+    // when nonzero, and an unreadable census degrades to the verbose
+    // trace, never to a guessed zero.
+    match crate::ebpf::readback::read_drop_census() {
+        Ok(census) => {
+            if let Some(entry) = file_ring_drop_entry(census.file) {
+                unaccounted.push(entry);
+            }
+        }
+        Err(error) => {
+            crate::output::verbose::vlog!("lane", "drop census unreadable: {error}");
+        }
+    }
     // events arrive ascending from the capture; the filter keeps the
     // order. No re-sorting here - the renderer never reorders.
     Ok(LaneParts {
@@ -339,6 +358,24 @@ fn collect_live(
         },
         unaccounted,
         raw: events,
+    })
+}
+
+/// The file ring's drop-truth entry (night-frontier-Z1): one
+/// Unaccounted entry for the file_events reserve failures, `None`
+/// when the count is zero (the count-backed boundary class - an
+/// entry that says "0 drops" on every run would read as noise, and
+/// the boundary exists only when it fired). Pure, so the wording and
+/// the threshold are pinnable without a pinned map.
+fn file_ring_drop_entry(drops: u64) -> Option<UnaccountedEntry> {
+    (drops > 0).then(|| {
+        UnaccountedEntry::new(
+            drops as usize,
+            "ring drops",
+            "file_events reserve failures since attach - events the kernel \
+             saw but the ring could not hold; the window above may be \
+             missing records the same way",
+        )
     })
 }
 

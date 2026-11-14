@@ -151,7 +151,8 @@ fn pins_row_lists_every_pin_in_planting_order() {
             "proc_events",
             "tracked_inodes",
             "file_events",
-            "offsets"
+            "offsets",
+            "drop_census"
         ]
     );
 }

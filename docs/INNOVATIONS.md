@@ -52,7 +52,17 @@ observer, counted beside the evidence (`observer_excluded`), never
 laundered into the host's record. The doctrine (why none of
 it is monitoring) lives in [EBPF_LIFECYCLE.md](EBPF_LIFECYCLE.md);
 the lifecycle is pinned by `test/ebpf/loader_tests.rs` and
-`test/ebpf/ringbuf_tests.rs`.
+`test/ebpf/ringbuf_tests.rs`. And the camera's own failures are
+honest (night-frontier-Z1, the drop truth): a full ring's failed
+reservation is counted - one `drop_census` slot per ring, bumped
+in-kernel at the exact failure, read back through its pin - and the
+draining surface's Unaccounted block names how many events the
+kernel saw but could not hold. The kernel cannot remember what it
+did not record; counting the failures is the honesty the kernel
+itself allows, and it is the last silent boundary the ledger does
+not own. Pinned by `test/ebpf/readback_tests.rs` and the surfaces'
+builder pins (`test/commands/lane_tests.rs`, the doctor and port
+JSON pins).
 
 **3. BTF-verified attach** (`src/ebpf/btf.rs`, `btf_writev.rs`,
 `verify_write.rs`, `readback.rs`). The hole: a kprobe's struct
@@ -64,8 +74,18 @@ vmlinux BTF at attach, descending the anonymous aggregates modern
 kernels use, and the verified offsets are written whole into the
 offsets map. The write probe verifies itself before planting; a
 shape that cannot be verified refuses at attach, by name, before
-anything is planted - the refusal echoes what it checked. Pinned by
-`test/ebpf/btf_tests.rs`, `test/ebpf/btf_flatten_tests.rs`,
+anything is planted - the refusal echoes what it checked. night-frontier-Z1 closes the
+verification loop around the recording boundary: the file ring's
+drain re-derives the planted walk table - all fifteen offsets-map
+slots, the two BTF-derived anchors included - from the host's
+CURRENT vmlinux BTF before one record is trusted, refusing by slot,
+planted value beside the current word (`src/ebpf/reverify.rs`).
+Only the file ring is gated, and that is the honesty: the sock
+probe's records ride verified tracepoint-context constants and the
+exit probe's ride helpers alone, so a drift cannot corrupt them -
+a refusal on records it cannot corrupt would be a refusal that
+lies. Pinned by `test/ebpf/btf_tests.rs`,
+`test/ebpf/btf_flatten_tests.rs`, `test/ebpf/reverify_tests.rs`,
 `test/ebpf/readback_tests.rs`.
 
 **4. The unlink/rename forensic pair** (night-frontier-2;

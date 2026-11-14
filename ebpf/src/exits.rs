@@ -82,15 +82,24 @@ pub fn sched_process_exit(_ctx: TracePointContext) -> u32 {
     // the NUL-terminated name; a failed read drops the record - a
     // passive tracepoint never fails.
     let Ok(comm) = bpf_get_current_comm() else { return 0 };
-    let _ = proc_events.output::<ProcExitEvent>(
-        &ProcExitEvent {
-            timestamp_ns: unsafe { bpf_ktime_get_ns() },
-            pid: tgid,
-            _pad: 0,
-            comm,
-        },
-        0,
-    );
+    // night-frontier-Z1: a failed reservation counts in the drop
+    // census (the proc_events slot), never silent - the post-mortem
+    // lane's drain names how many exits the camera saw but the ring
+    // could not hold.
+    if proc_events
+        .output::<ProcExitEvent>(
+            &ProcExitEvent {
+                timestamp_ns: unsafe { bpf_ktime_get_ns() },
+                pid: tgid,
+                _pad: 0,
+                comm,
+            },
+            0,
+        )
+        .is_err()
+    {
+        super::count_ring_drop(crate::events::DROP_SLOT_PROC);
+    }
 
     0
 }

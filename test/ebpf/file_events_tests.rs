@@ -131,3 +131,19 @@ fn offsets_slots_are_frozen_then_appended() {
     assert_eq!(OFF_SLOT_RENAMEDATA_OLD_DENTRY, 14);
     assert_eq!(OFF_SLOTS, 15);
 }
+
+// ── night-frontier-Z1, the drop-census slots ────────────────────────
+
+#[test]
+fn the_drop_census_slots_are_distinct_and_bounded() {
+    // Three rings, three slots: a collision would count one ring's
+    // failures against another's, and the Unaccounted entry would
+    // name the wrong camera.
+    assert_eq!(DROP_SLOT_SOCK, 0);
+    assert_eq!(DROP_SLOT_FILE, 1);
+    assert_eq!(DROP_SLOT_PROC, 2);
+    assert_eq!(DROP_SLOTS, 3);
+    assert_ne!(DROP_SLOT_SOCK, DROP_SLOT_FILE);
+    assert_ne!(DROP_SLOT_FILE, DROP_SLOT_PROC);
+    assert_ne!(DROP_SLOT_SOCK, DROP_SLOT_PROC);
+}

@@ -312,13 +312,13 @@ fn symptom_header(out: &mut String, symptom: &str, window: Option<&str>) {
     }
 }
 
+mod gpu;
 mod slow;
 mod symptoms;
 
+pub(super) use gpu::json_gpu;
 pub(super) use slow::json_slow;
-#[cfg(test)]
-use symptoms::{cpu_unaccounted, gpu_unaccounted};
-pub(super) use symptoms::{json_cpu, json_disk, json_gpu, json_network, json_ram};
+pub(super) use symptoms::{json_cpu, json_disk, json_network, json_ram};
 
 /// The sampling-boundary entry, the delta lanes' shared sentence -
 /// the same three truths the shared text builder phrases. Lives in

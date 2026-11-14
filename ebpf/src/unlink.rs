@@ -112,7 +112,14 @@ unsafe fn publish_if_tracked(dentry: usize, op: u8) {
         if tracked_inodes.get(&key).is_none() {
             return;
         }
-        let _ = file_events.output::<FileEvent>(
+        // night-frontier-Z1: a failed reservation counts in the drop
+        // census (the file-events slot - five probes share the one
+        // ring), never silent. The walk-stage census this module's
+        // header deliberately skips (the write probe's anchor history
+        // earned that one) is a different instrument: this counter is
+        // the ring's own reserve truth, and the ring serves five
+        // probes.
+        if file_events.output::<FileEvent>(
             &FileEvent {
                 timestamp_ns: bpf_ktime_get_ns(),
                 op,
@@ -123,7 +130,11 @@ unsafe fn publish_if_tracked(dentry: usize, op: u8) {
                 _pad2: 0,
             },
             0,
-        );
+        )
+        .is_err()
+        {
+            super::count_ring_drop(crate::events::DROP_SLOT_FILE);
+        }
     }
 }
 

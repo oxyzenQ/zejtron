@@ -214,7 +214,10 @@ pub fn write_probe(ctx: TracePointContext) -> u32 {
             bpf_printk!(c"[zjw] walk ok fd=%d ino=%d\n", fdu, ino);
         }
 
-        let _ = file_events.output::<FileEvent>(
+        // night-frontier-Z1: a failed reservation counts in the drop
+        // census (the file-events slot - five probes share the one
+        // ring), never silent.
+        if file_events.output::<FileEvent>(
             &FileEvent {
                 timestamp_ns: bpf_ktime_get_ns(),
                 op: FILE_OP_WRITE,
@@ -225,7 +228,11 @@ pub fn write_probe(ctx: TracePointContext) -> u32 {
                 _pad2: 0,
             },
             0,
-        );
+        )
+        .is_err()
+        {
+            super::count_ring_drop(crate::events::DROP_SLOT_FILE);
+        }
     }
     0
 }
