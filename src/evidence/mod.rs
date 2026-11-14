@@ -156,5 +156,8 @@ pub struct EvidenceReport {
 }
 
 #[cfg(test)]
+#[path = "../../test/evidence/certificate_tests.rs"]
+mod certificate;
+#[cfg(test)]
 #[path = "../../test/evidence/report_tests.rs"]
 mod tests;
