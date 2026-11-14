@@ -161,11 +161,20 @@ pub(crate) fn filter_sockets(sockets: &[SocketEntry], options: &PortOptions) -> 
         .cloned()
         .collect();
 
+    // night-depth-hardening-1: SO_REUSEPORT listeners and UDP
+    // sockets can share (port, protocol, address) with different
+    // inodes; without a tail the /proc table's per-bucket order
+    // (insertion-time dependent) leaked into the render. The inode
+    // is the socket's kernel identity - a total order, byte-stable
+    // on every distro and run.
     selected.sort_by(|left, right| {
         left.port
             .cmp(&right.port)
             .then(left.protocol.cmp(&right.protocol))
             .then(left.address.cmp(&right.address))
+            .then(left.remote_address.cmp(&right.remote_address))
+            .then(left.remote_port.cmp(&right.remote_port))
+            .then(left.inode.cmp(&right.inode))
     });
     selected
 }

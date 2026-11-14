@@ -560,6 +560,46 @@ mod live {
         );
     }
 
+    #[test]
+    fn event_timestamp_ties_break_by_record_identity() {
+        // night-depth-hardening-1: two sockets can change state in
+        // the same nanosecond, and per-CPU ring interleave is not
+        // stable across drains, so a timestamp-only sort fell back to
+        // drain order. The full-record tail (skaddr, then the
+        // remaining fields) is a total order - same drain in, same
+        // bytes out, whatever order the kernel handed the records
+        // over.
+        let now_ns = monotonic_now_ns();
+        let stamp = now_ns.saturating_sub(10_000_000_000); // 10s ago
+        let high_first = vec![
+            SockEvent {
+                timestamp_ns: stamp,
+                skaddr: 0xffff_8880_0000_0090,
+                ..live_event(70, 8080, IPPROTO_TCP, AF_INET, TCP_CLOSE, TCP_LISTEN)
+            },
+            SockEvent {
+                timestamp_ns: stamp,
+                skaddr: 0xffff_8880_0000_0010,
+                ..live_event(10, 8080, IPPROTO_TCP, AF_INET, TCP_CLOSE, TCP_LISTEN)
+            },
+            SockEvent {
+                timestamp_ns: stamp,
+                skaddr: 0xffff_8880_0000_0050,
+                ..live_event(40, 8080, IPPROTO_TCP, AF_INET, TCP_CLOSE, TCP_LISTEN)
+            },
+        ];
+        let options = PortOptions {
+            window: Duration::from_secs(60),
+            ..options()
+        };
+        let selected = window_events(&high_first, &options);
+        let skaddrs: Vec<u64> = selected.iter().map(|e| e.skaddr).collect();
+        assert_eq!(
+            skaddrs,
+            vec![0xffff_8880_0000_0010, 0xffff_8880_0000_0050, 0xffff_8880_0000_0090]
+        );
+    }
+
     fn monotonic_now_ns() -> u64 {
         crate::info::clock::monotonic_now_ns().unwrap()
     }

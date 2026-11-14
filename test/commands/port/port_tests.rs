@@ -89,6 +89,24 @@ fn filters_by_protocol() {
 }
 
 #[test]
+fn reuseport_ties_break_by_inode_not_by_proc_order() {
+    // night-depth-hardening-1: SO_REUSEPORT listeners (nginx, haproxy
+    // worker fleets) share port, protocol, and address with different
+    // inodes; without an inode tail the /proc table's per-bucket
+    // order (insertion-time dependent) leaked into the render. The
+    // inode is the socket's kernel identity - the same table must
+    // render byte-identically on every distro and run.
+    let sockets = vec![
+        socket_with_inode(Protocol::Tcp, 443, Some("LISTEN"), 900),
+        socket_with_inode(Protocol::Tcp, 443, Some("LISTEN"), 100),
+        socket_with_inode(Protocol::Tcp, 443, Some("LISTEN"), 500),
+    ];
+    let selected = filter_sockets(&sockets, &options());
+    let inodes: Vec<u64> = selected.iter().map(|socket| socket.inode).collect();
+    assert_eq!(inodes, vec![100, 500, 900]);
+}
+
+#[test]
 fn tcp_and_udp_flags_include_both_protocols() {
     let sockets = vec![
         socket(Protocol::Tcp, 80, Some("LISTEN")),
