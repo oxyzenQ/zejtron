@@ -4,7 +4,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use super::model::{
-    GroupKey, OwnerIdentity, OwnerMap, PortOptions, ProcessInfo, ScanStats, SocketEntry,
+    GroupKey, OwnerIdentity, OwnerMap, PortOptions, ProcessInfo, Protocol, ScanStats, SocketEntry,
     SocketGroup,
 };
 
@@ -365,6 +365,135 @@ pub(crate) fn append_note(lines: &mut Vec<String>, stats: &ScanStats) {
             "note: some processes were not readable; try sudo for complete owner details",
         ));
     }
+}
+
+/// The `[snapshot]` rows (moved whole from window.rs, the 600-line
+/// law's pure move): the phase-1 socket selection (the same filters,
+/// the same sort), flat rows instead of the tree, TCP first then UDP
+/// (the spec's grouping). `--group` collapses repeated rows with the
+/// same ×N suffix the tree uses; `--no-pid` drops the PID token; an
+/// ownerless row names `owner unknown` exactly as the tree's owner
+/// lines do.
+pub(crate) fn snapshot_rows(
+    sockets: &[SocketEntry],
+    owners: &OwnerMap,
+    options: &PortOptions,
+) -> Vec<String> {
+    // night-depth-hardening-1: the tail rides the same total order
+    // the phase-1 selection (filter_sockets) carries - SO_REUSEPORT
+    // listeners share (port, address) with different inodes, and a
+    // tie there used to leak the /proc table order. The snapshot
+    // stays byte-identical to the tree, every distro, every run.
+    let by_phase_sort = |left: &SocketEntry, right: &SocketEntry| {
+        left.port
+            .cmp(&right.port)
+            .then(left.address.cmp(&right.address))
+            .then(left.remote_address.cmp(&right.remote_address))
+            .then(left.remote_port.cmp(&right.remote_port))
+            .then(left.inode.cmp(&right.inode))
+    };
+
+    let mut rows: Vec<String> = Vec::new();
+    if options.group {
+        let groups = group_sockets(sockets, owners);
+        for protocol in [Protocol::Tcp, Protocol::Udp] {
+            let mut block: Vec<_> = groups
+                .iter()
+                .filter(|group| group.socket.protocol == protocol)
+                .collect();
+            block.sort_by(|left, right| by_phase_sort(&left.socket, &right.socket));
+            for group in block {
+                rows.push(snapshot_row(
+                    protocol,
+                    &group.socket,
+                    &group.owners,
+                    options,
+                    Some(group.count),
+                ));
+            }
+        }
+        return rows;
+    }
+
+    for protocol in [Protocol::Tcp, Protocol::Udp] {
+        let mut block: Vec<_> = sockets
+            .iter()
+            .filter(|socket| socket.protocol == protocol)
+            .collect();
+        block.sort_by(|left, right| by_phase_sort(left, right));
+        for socket in block {
+            let socket_owners = owners.get(&socket.inode).cloned().unwrap_or_default();
+            rows.push(snapshot_row(
+                protocol,
+                socket,
+                &socket_owners,
+                options,
+                None,
+            ));
+        }
+    }
+    rows
+}
+
+/// One `[snapshot]` row. The endpoint formatting matches the tree's
+/// `format_socket` (IPv6 addresses bracketed), the state token rides
+/// when /proc carried one, and the owner tail is `PID a, b  (name,
+/// name)` - or `owner unknown`, the tree's own honesty.
+fn snapshot_row(
+    protocol: Protocol,
+    socket: &SocketEntry,
+    owners: &[ProcessInfo],
+    options: &PortOptions,
+    group_count: Option<usize>,
+) -> String {
+    let endpoint = if socket.address.contains(':') {
+        format!("[{}]:{}", socket.address, socket.port)
+    } else {
+        format!("{}:{}", socket.address, socket.port)
+    };
+    // Roles (night-improve-37): the [snapshot] tag rides grey - the
+    // manual check pins it there, and it is the weaker evidence (a
+    // /proc parse at this instant); the protocol, endpoint, state,
+    // and owner tokens are the values and stay unwrapped; the group
+    // count rides grey (an annotation); the owner-absence token rides
+    // grey (the "no events" class). In Mono every wrap is the
+    // identity, byte-identical to the pinned shape.
+    let mut row = format!(
+        "{}  {}  {}",
+        crate::output::grey_out("[snapshot]"),
+        match protocol {
+            Protocol::Tcp => "TCP",
+            Protocol::Udp => "UDP",
+        },
+        endpoint
+    );
+    if let Some(state) = &socket.state {
+        row.push_str("  ");
+        row.push_str(state);
+    }
+    if let Some(count) = group_count.filter(|count| *count > 1) {
+        row.push_str(&format!(
+            " {}",
+            crate::output::grey_out(&format!("×{count}"))
+        ));
+    }
+    if owners.is_empty() {
+        row.push_str(&format!("  {}", crate::output::grey_out("owner unknown")));
+    } else {
+        let names: Vec<&str> = owners.iter().map(|o| o.name.as_str()).collect();
+        if options.no_pid {
+            row.push_str(&format!("  ({})", names.join(", ")));
+        } else {
+            let pids: Vec<String> = owners.iter().map(|o| o.pid.to_string()).collect();
+            row.push_str(&format!(
+                "  {} {}  ({})",
+                crate::output::grey_out("PID"),
+                pids.join(", "),
+                names.join(", ")
+            ));
+        }
+    }
+    row
 }
 
 fn plural<'a>(count: usize, singular: &'a str, plural: &'a str) -> &'a str {
