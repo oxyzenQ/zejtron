@@ -105,6 +105,27 @@ fn the_window_keeps_the_fresh_slice_and_sorts_ascending() {
 }
 
 #[test]
+fn same_timestamp_exits_break_by_pid() {
+    // night-depth-hardening-1: a killed process group exits in one
+    // nanosecond burst, and a timestamp-only sort left that tie to
+    // drain order - not byte-stable across runs. pid then comm is the
+    // record's own identity, so the section renders the same rows in
+    // the same order on every distro and every drain.
+    let Some(now) = crate::info::clock::monotonic_now_ns() else {
+        return;
+    };
+    let events = vec![
+        exit(now, 333, &comm_bytes("gamma")),
+        exit(now, 111, &comm_bytes("alpha")),
+        exit(now, 222, &comm_bytes("beta")),
+    ];
+    let (rows, observer_excluded) = window_rows(events, EXIT_WINDOW_SECS);
+    let pids: Vec<u32> = rows.iter().map(|r| r.pid).collect();
+    assert_eq!(pids, vec![111, 222, 333], "ties break by pid");
+    assert_eq!(observer_excluded, 0, "no observer events rode this drain");
+}
+
+#[test]
 fn the_not_attached_lane_renders_no_section() {
     // The absent lane rides the mode line and the Unaccounted block,
     // never a fake empty section - an absent lane and an empty

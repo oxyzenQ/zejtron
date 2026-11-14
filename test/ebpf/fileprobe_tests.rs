@@ -71,6 +71,28 @@ fn selection_sorts_ascending_by_timestamp() {
 }
 
 #[test]
+fn timestamp_ties_break_by_op_then_pid() {
+    // night-depth-hardening-1: same-nanosecond stamps are real (a
+    // write plus its writev inside one syscall burst), and per-CPU
+    // ring interleave is not stable across drains. The tail (op, then
+    // the identity, then the actor) is a total order over the
+    // record's own fields - same drain in, same bytes out.
+    let events = vec![
+        file_event(200, FILE_OP_OPEN, 1, 2, 30),
+        file_event(200, FILE_OP_WRITE, 1, 2, 10),
+        file_event(200, FILE_OP_OPEN, 1, 2, 20),
+        file_event(100, FILE_OP_OPEN, 1, 2, 5),
+    ];
+    let selected = select_window(&events, 1, 2);
+    let order: Vec<(u64, u32)> = selected.iter().map(|e| (e.timestamp_ns, e.pid)).collect();
+    assert_eq!(
+        order,
+        vec![(100, 5), (200, 20), (200, 30), (200, 10)],
+        "ascending by time, then op (OPEN 1 before WRITE 2), then pid"
+    );
+}
+
+#[test]
 fn monotonic_now_degrades_to_none_never_a_guess() {
     // The crate's one clock source (clock_gettime on CLOCK_MONOTONIC)
     // cannot fail on a Linux host that booted; guard for the exotic
