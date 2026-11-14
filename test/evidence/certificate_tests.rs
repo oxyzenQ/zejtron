@@ -80,7 +80,9 @@ fn evidence_report() -> EvidenceReport {
                 ),
                 EvidenceRow::new(
                     Some(1_800_000_011),
-                    EvidenceKind::Wrote { via: Some("writev") },
+                    EvidenceKind::Wrote {
+                        via: Some("writev"),
+                    },
                     EvidenceActor::recorded(Some("writer".to_owned()), Some(4243), None),
                     Provenance::Observed,
                 ),
@@ -159,7 +161,10 @@ fn port_report() -> String {
 /// (the manifest and the diff are stable).
 fn fixtures() -> Vec<(&'static str, String)> {
     vec![
-        ("evidence-ledger", super::render::render_report(&evidence_report())),
+        (
+            "evidence-ledger",
+            super::render::render_report(&evidence_report()),
+        ),
         ("doctor-ram", ram_report()),
         ("port-events", port_report()),
     ]

@@ -551,6 +551,9 @@ pub(crate) fn u32_at(data: &[u8], off: usize) -> u32 {
 }
 
 #[cfg(test)]
+#[path = "../../test/ebpf/btf_corpus_tests.rs"]
+mod corpus_tests;
+#[cfg(test)]
 #[path = "../../test/ebpf/btf_tests.rs"]
 mod tests;
 
