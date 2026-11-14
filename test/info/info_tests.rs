@@ -59,7 +59,10 @@ fn build_time_stamp_shape_is_iso8601_yyyy_mm_dd_hh_mm_z() {
     if stamp == "unknown" {
         return; // degraded path, documented
     }
-    assert!(stamp.ends_with('Z'), "stamp must carry the Z suffix: {stamp}");
+    assert!(
+        stamp.ends_with('Z'),
+        "stamp must carry the Z suffix: {stamp}"
+    );
     let core = stamp.strip_suffix('Z').expect("suffix checked above");
     let (date, time) = core
         .split_once(' ')
