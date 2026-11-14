@@ -72,7 +72,19 @@ pub fn select_window(events: &[FileEvent], inode: u64, device: u64) -> Vec<FileE
         .filter(|event| event.inode == inode && event.device == device)
         .copied()
         .collect();
-    selected.sort_by_key(|event| event.timestamp_ns);
+    // night-depth-hardening-1: the timestamp alone leaves ties (two
+    // syscalls stamped in the same nanosecond, per-CPU ring
+    // interleave) to drain order - not byte-stable across runs. The
+    // tail is a total order over the record's own fields (op, then
+    // the full inode/device identity, then the actor).
+    selected.sort_by(|left, right| {
+        left.timestamp_ns
+            .cmp(&right.timestamp_ns)
+            .then(left.op.cmp(&right.op))
+            .then(left.inode.cmp(&right.inode))
+            .then(left.device.cmp(&right.device))
+            .then(left.pid.cmp(&right.pid))
+    });
     selected
 }
 

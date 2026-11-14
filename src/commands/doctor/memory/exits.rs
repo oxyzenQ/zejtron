@@ -194,7 +194,16 @@ fn window_rows(events: Vec<ProcExitEvent>, window_secs: u64) -> (Vec<ExitRow>, u
     let before = rows.len();
     rows.retain(|row| row.comm != own);
     let observer_excluded = before - rows.len();
-    rows.sort_by_key(|row| row.timestamp_ns);
+    // night-depth-hardening-1: same-nanosecond exits are real (a
+    // killed process group), and a timestamp-only sort left their
+    // order to drain order - not byte-stable across runs. pid then
+    // comm is the record's own identity: total order, same bytes out.
+    rows.sort_by(|left, right| {
+        left.timestamp_ns
+            .cmp(&right.timestamp_ns)
+            .then(left.pid.cmp(&right.pid))
+            .then(left.comm.cmp(&right.comm))
+    });
     (rows, observer_excluded)
 }
 
