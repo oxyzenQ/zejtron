@@ -125,15 +125,22 @@ pub const PIN_MAP_OFFSETS: &str = "/sys/fs/bpf/zejtron/offsets";
 /// how many events the camera saw but the rings could not hold.
 pub const PIN_MAP_DROP_CENSUS: &str = "/sys/fs/bpf/zejtron/drop_census";
 
+/// Map pin - the generation stamp (night-frontier-Z2): the pin
+/// estate's identity - boot identity, probe object identity, attach
+/// instant - written once at attach and read back at every recording
+/// boundary ([`estate::verify_at_drain`]) so the camera found is
+/// proven to be this boot's own camera, planted by this build.
+pub const PIN_MAP_GENERATION: &str = "/sys/fs/bpf/zejtron/generation";
+
 /// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
-/// last). Twenty-three pins: one link/program pair per probe (the exec
+/// last). Twenty-four pins: one link/program pair per probe (the exec
 /// tracepoint, the sock tracepoint, the five file kprobes - the open
 /// probe, the write probe, the writev probe, and since
 /// night-frontier-2 the unlink and rename probes - and the
-/// post-mortem exit tracepoint) and seven maps (stats, sock_events,
-/// proc_events, tracked_inodes, file_events, offsets, and since
-/// night-frontier-Z1 the drop census). The exec probe reuses its
+/// post-mortem exit tracepoint) and eight maps (stats, sock_events,
+/// proc_events, tracked_inodes, file_events, offsets, the drop
+/// census, and since night-frontier-Z2 the generation stamp). The exec probe reuses its
 /// existing pins (the phase-1 program carries the counter, not a new
 /// section). Thirteen through night-improve-3, eighteen from
 /// night-improve-4, thirteen again since night-improve-34, fifteen
@@ -143,8 +150,10 @@ pub const PIN_MAP_DROP_CENSUS: &str = "/sys/fs/bpf/zejtron/drop_census";
 /// from night-frontier-2: the unlink and rename probes' pairs joined
 /// when the forensic question grew its answer, twenty-three from
 /// night-frontier-Z1: the drop census joined when the rings stopped
-/// dropping in silence.
-pub const ALL_PINS: [&str; 23] = [
+/// dropping in silence, twenty-four from night-frontier-Z2: the
+/// generation stamp joined when the estate had to prove it is this
+/// boot's own camera.
+pub const ALL_PINS: [&str; 24] = [
     PIN_LINK,
     PIN_LINK_SOCK,
     PIN_LINK_OPEN,
@@ -168,6 +177,7 @@ pub const ALL_PINS: [&str; 23] = [
     PIN_MAP_FILE_EVENTS,
     PIN_MAP_OFFSETS,
     PIN_MAP_DROP_CENSUS,
+    PIN_MAP_GENERATION,
 ];
 
 /// True when every pin of a complete attach exists. A partial pin set
@@ -489,6 +499,10 @@ pub mod btf;
 /// plant chain the loader's attach orchestrates.
 mod btf_unlink;
 mod btf_writev;
+/// The pin estate's identity (night-frontier-Z2): the generation
+/// stamp - written at attach, re-derived at every recording boundary,
+/// refused by name on drift.
+pub mod estate;
 pub mod fileprobe;
 /// The loader (attach/detach), the counter readback, the two ring
 /// readers, the BTF offsets parser, the filter-map writer, and the

@@ -60,7 +60,7 @@ use crate::output::verbose::vlog;
 /// AlignedElf wrapper (the NIGHT-hunt-30 lesson - see embedded.rs)
 /// so aya's ELF parser reads 8-aligned bytes whatever the linker
 /// decided.
-static PROBE_ELF: &[u8] =
+pub(crate) static PROBE_ELF: &[u8] =
     &embedded::AlignedElf::new(*include_bytes!(concat!(env!("OUT_DIR"), "/zejtron-ebpf.o"))).bytes;
 
 /// Attach the probe: the privileged one-shot.
@@ -93,8 +93,13 @@ pub fn attach() -> Result<String, String> {
             ));
         }
         LaneVerdict::LiveAttached => {
-            // Idempotence: a complete pin set IS attached. Read the
-            // live counter for the honest report.
+            // Idempotence, proven (night-frontier-Z2): a complete pin
+            // set IS attached only when its generation stamp says so
+            // - same boot, same build. A foreign estate (another
+            // build between attach and now, anything that left pins
+            // under the one directory) refuses by name with the
+            // remedy; a stamped estate is the honest already-shape.
+            super::estate::verify_at_drain()?;
             let count = super::readback::read_events_counter();
             return Ok(attach_already_summary(
                 &count,
