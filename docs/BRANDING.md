@@ -125,9 +125,9 @@ Every wall-clock surface renders through `src/clock.rs` - Howard
 Hinnant's `civil_from_days` algorithm on `std::time` only, no time
 crate, no timezone database in the binary:
 
-- `-V`/`--version` carries `Build-time: M/D/YYYY HH:MM (UTC)`, stamped
-  by `build.rs` at compile time (minute precision, identical across
-  build hosts).
+- `-V`/`--version` carries `Build-time: YYYY-MM-DD HH:MMZ` (ISO 8601,
+  UTC; night-pro-1, the estate-wide format), stamped by `build.rs` at
+  compile time (minute precision, identical across build hosts).
 - `touch` evidence timestamps render as
   `YYYY-MM-DD HH:MM:SS (UTC)` - the tree's long-standing zero-padded
   core with an explicit UTC marker instead of a silently wrong local

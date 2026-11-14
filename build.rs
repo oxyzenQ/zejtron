@@ -89,7 +89,9 @@ fn main() {
     // identical across build hosts. Freshness equals the build.rs run
     // time: re-executed whenever git HEAD or source inputs change
     // (cargo's standard build-script caching). Minute precision, the
-    // family `M/D/YYYY HH:MM (UTC)` contract the `-V` report carries.
+    // family ISO 8601 `YYYY-MM-DD HH:MMZ` contract the `-V` report
+    // carries (night-pro-1: the estate-wide format the flagship
+    // already stamped, replacing the US-ambiguous M/D/YYYY shape).
     let build_time = format_build_time_utc();
     println!("cargo:rustc-env=ZEJTRON_BUILD_TIME={build_time}");
 
@@ -116,7 +118,9 @@ fn format_build_time_utc() -> String {
 }
 
 /// Pure formatting function - takes unix-epoch seconds and returns
-/// `M/D/YYYY HH:MM (UTC)`. Separated from `format_build_time_utc` so
+/// `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC; night-pro-1 aligns the stamp
+/// with the flagship's format, replacing the US-ambiguous
+/// `M/D/YYYY HH:MM (UTC)` shape). Separated from `format_build_time_utc` so
 /// the algorithm is unit-testable without depending on the wall clock.
 ///
 /// Algorithm: split `total_secs` into days + seconds-of-day, then use
@@ -142,7 +146,7 @@ fn format_unix_secs_as_build_time(total_secs: i64) -> String {
     let m = if mp < 10 { mp + 3 } else { mp - 9 }; // [1, 12]
     let year = if m <= 2 { y + 1 } else { y };
 
-    format!("{m}/{d}/{year} {hour:02}:{minute:02} (UTC)")
+    format!("{year:04}-{m:02}-{d:02} {hour:02}:{minute:02}Z")
 }
 
 // ── The commit-sha chain (sibling build/vcs.rs lineage) ─────────────
@@ -224,25 +228,25 @@ mod tests {
     #[test]
     fn build_time_format_matches_known_unix_epochs() {
         // UNIX epoch: 1970-01-01 00:00:00 UTC.
-        assert_eq!(format_unix_secs_as_build_time(0), "1/1/1970 00:00 (UTC)");
+        assert_eq!(format_unix_secs_as_build_time(0), "1970-01-01 00:00Z");
 
         // 2000-01-01 00:00:00 UTC = 946_684_800 seconds since epoch.
         assert_eq!(
             format_unix_secs_as_build_time(946_684_800),
-            "1/1/2000 00:00 (UTC)"
+            "2000-01-01 00:00Z"
         );
 
         // 2024-02-29 12:34:00 UTC = 1_709_210_040 seconds since epoch.
         // Leap-day boundary check - Feb 29 must not roll to Mar 1.
         assert_eq!(
             format_unix_secs_as_build_time(1_709_210_040),
-            "2/29/2024 12:34 (UTC)"
+            "2024-02-29 12:34Z"
         );
 
         // 2026-08-04 15:30:00 UTC = 1_785_857_400 seconds since epoch.
         assert_eq!(
             format_unix_secs_as_build_time(1_785_857_400),
-            "8/4/2026 15:30 (UTC)"
+            "2026-08-04 15:30Z"
         );
     }
 
@@ -253,7 +257,7 @@ mod tests {
         // never rounded up.
         assert_eq!(
             format_unix_secs_as_build_time(1_709_210_440),
-            "2/29/2024 12:40 (UTC)"
+            "2024-02-29 12:40Z"
         );
     }
 
@@ -263,8 +267,8 @@ mod tests {
         // valid proleptic Gregorian date via signed arithmetic.
         let result = format_unix_secs_as_build_time(-60);
         assert!(
-            result.ends_with("(UTC)"),
-            "negative-epoch result should still be (UTC)-suffixed: {result}"
+            result.ends_with('Z'),
+            "negative-epoch result should still be Z-suffixed: {result}"
         );
         assert!(
             result.contains("1969"),
