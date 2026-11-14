@@ -3,7 +3,6 @@
 // NON_LATIN_FIXTURE: the parser comments quote the literal
 // multibyte crash inputs (`5分`) the char-boundary fix names.
 
-use std::cmp::Reverse;
 use std::fmt::Write as _;
 use std::fs;
 use std::io;
@@ -207,7 +206,17 @@ pub fn parse_duration(input: &str) -> Result<Duration, String> {
 }
 
 pub fn sort_newest_first(files: &mut [RecentFile]) {
-    files.sort_by_key(|file| Reverse(file.modified));
+    // night-depth-hardening-1: the mtime key alone leaves ties (bulk
+    // extraction, git checkout, disk image mounts - whole trees share
+    // one mtime) to the scan order, and readdir order is
+    // filesystem-dependent, so the render was not byte-stable across
+    // distros or even runs. Equal timestamps now break by path, the
+    // row's own identity: same facts in, same bytes out.
+    files.sort_by(|left, right| {
+        right.modified
+            .cmp(&left.modified)
+            .then(left.path.cmp(&right.path))
+    });
 }
 
 /// The selection and the match count it cut: the tuple's second

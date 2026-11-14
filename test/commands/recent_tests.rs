@@ -110,6 +110,49 @@ fn sorts_newest_first() {
 }
 
 #[test]
+fn equal_mtimes_break_by_path_not_by_scan_order() {
+    // night-depth-hardening-1: bulk extraction, git checkout, and
+    // disk image mounts leave whole trees sharing one mtime. The
+    // path is the row's own identity - the render must be
+    // byte-stable for the same input on every filesystem, distro,
+    // and run, so ties break by path even when the scan fed them in
+    // the opposite order.
+    let now = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
+    let mtime = now - Duration::from_secs(10);
+    let mut files = vec![
+        RecentFile {
+            path: PathBuf::from("zz"),
+            modified: mtime,
+            changed: mtime,
+            size: 100,
+            uid: 1000,
+            perms: 0o644,
+        },
+        RecentFile {
+            path: PathBuf::from("aa"),
+            modified: mtime,
+            changed: mtime,
+            size: 100,
+            uid: 1000,
+            perms: 0o644,
+        },
+        RecentFile {
+            path: PathBuf::from("mm"),
+            modified: mtime,
+            changed: mtime,
+            size: 100,
+            uid: 1000,
+            perms: 0o644,
+        },
+    ];
+
+    sort_newest_first(&mut files);
+
+    let paths: Vec<&str> = files.iter().map(|file| file.path.to_str().unwrap_or("")).collect();
+    assert_eq!(paths, vec!["aa", "mm", "zz"]);
+}
+
+#[test]
 fn limit_zero_selects_no_files_but_names_the_match_count() {
     let now = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
     let files = vec![RecentFile {
