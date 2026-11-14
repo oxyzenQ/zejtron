@@ -24,12 +24,16 @@ const LICENSE_LINE: &str = "License: AGPL-3.0-only";
 /// toolchain, no clang, no separate object files ever touch the
 /// target machine. The eBPF support is UNCONDITIONAL, so every
 /// build that compiles is a full-life build and carries this line.
-/// The identity tail this line carried through night-signature-1
-/// moved to the masked provenance layers (night-signature-advanced-1):
-/// a plaintext identity here would hand a thief the exact grep target
-/// the masked scheme exists to deny, so the claim line keeps the
-/// eBPF fact only and the identity renders from the masked words (the
-/// Copyright line, the `sig` report).
+/// The identity rides the masked provenance layers
+/// (night-signature-advanced-1): a plaintext identity here would hand
+/// a thief the exact grep target the masked scheme exists to deny, so
+/// the const carries the eBPF claim only. The rendered line restores
+/// the family clause (night-pro-1, the estate -V law): signature_line
+/// appends the manifest materialized from the masked words at render
+/// time - the same single unmask pass the Copyright line and the
+/// `sig` report already render from - so the three sibling reports
+/// and this one carry one "claim, em dash, manifest" shape while the
+/// artifact bytes still hold no identity at rest.
 const SIGNATURE_LINE: &str = "Signature: Pure eBPF builtin";
 
 /// The degraded Signature (night-dragon-maintenance-T1): the guard
@@ -60,14 +64,16 @@ pub(crate) fn ebpf_lane() -> &'static str {
 }
 
 /// The Signature line this binary's version report carries
-/// (night-dragon-maintenance-T1): the full-life claim when the lane
-/// stamp proves embedded objects, the honest unstamped line when it
-/// does not. Both real lanes embed the object, so every real build
-/// answers SIGNATURE_LINE.
-fn signature_line() -> &'static str {
+/// (night-dragon-maintenance-T1, the family clause law night-pro-1):
+/// the full-life claim followed by the materialized identity manifest
+/// when the lane stamp proves embedded objects - the exact shape the
+/// sibling reports render - built from the caller's single unmask
+/// pass (no second materialization). The honest unstamped line when
+/// the stamp does not exist: a broken stamp never quotes a manifest.
+fn signature_line(manifest: &str) -> String {
     match ebpf_lane() {
-        "source-built" | "registry-prebuilt" => SIGNATURE_LINE,
-        _ => SIGNATURE_UNSTAMPED_LINE,
+        "source-built" | "registry-prebuilt" => format!("{SIGNATURE_LINE} — {manifest}"),
+        _ => SIGNATURE_UNSTAMPED_LINE.to_owned(),
     }
 }
 
@@ -174,9 +180,11 @@ fn build_hash() -> &'static str {
 /// literal (the release lanes' `strings` contract). The Signature
 /// line (night-dragon-maintenance-T1) sits on its own line directly
 /// after Build-time, easy to grep (`zejtron -V | grep Signature`);
-/// since the advanced scheme it carries the eBPF claim only - the
-/// identity is NOT in the artifact as plaintext (the masked provenance
-/// layers' whole point). The Depth-matrix line rides directly after it:
+/// it leads with the eBPF claim and carries the materialized identity
+/// manifest after the em dash (night-pro-1, the family -V law) - the
+/// identity is still NOT in the artifact as plaintext, it renders
+/// from the masked provenance layers (their whole point). The
+/// Depth-matrix line rides directly after it:
 /// the masked scheme's status line (fingerprint, status, anchor,
 /// layers), materialized from one unmask pass per render (the
 /// single-pass invariant in [`provenance`]).
@@ -185,7 +193,7 @@ fn version_body() -> String {
     [
         format!("Build: {} ({})", build_label(), build_hash()),
         format!("Build-time: {}", build_time()),
-        signature_line().to_owned(),
+        signature_line(&view.manifest),
         view.depth_line,
         format!("Copyright: (c) 2026 {}", view.authors),
         LICENSE_LINE.to_owned(),
@@ -229,7 +237,7 @@ pub mod clock;
 /// Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious.
 /// Build: local-pro-linux-amd64-v3-musl (3ae9dda)
 /// Build-time: 10/17/2026 09:15 (UTC)
-/// Signature: Pure eBPF builtin
+/// Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026
 /// Depth-matrix: fp=<16 lowercase hex> status=verified anchor=b3:<64 lowercase hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
 /// Copyright: (c) 2026 rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>
 /// License: AGPL-3.0-only

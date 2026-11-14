@@ -136,9 +136,9 @@ fn detected_build_target_shape_is_os_arch_libc() {
 /// exactly once, directly after Build-time, and is the lane-honest
 /// one of the two documented lines - a build whose eBPF lane stamp
 /// proves embedded objects (source-built or registry-prebuilt: the
-/// objects ride inside the binary either way) carries "Pure eBPF
-/// builtin"; a missing stamp carries the honest unstamped line and
-/// never the claim it cannot back.
+/// objects ride inside the binary either way) carries the claim plus
+/// the materialized manifest clause; a missing stamp carries the
+/// honest unstamped line and never the claim it cannot back.
 #[test]
 fn signature_line_is_pinned_after_build_time_and_lane_honest() {
     let body = version_body();
@@ -147,9 +147,14 @@ fn signature_line_is_pinned_after_build_time_and_lane_honest() {
         .filter(|l| l.starts_with("Signature: "))
         .count();
     assert_eq!(count, 1, "the Signature line must appear exactly once");
-    let expected = signature_line();
+    let view = provenance::provenance_view();
+    let expected = signature_line(&view.manifest);
     assert!(
-        [SIGNATURE_LINE, SIGNATURE_UNSTAMPED_LINE].contains(&expected),
+        [
+            format!("{SIGNATURE_LINE} — {}", view.manifest),
+            SIGNATURE_UNSTAMPED_LINE.to_owned(),
+        ]
+        .contains(&expected),
         "signature must be one of the documented lines, got: {expected}"
     );
     let lines: Vec<&str> = body.lines().collect();
@@ -168,8 +173,10 @@ fn signature_line_is_pinned_after_build_time_and_lane_honest() {
     assert_eq!(
         expected,
         match ebpf_lane() {
-            "source-built" | "registry-prebuilt" => SIGNATURE_LINE,
-            _ => SIGNATURE_UNSTAMPED_LINE,
+            "source-built" | "registry-prebuilt" => {
+                format!("{SIGNATURE_LINE} — {}", view.manifest)
+            }
+            _ => SIGNATURE_UNSTAMPED_LINE.to_owned(),
         }
     );
 }
@@ -179,10 +186,12 @@ fn signature_line_is_pinned_after_build_time_and_lane_honest() {
 /// any capability, and the Signature literal rides the body as ONE
 /// contiguous line (the release lane's byte-grep probe greps
 /// exactly those bytes, grep -aFq, against v4 artifacts it cannot
-/// execute). Since night-signature-advanced-1 the literal carries
-/// the eBPF claim only: the identity moved to the masked provenance
-/// layers, and a plaintext identity here would be the exact grep
-/// target the scheme denies.
+/// execute). Since night-signature-advanced-1 the identity lives in
+/// the masked provenance layers; night-pro-1 restores the family
+/// clause on the rendered line: the claim leads and the manifest
+/// materializes from the masked words at render time, so the artifact
+/// bytes still carry no identity at rest (the masked-word pins in
+/// signature_tests.rs hold that contract at the byte level).
 #[test]
 fn version_report_body_is_plain_and_signature_literal_is_contiguous() {
     let body = version_body();
@@ -191,12 +200,18 @@ fn version_report_body_is_plain_and_signature_literal_is_contiguous() {
         "the -V body must print plain - no color wrap around the build facts"
     );
     assert_eq!(SIGNATURE_LINE, "Signature: Pure eBPF builtin");
-    // The identity must not ride the body as plaintext anywhere: the
-    // at-rest invisibility contract, pinned at the report level (the
-    // masked layers materialize it only at the render site).
-    assert!(
-        !body.contains("rezky_nightky (oxyzenQ) 2026"),
-        "the version body must not carry the identity claim as plaintext"
+    // Family consistency: the rendered Signature line is the claim
+    // const followed by the materialized manifest after the em dash -
+    // one render pass, the shape the three sibling reports carry.
+    let view = provenance::provenance_view();
+    let rendered = body
+        .lines()
+        .find(|l| l.starts_with("Signature: "))
+        .expect("the Signature line present");
+    assert_eq!(
+        rendered,
+        &format!("{SIGNATURE_LINE} — {}", view.manifest),
+        "the Signature line leads with the claim and carries the manifest clause"
     );
 }
 
