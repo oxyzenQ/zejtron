@@ -43,6 +43,53 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z2 part C, the wall-offset skew law (the
+  provenance timestamps are honest down to their own sample).** A
+  rendered civil time is `monotonic stamp + wall offset`, and the
+  offset is a measurement, not a fact of nature - an NTP step
+  between the capture and the render moves it under every row
+  already recorded. Two guards: every row of a report renders under
+  the ONE offset the renderer sampled at its start (two rows can
+  never disagree because a step fell between their reads), and the
+  capture's opening offset is re-measured at render time - a wall
+  clock that moved beyond half a rendered second is NAMED in the
+  Unaccounted blocks (the evidence ledgers, the port event section,
+  the doctor ram report, text and JSON alike) with the signed
+  movement and the rows' exposure; the port JSON carries it typed
+  (`changes.wall_skew_ns`, null when the measurement did not
+  answer, never a guessed zero). No flag, no subcommand, no schema
+  break: additive boundary data.
+- **night-frontier-Z2 part D, the pin estate's identity (the
+  camera proves it is this boot's own camera, planted by this
+  build).** The estate stamps its boot identity, its probe object
+  identity, and the attach instant into a pinned `generation` map
+  at attach; every recording boundary re-derives the live facts and
+  compares, and a foreign boot or a foreign build refuses by name -
+  the planted word beside the current one, the remedy named. Attach
+  idempotence is now proven, not structural: a complete pin set is
+  the already-attached success shape only when its stamp agrees.
+  The estate grows one pin (23 -> 24); FNV-1a 64 is the identity
+  digest on purpose (deterministic across compilers, dependency-
+  free, an identity not a security boundary - the module doc says
+  so plainly).
+- **night-frontier-Z2 part E, the proof rig (the claims become
+  verified artifacts a buyer can audit).** The determinism
+  certificate: three canonical fixtures rendered in TWO INDEPENDENT
+  cargo test invocations on every push, the two directories diffed,
+  the certificate issued only when the byte diff is empty (digest +
+  commit ride the artifact) - the "two conformant runs diff to
+  empty" law is a living proof, not a promise. The kernel dialect
+  corpus: the .BTF sections of two REAL GA kernels (jammy
+  5.15.0-25, the floor's own kernel; noble 6.8.0-31) and a real
+  /proc bundle captured one dialect BELOW the attach floor,
+  committed whole under `corpus/` with their digests pinned through
+  the tree's own blake3 - the derived walk tables are pinned slot
+  by slot, INCLUDING the disagreement between generations
+  (file.f_path 16 -> 152, file.f_inode 32 -> 168,
+  task_struct.files 2928 -> 3080), so a parser change that would
+  misread any committed dialect fails the suite on every host,
+  forever. The moving kernels stay locked live on the witness legs;
+  the corpus freezes the dialects themselves.
 - **night-frontier-Z1, the drop truth (the rings stopped dropping in
   silence).** A bounded ring whose reserve fails drops the event - the
   kernel cannot remember what it did not record, but it CAN count how
