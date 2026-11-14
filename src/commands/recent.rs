@@ -213,7 +213,8 @@ pub fn sort_newest_first(files: &mut [RecentFile]) {
     // distros or even runs. Equal timestamps now break by path, the
     // row's own identity: same facts in, same bytes out.
     files.sort_by(|left, right| {
-        right.modified
+        right
+            .modified
             .cmp(&left.modified)
             .then(left.path.cmp(&right.path))
     });
