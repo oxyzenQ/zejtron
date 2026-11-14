@@ -508,5 +508,8 @@ pub(crate) fn residual_kib(sample: &MemorySample) -> Option<u64> {
 }
 
 #[cfg(test)]
+#[path = "../../../test/corpus/proc_corpus_tests.rs"]
+mod corpus_tests;
+#[cfg(test)]
 #[path = "../../../test/commands/doctor/memory_tests.rs"]
 mod tests;
