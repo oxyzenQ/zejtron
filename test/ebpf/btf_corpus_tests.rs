@@ -26,8 +26,10 @@
 //! `cargo test the_btf_corpus -- --nocapture` (the derivation
 //! harness prints the table), and pin the digest + the table below.
 
-#[path = "../../build/blake3.rs"]
-mod blake3;
+// The blake3 reader rides the ONE include site the tree already
+// carries (src/info/provenance.rs) - a second path-include of the
+// same file is a rustc error, and one implementation is the law.
+use crate::info::provenance::blake3;
 
 use super::super::btf_unlink;
 use super::*;

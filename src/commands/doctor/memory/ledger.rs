@@ -441,12 +441,9 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
     // actually happened at. A state boundary: it rides whenever the
     // measurement answers.
     let render_offset = crate::info::clock::wall_offset_ns();
-    if let Some(skew) =
-        crate::info::clock::material_skew_ns(sample.exit_wall_pre_offset, render_offset)
-    {
-        if let Some(line) = super::boundary::wall_skew_line(skew) {
-            lines.push(line);
-        }
+    let skew = crate::info::clock::material_skew_ns(sample.exit_wall_pre_offset, render_offset);
+    if let Some(line) = skew.and_then(super::boundary::wall_skew_line) {
+        lines.push(line);
     }
     // The permission boundaries, named always - a report that only
     // mentions them when they fired would read as "everything was

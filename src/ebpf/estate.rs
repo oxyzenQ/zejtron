@@ -97,8 +97,8 @@ fn boot_id_fnv() -> Result<u64, String> {
     Ok(boot_id_fnv_from(&text))
 }
 
-/// The probe object's identity: fnv1a64 over the embedded ELF bytes
-/// - the record contract itself. The same object always hashes the
+/// The probe object's identity: fnv1a64 over the embedded ELF bytes,
+/// which ARE the record contract. The same object always hashes the
 /// same; a different build (a changed probe, a changed record) rides
 /// a different identity.
 fn object_fnv() -> u64 {
