@@ -168,7 +168,7 @@ fn build_hash() -> &'static str {
 /// and the description ride brand regular #A855F7 in ONE wrap, exactly
 /// the sibling's construction. The body renders plain, with the one
 /// green seat the owner's spec gives the provenance line: the
-/// `Depth-sig:` line is the strongest provenance tag in the report and
+/// `Depth-matrix:` line is the strongest provenance tag in the report and
 /// rides the Ok tier on a terminal (night-signature-advanced-1),
 /// plain bytes in a pipe. The License line stays ONE contiguous
 /// literal (the release lanes' `strings` contract). The Signature
@@ -176,7 +176,7 @@ fn build_hash() -> &'static str {
 /// after Build-time, easy to grep (`zejtron -V | grep Signature`);
 /// since the advanced scheme it carries the eBPF claim only - the
 /// identity is NOT in the artifact as plaintext (the masked provenance
-/// layers' whole point). The Depth-sig line rides directly after it:
+/// layers' whole point). The Depth-matrix line rides directly after it:
 /// the masked scheme's status line (fingerprint, status, anchor,
 /// layers), materialized from one unmask pass per render (the
 /// single-pass invariant in [`provenance`]).
@@ -230,13 +230,13 @@ pub mod clock;
 /// Build: local-pro-linux-amd64-v3-musl (3ae9dda)
 /// Build-time: 10/17/2026 09:15 (UTC)
 /// Signature: Pure eBPF builtin
-/// Depth-sig: fp=<16 lowercase hex> status=verified anchor=b3:<64 lowercase hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
+/// Depth-matrix: fp=<16 lowercase hex> status=verified anchor=b3:<64 lowercase hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
 /// Copyright: (c) 2026 rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>
 /// License: AGPL-3.0-only
 /// Source: `<https://github.com/oxyzenQ/zejtron>`
 /// ```
 ///
-/// The `Depth-sig:` line rides the status-green tier on a terminal
+/// The `Depth-matrix:` line rides the status-green tier on a terminal
 /// (the owner's spec mark, night-signature-advanced-1) and stays
 /// plain bytes in a pipe - the paint decision anchors on the STDOUT
 /// lane's capability ladder, the same gate every data surface uses.
@@ -259,7 +259,7 @@ pub fn print_version_report() {
         ))
     );
     for line in version_body().lines() {
-        if line.starts_with("Depth-sig: ") {
+        if line.starts_with("Depth-matrix: ") {
             println!("{}", crate::output::ok_out(line));
         } else {
             println!("{line}");

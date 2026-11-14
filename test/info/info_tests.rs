@@ -201,19 +201,19 @@ fn version_report_body_is_plain_and_signature_literal_is_contiguous() {
 }
 
 /// night-signature-1 contract, the masked night-signature-advanced-1
-/// shape: the Depth-sig line appears exactly once, directly after the
+/// shape: the Depth-matrix line appears exactly once, directly after the
 /// Signature line, and carries the masked scheme's status line (the
 /// fp= fingerprint, the status=verified verdict, the b3: anchor, the
 /// layers token). The line renders from ONE unmask pass per render
 /// (the single-pass invariant in the provenance module).
 #[test]
-fn depth_sig_line_is_pinned_after_the_signature_line() {
+fn depth_matrix_line_is_pinned_after_the_signature_line() {
     let body = version_body();
     let count = body
         .lines()
-        .filter(|l| l.starts_with("Depth-sig: "))
+        .filter(|l| l.starts_with("Depth-matrix: "))
         .count();
-    assert_eq!(count, 1, "the Depth-sig line must appear exactly once");
+    assert_eq!(count, 1, "the Depth-matrix line must appear exactly once");
     let lines: Vec<&str> = body.lines().collect();
     let sig_idx = lines
         .iter()
@@ -223,10 +223,10 @@ fn depth_sig_line_is_pinned_after_the_signature_line() {
     assert_eq!(
         lines[sig_idx + 1],
         view.depth_line,
-        "the Depth-sig line must follow the Signature line"
+        "the Depth-matrix line must follow the Signature line"
     );
     assert!(
-        lines[sig_idx + 1].starts_with("Depth-sig: fp="),
+        lines[sig_idx + 1].starts_with("Depth-matrix: fp="),
         "the fp= token leads the masked scheme's line"
     );
     assert!(
