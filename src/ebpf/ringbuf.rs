@@ -68,6 +68,15 @@ pub fn open_ring(pin: &str, label: &str) -> Result<RingBuf<MapData>, String> {
             base
         }
     })?;
+    // The identity gate (night-frontier-Z2, the generation stamp):
+    // every recording boundary first proves the estate it found is
+    // THIS boot's own camera, planted by THIS build - the stamp was
+    // written at attach, the live facts are re-derived here, and a
+    // mismatch refuses by name before one record is trusted. The
+    // file ring's drain adds the offsets re-verification on top
+    // (night-frontier-Z1): WHOSE camera is the estate-wide law, WHICH
+    // walk table is the file-lane's own.
+    super::estate::verify_at_drain()?;
     RingBuf::try_from(Map::RingBuf(map_data))
         .map_err(|e| format!("the pinned {label} map is not a ring buffer: {e}"))
 }

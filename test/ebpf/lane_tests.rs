@@ -189,10 +189,11 @@ fn pin_constants_carry_the_removal_order() {
     assert_eq!(ALL_PINS[20], PIN_MAP_FILE_EVENTS);
     assert_eq!(ALL_PINS[21], PIN_MAP_OFFSETS);
     assert_eq!(ALL_PINS[22], PIN_MAP_DROP_CENSUS);
+    assert_eq!(ALL_PINS[23], PIN_MAP_GENERATION);
     assert_eq!(
         ALL_PINS.len(),
-        23,
-        "twenty-three pins: 8 links, 8 programs, 7 maps"
+        24,
+        "twenty-four pins: 8 links, 8 programs, 8 maps"
     );
     for pin in ALL_PINS {
         assert!(

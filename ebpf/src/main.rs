@@ -328,6 +328,18 @@ pub(crate) fn count_ring_drop(slot: u32) {
     }
 }
 
+/// The generation stamp map (night-frontier-Z2): Array<u64>, three
+/// slots the LOADER writes once at attach and the drains read back -
+/// boot identity, probe object identity, attach instant (the
+/// GEN_SLOT_* contract in src/ebpf/estate.rs). The BPF programs
+/// never touch it: it is the estate's passive identity record, the
+/// fact the camera uses to prove it is this boot's own camera,
+/// planted by this build. The map lives beside the others so the pin
+/// estate plants and sweeps as one atomic unit.
+#[allow(non_upper_case_globals)]
+#[map(name = "generation")]
+pub(crate) static generation: Array<u64> = Array::with_max_entries(3, 0);
+
 /// The probe: increment stats[STATS_EVENTS] on every process exec.
 /// The counter is the phase-1 chain proof - the doctor's readback.
 /// (night-improve-34: the exec lifecycle event emission is gone with
