@@ -47,7 +47,7 @@ range pin and fail.
 | --- | --- |
 | `5.10.134-kangaroo-al8/meminfo` | `/proc/meminfo` from the live sandbox host, kernel 5.10.134 (kangaroo al8) - one dialect BELOW the attach floor: parsing is wider than attaching, and the corpus proves the parsers read formats older than the estate promises |
 | `5.10.134-kangaroo-al8/status` | `/proc/<pid>/status` of pid 13333, the `cp` process that performed the capture - the bundle's own worker, its provenance stated by being its own fixture |
-| `5.10.134-kangaroo-al8/status-pid1.txt` | `/proc/1/status` of the same host - the sandbox's `tini` init |
+| `5.10.134-kangaroo-al8/status-pid1` | `/proc/1/status` of the same host - the sandbox's `tini` init |
 | `5.10.134-kangaroo-al8/net/{tcp,tcp6,udp,udp6,dev}`, `stat`, `diskstats`, `mounts`, `uptime`, `loadavg` | the same host's live `/proc` files at capture time (2026-11-14), the parsers' full input surface |
 
 Captured 2026-11-14 from the project's own sandbox host. The

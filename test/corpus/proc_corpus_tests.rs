@@ -51,7 +51,7 @@ fn the_status_dialect_parses_its_real_processes() {
     assert_eq!(worker.pid, 13_333);
     assert_eq!(worker.name, "cp");
     let init =
-        parse_status(&dialect_file("status-pid1.txt")).expect("the committed pid-1 status parses");
+        parse_status(&dialect_file("status-pid1")).expect("the committed pid-1 status parses");
     assert_eq!(init.pid, 1);
     assert_eq!(init.name, "tini");
 }
