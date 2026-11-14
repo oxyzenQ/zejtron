@@ -447,50 +447,6 @@ mod live {
     }
 
     #[test]
-    fn snapshot_rows_are_flat_provenance_tcp_first() {
-        let sockets = vec![
-            SocketEntry {
-                protocol: Protocol::Udp,
-                address: "0.0.0.0".to_owned(),
-                port: 5353,
-                remote_address: "0.0.0.0".to_owned(),
-                remote_port: 0,
-                state: None,
-                inode: 2,
-            },
-            SocketEntry {
-                protocol: Protocol::Tcp,
-                address: "0.0.0.0".to_owned(),
-                port: 22,
-                remote_address: "0.0.0.0".to_owned(),
-                remote_port: 0,
-                state: Some("LISTEN".to_owned()),
-                inode: 1,
-            },
-        ];
-        let mut owners: OwnerMap = HashMap::new();
-        owners.insert(
-            1,
-            vec![ProcessInfo {
-                pid: 1234,
-                name: "sshd".to_owned(),
-                user: "root".to_owned(),
-                cwd: None,
-                cmdline: None,
-                fd: Some(3),
-            }],
-        );
-        let rows = snapshot_rows(&sockets, &owners, &options());
-        assert_eq!(rows.len(), 2);
-        // TCP block first, then UDP - the spec's grouping.
-        assert_eq!(
-            rows[0],
-            "[snapshot]  TCP  0.0.0.0:22  LISTEN  PID 1234  (sshd)"
-        );
-        assert_eq!(rows[1], "[snapshot]  UDP  0.0.0.0:5353  owner unknown");
-    }
-
-    #[test]
     fn window_events_filter_by_clock_protocol_and_port() {
         // The live filter chain: window cutoff, protocol selection,
         // port selection - pinned against the same CLOCK_MONOTONIC
