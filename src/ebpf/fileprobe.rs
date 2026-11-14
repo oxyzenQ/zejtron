@@ -42,12 +42,25 @@ use super::tracked::{track_file, untrack_file};
 /// an error, never a silent lane switch). The untrack on the error
 /// paths is the fail protocol: no window ends with a leaked key
 /// while this code can still run.
+///
+/// The `Ok` payload carries the capture's PRE offset alongside the
+/// events (night-frontier-Z2, the wall-offset skew law): the wall
+/// offset sampled the instant the window BEGINS - the anchor the
+/// renderer measures its own render-time offset against, so a wall
+/// clock that moved under the window is named instead of serving
+/// skewed civil times silently. `None` rides when the clocks were
+/// unreadable at the start (the render already degrades to
+/// `unknown UTC` on its own).
 pub fn capture_file_window(
     inode: u64,
     device: u64,
     window: Duration,
-) -> Result<Vec<FileEvent>, String> {
+) -> Result<(Vec<FileEvent>, Option<i128>), String> {
     track_file(inode, device)?;
+    // The pre sample: after the key is in (the window is about to
+    // open) and before the wait - the earliest instant the capture's
+    // own span can name.
+    let pre_offset = crate::info::clock::wall_offset_ns();
     // The collection: the kprobes are live against the filter map
     // for exactly this long. std sleep, no reader thread — the ring
     // keeps the history and one drain takes it. The wait is
@@ -56,7 +69,7 @@ pub fn capture_file_window(
     crate::output::spinner::wait(window, "watching for events");
     untrack_file(inode, device)?;
     let drained = ringbuf::drain_file_events()?;
-    Ok(select_window(&drained, inode, device))
+    Ok((select_window(&drained, inode, device), pre_offset))
 }
 
 /// Keep only the events whose FULL identity (inode + device, both
@@ -88,17 +101,14 @@ pub fn select_window(events: &[FileEvent], inode: u64, device: u64) -> Vec<FileE
     selected
 }
 
-/// One event's wall-clock unix seconds (truncated to the second,
-/// the ledger's rendering granularity). `None` when the clocks are
-/// unreadable — the row then renders `unknown`, never a fabricated
-/// time. The offset is the crate's one source
-/// (crate::info::clock::wall_offset_ns, CLOCK_MONOTONIC through
-/// clock_gettime - the same domain the eBPF stamps ride), never a
-/// /proc/uptime re-implementation: the two clocks differ by the
-/// host's cumulative suspend time, and a BOOTTIME-based offset
-/// renders every live row that much too early.
-pub fn event_unix_secs(event: &FileEvent) -> Option<i64> {
-    let offset = crate::info::clock::wall_offset_ns()?;
+/// The offset-threaded form (night-frontier-Z2, the
+/// one-offset-per-render-breath law): every row of a report renders
+/// under the ONE offset its renderer sampled at its start, so a wall
+/// clock step between two rows' reads can never make the rows
+/// disagree. Same arithmetic as [`event_unix_secs`], same `None`
+/// honesty.
+pub fn event_unix_secs_with(event: &FileEvent, offset: Option<i128>) -> Option<i64> {
+    let offset = offset?;
     let nanos = event.timestamp_ns as i128 + offset;
     if nanos.is_negative() {
         return None;

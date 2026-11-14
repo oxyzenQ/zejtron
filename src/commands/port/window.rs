@@ -211,6 +211,11 @@ pub(crate) struct WindowCapture {
     /// (its behavior is unchanged); the JSON lane reports the detach
     /// instead of serving a partial window as if it were whole.
     pub detached_mid_window: bool,
+    /// The wall offset sampled the instant the window opened
+    /// (night-frontier-Z2): the skew measurement's anchor. The
+    /// renderers measure their own render-time offsets against it
+    /// and name the movement beyond the half-second bound.
+    pub pre_offset: Option<i128>,
 }
 
 /// The default shape: both truths when the chain is live, the
@@ -229,6 +234,7 @@ fn default_output(
             options,
             &capture.events,
             capture.bounds,
+            capture.pre_offset,
         ),
         // The fallback keeps the phase-1 tree below the banner: the
         // snapshot itself is unchanged, the honesty line above it is
@@ -298,6 +304,14 @@ pub fn capture_window(options: &PortOptions) -> Result<WindowCapture, LaneUnavai
         }
     };
     let mut collected: Vec<SockEvent> = Vec::new();
+    // The pre sample (night-frontier-Z2, the wall-offset skew law):
+    // the wall offset the instant the window is about to open - the
+    // anchor the section renderer measures its own render-time
+    // offset against, so a wall clock that moved under the window is
+    // named instead of riding the civil times silently. `None` rides
+    // when the clocks were unreadable here (the render already
+    // degrades to `unknown UTC` on its own).
+    let pre_offset = crate::info::clock::wall_offset_ns();
     // The observed bounds: one stamp the instant the wait begins and
     // one the instant it ends - the same CLOCK_MONOTONIC domain the
     // records and the cutoff filter speak (window_events cuts at
@@ -322,6 +336,7 @@ pub fn capture_window(options: &PortOptions) -> Result<WindowCapture, LaneUnavai
         events: window_events(&collected, options),
         bounds,
         detached_mid_window,
+        pre_offset,
     })
 }
 
@@ -453,6 +468,7 @@ fn window_events(events: &[SockEvent], options: &PortOptions) -> Vec<SockEvent> 
 /// the event section, and the unreadable note when the scan hit
 /// walls - the note is snapshot honesty, and it survives the format
 /// change.
+#[allow(clippy::too_many_arguments)]
 fn format_window_report(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
@@ -460,6 +476,7 @@ fn format_window_report(
     options: &PortOptions,
     events: &[SockEvent],
     bounds: Option<(u64, u64)>,
+    pre_offset: Option<i128>,
 ) -> String {
     let mut lines = Vec::new();
     // The Mode banner (the buyer verification honesty contract): the window
@@ -485,6 +502,7 @@ fn format_window_report(
         options.window,
         options.no_pid,
         bounds,
+        pre_offset,
     ));
     if udp_events_only(options) {
         lines.push(String::new());

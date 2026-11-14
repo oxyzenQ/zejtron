@@ -175,40 +175,66 @@ pub(crate) fn wall_offset_ns() -> Option<i128> {
     Some(wall - mono)
 }
 
-/// Render a monotonic event stamp as `HH:MM:SS UTC` (the same
-/// UTC-only discipline every zejtron surface renders in). The
-/// wall offset is read in the caller's breath; an unreadable pair
-/// of clocks degrades to `unknown UTC` - an absent fact stays
-/// absent, never guessed.
-pub(crate) fn time_of_day_from_monotonic_ns(timestamp_ns: u64) -> String {
-    match wall_offset_ns() {
+// ── The wall-offset skew law (night-frontier-Z2) ────────────────────
+//
+// A civil time a report renders is `monotonic stamp + wall offset`,
+// and the offset is a MEASUREMENT, not a fact of nature: an NTP step
+// (or a manual clock set) between the capture and the render moves
+// it under every row already recorded. Two guards make the rendered
+// times honest down to the sample they came from:
+//
+// 1. ONE OFFSET PER RENDER BREATH: a report's rows all render under
+//    the offset the renderer sampled once at its start - two rows
+//    can never disagree because a step happened between their two
+//    reads (the pair law, extended from the range pair to the whole
+//    report).
+// 2. THE NAMED SKEW: every capturing surface samples the offset
+//    again at capture start (the pre sample), and the renderer
+//    measures `render offset - pre offset`. Beyond the bound below,
+//    the wall clock demonstrably moved under the window, and the
+//    report names the skew instead of serving skewed civil times as
+//    if they were whole. Inside the bound the difference is the
+//    measurement's own noise plus slow slewing - half a rendered
+//    second cannot move a rendered second, and naming noise would
+//    be the lie of a boundary that fires on healthy hosts.
+//
+// The bound and the compare are pure, so the law is pinnable
+// without two live clock reads.
+
+/// The skew bound, in nanoseconds: half a rendered second. The
+/// renderer's whole-second granularity is the truth it serves; a
+/// measured offset movement beyond half of that can move a rendered
+/// civil second, so it must be named - and nothing below it can.
+pub(crate) const SKEW_BOUND_NS: i128 = 500_000_000;
+
+/// The material wall-clock skew of a capture: `post - pre` when the
+/// pair is readable and the movement exceeds [`SKEW_BOUND_NS`],
+/// `None` otherwise (either clock unreadable, or the movement is
+/// inside the bound - the absence stays absent, never a guessed
+/// zero). `post` is the offset the renderer actually rendered under;
+/// `pre` is the capture-start sample the surface took before the
+/// window began.
+pub(crate) fn material_skew_ns(pre: Option<i128>, post: Option<i128>) -> Option<i128> {
+    let skew = post? - pre?;
+    (skew.abs() > SKEW_BOUND_NS).then_some(skew)
+}
+
+/// Render a monotonic stamp under an offset the caller sampled ONCE
+/// (night-frontier-Z2, the one-offset-per-render-breath law): every
+/// row of a report renders under the same measurement, so a wall
+/// clock step between two rows' reads can never make the rows
+/// disagree. `None` degrades to `unknown UTC` - the same honest
+/// absence the per-read forms served.
+pub(crate) fn time_of_day_with_offset(timestamp_ns: u64, offset: Option<i128>) -> String {
+    match offset {
         Some(offset) => time_of_day_from_parts(timestamp_ns, offset),
         None => "unknown UTC".to_owned(),
     }
 }
 
-/// Render a monotonic range as the pair of `HH:MM:SS UTC` strings
-/// under ONE wall offset - the window range's own contract: a start
-/// and an end must share a single breath, so the rendered span is
-/// the stamps' span and no wall-clock step between two reads can
-/// bend the pair (two separate [`time_of_day_from_monotonic_ns`]
-/// calls each read the offset, and a step between them would print
-/// a span the stamps never measured). `None` when the offset is
-/// unreadable - the honest absence, never a guessed pair.
-pub(crate) fn time_of_day_pair_from_monotonic_ns(
-    start_ns: u64,
-    end_ns: u64,
-) -> Option<(String, String)> {
-    let offset = wall_offset_ns()?;
-    Some((
-        time_of_day_from_parts(start_ns, offset),
-        time_of_day_from_parts(end_ns, offset),
-    ))
-}
-
 /// The pure time-of-day core: a monotonic stamp plus a known wall
 /// offset, rendered as `HH:MM:SS UTC`. Separated from
-/// [`time_of_day_from_monotonic_ns`] so the arithmetic is
+/// [`time_of_day_with_offset`] so the arithmetic is
 /// unit-testable without depending on the live clocks, mirroring
 /// [`format_unix_secs`]'s split.
 fn time_of_day_from_parts(timestamp_ns: u64, offset_ns: i128) -> String {

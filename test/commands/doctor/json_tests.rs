@@ -61,6 +61,7 @@ fn ram_sample() -> MemorySample {
         slab_readable: true,
         exit_lane: ExitLane::NotAttached,
         exit_ring_drops: None,
+        exit_wall_pre_offset: None,
     }
 }
 

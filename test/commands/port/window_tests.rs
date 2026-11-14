@@ -440,7 +440,7 @@ mod live {
             timestamp_ns: monotonic_now_ns(),
             ..live_event(4321, 8080, IPPROTO_TCP, AF_INET, TCP_CLOSE, TCP_LISTEN)
         }];
-        let out = format_window_report(&sockets, &owners, &stats, &options(), &events, None);
+        let out = format_window_report(&sockets, &owners, &stats, &options(), &events, None, None);
         assert_eq!(out.lines().next(), Some("Mode: live (window 60s)"));
         assert!(out.contains("Ports (window 60s):"));
         assert!(out.contains("Changes in the last 60s:"));

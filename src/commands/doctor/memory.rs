@@ -55,6 +55,7 @@ use std::cmp::Reverse;
 use std::fs;
 use std::path::Path;
 
+pub(crate) mod boundary;
 pub(crate) mod exits;
 pub(crate) mod fds;
 pub(crate) mod ledger;
@@ -165,6 +166,13 @@ pub(crate) struct MemorySample {
     /// unavailability, never a guessed zero; the Unaccounted block
     /// rides the count only when it is nonzero).
     pub exit_ring_drops: Option<u64>,
+    /// The wall offset sampled the instant this sample's exit
+    /// collection began (night-frontier-Z2, the wall-offset skew
+    /// law): the anchor the renderers measure their own render-time
+    /// offsets against, so a wall clock that moved between the
+    /// collection and the render is named instead of riding the
+    /// rendered civil times silently.
+    pub exit_wall_pre_offset: Option<i128>,
 }
 
 // ── The /proc walkers ───────────────────────────────────────────────
@@ -441,7 +449,12 @@ pub(crate) fn collect() -> MemorySample {
     collect_tmpfs(&mut sample);
     fds::collect_fds(&pids, &mut sample);
     collect_slab(&mut sample);
+    // The pre sample (night-frontier-Z2): the wall offset the
+    // instant the exit collection opens - the earliest instant this
+    // sample's own span can name.
+    let exit_wall_pre_offset = crate::info::clock::wall_offset_ns();
     sample.exit_lane = exits::collect_window(exits::EXIT_WINDOW_SECS);
+    sample.exit_wall_pre_offset = exit_wall_pre_offset;
     // The drop census (night-frontier-Z1): read AFTER the drain, so
     // the count the report names includes every reserve failure the
     // drain itself witnessed. An unreadable census is the named

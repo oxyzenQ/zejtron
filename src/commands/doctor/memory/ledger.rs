@@ -64,26 +64,6 @@ fn mode_line(lane: &ExitLane) -> &'static str {
     }
 }
 
-/// The exit ring's drop-truth line (night-frontier-Z1): one
-/// count-backed boundary line, `None` when the count is zero - the
-/// boundary exists only when it fired. Pure, so the wording and the
-/// threshold are pinnable without a pinned map (the lane.rs
-/// file_ring_drop_entry precedent).
-fn ring_drop_line(drops: u64) -> Option<String> {
-    (drops > 0).then(|| {
-        format!(
-            "  {} {}",
-            drops,
-            crate::output::grey_out(&format!(
-                "{} on the proc_events ring since attach - exits the camera \
-                 saw but the ring could not hold; the window above may be \
-                 missing exits the same way",
-                noun_for(drops as usize, "ring drop", "ring drops")
-            ))
-        )
-    })
-}
-
 /// Adaptive size label: GiB above one gibibyte (one decimal), MiB
 /// above one mebibyte, KiB above one kibibyte, raw bytes below.
 /// One number, one unit, no scientific notation.
@@ -447,8 +427,26 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
     // since attach: the camera's lifetime total, not this window's
     // share (a fresh process inherits no previous count), so the
     // line says what the number IS.
-    if let Some(line) = sample.exit_ring_drops.and_then(ring_drop_line) {
+    if let Some(line) = sample
+        .exit_ring_drops
+        .and_then(super::boundary::ring_drop_line)
+    {
         lines.push(line);
+    }
+    // The wall-clock skew boundary (night-frontier-Z2): named when
+    // the wall clock demonstrably moved between the exit collection
+    // and this render (beyond the half-second bound) - the exit rows
+    // above render under the post-collection offset, and this line
+    // says how far that offset can sit from the times the exits
+    // actually happened at. A state boundary: it rides whenever the
+    // measurement answers.
+    let render_offset = crate::info::clock::wall_offset_ns();
+    if let Some(skew) =
+        crate::info::clock::material_skew_ns(sample.exit_wall_pre_offset, render_offset)
+    {
+        if let Some(line) = super::boundary::wall_skew_line(skew) {
+            lines.push(line);
+        }
     }
     // The permission boundaries, named always - a report that only
     // mentions them when they fired would read as "everything was

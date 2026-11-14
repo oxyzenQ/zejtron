@@ -190,7 +190,21 @@ fn collect_live(
     window: Duration,
     filter: OpFilter,
 ) -> Result<LaneParts, String> {
-    let events = crate::ebpf::fileprobe::capture_file_window(query.inode, query.device, window)?;
+    let (events, pre_offset) =
+        crate::ebpf::fileprobe::capture_file_window(query.inode, query.device, window)?;
+
+    // ONE render breath (night-frontier-Z2, the wall-offset skew
+    // law): every row of this ledger renders under the ONE offset
+    // sampled here, and the capture's PRE offset measures the wall
+    // clock's movement across the window - beyond the half-second
+    // bound the movement is named in the Unaccounted block instead
+    // of riding the civil times silently.
+    let render_offset = crate::info::clock::wall_offset_ns();
+    let skew = crate::info::clock::material_skew_ns(pre_offset, render_offset);
+    crate::output::verbose::vlog!(
+        "lane",
+        "render offset sampled once; pre-render skew measured: {skew:?}"
+    );
 
     // The rows keep the capture's ascending order (the renderer
     // never reorders), so each attributed event lands in a SLOT and
@@ -242,7 +256,7 @@ fn collect_live(
             continue;
         };
         slots.push(Some(EvidenceRow::new(
-            crate::ebpf::fileprobe::event_unix_secs(event),
+            crate::ebpf::fileprobe::event_unix_secs_with(event, render_offset),
             event_kind(event.op),
             EvidenceActor::process(name, event.pid, user),
             Provenance::Observed,
@@ -284,7 +298,7 @@ fn collect_live(
                 Some(exit) => {
                     let comm = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
                     slots[slot] = Some(EvidenceRow::new(
-                        crate::ebpf::fileprobe::event_unix_secs(event),
+                        crate::ebpf::fileprobe::event_unix_secs_with(event, render_offset),
                         event_kind(event.op),
                         EvidenceActor::recorded(Some(comm), Some(event.pid), None),
                         Provenance::Observed,
@@ -340,13 +354,25 @@ fn collect_live(
     // trace, never to a guessed zero.
     match crate::ebpf::readback::read_drop_census() {
         Ok(census) => {
-            if let Some(entry) = file_ring_drop_entry(census.file) {
+            if let Some(entry) =
+                crate::commands::lane_unaccounted::file_ring_drop_entry(census.file)
+            {
                 unaccounted.push(entry);
             }
         }
         Err(error) => {
             crate::output::verbose::vlog!("lane", "drop census unreadable: {error}");
         }
+    }
+    // The wall-clock skew boundary (night-frontier-Z2): named when
+    // the wall clock demonstrably moved across the capture (beyond
+    // the half-second bound) - the rows above render under the
+    // post-capture offset, and this entry says how far that offset
+    // can sit from the times the events actually happened at. A
+    // state boundary (the movement happened): it rides whenever the
+    // measurement answers, the "1 event window (...)" class.
+    if let Some(skew) = skew {
+        unaccounted.push(crate::commands::lane_unaccounted::wall_skew_entry(skew));
     }
     // events arrive ascending from the capture; the filter keeps the
     // order. No re-sorting here - the renderer never reorders.
@@ -358,24 +384,6 @@ fn collect_live(
         },
         unaccounted,
         raw: events,
-    })
-}
-
-/// The file ring's drop-truth entry (night-frontier-Z1): one
-/// Unaccounted entry for the file_events reserve failures, `None`
-/// when the count is zero (the count-backed boundary class - an
-/// entry that says "0 drops" on every run would read as noise, and
-/// the boundary exists only when it fired). Pure, so the wording and
-/// the threshold are pinnable without a pinned map.
-fn file_ring_drop_entry(drops: u64) -> Option<UnaccountedEntry> {
-    (drops > 0).then(|| {
-        UnaccountedEntry::new(
-            drops as usize,
-            "ring drops",
-            "file_events reserve failures since attach - events the kernel \
-             saw but the ring could not hold; the window above may be \
-             missing records the same way",
-        )
     })
 }
 

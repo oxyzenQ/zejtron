@@ -220,6 +220,24 @@ fn ring_drop_entry(drops: u64) -> Option<UnaccountedEntry> {
     })
 }
 
+/// The wall-clock skew entry (night-frontier-Z2): one Unaccounted
+/// entry for a wall-clock movement measured between the exit
+/// collection and this render, the signed movement named and the
+/// rows' exposure said plainly. Pure, pinnable without two live
+/// clock reads.
+fn wall_skew_entry(skew_ns: i128) -> UnaccountedEntry {
+    UnaccountedEntry::new(
+        1,
+        "wall clock skew",
+        format!(
+            "the wall clock moved {skew_ns:+} ns since the exit collection \
+             began (beyond the 500 ms bound) - the exit times render under the \
+             post-collection offset and can sit that far from the times the \
+             exits happened at"
+        ),
+    )
+}
+
 /// The ram Unaccounted block as entries: the residual is a number
 /// beside it (residual_bytes), the boundaries here are the ones the
 /// text block names - the exit lane's visibility, the permission
@@ -257,6 +275,15 @@ pub(super) fn ram_unaccounted(sample: &MemorySample) -> Vec<UnaccountedEntry> {
     // the same count-backed boundary the text block renders.
     if let Some(entry) = sample.exit_ring_drops.and_then(ring_drop_entry) {
         entries.push(entry);
+    }
+    // The wall-clock skew (night-frontier-Z2): the JSON lane's half
+    // of the text block's own line - the movement measured against
+    // the sample's pre anchor, typed when it exceeds the bound.
+    let render_offset = crate::info::clock::wall_offset_ns();
+    if let Some(skew) =
+        crate::info::clock::material_skew_ns(sample.exit_wall_pre_offset, render_offset)
+    {
+        entries.push(wall_skew_entry(skew));
     }
     if sample.pss_permission_refused > 0 {
         entries.push(UnaccountedEntry::new(

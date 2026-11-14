@@ -24,6 +24,7 @@ pub(super) fn events_only_output(options: &PortOptions) -> String {
                 options.window,
                 options.no_pid,
                 capture.bounds,
+                capture.pre_offset,
             );
             if udp_events_only(options) {
                 section.push('\n');
@@ -43,8 +44,8 @@ pub(super) fn events_only_output(options: &PortOptions) -> String {
 /// arithmetic and the UTC-only law (night-improve-47 moved the
 /// helper trio to one source; this is port's thin facade over it,
 /// so the port window and the doctor's exit rows cannot drift).
-fn event_time_of_day(event: &SockEvent) -> String {
-    crate::info::clock::time_of_day_from_monotonic_ns(event.timestamp_ns)
+fn event_time_of_day(event: &SockEvent, offset: Option<i128>) -> String {
+    crate::info::clock::time_of_day_with_offset(event.timestamp_ns, offset)
 }
 
 /// The process name for a pid at render time, from the same
@@ -63,7 +64,14 @@ fn event_pid_name(pid: u32) -> Option<String> {
 /// renderer for the live-attributed and the post-mortem-attributed
 /// rows alike, so a row named from the exit ring renders the same
 /// shape a live-attributed row does.
-fn event_row(event: &SockEvent, label: &str, proto: &str, name: String, no_pid: bool) -> String {
+fn event_row(
+    event: &SockEvent,
+    label: &str,
+    proto: &str,
+    name: String,
+    no_pid: bool,
+    offset: Option<i128>,
+) -> String {
     let pid_part = if no_pid {
         String::new()
     } else {
@@ -77,7 +85,7 @@ fn event_row(event: &SockEvent, label: &str, proto: &str, name: String, no_pid: 
     format!(
         "{}  {}  {}  {}:{}  {}{}  ({})",
         crate::output::ok_out("[event]"),
-        crate::output::grey_out(&event_time_of_day(event)),
+        crate::output::grey_out(&event_time_of_day(event, offset)),
         proto,
         "*",
         event.sport,
@@ -106,6 +114,7 @@ fn teardown_lag_row(
     name: &str,
     no_pid: bool,
     lag_ns: u64,
+    offset: Option<i128>,
 ) -> String {
     let pid_part = if no_pid {
         String::new()
@@ -115,7 +124,7 @@ fn teardown_lag_row(
     format!(
         "{}  {}  {}  {}:{}  {}{}  ({})  {}",
         crate::output::grey_out("[observed]"),
-        crate::output::grey_out(&event_time_of_day(event)),
+        crate::output::grey_out(&event_time_of_day(event, offset)),
         proto,
         "*",
         event.sport,
@@ -213,11 +222,11 @@ pub(super) const LEFT_LISTEN_RACE_NOTE: &str = "no matching exit event \
 /// teardown envelope - the process exited before the teardown could
 /// be recorded against it, and inventing an actor would be a lie.
 /// One grey row per miss, under the count.
-fn left_listen_miss_note(event: &SockEvent, proto: &str) -> String {
+fn left_listen_miss_note(event: &SockEvent, proto: &str, offset: Option<i128>) -> String {
     format!(
         "  {}  {}  {}  {}:{}  LEFT LISTEN — {LEFT_LISTEN_RACE_NOTE}",
         crate::output::grey_out("[unaccounted]"),
-        crate::output::grey_out(&event_time_of_day(event)),
+        crate::output::grey_out(&event_time_of_day(event, offset)),
         proto,
         "*",
         event.sport,
@@ -284,15 +293,20 @@ pub fn protocol_family_label(protocol: u8, family: u16) -> Option<&'static str> 
     }
 }
 
-/// The observed window's civil range, `HH:MM:SS UTC` to
-/// `HH:MM:SS UTC` around the arrow: the text lane's rendering of
-/// the capture's bounds, the pair read under one wall offset (the
-/// clock module's pair helper), so the rendered span is the stamps'
-/// own span. `None` degrades the caller to the range-less shape:
-/// the clock's absence, never a guessed boundary.
-fn window_range(bounds: (u64, u64)) -> Option<String> {
-    let (start, end) = crate::info::clock::time_of_day_pair_from_monotonic_ns(bounds.0, bounds.1)?;
-    Some(format!("{start} → {end}"))
+/// The wall-clock skew line (night-frontier-Z2): one grey row for a
+/// wall clock that demonstrably moved across the capture, the signed
+/// movement named and the rows' exposure said. The count-backed zero
+/// class does not apply: the movement HAPPENED (the compare already
+/// gated it at the half-second bound), so the line always renders.
+/// Pure, pinnable without two live clock reads.
+fn wall_skew_line(skew_ns: i128) -> String {
+    format!(
+        "{}{skew_ns:+}{}",
+        crate::output::grey_out("  "),
+        crate::output::grey_out(
+            " ns of wall-clock skew measured across this capture (beyond the\n  500 ms bound) - the times above render under the post-capture offset and\n  can sit that far from the times the events happened at"
+        )
+    )
 }
 
 /// The sock ring's drop-truth line (night-frontier-Z1): one grey
@@ -328,6 +342,7 @@ pub fn format_event_section(
     window: Duration,
     no_pid: bool,
     bounds: Option<(u64, u64)>,
+    pre_offset: Option<i128>,
 ) -> String {
     // The ring is drained ONLY when some event needs it: a fully
     // live window never consumes the exit stream. The seam form
@@ -362,7 +377,15 @@ pub fn format_event_section(
             None
         }
     };
-    format_event_section_with_exits(events, window, no_pid, bounds, exits.as_deref(), ring_drops)
+    format_event_section_with_exits(
+        events,
+        window,
+        no_pid,
+        bounds,
+        exits.as_deref(),
+        ring_drops,
+        pre_offset,
+    )
 }
 
 /// The seam form: the same section with the drained exit records
@@ -384,14 +407,34 @@ pub fn format_event_section_with_exits(
     bounds: Option<(u64, u64)>,
     exits: Option<&[ProcExitEvent]>,
     ring_drops: Option<u64>,
+    pre_offset: Option<i128>,
 ) -> String {
-    let range = bounds.and_then(window_range);
+    // ONE render breath (night-frontier-Z2, the wall-offset skew
+    // law): the offset every row and the header range render under,
+    // sampled once - and the skew it measures against the capture's
+    // PRE sample, named in the Unaccounted block when it moves
+    // beyond the half-second bound. Two rows can never disagree
+    // because a wall clock step fell between their reads.
+    let render_offset = crate::info::clock::wall_offset_ns();
+    let skew = crate::info::clock::material_skew_ns(pre_offset, render_offset);
+    let range = match (bounds, render_offset) {
+        (Some((start, end)), Some(offset)) => Some((
+            crate::info::clock::time_of_day_with_offset(start, Some(offset)),
+            crate::info::clock::time_of_day_with_offset(end, Some(offset)),
+        )),
+        _ => None,
+    };
     let mut lines = Vec::new();
     // The Changes header rides green (the section header). With the
     // observed bounds the header names WHICH window: two sequential
     // runs watch two different windows, and the boundaries say so.
     lines.push(crate::output::ok_out(&match &range {
-        Some(range) => format!("Changes in the last {} ({range}):", window_label(window)),
+        Some((start, end)) => {
+            format!(
+                "Changes in the last {} ({start} → {end}):",
+                window_label(window)
+            )
+        }
         None => format!("Changes in the last {}:", window_label(window)),
     }));
 
@@ -417,7 +460,14 @@ pub fn format_event_section_with_exits(
             slots.push(None);
             continue;
         };
-        slots.push(Some(event_row(event, label, proto, name, no_pid)));
+        slots.push(Some(event_row(
+            event,
+            label,
+            proto,
+            name,
+            no_pid,
+            render_offset,
+        )));
     }
 
     // The exit-ring pass (night-improve-61): the same post-mortem
@@ -443,7 +493,7 @@ pub fn format_event_section_with_exits(
                 let label = transition_label(event.protocol, event.oldstate, event.newstate);
                 let proto = protocol_family_label(event.protocol, event.family);
                 if let (Some(label), Some(proto)) = (label, proto) {
-                    slots[slot] = Some(event_row(event, label, proto, name, no_pid));
+                    slots[slot] = Some(event_row(event, label, proto, name, no_pid, render_offset));
                 } else {
                     unaccounted += 1;
                 }
@@ -452,7 +502,14 @@ pub fn format_event_section_with_exits(
                 let name = crate::commands::doctor::memory::exits::comm_string(&exit.comm);
                 match proto_family_of(event) {
                     Some(proto) => {
-                        slots[slot] = Some(teardown_lag_row(event, proto, &name, no_pid, lag_ns));
+                        slots[slot] = Some(teardown_lag_row(
+                            event,
+                            proto,
+                            &name,
+                            no_pid,
+                            lag_ns,
+                            render_offset,
+                        ));
                     }
                     None => unaccounted += 1,
                 }
@@ -460,7 +517,7 @@ pub fn format_event_section_with_exits(
             PostMortemVerdict::Miss { left_listen } => {
                 unaccounted += 1;
                 if left_listen && let Some(proto) = proto_family_of(event) {
-                    left_listen_misses.push(left_listen_miss_note(event, proto));
+                    left_listen_misses.push(left_listen_miss_note(event, proto, render_offset));
                 }
             }
         }
@@ -473,7 +530,7 @@ pub fn format_event_section_with_exits(
         // WHICH window came up empty, so an empty window still
         // tells itself apart from the next run's empty window.
         lines.push(crate::output::grey_out(&match &range {
-            Some(range) => format!("  (no events in the window: {range})"),
+            Some((start, end)) => format!("  (no events in the window: {start} → {end})"),
             None => "  (no events in the window)".to_owned(),
         }));
     } else {
@@ -502,6 +559,13 @@ pub fn format_event_section_with_exits(
     // says what the number IS.
     if let Some(line) = ring_drops.and_then(ring_drop_line) {
         lines.push(line);
+    }
+    // The wall-clock skew boundary (night-frontier-Z2): a state
+    // boundary - it rides whenever the measurement answered, the
+    // "1 event window (...)" class, the signed movement named and
+    // the rows' exposure said plainly.
+    if let Some(skew) = skew {
+        lines.push(wall_skew_line(skew));
     }
     // The LEFT LISTEN race notes (the night-dragon-lts-T1 residual):
     // each miss names itself instead of hiding in the count - the
