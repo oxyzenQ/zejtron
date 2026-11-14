@@ -159,10 +159,14 @@ fn write_exits(out: &mut String, lane: &ExitLane, window_label: &str) {
                 let _ = write!(out, "{}", row.pid);
                 out.push_str(",\"comm\":");
                 write_string(out, &row.comm);
+                // The offset sampled once per exits block
+                // (night-frontier-Z2): every `at` in this document renders
+                // under the same measurement.
+                let render_offset = crate::info::clock::wall_offset_ns();
                 out.push_str(",\"at\":");
                 write_string(
                     out,
-                    &crate::info::clock::time_of_day_from_monotonic_ns(row.timestamp_ns),
+                    &crate::info::clock::time_of_day_with_offset(row.timestamp_ns, render_offset),
                 );
                 out.push_str(",\"timestamp_ns\":");
                 let _ = write!(out, "{}", row.timestamp_ns);

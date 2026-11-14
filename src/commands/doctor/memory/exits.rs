@@ -244,11 +244,17 @@ pub(crate) fn render_section(lane: &ExitLane, lines: &mut Vec<String>, window_la
         lines.push(String::new());
         return;
     }
+    // ONE render breath (night-frontier-Z2, the wall-offset skew
+    // law): every exit row of this section renders under the ONE
+    // offset sampled here, so a wall clock step between two rows'
+    // reads can never make the rows disagree.
+    let render_offset = crate::info::clock::wall_offset_ns();
     for row in rows.iter().take(super::ledger::TOP_N) {
         lines.push(format!(
             "  {}  PID {} ({})  exited  {}",
-            crate::output::grey_out(&crate::info::clock::time_of_day_from_monotonic_ns(
-                row.timestamp_ns
+            crate::output::grey_out(&crate::info::clock::time_of_day_with_offset(
+                row.timestamp_ns,
+                render_offset
             )),
             row.pid,
             row.comm,

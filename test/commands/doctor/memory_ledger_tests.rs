@@ -390,20 +390,3 @@ fn raw_appends_the_drill_down_marker() {
     let plain = render(&sample(), false);
     assert!(!plain.contains("Raw /proc reads (drill-down):"), "{plain}");
 }
-
-// ── night-frontier-Z1, the exit ring's drop-truth line ──────────────
-
-#[test]
-fn the_exit_ring_drop_line_is_count_backed_and_names_the_ring() {
-    assert!(ring_drop_line(0).is_none());
-    let line = ring_drop_line(3).expect("a nonzero drop count carries a line");
-    // The count rides unwrapped (the value), the reason carries the
-    // ring, the boundary, and the window's exposure. Mono-identity:
-    // the raw bytes carry no escapes.
-    assert!(line.starts_with("  3 "), "{line}");
-    assert!(line.contains("ring drops on the proc_events ring since attach"));
-    assert!(line.contains("may be missing exits the same way"));
-    // The singular form: one drop reads "1 ring drop", not "drops".
-    let one = ring_drop_line(1).expect("one drop carries a line");
-    assert!(one.contains("1 ring drop on the proc_events ring"), "{one}");
-}

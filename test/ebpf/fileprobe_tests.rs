@@ -116,7 +116,8 @@ fn event_unix_secs_lands_inside_the_recent_window() {
         return;
     };
     let event = file_event(now, FILE_OP_OPEN, 1, 2, 3);
-    let Some(secs) = event_unix_secs(&event) else {
+    let offset = crate::info::clock::wall_offset_ns();
+    let Some(secs) = event_unix_secs_with(&event, offset) else {
         panic!("a live clock must convert");
     };
     let wall_now = std::time::SystemTime::now()

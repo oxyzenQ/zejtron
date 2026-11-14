@@ -119,7 +119,7 @@ mod live {
                 TCP_CLOSE,
             ),
         ];
-        let section = format_event_section(&events, Duration::from_secs(60), false, None);
+        let section = format_event_section(&events, Duration::from_secs(60), false, None, None);
 
         let lines: Vec<&str> = section.lines().collect();
         assert_eq!(lines[0], "Changes in the last 60s:");
@@ -162,7 +162,7 @@ mod live {
 
     #[test]
     fn empty_window_says_so_honestly() {
-        let section = format_event_section(&[], Duration::from_secs(300), false, None);
+        let section = format_event_section(&[], Duration::from_secs(300), false, None, None);
         assert!(section.contains("Changes in the last 5m:"));
         assert!(section.contains("(no events in the window)"));
         assert!(section.contains("Unaccounted:"));
@@ -179,7 +179,7 @@ mod live {
             TCP_CLOSE,
             TCP_LISTEN,
         )];
-        let section = format_event_section(&events, Duration::from_secs(60), true, None);
+        let section = format_event_section(&events, Duration::from_secs(60), true, None, None);
         // The PID token is dropped from the ROW - the unaccounted
         // block's prose still names the concept ("no visible PID"),
         // which is the point of the block.
@@ -235,6 +235,7 @@ mod live {
             None,
             Some(&exits),
             None,
+            None,
         );
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[observed]  "), "the weaker tier: {row}");
@@ -269,6 +270,7 @@ mod live {
             None,
             Some(&exits),
             None,
+            None,
         );
         assert!(
             section
@@ -294,6 +296,7 @@ mod live {
             false,
             None,
             Some(&[]),
+            None,
             None,
         );
         let note = section
@@ -327,6 +330,7 @@ mod live {
             None,
             Some(&exits),
             None,
+            None,
         );
         assert!(!section.contains("[observed]"), "{section}");
         assert!(
@@ -354,6 +358,7 @@ mod live {
             None,
             Some(&exits),
             None,
+            None,
         );
         assert!(!section.contains("[observed]"), "{section}");
         assert!(section.contains("  1 events in the window"), "{section}");
@@ -376,6 +381,7 @@ mod live {
             None,
             Some(&exits),
             None,
+            None,
         );
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[event]  "), "{row}");
@@ -395,7 +401,7 @@ mod live {
         // never by wall-clock value.
         let start = 30_000_123_456_789;
         let bounds = Some((start, start + 5 * 1_000_000_000 + 137_000_000));
-        let section = format_event_section(&[], Duration::from_secs(5), false, bounds);
+        let section = format_event_section(&[], Duration::from_secs(5), false, bounds, None);
         let header = section.lines().next().unwrap();
         assert!(header.contains("Changes in the last 5s ("), "{header}");
         assert!(header.ends_with("):"), "{header}");
@@ -436,7 +442,7 @@ mod live {
         // No bounds (a failed clock read, or a caller without the
         // capture's stamps): the locked range-less shapes ride
         // unchanged - the honest absence, never a guessed boundary.
-        let section = format_event_section(&[], Duration::from_secs(5), false, None);
+        let section = format_event_section(&[], Duration::from_secs(5), false, None, None);
         assert!(
             section.contains("Changes in the last 5s:\n  (no events in the window)"),
             "{section}"

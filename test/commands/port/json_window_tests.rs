@@ -115,6 +115,7 @@ fn json_changes_block_names_its_window() {
         Some(bounds),
         None,
         None,
+        None,
     );
     assert!(out.contains("\"changes\":{\"available\":true"), "{out}");
     let start = window_field(&out, "window_start_utc");
@@ -154,6 +155,7 @@ fn json_two_sequential_runs_name_two_different_windows() {
         Some(first),
         None,
         None,
+        None,
     );
     let two = super::port_report_json_with_exits(
         &[],
@@ -163,6 +165,7 @@ fn json_two_sequential_runs_name_two_different_windows() {
         Some(&[]),
         None,
         Some(second),
+        None,
         None,
         None,
     );
@@ -183,7 +186,16 @@ fn json_unavailable_changes_block_keeps_both_fields_null() {
     // omitted, never invented (the schema law).
     let stats = ScanStats::default();
     let opts = options(false);
-    let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None, None, None);
+    let out = super::port_report_json(
+        &[socket()],
+        &owners(),
+        &stats,
+        &opts,
+        None,
+        None,
+        None,
+        None,
+    );
     assert!(
         out.contains(
             "\"changes\":{\"available\":false,\"reason\":\"lane-not-attached\",\
@@ -207,6 +219,7 @@ fn json_window_that_ran_without_a_clock_keeps_both_fields_null() {
         &stats,
         &opts,
         Some(&[]),
+        None,
         None,
         None,
         None,
@@ -238,6 +251,7 @@ mod lane_honesty {
             &owners(),
             &stats,
             &opts,
+            None,
             None,
             None,
             None,
@@ -311,6 +325,7 @@ mod lane_honesty {
             None,
             None,
             None,
+            None,
         );
         assert!(
             out.contains("\"changes\":{\"available\":true,\"reason\":null,\"hint\":null"),
@@ -324,7 +339,16 @@ mod lane_honesty {
         // token rides (it always has), no next action is invented.
         let stats = ScanStats::default();
         let opts = options(true);
-        let out = super::port_report_json(&[socket()], &owners(), &stats, &opts, None, None, None);
+        let out = super::port_report_json(
+            &[socket()],
+            &owners(),
+            &stats,
+            &opts,
+            None,
+            None,
+            None,
+            None,
+        );
         assert!(
             out.contains(
                 "\"changes\":{\"available\":false,\"reason\":\"snapshot-only\",\"hint\":null"

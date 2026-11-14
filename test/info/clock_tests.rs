@@ -175,3 +175,45 @@ fn system_time_from_unix_secs_saturates_at_the_i64_edges() {
     let _far_future = system_time_from_unix_secs(i64::MAX);
     let _far_past = system_time_from_unix_secs(i64::MIN);
 }
+
+// ── night-frontier-Z2, the wall-offset skew law ─────────────────────
+
+#[test]
+fn the_skew_bound_is_half_a_rendered_second() {
+    // The bound's own rationale, pinned: half the renderer's
+    // whole-second granularity. Beyond it a rendered civil second can
+    // move; below it nothing can.
+    assert_eq!(SKEW_BOUND_NS, 500_000_000);
+}
+
+#[test]
+fn material_skew_names_movement_beyond_the_bound() {
+    // The signed movement is preserved: a clock stepped FORWARD and
+    // one stepped BACKWARD are different stories, and the compare
+    // never loses the direction.
+    let forward = material_skew_ns(Some(0), Some(SKEW_BOUND_NS + 1));
+    assert_eq!(forward, Some(SKEW_BOUND_NS + 1));
+    let backward = material_skew_ns(Some(SKEW_BOUND_NS + 1), Some(0));
+    assert_eq!(backward, Some(-(SKEW_BOUND_NS + 1)));
+    // At exactly the bound: inside (the compare is strictly
+    // greater) - the boundary fires only when it is exceeded.
+    assert_eq!(material_skew_ns(Some(0), Some(SKEW_BOUND_NS)), None);
+}
+
+#[test]
+fn material_skew_is_silent_below_the_bound() {
+    // Healthy-host noise and slow slewing render as silence: the
+    // boundary exists only when it fired, never as a guessed zero.
+    assert_eq!(material_skew_ns(Some(0), Some(42)), None);
+    assert_eq!(material_skew_ns(Some(0), Some(SKEW_BOUND_NS - 1)), None);
+    assert_eq!(material_skew_ns(Some(-9), Some(9)), None);
+}
+
+#[test]
+fn material_skew_is_absent_when_a_clock_is_unreadable() {
+    // Either clock unreadable: the absence stays absent - no guessed
+    // zero, no invented movement.
+    assert_eq!(material_skew_ns(None, Some(1_000_000_000)), None);
+    assert_eq!(material_skew_ns(Some(0), None), None);
+    assert_eq!(material_skew_ns(None, None), None);
+}

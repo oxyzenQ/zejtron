@@ -42,6 +42,7 @@ pub(super) fn port_report_json(
     options: &PortOptions,
     events: Option<&[SockEvent]>,
     bounds: Option<(u64, u64)>,
+    pre_offset: Option<i128>,
     lane_down: Option<LaneUnavailable>,
 ) -> String {
     let needs_exit_ring = events.is_some_and(|events| {
@@ -86,6 +87,7 @@ pub(super) fn port_report_json(
         events,
         exits.as_deref(),
         bounds,
+        pre_offset,
         ring_drops,
         lane_down,
     )
@@ -125,9 +127,17 @@ pub(super) fn port_report_json_with_exits(
     events: Option<&[SockEvent]>,
     exits: Option<&[ProcExitEvent]>,
     bounds: Option<(u64, u64)>,
+    pre_offset: Option<i128>,
     ring_drops: Option<u64>,
     lane_down: Option<LaneUnavailable>,
 ) -> String {
+    // ONE render breath (night-frontier-Z2): the offset every civil
+    // time in this document renders under (the window pair and every
+    // event row), sampled once - and the skew it measures against
+    // the capture's PRE sample, typed below when it moves beyond the
+    // half-second bound.
+    let render_offset = crate::info::clock::wall_offset_ns();
+    let skew = crate::info::clock::material_skew_ns(pre_offset, render_offset);
     let mut out = String::with_capacity(512);
     out.push_str("{\"subject\":");
     match options.port {
@@ -184,9 +194,13 @@ pub(super) fn port_report_json_with_exits(
     // clock's own read failed (the honest absence, never a guessed
     // boundary). The pair renders under one wall offset - the
     // span between the two strings is the stamps' span.
-    let window_range = bounds.and_then(|(start, end)| {
-        crate::info::clock::time_of_day_pair_from_monotonic_ns(start, end)
-    });
+    let window_range = match (bounds, render_offset) {
+        (Some((start, end)), Some(offset)) => Some((
+            crate::info::clock::time_of_day_with_offset(start, Some(offset)),
+            crate::info::clock::time_of_day_with_offset(end, Some(offset)),
+        )),
+        _ => None,
+    };
     out.push_str(",\"window_start_utc\":");
     match &window_range {
         Some((start, _)) => write_string(&mut out, start),
@@ -208,6 +222,19 @@ pub(super) fn port_report_json_with_exits(
     match ring_drops {
         Some(drops) => {
             let _ = write!(out, "{drops}");
+        }
+        None => out.push_str("null"),
+    }
+    // The wall-clock skew (night-frontier-Z2): the signed movement
+    // of the wall offset across the capture in nanoseconds, typed,
+    // null when the measurement did not answer (never a guessed
+    // zero) - the machine-honest shape its text lane renders as a
+    // line. Never omitted: a consumer diffs the shape, not the
+    // field list.
+    out.push_str(",\"wall_skew_ns\":");
+    match skew {
+        Some(skew) => {
+            let _ = write!(out, "{skew}");
         }
         None => out.push_str("null"),
     }
@@ -244,6 +271,7 @@ pub(super) fn port_report_json_with_exits(
                                 Some("post-mortem"),
                                 None,
                                 None,
+                                render_offset,
                             ));
                         }
                         PostMortemVerdict::TeardownLag(exit, lag_ns) => {
@@ -257,6 +285,7 @@ pub(super) fn port_report_json_with_exits(
                                 Some("post-mortem"),
                                 Some(super::events::lag_whole_ms(lag_ns)),
                                 None,
+                                render_offset,
                             ));
                         }
                         PostMortemVerdict::Miss { left_listen } => {
@@ -269,6 +298,7 @@ pub(super) fn port_report_json_with_exits(
                                 Some("unaccounted"),
                                 None,
                                 left_listen.then_some(super::events::LEFT_LISTEN_RACE_NOTE),
+                                render_offset,
                             ));
                         }
                     }
@@ -282,6 +312,7 @@ pub(super) fn port_report_json_with_exits(
                     None,
                     None,
                     None,
+                    render_offset,
                 ));
             }
             write_array(&mut out, rows.len(), |out, index| {
@@ -368,6 +399,7 @@ pub(super) fn event_row_json(
     attribution: Option<&str>,
     lag_ms: Option<u64>,
     race_note: Option<&str>,
+    offset: Option<i128>,
 ) -> String {
     let mut row = String::new();
     row.push_str("{\"kind\":");
@@ -387,7 +419,7 @@ pub(super) fn event_row_json(
     row.push_str(",\"time_utc\":");
     write_string(
         &mut row,
-        &crate::info::clock::time_of_day_from_monotonic_ns(event.timestamp_ns),
+        &crate::info::clock::time_of_day_with_offset(event.timestamp_ns, offset),
     );
     if let Some(attribution) = attribution {
         row.push_str(",\"attribution\":");
@@ -433,6 +465,9 @@ fn event_pid_name(pid: u32) -> Option<String> {
     line.split_whitespace().nth(1).map(ToOwned::to_owned)
 }
 
+#[cfg(test)]
+#[path = "../../../test/commands/port/json_drops_tests.rs"]
+mod drops_tests;
 #[cfg(test)]
 #[path = "../../../test/commands/port/json_tests.rs"]
 mod tests;
