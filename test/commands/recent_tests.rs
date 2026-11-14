@@ -148,7 +148,10 @@ fn equal_mtimes_break_by_path_not_by_scan_order() {
 
     sort_newest_first(&mut files);
 
-    let paths: Vec<&str> = files.iter().map(|file| file.path.to_str().unwrap_or("")).collect();
+    let paths: Vec<&str> = files
+        .iter()
+        .map(|file| file.path.to_str().unwrap_or(""))
+        .collect();
     assert_eq!(paths, vec!["aa", "mm", "zz"]);
 }
 

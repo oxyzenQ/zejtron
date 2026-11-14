@@ -596,7 +596,11 @@ mod live {
         let skaddrs: Vec<u64> = selected.iter().map(|e| e.skaddr).collect();
         assert_eq!(
             skaddrs,
-            vec![0xffff_8880_0000_0010, 0xffff_8880_0000_0050, 0xffff_8880_0000_0090]
+            vec![
+                0xffff_8880_0000_0010,
+                0xffff_8880_0000_0050,
+                0xffff_8880_0000_0090
+            ]
         );
     }
 
