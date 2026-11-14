@@ -34,7 +34,10 @@ use crate::evidence::json::{write_array, write_opt_string, write_string};
 /// section's own rule, the parity law's consumption half): a fully
 /// live window never consumes the exit stream. The seam form below
 /// carries the drained records so the tests can pin the text/JSON
-/// parity hermetically.
+/// parity hermetically. Eight parameters is the seam's own shape
+/// (each one is a fixture axis the tests pin independently) - the
+/// scoped allow names that, the house's too_many_arguments law.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn port_report_json(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
@@ -391,6 +394,9 @@ fn event_kind(protocol: u8, oldstate: u8, newstate: u8) -> Option<&'static str> 
 /// `race_note` rides only the unaccounted LEFT LISTEN branch, the
 /// text note's own words; `process` is null when no source can name
 /// the actor (the lane's absence law - nulls, not empty strings).
+/// The parameter list is the row's whole fact surface - the scoped
+/// allow names that, the house's too_many_arguments law.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn event_row_json(
     event: &SockEvent,
     kind: &str,

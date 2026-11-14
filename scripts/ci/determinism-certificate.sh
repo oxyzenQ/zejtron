@@ -41,13 +41,18 @@ ZEJTRON_CERT_OUT="$RUN2" cargo test --bin zejtron the_certificate_
 
 # The verdict: the two directories must be byte-identical, manifest
 # included.
-if diff -r "$RUN1" "$RUN2" > "$WORK/diff.txt" 2>&1; then
+if diff -r "$RUN1" "$RUN2" >"$WORK/diff.txt" 2>&1; then
 	CERT_SHA=$(b3sum "$RUN1"/*.txt | b3sum | awk '{print $1}')
 	SHA=$(git rev-parse HEAD)
 	{
 		echo "## Determinism certificate (night-frontier-Z2, E1)"
 		echo ""
-		echo "- fixtures rendered: $(ls "$RUN1"/*.txt | grep -cv manifest) + manifest"
+		fixture_count=0
+		for rendered in "$RUN1"/*.txt; do
+			case "$(basename "$rendered")" in manifest.txt) continue ;; esac
+			fixture_count=$((fixture_count + 1))
+		done
+		echo "- fixtures rendered: $fixture_count + manifest"
 		echo "- invocations: 2 independent cargo test processes"
 		echo "- byte diff between invocations: EMPTY (diff -r exit 0)"
 		echo "- certificate digest (blake3 over the rendered bytes): $CERT_SHA"
