@@ -234,6 +234,7 @@ mod live {
             false,
             None,
             Some(&exits),
+            None,
         );
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[observed]  "), "the weaker tier: {row}");
@@ -267,6 +268,7 @@ mod live {
             false,
             None,
             Some(&exits),
+            None,
         );
         assert!(
             section
@@ -292,6 +294,7 @@ mod live {
             false,
             None,
             Some(&[]),
+            None,
         );
         let note = section
             .lines()
@@ -323,6 +326,7 @@ mod live {
             false,
             None,
             Some(&exits),
+            None,
         );
         assert!(!section.contains("[observed]"), "{section}");
         assert!(
@@ -349,6 +353,7 @@ mod live {
             false,
             None,
             Some(&exits),
+            None,
         );
         assert!(!section.contains("[observed]"), "{section}");
         assert!(section.contains("  1 events in the window"), "{section}");
@@ -370,6 +375,7 @@ mod live {
             false,
             None,
             Some(&exits),
+            None,
         );
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[event]  "), "{row}");
@@ -465,5 +471,22 @@ fn udp_only_event_window_names_the_kernel_truth() {
     assert_eq!(
         udp_event_lane_note(),
         "note: the kernel fires no lifecycle events for UDP sockets - this event lane is TCP-only; UDP sockets ride the snapshot"
+    );
+}
+
+// ── night-frontier-Z1, the sock ring's drop-truth line ──────────────
+
+#[test]
+fn the_sock_ring_drop_line_is_count_backed() {
+    assert!(ring_drop_line(0).is_none());
+    let line = ring_drop_line(2).expect("a nonzero drop count carries a line");
+    assert!(
+        line.contains("2 sock_events ring drops since attach"),
+        "{line}"
+    );
+    assert!(line.contains("the ring could not hold"), "{line}");
+    assert!(
+        line.contains("may be missing events the same way"),
+        "{line}"
     );
 }

@@ -295,3 +295,24 @@ fn teardown_lag_refuses_what_the_strict_rule_owns() {
     let foreign = [exit_at(event_ts - 10_000_000, 7, "systemd")];
     assert!(exit_names_event_after_teardown(&foreign, 4242, event_ts).is_none());
 }
+
+// ── night-frontier-Z1, the file ring's drop-truth entry ─────────────
+
+#[test]
+fn the_file_ring_drop_entry_is_count_backed() {
+    // Zero renders nothing (the extend_stats_entries class: the
+    // boundary exists only when it fired); a nonzero count rides
+    // with the ring named and the window's exposure said plainly.
+    assert!(file_ring_drop_entry(0).is_none());
+    let entry = file_ring_drop_entry(7).expect("a nonzero drop count carries an entry");
+    assert_eq!(entry.count, 7);
+    assert_eq!(entry.category, "ring drops");
+    assert!(
+        entry
+            .reason
+            .contains("file_events reserve failures since attach"),
+        "{}",
+        entry.reason
+    );
+    assert!(entry.reason.contains("may be missing records the same way"));
+}

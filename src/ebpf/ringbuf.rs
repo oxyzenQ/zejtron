@@ -156,8 +156,21 @@ pub fn drain_sock_events_from(ring: &mut RingBuf<MapData>, out: &mut Vec<SockEve
 /// Drain every record the pinned file_events ring holds (the
 /// Evidence Ledger's window) into a bounded, rolling Vec. The same
 /// contract as [`drain_sock_events_from`], record for record.
+///
+/// The drain-boundary offsets re-verification (night-frontier-Z1)
+/// rides here and only here: the file probes' records were written
+/// by walks reading the offsets map, so a walk table that no longer
+/// matches the host's BTF would make every record in this drain a
+/// silent lie - the re-derivation (src/ebpf/reverify.rs) re-runs the
+/// attach boundary's own two parses against the host's current BTF
+/// and refuses by slot, planted value beside the current word,
+/// before one record is trusted. The sock and exit drains carry no
+/// offsets trust (their probes read verified context constants and
+/// helpers, never the offsets map), so gating them would be a
+/// refusal that lies.
 pub fn drain_file_events() -> Result<Vec<FileEvent>, String> {
     let mut ring = open_ring(PIN_MAP_FILE_EVENTS, "file_events")?;
+    super::reverify::verify_offsets_at_drain()?;
     let mut batch: Vec<FileEvent> = Vec::new();
     while let Some(record) = ring.next() {
         if record.len() != FILE_EVENT_BYTES {

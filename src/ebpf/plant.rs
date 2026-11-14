@@ -26,9 +26,9 @@ use super::btf_unlink::UnlinkLane;
 use super::events::{OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_UNLINK_DENTRY_ARG};
 use super::{
     PIN_LINK, PIN_LINK_EXIT, PIN_LINK_OPEN, PIN_LINK_RENAME, PIN_LINK_SOCK, PIN_LINK_UNLINK,
-    PIN_LINK_WRITE, PIN_LINK_WRITEV, PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS, PIN_MAP_PROC_EVENTS,
-    PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS, PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_EXIT,
-    PIN_PROG_OPEN, PIN_PROG_RENAME, PIN_PROG_SOCK, PIN_PROG_UNLINK, PIN_PROG_WRITE,
+    PIN_LINK_WRITE, PIN_LINK_WRITEV, PIN_MAP_DROP_CENSUS, PIN_MAP_FILE_EVENTS, PIN_MAP_OFFSETS,
+    PIN_MAP_PROC_EVENTS, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS, PIN_MAP_TRACKED_INODES, PIN_PROG,
+    PIN_PROG_EXIT, PIN_PROG_OPEN, PIN_PROG_RENAME, PIN_PROG_SOCK, PIN_PROG_UNLINK, PIN_PROG_WRITE,
     PIN_PROG_WRITEV,
 };
 use crate::output::verbose::vlog;
@@ -143,6 +143,10 @@ pub(super) const MAP_PROC_EVENTS: &str = "proc_events";
 /// The offsets config map name in the probe object.
 pub(super) const MAP_OFFSETS: &str = "offsets";
 
+/// The drop census map name in the probe object (night-frontier-Z1 -
+/// the ring reserve-failure counters).
+pub(super) const MAP_DROP_CENSUS: &str = "drop_census";
+
 /// The plant step: load all eight programs, attach each to its
 /// point, pin programs + links + maps. Any error names itself; the
 /// caller's fail() protocol cleans up everything the attempt
@@ -232,6 +236,11 @@ pub(super) fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
         .pin(PIN_MAP_OFFSETS)
         .map_err(|e| format!("the map pin {PIN_MAP_OFFSETS} failed: {e}"))?;
     vlog!("engine", "map pinned: {PIN_MAP_OFFSETS}");
+    bpf.take_map(MAP_DROP_CENSUS)
+        .ok_or_else(|| format!("the probe object carries no '{MAP_DROP_CENSUS}' map"))?
+        .pin(PIN_MAP_DROP_CENSUS)
+        .map_err(|e| format!("the map pin {PIN_MAP_DROP_CENSUS} failed: {e}"))?;
+    vlog!("engine", "map pinned: {PIN_MAP_DROP_CENSUS}");
     Ok(())
 }
 

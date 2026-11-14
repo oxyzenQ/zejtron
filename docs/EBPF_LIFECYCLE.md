@@ -60,7 +60,14 @@ probe keeps only port-surface transitions (a busy host's ESTABLISHED
 churn never crosses), and the file probes check the tracked-inodes
 map so only the one file a command asked about is recorded. The
 camera has a fixed-size film roll; it cannot grow, and it cannot
-be made to persist.
+be made to persist. And when the film runs out, the camera says so
+(night-frontier-Z1): a failed reservation drops the event, but it no
+longer drops it in silence - the kernel bumps the drop_census counter
+(one slot per ring), and the command that drains the ring reads the
+count back through its pin and names it in the report's Unaccounted
+block. The kernel cannot remember what it did not record; the census
+is the closest honesty to that limit the kernel itself allows: the
+exact number of times recording failed, cumulative since attach.
 
 This shape is the answer to the question every eBPF tool gets
 asked: "so it runs in the background?" No. The BACKGROUND is the

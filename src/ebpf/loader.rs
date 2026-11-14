@@ -471,7 +471,7 @@ pub(crate) fn attach_success_summary(
          proc_events, open_probe, open_probe_link, \
          write_probe, write_probe_link, writev_probe, writev_probe_link, \
          unlink_probe, unlink_probe_link, rename_probe, rename_probe_link, \
-         tracked_inodes, file_events, offsets)",
+         tracked_inodes, file_events, offsets, drop_census)",
         count_label(count)
     )
 }

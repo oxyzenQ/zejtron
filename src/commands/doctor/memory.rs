@@ -158,6 +158,13 @@ pub(crate) struct MemorySample {
     /// block render from. Defaults to not-attached - the honest
     /// shape of a sample nobody filled.
     pub exit_lane: ExitLane,
+    /// The exit ring's reserve-failure count (night-frontier-Z1):
+    /// proc_events reservations the kernel failed since attach - the
+    /// exits the camera saw but the ring could not hold - when the
+    /// census answers, `None` when it does not (the named
+    /// unavailability, never a guessed zero; the Unaccounted block
+    /// rides the count only when it is nonzero).
+    pub exit_ring_drops: Option<u64>,
 }
 
 // ── The /proc walkers ───────────────────────────────────────────────
@@ -435,6 +442,18 @@ pub(crate) fn collect() -> MemorySample {
     fds::collect_fds(&pids, &mut sample);
     collect_slab(&mut sample);
     sample.exit_lane = exits::collect_window(exits::EXIT_WINDOW_SECS);
+    // The drop census (night-frontier-Z1): read AFTER the drain, so
+    // the count the report names includes every reserve failure the
+    // drain itself witnessed. An unreadable census is the named
+    // unavailability on the verbose trace - the Unaccounted block
+    // renders no drop line it cannot back, and never guesses a zero.
+    sample.exit_ring_drops = match crate::ebpf::readback::read_drop_census() {
+        Ok(census) => Some(census.proc),
+        Err(error) => {
+            crate::output::verbose::vlog!("doctor", "drop census unreadable: {error}");
+            None
+        }
+    };
     sample
 }
 

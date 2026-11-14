@@ -118,24 +118,33 @@ pub const PIN_MAP_PROC_EVENTS: &str = "/sys/fs/bpf/zejtron/proc_events";
 /// it).
 pub const PIN_MAP_OFFSETS: &str = "/sys/fs/bpf/zejtron/offsets";
 
+/// Map pin - the drop census (night-frontier-Z1): the ring
+/// reserve-failure counters, one slot per ring (DROP_SLOT_* in
+/// events.rs), read through this pin by
+/// [`readback::read_drop_census`] so the Unaccounted blocks can name
+/// how many events the camera saw but the rings could not hold.
+pub const PIN_MAP_DROP_CENSUS: &str = "/sys/fs/bpf/zejtron/drop_census";
+
 /// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
-/// last). Twenty-two pins: one link/program pair per probe (the exec
-/// tracepoint, the sock tracepoint, the five file kprobes - the
-/// open probe, the write probe, the writev probe, and since
+/// last). Twenty-three pins: one link/program pair per probe (the exec
+/// tracepoint, the sock tracepoint, the five file kprobes - the open
+/// probe, the write probe, the writev probe, and since
 /// night-frontier-2 the unlink and rename probes - and the
-/// post-mortem exit tracepoint) and six maps (stats, sock_events,
-/// proc_events, tracked_inodes, file_events, offsets). The exec
-/// probe reuses its existing pins (the phase-1 program carries the
-/// counter, not a new section). Thirteen through night-improve-3,
-/// eighteen from night-improve-4, thirteen again since
-/// night-improve-34, fifteen from night-improve-42 (the writev
-/// probe's pair joined), eighteen from night-improve-47: the exit
-/// probe's pair and its proc_events ring joined when the
-/// post-mortem doctor grew its drain, twenty-two from
-/// night-frontier-2: the unlink and rename probes' pairs joined
-/// when the forensic question grew its answer.
-pub const ALL_PINS: [&str; 22] = [
+/// post-mortem exit tracepoint) and seven maps (stats, sock_events,
+/// proc_events, tracked_inodes, file_events, offsets, and since
+/// night-frontier-Z1 the drop census). The exec probe reuses its
+/// existing pins (the phase-1 program carries the counter, not a new
+/// section). Thirteen through night-improve-3, eighteen from
+/// night-improve-4, thirteen again since night-improve-34, fifteen
+/// from night-improve-42 (the writev probe's pair joined), eighteen
+/// from night-improve-47: the exit probe's pair and its proc_events
+/// ring joined when the post-mortem doctor grew its drain, twenty-two
+/// from night-frontier-2: the unlink and rename probes' pairs joined
+/// when the forensic question grew its answer, twenty-three from
+/// night-frontier-Z1: the drop census joined when the rings stopped
+/// dropping in silence.
+pub const ALL_PINS: [&str; 23] = [
     PIN_LINK,
     PIN_LINK_SOCK,
     PIN_LINK_OPEN,
@@ -158,6 +167,7 @@ pub const ALL_PINS: [&str; 22] = [
     PIN_MAP_TRACKED_INODES,
     PIN_MAP_FILE_EVENTS,
     PIN_MAP_OFFSETS,
+    PIN_MAP_DROP_CENSUS,
 ];
 
 /// True when every pin of a complete attach exists. A partial pin set
@@ -490,6 +500,12 @@ pub mod loader;
 pub mod mounts;
 mod plant;
 pub mod readback;
+/// The drain-boundary offsets re-verification (night-frontier-Z1):
+/// the second half of the offsets law - attach verifies the parse
+/// before anything is planted, and the file ring's drain re-derives
+/// the planted walk table from the host's CURRENT BTF before any
+/// record is trusted.
+pub mod reverify;
 pub mod ringbuf;
 pub mod tracked;
 pub mod verify_write;

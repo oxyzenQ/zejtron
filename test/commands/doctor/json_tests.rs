@@ -60,6 +60,7 @@ fn ram_sample() -> MemorySample {
         }],
         slab_readable: true,
         exit_lane: ExitLane::NotAttached,
+        exit_ring_drops: None,
     }
 }
 
@@ -419,7 +420,7 @@ fn the_delta_boundaries_mirror_the_text_block() {
     let mut sample = cpu_sample();
     sample.started_in_window = 3;
     sample.vanished_between_reads = 4;
-    let entries = cpu_unaccounted(&sample);
+    let entries = super::symptoms::cpu_unaccounted(&sample);
     assert_eq!(entries.len(), 3);
     assert_eq!(entries[1].count, 3);
     assert_eq!(entries[1].category, "processes");
@@ -440,10 +441,49 @@ fn the_gpu_boundaries_name_the_nvidia_truth() {
         nvidia_detected: true,
         ..Default::default()
     };
-    let entries = gpu_unaccounted(&sample);
+    let entries = super::gpu::gpu_unaccounted(&sample);
     assert!(
         entries
             .iter()
             .any(|entry| entry.category == "vram" && entry.reason.contains("nvidia-smi"))
+    );
+}
+
+// ── night-frontier-Z1, the ram drop truth ───────────────────────────
+
+#[test]
+fn the_ram_unaccounted_block_carries_the_exit_ring_drops() {
+    // The JSON entry mirrors the text block's own line: the ring
+    // named, the boundary said, the count-backed class (zero and an
+    // unreadable census ride nothing - the boundary exists only
+    // when it fired).
+    let mut sample = ram_sample();
+    sample.exit_ring_drops = Some(9);
+    let entries = super::symptoms::ram_unaccounted(&sample);
+    let entry = entries
+        .iter()
+        .find(|entry| entry.category == "ring drops")
+        .expect("a nonzero drop count carries an entry");
+    assert_eq!(entry.count, 9);
+    assert!(
+        entry
+            .reason
+            .contains("proc_events reserve failures since attach"),
+        "{}",
+        entry.reason
+    );
+    sample.exit_ring_drops = Some(0);
+    assert!(
+        !super::symptoms::ram_unaccounted(&sample)
+            .iter()
+            .any(|entry| entry.category == "ring drops"),
+        "a zero count is silence, not an entry"
+    );
+    sample.exit_ring_drops = None;
+    assert!(
+        !super::symptoms::ram_unaccounted(&sample)
+            .iter()
+            .any(|entry| entry.category == "ring drops"),
+        "an unanswerable census is named unavailability, not a guessed zero"
     );
 }

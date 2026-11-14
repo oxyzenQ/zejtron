@@ -295,6 +295,24 @@ fn window_range(bounds: (u64, u64)) -> Option<String> {
     Some(format!("{start} → {end}"))
 }
 
+/// The sock ring's drop-truth line (night-frontier-Z1): one grey
+/// row for the reserve failures, `None` when the count is zero (the
+/// count-backed boundary class - the boundary exists only when it
+/// fired). Pure, so the wording and the threshold are pinnable
+/// without a pinned map (the lane.rs file_ring_drop_entry
+/// precedent).
+fn ring_drop_line(drops: u64) -> Option<String> {
+    (drops > 0).then(|| {
+        format!(
+            "{}{drops}{}",
+            crate::output::grey_out("  "),
+            crate::output::grey_out(
+                " sock_events ring drops since attach (the camera saw\n  transitions the ring could not hold; the window above may be missing events the same way)"
+            )
+        )
+    })
+}
+
 /// The full event-window section: the Changes header, one row per
 /// attributed event (ascending), and the unaccounted block that
 /// names what neither source can see. Every event whose pid has no
@@ -332,7 +350,19 @@ pub fn format_event_section(
     } else {
         None
     };
-    format_event_section_with_exits(events, window, no_pid, bounds, exits.as_deref())
+    // The drop census (night-frontier-Z1): the sock ring's own
+    // reserve failures, read beside the exit ring so the section's
+    // Unaccounted block names what the camera saw but could not
+    // hold. An unreadable census is the verbose trace, never a
+    // guessed zero.
+    let ring_drops = match crate::ebpf::readback::read_drop_census() {
+        Ok(census) => Some(census.sock),
+        Err(error) => {
+            crate::output::verbose::vlog!("port", "drop census unreadable: {error}");
+            None
+        }
+    };
+    format_event_section_with_exits(events, window, no_pid, bounds, exits.as_deref(), ring_drops)
 }
 
 /// The seam form: the same section with the drained exit records
@@ -343,13 +373,17 @@ pub fn format_event_section(
 /// consumption contracts. `bounds` rides the observed window the
 /// capture bracketed (see [`window_range`]): `Some` puts the range
 /// in the header and the empty line, `None` keeps the locked
-/// range-less shapes.
+/// range-less shapes. `ring_drops` is the seam's drop-truth axis
+/// (night-frontier-Z1): `None` when the census did not answer, the
+/// sock ring's cumulative reserve-failure count when it did - the
+/// line renders only when the count is nonzero.
 pub fn format_event_section_with_exits(
     events: &[SockEvent],
     window: Duration,
     no_pid: bool,
     bounds: Option<(u64, u64)>,
     exits: Option<&[ProcExitEvent]>,
+    ring_drops: Option<u64>,
 ) -> String {
     let range = bounds.and_then(window_range);
     let mut lines = Vec::new();
@@ -459,6 +493,16 @@ pub fn format_event_section_with_exits(
             " events in the window with no visible PID (namespace boundary or\n  exited before attribution)"
         )
     ));
+    // The drop truth (night-frontier-Z1): the sock ring's own
+    // reserve failures, named when the census answered and the count
+    // is nonzero - the count-backed boundary class, one grey row
+    // beside the attribution boundary above. Cumulative since
+    // attach: the camera's lifetime total, not this window's share
+    // (a fresh process inherits no previous count), so the line
+    // says what the number IS.
+    if let Some(line) = ring_drops.and_then(ring_drop_line) {
+        lines.push(line);
+    }
     // The LEFT LISTEN race notes (the night-dragon-lts-T1 residual):
     // each miss names itself instead of hiding in the count - the
     // kernel's teardown ordering, said plainly, one grey row per

@@ -63,6 +63,21 @@ pub(super) fn port_report_json(
     } else {
         None
     };
+    // The drop census (night-frontier-Z1): the sock ring's reserve
+    // failures, read ONLY when the window ran - a snapshot shape
+    // consults no camera. An unreadable census is the verbose
+    // trace, never a guessed zero.
+    let ring_drops = if events.is_some() {
+        match crate::ebpf::readback::read_drop_census() {
+            Ok(census) => Some(census.sock),
+            Err(error) => {
+                crate::output::verbose::vlog!("port", "drop census unreadable: {error}");
+                None
+            }
+        }
+    } else {
+        None
+    };
     port_report_json_with_exits(
         sockets,
         owners,
@@ -71,6 +86,7 @@ pub(super) fn port_report_json(
         events,
         exits.as_deref(),
         bounds,
+        ring_drops,
         lane_down,
     )
 }
@@ -90,11 +106,16 @@ pub(super) fn port_report_json(
 /// rides the capture's actual verdict: the reason token AND its
 /// human next action (`hint`) name the real cause - a lane this
 /// euid cannot read is not a lane that is not attached, and the
-/// two need different next actions.
+/// two need different next actions. `ring_drops` is the drop-truth
+/// axis (night-frontier-Z1): the sock ring's cumulative
+/// reserve-failure count when the census answered, `null` when it
+/// did not (never a guessed zero) - a typed field the changes
+/// block always carries, so a consumer never has to infer the
+/// field's meaning from its absence.
 // The seam's shape IS the parity contract: each parameter is one
 // fixture axis the tests pin independently (events, exits, bounds,
-// the lane verdict), the same shape the doctor's exit-row renderer
-// allows.
+// ring drops, the lane verdict), the same shape the doctor's
+// exit-row renderer allows.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn port_report_json_with_exits(
     sockets: &[SocketEntry],
@@ -104,6 +125,7 @@ pub(super) fn port_report_json_with_exits(
     events: Option<&[SockEvent]>,
     exits: Option<&[ProcExitEvent]>,
     bounds: Option<(u64, u64)>,
+    ring_drops: Option<u64>,
     lane_down: Option<LaneUnavailable>,
 ) -> String {
     let mut out = String::with_capacity(512);
@@ -173,6 +195,20 @@ pub(super) fn port_report_json_with_exits(
     out.push_str(",\"window_end_utc\":");
     match &window_range {
         Some((_, end)) => write_string(&mut out, end),
+        None => out.push_str("null"),
+    }
+    // The drop truth (night-frontier-Z1): the sock ring's reserve
+    // failures since attach, cumulative, typed. Number when the
+    // census answered (zero included - the typed lane's explicit
+    // zero is the machine-honest shape its text lane renders as
+    // silence), null when the census did not answer or the window
+    // never ran. Never omitted: a consumer diffs the shape, not the
+    // field list.
+    out.push_str(",\"ring_drops\":");
+    match ring_drops {
+        Some(drops) => {
+            let _ = write!(out, "{drops}");
+        }
         None => out.push_str("null"),
     }
     out.push_str(",\"events\":");

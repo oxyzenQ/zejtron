@@ -27,9 +27,10 @@ use std::time::SystemTime;
 use aya::maps::{Array, Map, MapData};
 
 use super::events::{
-    OFF_SLOT_FDT_FD, OFF_SLOT_FDT_MAX_FDS, OFF_SLOT_FILES_FDT, OFF_SLOT_TASK_FILES,
+    DROP_SLOT_FILE, DROP_SLOT_PROC, DROP_SLOT_SOCK, OFF_SLOT_FDT_FD, OFF_SLOT_FDT_MAX_FDS,
+    OFF_SLOT_FILES_FDT, OFF_SLOT_TASK_FILES,
 };
-use super::{PIN_MAP_OFFSETS, PIN_MAP_STATS};
+use super::{PIN_MAP_DROP_CENSUS, PIN_MAP_OFFSETS, PIN_MAP_STATS};
 
 /// The stats slots this module reads. The index contract with the
 /// kernel side (ebpf/src/main.rs's STATS_EVENTS, STATS_ZJW_DROPS,
@@ -137,6 +138,61 @@ pub fn read_fd_walk_offsets() -> Result<[u64; 4], String> {
         slot(OFF_SLOT_FDT_MAX_FDS)?,
         slot(OFF_SLOT_FDT_FD)?,
     ])
+}
+
+/// The ring reserve-failure census (night-frontier-Z1), exactly as
+/// the kernel holds it right now: one cumulative-since-attach count
+/// per ring. The counts are the DROP_SLOT_* contract in events.rs -
+/// the slots the BPF side bumps on every failed `RingBuf::output`
+/// reservation (ebpf/src/main.rs's count_ring_drop call sites), the
+/// camera's own honesty about what it saw and could not hold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DropCensus {
+    /// sock_events reserve failures since attach (the port surface's
+    /// ring).
+    pub sock: u64,
+    /// file_events reserve failures since attach (the file probes'
+    /// ring - five probes, one ring, one slot).
+    pub file: u64,
+    /// proc_events reserve failures since attach (the post-mortem
+    /// exit ring).
+    pub proc: u64,
+}
+
+/// Build the census from the three slots in map order - the pure
+/// seam so the slot-to-field contract is pinnable without a pinned
+/// map (the read side's furthest_stage precedent).
+fn census_from_slots(slots: [u64; 3]) -> DropCensus {
+    DropCensus {
+        sock: slots[DROP_SLOT_SOCK as usize],
+        file: slots[DROP_SLOT_FILE as usize],
+        proc: slots[DROP_SLOT_PROC as usize],
+    }
+}
+
+/// Read the drop census through the pin: the three ring counts as
+/// the kernel holds them right now, cumulative since attach. Errors
+/// name the pin path (a missing pin reads as a diagnosis, not a
+/// generic failure) - and a camera planted by a binary older than
+/// the census carries no pin at all, which is the same named
+/// unavailability: the drop-truth is consultable only when the
+/// camera that planted the census is the one serving.
+pub fn read_drop_census() -> Result<DropCensus, String> {
+    let map_data = MapData::from_pin(PIN_MAP_DROP_CENSUS)
+        .map_err(|e| format!("pinned drop-census map {PIN_MAP_DROP_CENSUS}: {e}"))?;
+    let map = Map::Array(map_data);
+    let census: Array<_, u64> = Array::try_from(&map)
+        .map_err(|e| format!("the pinned drop-census map is not an array map: {e}"))?;
+    let slot = |index: u32| -> Result<u64, String> {
+        census
+            .get(&index, 0)
+            .map_err(|e| format!("drop_census[{index}] read failed: {e}"))
+    };
+    Ok(census_from_slots([
+        slot(DROP_SLOT_SOCK)?,
+        slot(DROP_SLOT_FILE)?,
+        slot(DROP_SLOT_PROC)?,
+    ]))
 }
 
 /// The attach moment: the stats pin's mtime (creation time - a pin is

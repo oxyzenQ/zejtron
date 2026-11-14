@@ -64,6 +64,26 @@ fn mode_line(lane: &ExitLane) -> &'static str {
     }
 }
 
+/// The exit ring's drop-truth line (night-frontier-Z1): one
+/// count-backed boundary line, `None` when the count is zero - the
+/// boundary exists only when it fired. Pure, so the wording and the
+/// threshold are pinnable without a pinned map (the lane.rs
+/// file_ring_drop_entry precedent).
+fn ring_drop_line(drops: u64) -> Option<String> {
+    (drops > 0).then(|| {
+        format!(
+            "  {} {}",
+            drops,
+            crate::output::grey_out(&format!(
+                "{} on the proc_events ring since attach - exits the camera \
+                 saw but the ring could not hold; the window above may be \
+                 missing exits the same way",
+                noun_for(drops as usize, "ring drop", "ring drops")
+            ))
+        )
+    })
+}
+
 /// Adaptive size label: GiB above one gibibyte (one decimal), MiB
 /// above one mebibyte, KiB above one kibibyte, raw bytes below.
 /// One number, one unit, no scientific notation.
@@ -419,6 +439,16 @@ fn render_unaccounted(sample: &MemorySample, lines: &mut Vec<String>) {
             )),
             crate::output::grey_out("[unaccounted]"),
         )),
+    }
+    // The drop truth (night-frontier-Z1): the exit ring's own
+    // reserve failures, named when the census answers and the count
+    // is nonzero - the count-backed boundary class, the same shape
+    // the permission and vanished counts ride below. Cumulative
+    // since attach: the camera's lifetime total, not this window's
+    // share (a fresh process inherits no previous count), so the
+    // line says what the number IS.
+    if let Some(line) = sample.exit_ring_drops.and_then(ring_drop_line) {
+        lines.push(line);
     }
     // The permission boundaries, named always - a report that only
     // mentions them when they fired would read as "everything was

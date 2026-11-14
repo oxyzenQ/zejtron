@@ -106,3 +106,43 @@ fn fd_walk_slots_are_the_offsets_map_contract() {
         (crate::ebpf::events::OFF_SLOT_INODE_I_SB + 1) as usize
     );
 }
+
+// ── night-frontier-Z1, the drop census pins ─────────────────────────
+
+#[test]
+fn the_drop_census_maps_slots_to_rings_in_map_order() {
+    // The census rides the DROP_SLOT_* contract (events.rs): the
+    // slots the kernel bumps map to the fields the surfaces read -
+    // sock first, file second, proc third, map order = field order.
+    let census = census_from_slots([7, 11, 13]);
+    assert_eq!(census.sock, 7);
+    assert_eq!(census.file, 11);
+    assert_eq!(census.proc, 13);
+}
+
+#[test]
+fn the_drop_census_slots_are_the_kernel_side_contract() {
+    // Both sides compile events.rs - this pin holds the userspace
+    // half of the slot indices the BPF side bumps (the stats
+    // lockstep law's shape, one file, no drift).
+    assert_eq!(DROP_SLOT_SOCK, 0);
+    assert_eq!(DROP_SLOT_FILE, 1);
+    assert_eq!(DROP_SLOT_PROC, 2);
+    assert_eq!(crate::ebpf::events::DROP_SLOTS, 3);
+}
+
+#[test]
+fn the_drop_census_read_names_its_pin_when_absent() {
+    // Host-tolerant (the missing-pin error shape law): a host
+    // carrying a live probe has a readable census - the error-path
+    // pin only applies when the pin is genuinely absent (a camera
+    // planted by a pre-Z1 binary is exactly that shape).
+    if crate::ebpf::any_pin_present() {
+        return;
+    }
+    let error = read_drop_census().unwrap_err();
+    assert!(
+        error.contains("pinned drop-census map /sys/fs/bpf/zejtron/drop_census"),
+        "the error must name the pin path: {error}"
+    );
+}

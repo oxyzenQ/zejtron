@@ -130,6 +130,20 @@
 //                                    without a BTF-verified set
 //                                    (src/ebpf/btf.rs) is the loud
 //                                    alternative.
+//   drop_census     (Array<AtomicU64>, 3) — night-frontier-Z1's
+//                                    ring reserve-failure census,
+//                                    one slot per ring
+//                                    (DROP_SLOT_* in events.rs).
+//                                    One fetch_add per FAILED
+//                                    `RingBuf::output`
+//                                    reservation: the kernel cannot
+//                                    remember what it did not
+//                                    record, but it can count the
+//                                    failures - the number the
+//                                    Unaccounted blocks read
+//                                    (src/ebpf/readback.rs) so a
+//                                    silent drop stops being
+//                                    silent.
 //
 // Deliberately absent (later passes own them): no keying by pid or
 // uid, no address reads (the sock record carries the port and the
@@ -196,6 +210,11 @@ mod exits;
 // under the 600-LOC no-mercy cap, same crate, same record).
 mod write;
 
+// The socket-state program (night-frontier-Z1 moved it here - a PURE
+// move under the 600-LOC cap, the exits.rs precedent): the port
+// surface's camera, its map and verified context layout beside it.
+mod sock;
+
 // The unlink/rename probes (night-frontier-2): the module owns both
 // forensic programs and the BTF-derived anchor story - the same
 // dedicated-module shape, publishing to the file_events ring the
@@ -203,18 +222,16 @@ mod write;
 mod unlink;
 
 use events::{
-    FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITEV, FileEvent, OFF_SLOTS,
-    OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH,
+    DROP_SLOT_FILE, DROP_SLOTS, FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITEV, FileEvent,
+    OFF_SLOTS, OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH,
     OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV,
-    OFF_SLOT_VFSMOUNT_MNT_SB, SOCK_EVENT_BYTES, SockEvent, device_token_from_kernel,
-    is_port_surface_event, pack_filter_key,
+    OFF_SLOT_VFSMOUNT_MNT_SB, device_token_from_kernel, pack_filter_key,
 };
 
 // The compile-time layout pins on the BPF side: the sock record the
 // ring carries is exactly 32 bytes, the file record exactly 40,
 // asserted where the output() calls live (their internal align
 // asserts cover the 8-byte halves).
-const _: () = assert!(SOCK_EVENT_BYTES == 32);
 const _: () = assert!(FILE_EVENT_BYTES == 40);
 
 /// The stats slot contract (the userspace read side
@@ -254,17 +271,6 @@ pub const STATS_SLOTS: u32 = STATS_ZJW_STAGE_BASE + STATS_ZJW_STAGE_COUNT;
 #[map(name = "stats")]
 pub(crate) static stats: Array<AtomicU64> = Array::with_max_entries(STATS_SLOTS, 0);
 
-/// The sock_events ring buffer: 256 KiB, 8192 records of 32 bytes
-/// each. The kernel-side filter is the bound — only LISTEN
-/// enter/leave and UDP close cross — so on any host short of a
-/// port-churn benchmark the ring holds minutes of history; when it
-/// does fill, the oldest records are overwritten in the kernel (a
-/// ring buffer's own rolling window) and a failed reservation drops
-/// the event without failing the tracepoint.
-#[allow(non_upper_case_globals)]
-#[map(name = "sock_events")]
-static sock_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
-
 /// The tracked_inodes filter map (night-improve-3): BPF_HASH<u64,
 /// u8>, 1024 entries. Present = tracked: the kprobes check this map
 /// BEFORE recording, so only the queried file's events reach the
@@ -294,30 +300,32 @@ pub(crate) static file_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
 #[map(name = "offsets")]
 static offsets: Array<u64> = Array::with_max_entries(OFF_SLOTS, 0);
 
-// The inet_sock_set_state context layout — the field offsets of
-// struct trace_event_raw_inet_sock_set_state, verified against
-// vmlinux BTF (this repo's own sandbox probe, kernel 5.10.134): the
-// 8-byte trace_entry header, then skaddr, oldstate, newstate, sport,
-// dport, family, protocol — a prefix layout that has been stable
-// since the tracepoint landed in 4.16 (the saddr/daddr fields later
-// kernels append ride AFTER protocol, past offset 32, and are not
-// read). sport/dport are host byte order already (the kernel's
-// TP_fast_assign applied ntohs).
-mod ctx_offsets {
-    /// const void *skaddr — the socket's kernel address.
-    pub const SKADDR: usize = 8;
-    /// int oldstate — tcp_states.h numbering, narrowed to u8.
-    pub const OLDSTATE: usize = 16;
-    /// int newstate.
-    pub const NEWSTATE: usize = 20;
-    /// __u16 sport — local port, host byte order.
-    pub const SPORT: usize = 24;
-    /// __u16 dport — remote port, host byte order.
-    pub const DPORT: usize = 26;
-    /// unsigned short family — AF_INET / AF_INET6.
-    pub const FAMILY: usize = 28;
-    /// unsigned short protocol — IPPROTO_TCP / IPPROTO_UDP.
-    pub const PROTOCOL: usize = 30;
+/// The drop census map (night-frontier-Z1): Array<AtomicU64>, one
+/// slot per ring - DROP_SLOT_SOCK, DROP_SLOT_FILE, DROP_SLOT_PROC
+/// (the shared contract in events.rs). One increment per FAILED
+/// `RingBuf::output` reservation: the kernel cannot remember what it
+/// did not record, but it can count how many times it failed to
+/// record - the last honesty limit the Unaccounted law can reach,
+/// and the number the userspace drains read back (src/ebpf/
+/// readback.rs) so a lane that renders kernel events also names how
+/// many the camera saw but could not hold. The increments ride the
+/// same BPF_ATOMIC fetch_add discipline the stats counter carries
+/// (exact and race-free); the slots are cumulative since attach, the
+/// only form a cross-run reader can compare without a reset write
+/// (a read-and-reset census would be racy and would make the host
+/// write the camera's own truth).
+#[allow(non_upper_case_globals)]
+#[map(name = "drop_census")]
+pub(crate) static drop_census: Array<AtomicU64> = Array::with_max_entries(DROP_SLOTS, 0);
+
+/// Count ONE failed ring reservation into the census slot `slot`
+/// (the DROP_SLOT_* contract in events.rs). The fetch_add discipline:
+/// the stats counter's atomic RMW law, one slot per ring so the
+/// three cameras count independently.
+pub(crate) fn count_ring_drop(slot: u32) {
+    if let Some(counter) = drop_census.get(slot) {
+        counter.fetch_add(1, Ordering::Relaxed);
+    }
 }
 
 /// The probe: increment stats[STATS_EVENTS] on every process exec.
@@ -335,92 +343,6 @@ pub fn sched_process_exec(_ctx: TracePointContext) -> u32 {
     if let Some(counter) = stats.get(STATS_EVENTS) {
         counter.fetch_add(1, Ordering::Relaxed);
     }
-
-    0
-}
-
-/// The port surface's event probe: read the socket facts at the pinned
-/// offsets, keep only the port-surface transitions, publish the
-/// 32-byte record with the changing process's pid.
-///
-/// Every aya-ebpf call inside is an `unsafe fn` (ctx reads, the
-/// ktime and pid helpers) — the one unsafe block is that API
-/// contract, nothing more: every read is probe-read (a bad offset
-/// returns an error, never a fault) and the verifier re-proves the
-/// whole body at load time.
-#[tracepoint(name = "inet_sock_set_state", category = "sock")]
-pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
-    // The reads come first (an unread fact is dropped, never
-    // guessed); the filter bounds the ring traffic before anything
-    // else happens.
-    let event = unsafe {
-        let skaddr: u64 = match ctx.read_at::<u64>(ctx_offsets::SKADDR) {
-            Ok(value) => value,
-            Err(_) => return 0,
-        };
-        let oldstate: i32 = match ctx.read_at::<i32>(ctx_offsets::OLDSTATE) {
-            Ok(value) => value,
-            Err(_) => return 0,
-        };
-        let newstate: i32 = match ctx.read_at::<i32>(ctx_offsets::NEWSTATE) {
-            Ok(value) => value,
-            Err(_) => return 0,
-        };
-        let sport: u16 = match ctx.read_at::<u16>(ctx_offsets::SPORT) {
-            Ok(value) => value,
-            Err(_) => return 0,
-        };
-        let dport: u16 = match ctx.read_at::<u16>(ctx_offsets::DPORT) {
-            Ok(value) => value,
-            Err(_) => return 0,
-        };
-        let family: u16 = match ctx.read_at::<u16>(ctx_offsets::FAMILY) {
-            Ok(value) => value,
-            Err(_) => return 0,
-        };
-        let protocol: u16 = match ctx.read_at::<u16>(ctx_offsets::PROTOCOL) {
-            Ok(value) => value,
-            Err(_) => return 0,
-        };
-
-        let oldstate = oldstate as u8;
-        let newstate = newstate as u8;
-        let protocol = protocol as u8;
-
-        if !is_port_surface_event(family, protocol, oldstate, newstate) {
-            return 0;
-        }
-
-        SockEvent {
-            timestamp_ns: bpf_ktime_get_ns(),
-            skaddr,
-            family,
-            protocol,
-            oldstate,
-            newstate,
-            // The explicit pads, zeroed: the ring record's every
-            // byte is written before output() reads it — the 5.15
-            // verifier (the floor kernel) refuses an output read
-            // that touches a never-written stack byte, exactly the
-            // refusal the kernel-floor micro-VM lane caught live.
-            _pad: 0,
-            sport,
-            dport,
-            _pad2: 0,
-            // The tgid half: the process (thread group) whose
-            // syscall made the change — the /proc snapshot cannot
-            // see this, only the record can.
-            pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-        }
-    };
-
-    // Publish to the ring. The size assert inside output() is the
-    // compile-time layout pin (SOCK_EVENT_BYTES == 32, align 8 — the
-    // const is imported so both sides carry the same number); a
-    // failed reservation (buffer full) drops the event silently — a
-    // passive tracepoint never fails, and the ring's own rolling
-    // window keeps the newest history.
-    let _ = sock_events.output::<SockEvent>(&event, 0);
 
     0
 }
@@ -514,7 +436,10 @@ pub fn open_probe(ctx: ProbeContext) -> u32 {
             return 0;
         }
 
-        let _ = file_events.output::<FileEvent>(
+        // night-frontier-Z1: a failed reservation counts in the drop
+        // census (the file-events slot - five probes share the one
+        // ring), never silent.
+        if file_events.output::<FileEvent>(
             &FileEvent {
                 timestamp_ns: bpf_ktime_get_ns(),
                 op: FILE_OP_OPEN,
@@ -525,7 +450,11 @@ pub fn open_probe(ctx: ProbeContext) -> u32 {
                 _pad2: 0,
             },
             0,
-        );
+        )
+        .is_err()
+        {
+            count_ring_drop(DROP_SLOT_FILE);
+        }
     }
     0
 }
@@ -566,7 +495,9 @@ pub fn writev_probe(ctx: ProbeContext) -> u32 {
             return 0;
         }
 
-        let _ = file_events.output::<FileEvent>(
+        // night-frontier-Z1: the writev probe's reservation failure
+        // counts in the same file-events drop slot, never silent.
+        if file_events.output::<FileEvent>(
             &FileEvent {
                 timestamp_ns: bpf_ktime_get_ns(),
                 op: FILE_OP_WRITEV,
@@ -577,7 +508,11 @@ pub fn writev_probe(ctx: ProbeContext) -> u32 {
                 _pad2: 0,
             },
             0,
-        );
+        )
+        .is_err()
+        {
+            count_ring_drop(DROP_SLOT_FILE);
+        }
     }
     0
 }
