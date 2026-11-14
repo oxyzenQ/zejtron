@@ -49,33 +49,34 @@ fn version_report_carries_build_time_line() {
 
 /// The stamped build time is either the documented degraded
 /// "unknown" (host clock unreadable at build time) or matches the
-/// Hinnant `M/D/YYYY HH:MM (UTC)` shape with a plausible year. A
-/// malformed stamp (e.g. an accidental local-time format with an
-/// offset suffix) fails here, not in the wild.
+/// ISO 8601 `YYYY-MM-DD HH:MMZ` shape (night-pro-1, the estate-wide
+/// format) with a plausible year. A malformed stamp (e.g. an
+/// accidental local-time format with an offset suffix) fails here,
+/// not in the wild.
 #[test]
-fn build_time_stamp_shape_is_m_d_yyyy_hh_mm_utc() {
+fn build_time_stamp_shape_is_iso8601_yyyy_mm_dd_hh_mm_z() {
     let stamp = build_time();
     if stamp == "unknown" {
         return; // degraded path, documented
     }
-    assert!(
-        stamp.ends_with(" (UTC)"),
-        "stamp must carry the (UTC) suffix: {stamp}"
-    );
-    let core = stamp.strip_suffix(" (UTC)").expect("suffix checked above");
+    assert!(stamp.ends_with('Z'), "stamp must carry the Z suffix: {stamp}");
+    let core = stamp.strip_suffix('Z').expect("suffix checked above");
     let (date, time) = core
         .split_once(' ')
         .unwrap_or_else(|| panic!("date and time must be space-separated: {stamp}"));
-    let date_parts: Vec<&str> = date.split('/').collect();
-    assert_eq!(date_parts.len(), 3, "date must be M/D/YYYY: {stamp}");
-    let (month, day, year) = (
+    let date_parts: Vec<&str> = date.split('-').collect();
+    assert_eq!(date_parts.len(), 3, "date must be YYYY-MM-DD: {stamp}");
+    let (year, month, day) = (
         date_parts[0].parse::<u32>().unwrap_or(0),
         date_parts[1].parse::<u32>().unwrap_or(0),
         date_parts[2].parse::<u32>().unwrap_or(0),
     );
+    assert_eq!(date_parts[0].len(), 4, "year must be 4 digits: {stamp}");
+    assert_eq!(date_parts[1].len(), 2, "month must be 2 digits: {stamp}");
+    assert_eq!(date_parts[2].len(), 2, "day must be 2 digits: {stamp}");
+    assert!(year >= 2026, "year implausibly old: {stamp}");
     assert!((1..=12).contains(&month), "month out of range: {stamp}");
     assert!((1..=31).contains(&day), "day out of range: {stamp}");
-    assert!(year >= 2026, "year implausibly old: {stamp}");
     let time_parts: Vec<&str> = time.split(':').collect();
     assert_eq!(time_parts.len(), 2, "time must be HH:MM: {stamp}");
     assert_eq!(time_parts[0].len(), 2, "hour must be 2 digits: {stamp}");

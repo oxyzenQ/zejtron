@@ -150,7 +150,8 @@ pub(crate) fn build_label() -> String {
 /// contract): stamped by build.rs from SystemTime via Howard
 /// Hinnant's civil_from_days algorithm - UTC-only, so no timezone
 /// database is pulled into the binary and the stamp is identical
-/// across build hosts. Shape: `M/D/YYYY HH:MM (UTC)`.
+/// across build hosts. Shape: `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC;
+/// night-pro-1, the estate-wide format).
 fn build_time() -> &'static str {
     option_env!("ZEJTRON_BUILD_TIME").unwrap_or("unknown")
 }
@@ -236,7 +237,7 @@ pub mod clock;
 /// zejtron: vX.Y.Z
 /// Read-only evidence ledger for the Linux host. Native kernel readers, eBPF event windows, zero external wrappers. Boring and serious.
 /// Build: local-pro-linux-amd64-v3-musl (3ae9dda)
-/// Build-time: 10/17/2026 09:15 (UTC)
+/// Build-time: 2026-10-17 09:15Z
 /// Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026
 /// Depth-matrix: fp=<16 lowercase hex> status=verified anchor=b3:<64 lowercase hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
 /// Copyright: (c) 2026 rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>
