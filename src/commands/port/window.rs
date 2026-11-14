@@ -427,7 +427,25 @@ fn window_events(events: &[SockEvent], options: &PortOptions) -> Vec<SockEvent> 
         .filter(|event| options.port.is_none_or(|port| event.sport == port))
         .copied()
         .collect();
-    selected.sort_by_key(|event| event.timestamp_ns);
+    // night-depth-hardening-1: timestamp ties are real - two sockets
+    // change state inside the same nanosecond, and per-CPU ring
+    // interleave is not stable across drains - so a timestamp-only
+    // sort fell back to drain order and the event section was not
+    // byte-stable across runs. The full-record tail is a total order
+    // over the fields the ring contract pins: same drain in, same
+    // bytes out.
+    selected.sort_by(|left, right| {
+        left.timestamp_ns
+            .cmp(&right.timestamp_ns)
+            .then(left.skaddr.cmp(&right.skaddr))
+            .then(left.family.cmp(&right.family))
+            .then(left.protocol.cmp(&right.protocol))
+            .then(left.sport.cmp(&right.sport))
+            .then(left.dport.cmp(&right.dport))
+            .then(left.oldstate.cmp(&right.oldstate))
+            .then(left.newstate.cmp(&right.newstate))
+            .then(left.pid.cmp(&right.pid))
+    });
     selected
 }
 
@@ -484,10 +502,18 @@ fn format_window_report(
 /// drops the PID token; an ownerless row names `owner unknown`
 /// exactly as the tree's owner lines do.
 fn snapshot_rows(sockets: &[SocketEntry], owners: &OwnerMap, options: &PortOptions) -> Vec<String> {
+    // night-depth-hardening-1: the tail rides the same total order
+    // the phase-1 selection (filter_sockets) carries - SO_REUSEPORT
+    // listeners share (port, address) with different inodes, and a
+    // tie there used to leak the /proc table order. The snapshot
+    // stays byte-identical to the tree, every distro, every run.
     let by_phase_sort = |left: &SocketEntry, right: &SocketEntry| {
         left.port
             .cmp(&right.port)
             .then(left.address.cmp(&right.address))
+            .then(left.remote_address.cmp(&right.remote_address))
+            .then(left.remote_port.cmp(&right.remote_port))
+            .then(left.inode.cmp(&right.inode))
     };
 
     let mut rows: Vec<String> = Vec::new();
