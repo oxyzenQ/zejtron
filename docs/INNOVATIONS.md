@@ -35,7 +35,16 @@ typed JSON lane (`--print-json`, `ledger_version: 4`) hand-writes
 its serializer to keep the runtime graph at three crates. The
 canonical spec (the block grammar, the tier definitions, the frozen
 v3) lives in [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md); the four-tier
-law is pinned by `test/evidence/`.
+law is pinned by `test/evidence/`. And the report's civil times are
+honest down to the sample they came from (night-frontier-Z2): every
+row renders under the ONE wall offset the renderer sampled at its
+start (two rows can never disagree because an NTP step fell between
+their reads), and the offset the capture started with is re-read at
+render time - a wall clock that moved more than half a rendered
+second across the capture is NAMED in the Unaccounted block, the
+signed movement beside the rows' exposure, instead of riding the
+rendered times silently. The bound and the compare are pure and
+pinned by `test/info/clock_tests.rs`.
 
 **2. The Lazy Camera** (`src/ebpf/plant.rs`, `loader.rs`,
 `ringbuf.rs`, `events.rs`). The hole: forensics tools either run an
@@ -52,8 +61,14 @@ observer, counted beside the evidence (`observer_excluded`), never
 laundered into the host's record. The doctrine (why none of
 it is monitoring) lives in [EBPF_LIFECYCLE.md](EBPF_LIFECYCLE.md);
 the lifecycle is pinned by `test/ebpf/loader_tests.rs` and
-`test/ebpf/ringbuf_tests.rs`. And the camera's own failures are
-honest (night-frontier-Z1, the drop truth): a full ring's failed
+`test/ebpf/ringbuf_tests.rs`. And the camera proves it is
+who it says it is (night-frontier-Z2, the generation stamp): the
+estate stamps its boot identity, its probe object identity, and the
+attach instant into a pinned `generation` map at attach, and every
+recording boundary re-derives the live facts and compares - a
+foreign boot or a foreign build refuses by name with the remedy.
+And the camera's own failures are honest (night-frontier-Z1, the
+drop truth): a full ring's failed
 reservation is counted - one `drop_census` slot per ring, bumped
 in-kernel at the exact failure, read back through its pin - and the
 draining surface's Unaccounted block names how many events the
@@ -84,9 +99,16 @@ Only the file ring is gated, and that is the honesty: the sock
 probe's records ride verified tracepoint-context constants and the
 exit probe's ride helpers alone, so a drift cannot corrupt them -
 a refusal on records it cannot corrupt would be a refusal that
-lies. Pinned by `test/ebpf/btf_tests.rs`,
+lies. night-frontier-Z2 freezes the
+range itself: the .BTF sections of two REAL GA kernels (the floor's
+jammy 5.15.0-25 and noble 6.8.0-31) are committed whole under
+`corpus/btf/` and their derived walk tables are pinned slot by slot
+- including the disagreement (f_path 16 -> 152, f_inode 32 -> 168,
+task_struct.files 2928 -> 3080), so a parser change that would
+misread either dialect fails the suite on every host, forever.
+Pinned by `test/ebpf/btf_tests.rs`,
 `test/ebpf/btf_flatten_tests.rs`, `test/ebpf/reverify_tests.rs`,
-`test/ebpf/readback_tests.rs`.
+`test/ebpf/btf_corpus_tests.rs`, `test/ebpf/readback_tests.rs`.
 
 **4. The unlink/rename forensic pair** (night-frontier-2;
 `src/ebpf/btf_unlink.rs`, `ebpf/src/unlink.rs`). The ledger's oldest
@@ -262,6 +284,32 @@ from the generator script - the committed truth source, carrying the
 identity once the way NOTICE does. The verify recipes and the honest
 limits (what AUTHENTIC proves and what only the pinned D3 hash
 proves) live in [VERIFY_RELEASE.md](VERIFY_RELEASE.md).
+
+**16. The proof rig** (night-frontier-Z2;
+`test/evidence/certificate_tests.rs`,
+`scripts/ci/determinism-certificate.sh`, `corpus/`). The hole: the
+deep laws - "two conformant runs diff to empty", "the parsers read
+every kernel dialect we promise" - are claims a competitor can copy
+into their own README as words. The proof rig turns the claims into
+verified artifacts a buyer can audit. The determinism certificate
+renders three canonical fixtures (the full Evidence Ledger grammar,
+the doctor's ram report, the port event section) in TWO INDEPENDENT
+cargo test invocations on every push, diffs the two directories,
+and issues the certificate only when the diff is empty - the digest
+and the commit ride the artifact; hermeticity is the fixtures' own
+law (every camera consultation enters as an explicit None, every
+civil time renders only where the shape names it absent - a flaky
+certificate is not a certificate). The kernel dialect corpus is the
+parser lock made concrete: real kernel bytes (two GA BTF blobs, a
+real /proc bundle captured one dialect BELOW the attach floor),
+committed whole, digests pinned through the tree's own blake3, the
+derived walk tables pinned slot by slot - and the DIFFERENCE
+between dialects pinned too, because a corpus that carried one blob
+twice would prove nothing. The moving kernels stay locked live on
+the witness legs; the corpus freezes the dialects themselves. The
+provenance of every file lives in [corpus/README.md](corpus/README.md);
+the certificate pins are `test/evidence/certificate_tests.rs` and
+`test/ebpf/btf_corpus_tests.rs`, `test/corpus/proc_corpus_tests.rs`.
 
 ## How a newcomer reads this tree
 

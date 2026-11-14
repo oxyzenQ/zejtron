@@ -69,6 +69,21 @@ block. The kernel cannot remember what it did not record; the census
 is the closest honesty to that limit the kernel itself allows: the
 exact number of times recording failed, cumulative since attach.
 
+And the camera proves it is who it says it is (night-frontier-Z2,
+the generation stamp): at attach the loader stamps three facts into
+a pinned `generation` map - the boot's identity (the boot id, the
+fact that changes at every reboot and every kexec), the probe
+object's identity (the embedded ELF - the record contract itself),
+and the attach instant. Every drain re-derives the live facts and
+compares before one record is trusted: a camera planted by another
+boot, or by another zejtron build, refuses by name - the planted
+word beside the current one, and the remedy (detach, re-attach).
+Before the stamp, a complete pin set was only ASSUMED to be this
+boot's own camera; now that assumption is a check. The stamp also
+upgrades attach idempotence from structural to proven: a complete
+estate is the already-attached success shape only when its stamp
+says same boot, same build.
+
 This shape is the answer to the question every eBPF tool gets
 asked: "so it runs in the background?" No. The BACKGROUND is the
 kernel itself, doing what the kernel already does - executing
