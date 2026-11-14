@@ -19,15 +19,15 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-13T18:17:30Z"
+generated = "2026-11-14T05:45:11Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "69b96bb9c427ee74be2502620f46fd1e071dcde1aefc09dd424cc0bcdc092a0b"
+ebpf_tree_blake3 = "6cf9c4e0d3ae03e581e6b2a45db9700e96ca820b93fdafa017c792a20332ff00"
 built_by = "rezky_nightky <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "9c269d2ba0c6dc0b149b4cec5f14f2c986b961e29c862df5243ebbb890ac7a6a"
+blake3 = "623e8ee4d389d04b5526756fcee394cfc04e3be1174c3759c227ce8308fd81da"
 size = 15504
 
 [contract]
@@ -36,4 +36,4 @@ size = 15504
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.
 attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "raw_syscalls/sys_enter", "vfs_writev", "vfs_unlink", "vfs_rename", "sched_process_exit"]
-version = "80.2.1"
+version = "80.2.2"
