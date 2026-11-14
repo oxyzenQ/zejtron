@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 mod events;
+// The event section's seam, re-exported for the determinism
+// certificate's fixtures (night-frontier-Z2, E1): the certificate
+// renders the section shape hermetically - every camera axis an
+// explicit None - and the module itself stays private to the port
+// tree.
+#[cfg(test)]
+pub(crate) use events::format_event_section_with_exits;
 mod json;
 mod lane_state;
 mod mode_banner;

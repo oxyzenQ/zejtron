@@ -117,3 +117,64 @@ jobs:
           # the runner's own token carries (read-only; the sweep sends it
           # as a Bearer header and never writes it anywhere).
           GITHUB_TOKEN: ${{ github.token }}
+
+  # ── night-frontier-Z2, E1: the determinism certificate ─────────────
+  # The "two conformant runs diff to empty" law as a living proof,
+  # every push: render the canonical fixtures in two independent
+  # cargo test processes, diff the two directories, issue the
+  # certificate (digest + commit) or fail the push. The fixtures and
+  # their hermeticity contract live in test/evidence/
+  # certificate_tests.rs; the protocol lives in the script this job
+  # runs. A buyer of the determinism claim buys a verified
+  # certificate, not a promise.
+  determinism-certificate:
+    name: Determinism certificate (two runs, byte-diff empty)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+
+      # The ebpf feature is the default: cargo test builds the binary,
+      # and build.rs source-builds the probe object (the ci.yml check
+      # job's own prerequisite lane).
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+
+      - name: Render the fixtures twice and diff the invocations empty
+        run: |
+          bash scripts/ci/determinism-certificate.sh
+          cat target/determinism-certificate/certificate.txt >> "$GITHUB_STEP_SUMMARY"
+
+      # The certificate is an artifact the buyer can audit: the
+      # rendered fixtures, the manifest, the diff verdict, the
+      # digest, the commit.
+      - name: Upload the certificate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4, SHA pin
+        with:
+          name: determinism-certificate
+          path: target/determinism-certificate/certificate.txt
+          if-no-files-found: error
