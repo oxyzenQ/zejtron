@@ -63,8 +63,9 @@ manifest-verified object from `ebpf-prebuilt/` — the same bytes the
 release binaries embed, BLAKE3-pinned in
 `ebpf-prebuilt/manifest.toml`. Either way the TARGET machine needs
 no nightly toolchain, no bpf-linker, no clang, and no separate
-object files. `-V`'s `Signature: Pure eBPF builtin` line is the
-lane-honest claim that the objects are in there. The build's own
+object files. `-V`'s `Signature:` line leads with the lane-honest
+claim (`Pure eBPF builtin`) and carries the masked identity manifest
+after it (night-pro-1, the family -V shape). The build's own
 authenticity is checkable too: the `Depth-matrix:` line and
 `zejtron sig` carry the depth-matrix signature (night-signature-1),
 the verification recipe in `docs/VERIFY_RELEASE.md`.

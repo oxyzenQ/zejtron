@@ -346,11 +346,9 @@ fn identity_core(manifest: &str) -> Option<&str> {
 /// not unmask anything themselves; they render these fields verbatim.
 pub(crate) struct ProvenanceView {
     /// Full manifest text - the verification input the layers
-    /// materialize, kept observable so the materialization tests can
-    /// pin the mask's decode byte for byte (the production surfaces
-    /// render the identity tail and the authors from the same pass;
-    /// the allow is the honest count of that split).
-    #[allow(dead_code)]
+    /// materialize, and since night-pro-1 the rendered Signature
+    /// line's clause: the production surfaces (the -V Signature line,
+    /// the identity tail, the authors) all render from this one pass.
     pub manifest: String,
     /// Authors text for the `Copyright:` line.
     pub authors: String,

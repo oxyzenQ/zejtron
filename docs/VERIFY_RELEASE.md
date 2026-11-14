@@ -31,8 +31,11 @@ The parenthesized token is the commit sha (the three-step chain in
 `.cargo_vcs_info.json` - a registry install recovers the real commit,
 never an `unknown`). The `Signature:` line states the eBPF lane's
 honest claim ("Pure eBPF builtin" - the objects ride inside the
-binary on both lanes). The release lane's own Verify step greps these
-literals as bytes out of every matrix artifact before it ships.
+binary on both lanes) followed by the identity manifest materialized
+from the masked words at render time (night-pro-1, the family -V
+shape; the artifact bytes carry the claim const only). The release
+lane's own Verify step greps these literals as bytes out of every
+matrix artifact before it ships.
 
 ## The depth-matrix signature (night-signature-1, the masked night-signature-advanced-1 scheme)
 
