@@ -15,6 +15,7 @@ frozen verbatim.
 
 ## [Released]
 
+v80.4.0
 v80.3.0
 v80.2.2
 v80.2.1
