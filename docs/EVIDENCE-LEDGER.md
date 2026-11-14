@@ -174,8 +174,15 @@ format's contract with machines and with courtrooms.
    run. The renderer never reorders and never iterates a hash map;
    ordering is the caller's deterministic contract (by time, by
    pid for peers), and the output carries no randomness, no
-   address-dependent values, no environment-dependent bytes. Two
-   conformant runs over an unchanged host diff to empty.
+   address-dependent values, no environment-dependent bytes. Every
+   ordering key is a total order (night-depth-hardening-1): equal
+   primary keys break by the record's own identity - the path for
+   `recent` rows, the socket inode for the port surface, the
+   record fields for the ring windows - never by scan order, /proc
+   table order, or ring drain order, all of which are
+   filesystem-, kernel-, and scheduler-dependent. Two conformant
+   runs over an unchanged host diff to empty, on every distro on
+   the 5.15+ floor.
 
 3. **Zero escape bytes when piped.** A report written to a
    non-terminal stream is plain bytes: no ANSI/CSI escape
