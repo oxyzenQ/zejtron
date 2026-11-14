@@ -234,7 +234,7 @@ fingerprints (const-evaluated at compile time, `fp=` on the status
 line), the identity binding between the two layers, and the BLAKE3
 anchor over the framed payload (the estate's own std-only BLAKE3,
 zero new dependencies). `-V` carries the status line
-(`Depth-sig: fp=... status=verified anchor=b3:... layers=...`, the
+(`Depth-matrix: fp=... status=verified anchor=b3:... layers=...`, the
 report's green provenance seat on a terminal, plain bytes in a pipe)
 and `zejtron sig` renders the whole four-depth matrix with the dual
 fingerprint row and the honest self-hash note. The constants come

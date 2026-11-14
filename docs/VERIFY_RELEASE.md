@@ -83,7 +83,7 @@ b3sum <binary>
 ```
 
 An executed check closes the loop on an executable host: `zejtron
-sig` must answer 4/4 AUTHENTIC, and `-V`'s Depth-sig line must carry
+sig` must answer 4/4 AUTHENTIC, and `-V`'s Depth-matrix line must carry
 `status=verified` - a rebuilt or patched artifact refuses by name.
 
 ### What AUTHENTIC proves, and what it does not

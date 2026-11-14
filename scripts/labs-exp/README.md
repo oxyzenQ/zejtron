@@ -50,7 +50,7 @@ missing path), so the lab runs the same with or without sudo.
 ### Section 10 - the depth-matrix signature (night-signature-advanced-1)
 
 Six checks pin the anti-fake chain on the running binary: the `-V`
-`Depth-sig:` line (the masked scheme's status line, `fp=` fingerprint
+`Depth-matrix:` line (the masked scheme's status line, `fp=` fingerprint
 plus `status=verified` plus the anchor over the masked payload),
 `zejtron sig` and the `signature` alias both exit 0, the matrix
 carries

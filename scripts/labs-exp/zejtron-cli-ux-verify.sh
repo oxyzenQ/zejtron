@@ -199,7 +199,7 @@ expect_exit 0 "verb -V short-circuits before required args" path -V
 expect_exit 1 "runtime failure keeps exit 1" path /definitely/not/a/real/command-xyz
 
 echo "${UX_BRAND}-- 10. the depth-matrix signature (night-signature-advanced-1) --${UX_RESET}"
-expect_output "Depth-sig: fp=" "-V carries the masked scheme's status line" -V
+expect_output "Depth-matrix: fp=" "-V carries the masked scheme's status line" -V
 expect_output "status=verified anchor=b3:" "-V reports the verified anchor over the masked payload" -V
 expect_exit 0 "sig verifies the running binary" sig
 expect_exit 0 "the long 'signature' spelling rides the same arm" signature

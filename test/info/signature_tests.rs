@@ -169,7 +169,7 @@ fn pristine_view_verifies_all_three_thirds() {
     );
 }
 
-/// The Depth-sig line's shape: fp= token (16 lowercase hex), the
+/// The Depth-matrix line's shape: fp= token (16 lowercase hex), the
 /// verified status, the full b3: anchor, and the layers token that
 /// describes the masked + anchored scheme.
 #[test]
@@ -177,7 +177,7 @@ fn depth_line_shape_is_stable() {
     let view = provenance::provenance_view();
     let depth = &view.depth_line;
     assert!(
-        depth.starts_with("Depth-sig: fp="),
+        depth.starts_with("Depth-matrix: fp="),
         "depth line shape: {depth}"
     );
     assert!(
@@ -199,7 +199,7 @@ fn depth_line_shape_is_stable() {
     let fp = depth
         .split(" status=")
         .next()
-        .and_then(|head| head.strip_prefix("Depth-sig: fp="))
+        .and_then(|head| head.strip_prefix("Depth-matrix: fp="))
         .expect("fp= token present");
     assert_eq!(fp.len(), 16);
     assert!(
