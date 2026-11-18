@@ -305,6 +305,94 @@ jobs:
             --battery \
             --timeout 180
 
+      # night-frontier-Z3, the corpus echo: the lane re-digests the
+      # exact kernel image it just booted through the SAME instrument
+      # that produced the frozen corpus blobs (scripts/ci/
+      # corpus-extract-dialect.sh - one implementation, two seats, so
+      # the freeze cannot drift from the boots). Three directions:
+      #   * the archive-frozen dialects (jammy GA 5.15.0-25, noble GA
+      #     6.8.0-31, the frozen mainline 6.6.95 build) MUST digest
+      #     equal to their corpus sha256 - a moved archive under the
+      #     suite's name fails HERE, loudly, on the push that moved;
+      #   * the moving dialects (bookworm's current point release,
+      #     cachyos's current flagship) digest + upload a run
+      #     artifact - the time-machine's by-product: every push
+      #     freezes the moving lines' dialect of that day;
+      #   * the pre-BTF dialect (focal GA 5.4.0-26) MUST refuse by
+      #     name - the absence is a dialect fact, asserted per push.
+      # Every leg's blob (when one exists) uploads as an artifact so
+      # the run page carries the dialect bytes themselves. objcopy
+      # rides the runner's preinstalled binutils; no extra package.
+      - name: Echo the dialect digest (the corpus echo)
+        if: always()
+        run: |
+          set -e
+          KIMG="$HOME/.cache/zejtron-sandbox/vmlinuz-${{ matrix.suite }}"
+          OUT="$RUNNER_TEMP/btf-echo-${{ matrix.suite }}.btf"
+          {
+            echo "### the corpus echo (${{ matrix.suite }})"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ ! -f "$KIMG" ]]; then
+            echo "note: no kernel image at $KIMG - the lane failed before packing a kernel" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          set +e
+          REPORT="$(bash scripts/ci/corpus-extract-dialect.sh "$KIMG" "$OUT" 2>&1)"
+          ECHO_RC=$?
+          set -e
+          printf '%s\n' "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          case "${{ matrix.suite }}" in
+            focal)
+              # The named absence: the refusal IS the verdict.
+              if [[ "$ECHO_RC" -eq 1 ]] && grep -q 'no .BTF section' <<<"$REPORT"; then
+                echo "the 5.4 dialect refuses by name - the absence pin holds" >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "FAIL: the focal GA kernel must carry no .BTF section (rc=$ECHO_RC)" >> "$GITHUB_STEP_SUMMARY"
+                exit 1
+              fi
+              ;;
+            jammy)
+              echo '5.15.0-25-generic.btf sha256=a5baeefda0d449e9070af8d9e129b075633681d7dd80036d11628bd9965e7d2d' > /tmp/frozen.txt
+              ;;
+            mainline-6.6)
+              echo '6.6.95-060695-generic.btf sha256=f5e9dd11aa2232e8066b8c1102b36cc3d956ce8818d4c6a89a54ab66d7be9a71' > /tmp/frozen.txt
+              ;;
+            noble)
+              echo '6.8.0-31-generic.btf sha256=43c0d3cfdc66818fb0a4c375f6a49b724e9f591cd70fd0237490d0e5e5d5f914' > /tmp/frozen.txt
+              ;;
+            *)
+              # The moving dialects: digest + artifact, no equality.
+              if [[ "$ECHO_RC" -eq 0 ]]; then
+                echo "moving dialect captured - the artifact carries the bytes" >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+              echo "FAIL: the moving dialect's extraction failed (rc=$ECHO_RC)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+              ;;
+          esac
+          GOT="$(grep -oE 'btf sha256: [0-9a-f]{64}' <<<"$REPORT" | awk '{print $3}')"
+          WANT="$(awk '{print $2}' /tmp/frozen.txt | cut -d= -f2)"
+          if [[ "$GOT" == "$WANT" ]]; then
+            echo "the frozen dialect's live bytes equal the corpus pin ($WANT)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "FAIL: the frozen dialect drifted from the corpus pin" >> "$GITHUB_STEP_SUMMARY"
+            echo "  want sha256 $WANT" >> "$GITHUB_STEP_SUMMARY"
+            echo "  got  sha256 ${GOT:-none}" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Upload the echoed dialect blob
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, SHA pin
+        with:
+          name: btf-echo-${{ matrix.suite }}
+          path: ${{ runner.temp }}/btf-echo-${{ matrix.suite }}.btf
+          if-no-files-found: ignore
+
       # The sentinel rows for the run's page (the verdict itself is
       # the previous step's exit code; the twin always leaves vm.log
       # at the cache root).
