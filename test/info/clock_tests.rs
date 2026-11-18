@@ -307,6 +307,12 @@ fn a_wall_step_cannot_read_as_a_sleep_and_vice_versa() {
 
 #[test]
 fn the_gap_reads_true_against_the_boottime_domain_file() {
+    // Miri's clock shim covers realtime/monotonic only - CLOCK_BOOTTIME
+    // traps under the interpreter, so the live cross-check runs on the
+    // real kernels (every cargo-test lane, every CI kernel) and the
+    // pure pins carry the law under Miri.
+    #[cfg(miri)]
+    return;
     // The two-source live cross-check: CLOCK_BOOTTIME from
     // clock_gettime and /proc/uptime's first column are the SAME
     // kernel counter (the boottime domain) served through two

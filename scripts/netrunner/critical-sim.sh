@@ -19,7 +19,9 @@
 #                         two named refusals, the conservation
 #                         identity accepted + refused == attempts,
 #                         and the sleep-gap leg (night-frontier-Z6,
-#                         D3): the awake host names no blackout - a
+#                         D3, riding BEFORE the census fill: a clean
+#                         camera is the negative arm's precondition):
+#                         the awake host names no blackout - a
 #                         healthy host's third clock holds its
 #                         breath.
 #   non-root            - the same estate minus the privileged leg,
@@ -615,7 +617,40 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	kill "$rn_writer" 2>/dev/null || true
 	wait "$rn_writer" 2>/dev/null || true
 
-	# 7b. The question-census leg (night-frontier-Z5): the camera's
+	# 7b. The sleep-gap leg (night-frontier-Z6, D3): the third clock's
+	#     live arms on this host. The awake-host negative: a real
+	#     window on a host that did not sleep inside it must name NO
+	#     blackout - a boundary that fires on healthy hosts is the
+	#     lie D3 refuses (the Z2 companion: an NTP step reads as wall
+	#     skew, never as a sleep; the gap does not move under wall
+	#     steps). The sampling law itself is cross-pinned live at test
+	#     time against /proc/uptime (the boottime domain's two
+	#     independent sources), so every kernel this suite runs on
+	#     proves the third clock reads true. The SUSPEND arm (a real
+	#     guest suspend mid-window, the report == ground-truth
+	#     assertion) needs a disposable guest with ACPI S3 + an RTC
+	#     wakealarm seat - this harness's seats carry none (the
+	#     micro-VM machine type has no ACPI power management), and a
+	#     decorative skip arm that can never fire is not the honest
+	#     shape: the seat's recipe lives in docs/EBPF_LIFECYCLE.md,
+	#     the blackout math rides the pure pins, and the divergence
+	#     rests on the kernel's own documented BOOTTIME definition.
+	sleep_dir="$SCRATCH/sleep-gap"
+	mkdir -p "$sleep_dir"
+	sleep_file="$sleep_dir/hot.bin"
+	: >"$sleep_file"
+	"$BIN" why "$sleep_file" --since 2s --raw >"$sleep_dir/why.out" 2>&1
+	sleep_rc=$?
+	if [ "$sleep_rc" -eq 0 ] &&
+		! grep -q "sleep blackout" "$sleep_dir/why.out" &&
+		! grep -q "sleep clock anomaly" "$sleep_dir/why.out"; then
+		pass "sleep gap: the awake host's window names no blackout (the third clock holds its breath)"
+	else
+		fail "sleep gap: the awake host's window names no blackout" \
+			"rc=$sleep_rc: $(grep -E 'sleep (blackout|clock anomaly)' "$sleep_dir/why.out" | head -1)"
+	fi
+
+	# 7c. The question-census leg (night-frontier-Z5): the camera's
 	#     question map obeys the census law like every bounded resource
 	#     it owns - a question the kernel refuses for capacity (E2BIG,
 	#     the hash map full) is counted in the pinned census slot, and
@@ -710,39 +745,6 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 					"the counts did not land consecutively: $(grep -h 'refused since attach' "$qc_dir"/refuse-*.out | tr '\n' ' ')"
 			fi
 		fi
-	fi
-
-	# 7c. The sleep-gap leg (night-frontier-Z6, D3): the third clock's
-	#     live arms on this host. The awake-host negative: a real
-	#     window on a host that did not sleep inside it must name NO
-	#     blackout - a boundary that fires on healthy hosts is the
-	#     lie D3 refuses (the Z2 companion: an NTP step reads as wall
-	#     skew, never as a sleep; the gap does not move under wall
-	#     steps). The sampling law itself is cross-pinned live at test
-	#     time against /proc/uptime (the boottime domain's two
-	#     independent sources), so every kernel this suite runs on
-	#     proves the third clock reads true. The SUSPEND arm (a real
-	#     guest suspend mid-window, the report == ground-truth
-	#     assertion) needs a disposable guest with ACPI S3 + an RTC
-	#     wakealarm seat - this harness's seats carry none (the
-	#     micro-VM machine type has no ACPI power management), and a
-	#     decorative skip arm that can never fire is not the honest
-	#     shape: the seat's recipe lives in docs/EBPF_LIFECYCLE.md,
-	#     the blackout math rides the pure pins, and the divergence
-	#     rests on the kernel's own documented BOOTTIME definition.
-	sleep_dir="$SCRATCH/sleep-gap"
-	mkdir -p "$sleep_dir"
-	sleep_file="$sleep_dir/hot.bin"
-	: >"$sleep_file"
-	"$BIN" why "$sleep_file" --since 2s --raw >"$sleep_dir/why.out" 2>&1
-	sleep_rc=$?
-	if [ "$sleep_rc" -eq 0 ] &&
-		! grep -q "sleep blackout" "$sleep_dir/why.out" &&
-		! grep -q "sleep clock anomaly" "$sleep_dir/why.out"; then
-		pass "sleep gap: the awake host's window names no blackout (the third clock holds its breath)"
-	else
-		fail "sleep gap: the awake host's window names no blackout" \
-			"rc=$sleep_rc: $(grep -E 'sleep (blackout|clock anomaly)' "$sleep_dir/why.out" | head -1)"
 	fi
 
 	if "$BIN" doctor --detach >/dev/null 2>&1; then
