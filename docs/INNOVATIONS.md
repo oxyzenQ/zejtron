@@ -75,9 +75,20 @@ draining surface's Unaccounted block names how many events the
 kernel saw but could not hold. The kernel cannot remember what it
 did not record; counting the failures is the honesty the kernel
 itself allows, and it is the last silent boundary the ledger does
-not own. Pinned by `test/ebpf/readback_tests.rs` and the surfaces'
-builder pins (`test/commands/lane_tests.rs`, the doctor and port
-JSON pins).
+not own. And night-frontier-Z3 proves the census itself: the
+suite's loss-certificate surface floods one tracked window past
+the file ring's capacity with a storm the generator counts
+OUTSIDE the camera, then asserts the conservation identity -
+delivered records + drop_census == ground truth - in all four
+directions (delivered beyond truth = fabrication; truth beyond
+delivered + drops = silent loss; an overload with a zero census =
+a lying census; exact equality over a real overload = the
+certificate issues). A census that undercounted would fail the
+suite, not the host. Pinned by `test/ebpf/readback_tests.rs`, the
+surfaces' builder pins (`test/commands/lane_tests.rs`, the doctor
+and port JSON pins), and the suite self-test's stub-camera matrix
+(`scripts/supermassive/selftest.sh` - all six seats, no kernel
+needed).
 
 **3. BTF-verified attach** (`src/ebpf/btf.rs`, `btf_writev.rs`,
 `verify_write.rs`, `readback.rs`). The hole: a kprobe's struct

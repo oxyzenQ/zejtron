@@ -357,6 +357,161 @@ else
 		"jq is not on PATH (the typed JSON law's harness dependency)"
 fi
 
+# 8. The loss certificate's logic (night-frontier-Z3): the surface
+# driven against a stub camera, every verdict direction proved on
+# known-good and known-bad fixtures - no kernel, no root, no KVM.
+# The stub plays the camera honestly (or dishonestly, per scenario)
+# by reading the storm's OWN sidecar count - the ground truth the
+# surface wrote OUTSIDE the camera - and rendering a WHY output whose
+# delivered-records and ring-drops lines realize the scenario. The
+# conservation identity is then the surface's to prove or refute.
+# The seats land by EXACT counter deltas (this file's own style);
+# the fail/skip needles ride the failure/skip inventories.
+# The gate's 1d source-resolution check verifies the target exists,
+# fail-closed - shellcheck's follow is a convenience here, not the
+# verifier (the same law the lib.sh source above rides).
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/loss-certificate.sh"
+
+if [[ -e /sys/fs/bpf/zejtron ]]; then
+	sm_skip "selftest: the loss-certificate matrix" \
+		"a live camera is attached on this host - the matrix rides a hermetic stub, not a real estate"
+else
+	# The stub factory: one camera per scenario, the behavior baked
+	# into the script body (sm_run wipes the environment, so the
+	# scenario rides in the file, never in an env var).
+	write_stub() {
+		local path="$1" mode="$2"
+		cat >"$path" <<STUB
+#!/usr/bin/env bash
+# The stub camera (the selftest's hermetic seat, mode: $mode).
+case "\$1 \$2" in
+	"doctor --attach") exit 0 ;;
+	"doctor --detach") exit 0 ;;
+esac
+if [[ "\$1" == "why" ]]; then
+	dir="\$(dirname "\$2")"
+	count_file="\$dir/storm.count"
+	for _ in \$(seq 1 150); do
+		[[ -s "\$count_file" ]] && break
+		sleep 0.2
+	done
+	truth="\$(cat "\$count_file" 2>/dev/null || echo 0)"
+	case "$mode" in
+		honest)
+			delivered=\$(( truth < 6553 ? truth : 6553 ))
+			drops=\$(( truth - delivered ))
+			;;
+		silent)
+			delivered=\$(( truth < 6553 ? truth : 6553 ))
+			drops=\$(( truth - delivered - 7 ))
+			[[ \$drops -lt 0 ]] && drops=0
+			;;
+		fabricate)
+			delivered=\$(( truth + 5 ))
+			drops=0
+			;;
+		census-lies)
+			delivered=\$truth
+			drops=0
+			;;
+	esac
+	printf 'Unaccounted:\n'
+	printf '  %d ring drops (file_events reserve failures since attach - events the kernel saw but the ring could not hold)\n' "\$drops"
+	printf '\n'
+	printf 'Raw kernel events (file_events ring, as drained; CLOCK_MONOTONIC ns):\n'
+	for ((i = 0; i < delivered; i++)); do
+		printf '  %d op=write inode=42 device=0x2 pid=7\n' "\$((1000000 + i))"
+	done
+	exit 0
+fi
+exit 3
+STUB
+		chmod 755 "$path"
+	}
+
+	run_matrix() {
+		# <mode> <target> <want-pass> <want-fail> <want-skip> <needle>
+		local mode="$1" target="$2" wp="$3" wf="$4" ws="$5" needle="$6"
+		local stub="$SM_SCRATCH/stub-$mode"
+		write_stub "$stub" "$mode"
+		# A fresh storm dir per scenario: the stub breaks its poll on
+		# the FIRST non-empty count file - a stale one from the
+		# previous scenario would feed it a foreign ground truth.
+		rm -rf "$SM_SCRATCH/loss-cert"
+		local bp=$SM_PASS bf=$SM_FAIL bs=$SM_SKIP
+		local bfail_txt="$SM_FAILURES" bskip_txt="$SM_SKIP_REASONS"
+		SM_DEFAULT_BIN="$stub"
+		# The seam rides as a shell variable, not an env export - the
+		# surface reads it in-process (the SM_TEST_TIMEOUT class).
+		# shellcheck disable=SC2034
+		SM_LOSS_CERT_TARGET="$target"
+		surface_loss_certificate
+		# shellcheck disable=SC2034
+		SM_LOSS_CERT_TARGET=""
+		# The bad-camera scenarios' surface failures are deliberate
+		# probes - registered like every other injected failure, or
+		# the final verdict's math would disown them.
+		if [[ "$wf" -gt 0 ]]; then
+			probe_failures=$((probe_failures + wf))
+		fi
+		local gp=$((SM_PASS - bp)) gf=$((SM_FAIL - bf)) gs=$((SM_SKIP - bs))
+		if [[ "$gp" -eq "$wp" && "$gf" -eq "$wf" && "$gs" -eq "$ws" ]]; then
+			sm_pass "selftest: the loss certificate's $mode seat lands ($gp pass / $gf fail / $gs skip)"
+		else
+			probe_failures=$((probe_failures + 1))
+			sm_fail "selftest: the loss certificate's $mode seat" \
+				"want $wp pass / $wf fail / $ws skip, got $gp / $gf / $gs"
+			return 0
+		fi
+		if [[ -n "$needle" ]]; then
+			if [[ "$wf" -gt 0 ]] && grep -qF -- "$needle" <<<"${SM_FAILURES#"$bfail_txt"}"; then
+				sm_pass "selftest: the $mode failure names its direction"
+			elif [[ "$ws" -gt 0 ]] && grep -qF -- "$needle" <<<"${SM_SKIP_REASONS#"$bskip_txt"}"; then
+				sm_pass "selftest: the $mode skip names its reason"
+			else
+				probe_failures=$((probe_failures + 1))
+				sm_fail "selftest: the $mode seat's needle" \
+					"the inventory never named: $needle"
+			fi
+		fi
+	}
+
+	# The honest camera: conservation exact over a real overload -
+	# the certificate ISSUES (six passes: hygiene, attach, why rc,
+	# the certificate, detach rc, pin directory gone).
+	run_matrix honest 20000 6 0 0 ""
+	# The undercounting camera: seven events lost uncounted.
+	run_matrix silent 20000 5 1 0 "events lost uncounted"
+	# The fabricating camera: more records than writes.
+	run_matrix fabricate 20000 5 1 0 "fabrication"
+	# The lying census: an overload the census counted as nothing.
+	run_matrix census-lies 20000 5 1 0 "the census missed the overload"
+	# The too-slow host: no overload reached, the skip names it.
+	run_matrix honest 3000 5 0 1 "no overload reached"
+
+	# The refusing camera: no attach, no certificate - the skip
+	# names why (its own stub, attach exits 1).
+	local_refuse_stub="$SM_SCRATCH/stub-refuse"
+	printf '#!/usr/bin/env bash\nexit 1\n' >"$local_refuse_stub"
+	chmod 755 "$local_refuse_stub"
+	bp=$SM_PASS
+	bs=$SM_SKIP
+	MSD="$SM_DEFAULT_BIN"
+	SM_DEFAULT_BIN="$local_refuse_stub"
+	surface_loss_certificate
+	SM_DEFAULT_BIN="$MSD"
+	gp=$((SM_PASS - bp))
+	gs=$((SM_SKIP - bs))
+	if [[ "$gs" -eq 1 && "$gp" -eq 1 ]]; then
+		sm_pass "selftest: the loss certificate's refusing-camera seat lands skip"
+	else
+		probe_failures=$((probe_failures + 1))
+		sm_fail "selftest: the loss certificate's refusing-camera seat" \
+			"want 1 pass (hygiene) + 1 skip (no camera), got pass=$gp skip=$gs"
+	fi
+fi
+
 rm -rf "$SM_SCRATCH"
 
 # The verdict: the failure counter must hold EXACTLY the deliberate

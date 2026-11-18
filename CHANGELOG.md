@@ -44,6 +44,28 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z3, the loss-under-load certificate (the drop
+  census is proven, not just present).** The drop census counts the
+  file ring's reserve failures; the suite's new loss-certificate
+  surface proves the count HONEST under a real overload: inside one
+  tracked window a pure-bash storm performs tens of thousands of
+  counted writes on a pre-opened descriptor (ground truth lives
+  OUTSIDE the camera - the generator is the counter, its total
+  landing in a sidecar the filter never tracks), far past the
+  256 KiB ring's capacity, and the leg asserts the conservation
+  identity on the drain - delivered records + drop_census == ground
+  truth - in all four directions: delivered beyond truth is
+  fabrication, truth beyond delivered + drops is silent loss, an
+  overload with a zero census is a lying census, and exact equality
+  over a real overload issues the certificate. The claim a
+  competitor cannot copy: this camera never loses silently under
+  overload - its loss is counted, and the count is provable against
+  an external truth. The logic is hermetically seated in the suite
+  self-test (a stub camera drives all six verdict seats - honest,
+  silent, fabricating, lying, too-slow, refusing - no kernel, no
+  root); the root CI lanes prove it on the real camera per push.
+  Zero new flags: doctor --attach/--detach and why --since --raw
+  only.
 - **night-frontier-Z3, the dialect corpus time-machine (the parser
   lock now spans 5.15 through the 7.x line, frozen).** The kernel
   dialect corpus grows from two frozen GA dialects to FIVE - jammy
