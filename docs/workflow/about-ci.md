@@ -80,19 +80,18 @@ the fuzzer grows between runs stays out of git (the `fuzz/`
 gitignore), reproduced from the CI artifact when a crash needs
 one.
 
-The weekly deep session rides the same lane: every Monday 07:30
-WIB (00:30 UTC) the three targets run for 15 minutes each instead
-of 60 seconds - the owner-lazy insurance the continuous net
-cannot buy. Both sessions share the corpus cache, so the deep
-session and the per-push sessions grow one asset; the budget is
-the only difference, exactly the low/best leg law the supermassive
-suite already carries.
+The weekly scheduled session rides the same lane: every Sunday 10:00
+WIB (03:00 UTC, the estate's one clock) the three targets run for
+180 seconds each - the five-minute job law retired both the old
+daily sweep and the old 15-minute deep blob (measured 15-16 minute
+wall clocks, 2026-11-09), so the per-push 60-second regression net
+carries the depth and the corpus cache grows one asset per session.
 
 The lane rides nightly Rust - the fuzzer's standard toolchain - with the main crate's stable pin untouched: the override is env-scoped to the fuzz lane's cargo invocations, the other lanes never see it. The corpus is cached between runs, so the fuzzer keeps growing where the last one stopped; a crash fails CI with the crashing input in the log, and the fix is a parser that returns the named error. The eBPF kernel-side code is deliberately not fuzzed: it runs behind the kernel verifier, not in userspace.
 
 ## Dependency Maintenance
 
-The `zejtron - Dependency Maintenance` workflow runs every Monday at 07:00 WIB (00:00 UTC) and can also be run manually. It checks out the default branch, runs `cargo update` in every workspace (the refresh script `scripts/ci/refresh-cargo-deps.sh` auto-detects each committed `Cargo.toml` - root, `ebpf/`, `fuzz/`, and any future subfolder workspace), then proves the prebuilt lane through the ONE WRITER (the parity rider: the read-only verdict first, a rebuild only when the manifest pin lags the swept tree - see the sweep-staled prebuilt lane class in `MAINTENANCE.md`), executes `./scripts/build.sh`, and commits the validated dependency lane - every workspace `Cargo.lock` plus `ebpf-prebuilt/` - directly back to the default branch only after validation passes.
+The `zejtron - Dependency Maintenance` workflow runs every Sunday at 10:00 WIB (03:00 UTC, the estate's one clock) and can also be run manually. It checks out the default branch, runs `cargo update` in every workspace (the refresh script `scripts/ci/refresh-cargo-deps.sh` auto-detects each committed `Cargo.toml` - root, `ebpf/`, `fuzz/`, and any future subfolder workspace), then proves the prebuilt lane through the ONE WRITER (the parity rider: the read-only verdict first, a rebuild only when the manifest pin lags the swept tree - see the sweep-staled prebuilt lane class in `MAINTENANCE.md`), executes `./scripts/build.sh`, and commits the validated dependency lane - every workspace `Cargo.lock` plus `ebpf-prebuilt/` - directly back to the default branch only after validation passes.
 
 Maintenance workflow commits use:
 
@@ -402,7 +401,8 @@ itself is ONE script (`scripts/netrunner/critical-sim.sh`),
 uid-adaptive, its last line the verdict
 (`NETRUNNER-C77: PASS|FAIL (n checks)`) and its exit code the
 gate; the workflow only makes the legs run. Triggers: every push,
-a nightly slot (01:37 UTC, off the top-of-hour herd), and
+a weekly slot (Sunday 03:00 UTC / 10:00 WIB, the estate's one
+clock), and
 `workflow_dispatch`.
 
 <!-- ZEJTRON-DISCLAIMER -->

@@ -13,11 +13,11 @@ name: zejtron - Security Audit
   push:
   pull_request:
   schedule:
-    # Every Monday at 00:00 UTC (07:00 WIB) - the owner's morning,
-    # one clock for every scheduled workflow. The weekly run watches
+    # Every Sunday at 03:00 UTC (10:00 WIB) - the estate's one clock
+    # (night-consistent-1). The weekly run watches
     # the advisory DB; the per-change runs (unfiltered now, the
     # owner's unfiltered-CI simplification) watch the tree.
-    - cron: "0 0 * * 1"
+    - cron: "0 3 * * 0"
   workflow_dispatch:
 
 permissions:

@@ -41,8 +41,11 @@ name: netrunner-night-C77
   workflow_dispatch:
   push:
   schedule:
-    # 01:37 UTC, nightly - off the top-of-hour herd.
-    - cron: "37 1 * * *"
+    # night-consistent-1: every Sunday 03:00 UTC (10:00 WIB) - the
+    # estate's one clock, shared by every scheduled workflow (the old
+    # nightly 01:37 slot ran the same simulation six times a week
+    # against an unchanged script).
+    - cron: "0 3 * * 0"
 
 permissions:
   contents: read

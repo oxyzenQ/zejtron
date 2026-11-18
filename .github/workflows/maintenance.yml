@@ -6,14 +6,14 @@ name: zejtron - Dependency Maintenance
 
 "on":
   schedule:
-    # night-improve-34: every Monday at 00:00 UTC (07:00 WIB) - the
-    # owner's morning, one clock for every scheduled workflow. The
-    # 07:00 UTC slot this file carried was the estate's second
-    # clock: audit.yml and codeql.yml pin the Monday 00:00 UTC
-    # cron, docs/workflow/about-ci.md documents this lane at that
-    # same hour, and the sibling's maintenance lane keeps the same
-    # beat. 07:00 UTC landed on 14:00 WIB - drift, not resilience.
-    - cron: "0 0 * * 1"
+    # night-consistent-1: every Sunday at 03:00 UTC (10:00 WIB) -
+    # the estate's one clock for every scheduled workflow. The
+    # Monday 00:00 UTC slot this file carried was one of the estate's
+    # second clocks (fuzz ran daily, netrunner nightly); the whole
+    # schedule estate now lands on the owner's Sunday morning in one
+    # sweep. 10:00 WIB is the owner's local morning - the verdict is
+    # waiting when the week starts, not drifting across workdays.
+    - cron: "0 3 * * 0"
   workflow_dispatch:
 
 permissions:

@@ -45,18 +45,20 @@
 # (fuzz/.gitignore); the seeds are the lane's definition, the same
 # law as the targets and the manifests.
 #
-# The daily sweep (night-T-1): the scheduled session runs every day
-# at 07:30 WIB (00:30 UTC) with a 180-second budget per target - not
-# the old weekly 15-minute deep blob. The estate law is five minutes
-# per job, and a 900-second burn plus build overhead blew straight
-# through it (measured 15-16 minute scheduled runs, 2026-11-09). The
-# daily sweep beats the weekly blob on its own terms: 7 x 180s = 1260
-# seconds of fuzzing per target per week (+40% depth) and the corpus
-# is never more than a day old, while every job's wall clock lands
-# near four minutes. The corpus cache restores the accumulated corpus
-# under the same restore-keys, so every session grows one asset; a
-# scheduled run and a push on the same ref share the concurrency
-# group, the newer run wins (the estate shape).
+# The weekly sweep (night-consistent-1): the scheduled session runs
+# every Sunday at 10:00 WIB (03:00 UTC) with a 180-second budget per
+# target - one clock for every scheduled workflow in the estate, the
+# owner's calendar law. The old daily sweep (night-T-1) bought depth
+# with cadence (7 x 180s = 1260s of fuzzing per target per week) and
+# the old weekly blob bought depth with burn (15 minutes, measured
+# 15-16 minute wall clocks, 2026-11-09) - both retired against the
+# five-minute job law; the weekly slot keeps the same 180-second
+# budget, so the per-target weekly fuzz time drops from 1260s to
+# 180s and the per-push 60-second regression net (every push, every
+# PR) is what carries the depth now. The corpus cache restores the
+# accumulated corpus under the same restore-keys, so every session
+# grows one asset; a scheduled run and a push on the same ref share
+# the concurrency group, the newer run wins (the estate shape).
 
 ---
 name: zejtron - Fuzz
@@ -65,8 +67,9 @@ name: zejtron - Fuzz
   push:
   pull_request:
   schedule:
-    # The daily sweep: every day 00:30 UTC = 07:30 WIB (night-T-1).
-    - cron: "30 0 * * *"
+    # night-consistent-1: every Sunday 03:00 UTC (10:00 WIB) - the
+    # estate's one clock, shared by every scheduled workflow.
+    - cron: "0 3 * * 0"
 
 permissions:
   contents: read
@@ -83,7 +86,7 @@ env:
 jobs:
   fuzz:
     # The budget rides the event (the Fuzz step's table): 60s on
-    # push and PR, 180s on the daily sweep (night-T-1).
+    # push and PR, 180s on the weekly sweep (night-consistent-1).
     name: cargo fuzz ${{ matrix.target }}
     runs-on: ubuntu-24.04
     # The five-minute law, sized as a fail-fast line: a warm run
@@ -160,8 +163,8 @@ jobs:
       - name: Fuzz
         run: |
           # The budget table: 60s on every push and pull request (the
-          # regression net), 180s on the daily sweep (the corpus
-          # grows every day; the estate law keeps each job's wall
+          # regression net), 180s on the weekly sweep (the corpus
+          # grows once a week; the estate law keeps each job's wall
           # clock under five minutes).
           if [ "${{ github.event_name }}" = "schedule" ]; then
             BUDGET=180
