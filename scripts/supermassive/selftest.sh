@@ -418,11 +418,11 @@ if [[ "\$1" == "why" ]]; then
 		truth="\$(cat "\$count_file" 2>/dev/null || echo 0)"
 		case "$mode" in
 			honest)
-				delivered=\$(( truth < 4096 ? truth : 4096 ))
+				delivered=\$(( truth < 5461 ? truth : 5461 ))
 				drops=\$(( truth - delivered ))
 				;;
 			silent)
-				delivered=\$(( truth < 4096 ? truth : 4096 ))
+				delivered=\$(( truth < 5461 ? truth : 5461 ))
 				drops=\$(( truth - delivered - 7 ))
 				[[ \$drops -lt 0 ]] && drops=0
 				;;

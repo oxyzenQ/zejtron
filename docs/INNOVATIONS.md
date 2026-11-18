@@ -84,10 +84,15 @@ directions (delivered beyond truth = fabrication; truth beyond
 delivered + drops = silent loss; an overload with a zero census =
 a lying census; exact equality over a real overload = the
 certificate issues). A census that undercounted would fail the
-suite, not the host. Pinned by `test/ebpf/readback_tests.rs`, the
-surfaces' builder pins (`test/commands/lane_tests.rs`, the doctor
-and port JSON pins), and the suite self-test's stub-camera matrix
-(`scripts/supermassive/selftest.sh` - all six seats, no kernel
+suite, not the host. The exactness rests on the drain window: the
+rolling cap is 8192 - above either ring's whole take - so the render
+carries every record the ring held and no cap can hide a census
+error (the live runs proved the need: a 4096 cap left a 1365-record
+residue a census lie could hide inside). Pinned by
+`test/ebpf/readback_tests.rs`, the surfaces' builder pins
+(`test/commands/lane_tests.rs`, the doctor and port JSON pins), and
+the suite self-test's stub-camera matrix
+(`scripts/supermassive/selftest.sh` - all seven seats, no kernel
 needed).
 
 **3. BTF-verified attach** (`src/ebpf/btf.rs`, `btf_writev.rs`,

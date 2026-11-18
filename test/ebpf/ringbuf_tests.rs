@@ -186,9 +186,11 @@ fn rolling_window_keeps_newest_and_drops_oldest() {
 
 #[test]
 fn rolling_window_cap_matches_the_contract() {
-    // 4096 entries: half the ring's 8192-record capacity - the
-    // number the spec pinned, the number the drain honors.
-    assert_eq!(ROLLING_CAP, 4096);
+    // 8192 entries: the sock ring's whole capacity, and more than
+    // the file ring's measured take - one drain hands back every
+    // record either ring held, the law the loss certificate's exact
+    // conservation rides.
+    assert_eq!(ROLLING_CAP, 8192);
 }
 
 #[test]

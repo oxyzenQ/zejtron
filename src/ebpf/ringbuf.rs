@@ -42,11 +42,19 @@ use super::events::{
 };
 
 /// The rolling cap: the pump never hands back more than this many
-/// events, newest kept, oldest dropped. 4096 records is half the
-/// sock ring's 8192-record capacity — a window-shaped bound, not a
-/// log-shaped one. The file ring holds 6553 40-byte records at the
-/// same 256 KiB; the same cap bounds both.
-pub const ROLLING_CAP: usize = 4096;
+/// events, newest kept, oldest dropped. 8192 records is the sock
+/// ring's whole 8192-record capacity, and more than the file ring's
+/// measured take (5461 at aya's 48-byte stride over the same
+/// 256 KiB - the loss certificate's first live run measured it), so
+/// ONE drain hands back EVERY record either ring held. The cap stays
+/// a window-shaped bound, not a log-shaped one - but a drain can
+/// never set aside records the render never saw, which is what makes
+/// the loss certificate's conservation (delivered + drop_census ==
+/// generated) exact: with the cap below a ring's capacity, an
+/// overload's oldest records would ride the cap out of the render
+/// and a census error inside that window would be undetectable from
+/// outside. The same cap bounds all three drains.
+pub const ROLLING_CAP: usize = 8192;
 
 /// Open one pinned ring buffer by its pin path. The shared half of
 /// every drain: the map is opened through its pin (a missing pin is

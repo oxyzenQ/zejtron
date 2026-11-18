@@ -60,10 +60,19 @@ v11.0.0
   over a real overload issues the certificate. The claim a
   competitor cannot copy: this camera never loses silently under
   overload - its loss is counted, and the count is provable against
-  an external truth. The logic is hermetically seated in the suite
-  self-test (a stub camera drives all six verdict seats - honest,
-  silent, fabricating, lying, too-slow, refusing - no kernel, no
-  root); the root CI lanes prove it on the real camera per push.
+  an external truth. The exactness rests on the drain window: the
+  rolling cap rises to 8192 (the sock ring's whole capacity, and
+  more than the file ring's measured 5461-record take at aya's
+  48-byte stride), so one drain hands back EVERY record either ring
+  held and no render window can sit between the drain and the truth
+  - the live runs found the old 4096 cap exactly there (the first
+  floor run's 1365-record residue was the cap's, not the camera's;
+  the second caught the TTY-gated narration the first sync draft
+  rode; the third seat is the /proc hrtimer_nanosleep sync that
+  cannot lie). The logic is hermetically seated in the suite
+  self-test (a stub camera drives all seven verdict seats - honest,
+  silent, fabricating, lying, too-slow, mute, refusing - no kernel,
+  no root); the root CI lanes prove it on the real camera per push.
   Zero new flags: doctor --attach/--detach and why --since --raw
   only.
 - **night-frontier-Z3, the dialect corpus time-machine (the parser

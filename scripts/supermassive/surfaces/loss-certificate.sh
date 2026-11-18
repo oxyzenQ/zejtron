@@ -180,7 +180,10 @@ surface_loss_certificate() {
 		"loss-certificate: the why window drains and renders (exit 0)"
 
 	# delivered: the --raw section's op=write records - the kernel's
-	# own records as drained, uncapped (the identity filter only).
+	# own records as drained. The drain's rolling cap (8192, see
+	# src/ebpf/ringbuf.rs) sits above either ring's whole take, so
+	# the render carries EVERY record the ring held - the
+	# conservation below is exact, no render window in between.
 	delivered="$(grep -c 'op=write' "$SM_SCRATCH/lc-why.out" 2>/dev/null || true)"
 	delivered="${delivered:-0}"
 	# drops: the Unaccounted block's ring-drops entry - the census's
@@ -201,11 +204,11 @@ surface_loss_certificate() {
 		sm_fail "loss-certificate: delivered + drops == ground truth" \
 			"delivered $delivered + drops $drops = $total, ground truth $storm_count - events lost uncounted (the silent-loss direction)"
 	elif [[ "$drops" -eq 0 && "$storm_count" -gt 8192 ]]; then
-		# 8192 is twice the ring's MEASURED capacity (4096 held
-		# records on the floor kernel, aya's own accounting): a storm
-		# past this bound with zero counted drops means the census
-		# did not count a real overload - the lying-census direction,
-		# named.
+		# 8192 is above the ring's MEASURED capacity (5461 held
+		# records on the floor kernel, aya's own 48-byte-stride
+		# accounting over 256 KiB): a storm past this bound with zero
+		# counted drops means the census did not count a real
+		# overload - the lying-census direction, named.
 		sm_fail "loss-certificate: the census counts a real overload" \
 			"$storm_count writes flooded a 6553-record ring yet drop_census reads 0 - the census missed the overload"
 	elif [[ "$drops" -eq 0 ]]; then
