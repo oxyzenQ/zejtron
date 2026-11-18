@@ -53,3 +53,55 @@ fn both_verbs_key_the_same_pack_as_the_kprobe() {
         (0x1234u64 << 32) | 0x800002u64
     );
 }
+
+#[test]
+fn a_full_hash_map_is_classified_by_the_kernel_s_own_errno() {
+    // night-frontier-Z5: the question census counts only CAPACITY
+    // refusals. The kernel answers E2BIG for a full BPF hash map; the
+    // syscall-error carrier is the shape aya's insert surfaces. Two
+    // neighbours must NOT classify as full: EPERM (a privilege
+    // refusal - the census would lie about capacity it never ran out
+    // of) and a non-syscall carrier with a different errno.
+    let full = MapError::SyscallError(aya::sys::SyscallError {
+        call: "bpf_map_update_elem",
+        io_error: std::io::Error::from_raw_os_error(libc::E2BIG),
+    });
+    assert!(is_map_full_error(&full));
+    let denied = MapError::SyscallError(aya::sys::SyscallError {
+        call: "bpf_map_update_elem",
+        io_error: std::io::Error::from_raw_os_error(libc::EPERM),
+    });
+    assert!(!is_map_full_error(&denied));
+    // The IoError twin (the same errno, the non-syscall carrier).
+    let io_full = MapError::IoError(std::io::Error::from_raw_os_error(libc::E2BIG));
+    assert!(is_map_full_error(&io_full));
+    let io_denied = MapError::IoError(std::io::Error::from_raw_os_error(libc::EPERM));
+    assert!(!is_map_full_error(&io_denied));
+}
+
+#[test]
+fn the_refusal_names_the_camera_the_count_and_the_remedy() {
+    // night-frontier-Z5: the refusal-with-a-name shape. Counted: the
+    // cause, the cumulative count (this refusal included), and the
+    // remedy - the detach that clears the stale questions.
+    let full = MapError::SyscallError(aya::sys::SyscallError {
+        call: "bpf_map_update_elem",
+        io_error: std::io::Error::from_raw_os_error(libc::E2BIG),
+    });
+    let counted = refused_question_error(&full, Ok(2));
+    assert!(counted.contains("refused this question"), "{counted}");
+    assert!(counted.contains("no capacity left"), "{counted}");
+    assert!(counted.contains("2 refused since attach"), "{counted}");
+    assert!(counted.contains("doctor --detach"), "{counted}");
+    // Degraded: the census is unreadable on this camera - the count
+    // is dropped (never invented), the unreadability is named with
+    // its reason, the remedy stays.
+    let degraded = refused_question_error(&full, Err("stats[17] read failed: gone".to_owned()));
+    assert!(!degraded.contains("refused since attach"), "{degraded}");
+    assert!(degraded.contains("census is unreadable"), "{degraded}");
+    assert!(
+        degraded.contains("stats[17] read failed: gone"),
+        "{degraded}"
+    );
+    assert!(degraded.contains("doctor --detach"), "{degraded}");
+}

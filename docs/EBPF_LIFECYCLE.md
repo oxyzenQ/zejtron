@@ -238,6 +238,19 @@ hard way:
   in advance which exit will be the one it is asked about; its
   bound is the ring's own rolling window.
 
+- **The question map's capacity.** The tracked-inodes map holds
+  1024 questions. A command inserts its key at window start and
+  removes it at window end; a command killed mid-window (SIGKILL)
+  leaves a stale key until the next `doctor --detach`. A question
+  that arrives when the map is full refuses by name - the error
+  carries the camera's cumulative refusal count and the remedy
+  (night-frontier-Z5, the question census: the count lives in a
+  pinned stats-map slot, and `accepted + refused == attempts` is
+  proven live by the question-census leg in
+  `scripts/netrunner/critical-sim.sh`) - and the count dies with
+  the map at the next detach, the same one-session comparability
+  the drop census carries.
+
 - **The pre-attach past.** The camera starts at attach. What
   crossed the kernel before the attach is unreachable by this lane,
   and the surfaces that care say so through their fallback ladder

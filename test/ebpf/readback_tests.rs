@@ -146,3 +146,34 @@ fn the_drop_census_read_names_its_pin_when_absent() {
         "the error must name the pin path: {error}"
     );
 }
+
+// ── night-frontier-Z5, the question census pins ─────────────────────
+
+#[test]
+fn the_question_census_slot_is_the_kernel_side_contract() {
+    // The question census rides the stats map's next slot after the
+    // write probe's stage block (ebpf/src/main.rs's
+    // STATS_QUESTIONS_REFUSED = STATS_ZJW_STAGE_BASE +
+    // STATS_ZJW_STAGE_COUNT = 17, and the map's max_entries grew with
+    // it). Both sides keep the index in lockstep; this pin holds the
+    // userspace half - a renumber on either side must fail a gate
+    // here, never drift silently.
+    assert_eq!(STATS_QUESTIONS_REFUSED, 17);
+}
+
+#[test]
+fn the_question_census_read_names_its_pin_when_absent() {
+    // Host-tolerant (the missing-pin error shape law): a host
+    // carrying a live probe has a readable census - the error-path
+    // pin only applies when the pin is genuinely absent (a camera
+    // planted by a pre-Z5 binary carries the slot count of its own
+    // object, and the read names the same diagnosis).
+    if crate::ebpf::any_pin_present() {
+        return;
+    }
+    let error = read_question_census().unwrap_err();
+    assert!(
+        error.contains("pinned stats map /sys/fs/bpf/zejtron/stats"),
+        "the error must name the pin path: {error}"
+    );
+}

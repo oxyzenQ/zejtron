@@ -88,8 +88,18 @@ suite, not the host. The exactness rests on the drain window: the
 rolling cap is 8192 - above either ring's whole take - so the render
 carries every record the ring held and no cap can hide a census
 error (the live runs proved the need: a 4096 cap left a 1365-record
-residue a census lie could hide inside). Pinned by
-`test/ebpf/readback_tests.rs`, the surfaces' builder pins
+residue a census lie could hide inside). And night-frontier-Z5
+counts the camera's own refusals at the question source: a
+tracked_inodes insert the kernel refuses for capacity (the map
+full, E2BIG) bumps a pinned census slot in the stats map, and the
+refusing command's error names the camera, the cumulative count,
+and the remedy - the question map obeys the census law like every
+bounded resource the camera owns, and the conservation identity
+(accepted + refused == attempts) is proven live by the
+question-census leg in `scripts/netrunner/critical-sim.sh`: 1024
+stale-key fills, two named refusals, the counts read back
+consecutive. Pinned by
+`test/ebpf/readback_tests.rs`, `test/ebpf/tracked_tests.rs`, the surfaces' builder pins
 (`test/commands/lane_tests.rs`, the doctor and port JSON pins), and
 the suite self-test's stub-camera matrix
 (`scripts/supermassive/selftest.sh` - all seven seats, no kernel

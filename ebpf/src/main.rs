@@ -258,9 +258,22 @@ pub const STATS_ZJW_STAGE_BASE: u32 = 3;
 /// The number of census stages that carry a slot (write.rs's stage
 /// map: 1 and 3..14).
 pub const STATS_ZJW_STAGE_COUNT: u32 = 14;
+/// stats[17]: the question census (night-frontier-Z5): one increment
+/// per REFUSED question - a tracked_inodes insert the kernel refused
+/// because the hash map is full (E2BIG). The insert is a userspace
+/// syscall (src/ebpf/tracked.rs), so this slot's writer is the
+/// userspace writer too - the BPF programs only ever READ the filter
+/// map and never touch this slot. The count is cumulative since
+/// attach: the camera cannot remember the questions it never took,
+/// but it can count the refusals - the same honesty the drop_census
+/// slots carry for the rings - and every refusal also names itself
+/// in its own command's error, so a question that was never answered
+/// is at least never silent.
+pub const STATS_QUESTIONS_REFUSED: u32 = STATS_ZJW_STAGE_BASE + STATS_ZJW_STAGE_COUNT;
 /// The stats map's slot count (the map's max_entries): the three
-/// scalar slots plus the fourteen stage counters.
-pub const STATS_SLOTS: u32 = STATS_ZJW_STAGE_BASE + STATS_ZJW_STAGE_COUNT;
+/// scalar slots plus the fourteen stage counters plus the question
+/// census slot.
+pub const STATS_SLOTS: u32 = STATS_QUESTIONS_REFUSED + 1;
 
 // The static name IS the userspace contract (the loader opens the
 // map by name), so it stays lowercase exactly like the object's

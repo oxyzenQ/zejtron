@@ -13,7 +13,11 @@
 #                         the stream law, AND the live eBPF forensic
 #                         pair (create -> write -> unlink -> "who
 #                         deleted this file?"; create -> rename ->
-#                         the renamed row), one attach, one detach.
+#                         the renamed row), one attach, one detach,
+#                         plus the question-census leg
+#                         (night-frontier-Z5): 1024 stale-key fills,
+#                         two named refusals, the conservation
+#                         identity accepted + refused == attempts.
 #   non-root            - the same estate minus the privileged leg,
 #                         and the refusal direction is asserted: the
 #                         attach MUST refuse, naming the reason -
@@ -606,6 +610,103 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	fi
 	kill "$rn_writer" 2>/dev/null || true
 	wait "$rn_writer" 2>/dev/null || true
+
+	# 7b. The question-census leg (night-frontier-Z5): the camera's
+	#     question map obeys the census law like every bounded resource
+	#     it owns - a question the kernel refuses for capacity (E2BIG,
+	#     the hash map full) is counted in the pinned census slot, and
+	#     the refusing command names the cumulative count. The
+	#     conservation shape, over ONE attach session:
+	#
+	#       accepted  (the stale keys the killed windows left behind)
+	#       + refused (the census's own count, read back through the
+	#                  refusing commands' errors)
+	#       == attempts (every window this leg started that landed:
+	#                    1024 synced-and-leaked + the clean refusals)
+	#
+	#     The fill rides the stale-key law (src/ebpf/tracked.rs: a
+	#     SIGKILL mid-window leaves the key): 16 rounds of 64 windows,
+	#     every window synced on the kernel's own post-track sleep
+	#     state (/proc/<pid>/wchan == hrtimer_nanosleep - the loss
+	#     certificate's lesson: only a /proc row cannot lie), then
+	#     killed. 1024 leaked keys fill the map exactly; then two
+	#     clean questions must refuse, naming the counts 1 and 2 -
+	#     counting exactness, one census increment per refusal. A
+	#     window that never syncs is a broken sync seat (named FAIL),
+	#     never an uncounted attempt - a sync that lies would make the
+	#     conservation arithmetic fiction.
+	if [ "$attach_ok" = "1" ]; then
+		qc_dir="$SCRATCH/qc"
+		mkdir -p "$qc_dir"
+		fill_ok=1
+		round=0
+		while [ "$fill_ok" = "1" ] && [ "$round" -lt 16 ]; do
+			round=$((round + 1))
+			pids=""
+			r=0
+			while [ "$r" -lt 64 ]; do
+				r=$((r + 1))
+				n=$(( (round - 1) * 64 + r ))
+				qc_file="$qc_dir/hot-$n.bin"
+				: >"$qc_file"
+				"$BIN" why "$qc_file" --since 8s --raw \
+					>"$qc_dir/w-$n.out" 2>&1 &
+				pids="$pids $!"
+			done
+			synced=0
+			deadline=$((SECONDS + 10))
+			while [ "$synced" -lt 64 ] && [ "$SECONDS" -lt "$deadline" ]; do
+				synced=0
+				for p in $pids; do
+					if grep -q "hrtimer_nanosleep" "/proc/$p/wchan" 2>/dev/null; then
+						synced=$((synced + 1))
+					fi
+				done
+				[ "$synced" -lt 64 ] && sleep 0.1
+			done
+			if [ "$synced" -eq 64 ]; then
+				for p in $pids; do
+					kill -9 "$p" 2>/dev/null || true
+				done
+			else
+				fail "question census: every fill window reaches its post-track sleep" \
+					"round $round synced $synced/64 within 10s - the fill cannot be trusted, the conservation arithmetic would be fiction"
+				fill_ok=0
+			fi
+			for p in $pids; do
+				wait "$p" 2>/dev/null || true
+			done
+		done
+		if [ "$fill_ok" = "1" ]; then
+			pass "question census: 1024 windows tracked and leaked (16 rounds x 64)"
+			clean=1
+			while [ "$clean" -le 2 ]; do
+				qc_file="$qc_dir/clean-$clean.bin"
+				: >"$qc_file"
+				"$BIN" why "$qc_file" --since 2s --raw \
+					>"$qc_dir/refuse-$clean.out" 2>&1
+				refuse_rc=$?
+				want="$clean"
+				if [ "$refuse_rc" -ne 0 ] &&
+					grep -q "refused this question" "$qc_dir/refuse-$clean.out" &&
+					grep -q "${want} refused since attach" "$qc_dir/refuse-$clean.out" &&
+					grep -q "doctor --detach" "$qc_dir/refuse-$clean.out"; then
+					pass "question census: clean question $clean refuses naming count $want (the census counts every refusal)"
+				else
+					fail "question census: clean question $clean refuses naming count $want" \
+						"rc=$refuse_rc: $(head -1 "$qc_dir/refuse-$clean.out")"
+				fi
+				clean=$((clean + 1))
+			done
+			if grep -q "1 refused since attach" "$qc_dir/refuse-1.out" &&
+				grep -q "2 refused since attach" "$qc_dir/refuse-2.out"; then
+				pass "question census: accepted 1024 + refused 2 == 1026 attempts (conservation exact, counting sequential-exact)"
+			else
+				fail "question census: accepted 1024 + refused 2 == 1026 attempts" \
+					"the counts did not land consecutively: $(grep -h 'refused since attach' "$qc_dir"/refuse-*.out | tr '\n' ' ')"
+			fi
+		fi
+	fi
 
 	if "$BIN" doctor --detach >/dev/null 2>&1; then
 		pass "doctor --detach leaves the host clean"

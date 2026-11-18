@@ -19,19 +19,19 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-18T12:33:10Z"
+generated = "2026-11-18T18:05:06Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "284e6f9a7bd93cd1eb5669de8f4508b692d5ff4edb1547d96f0cc0ef4dc9cd0b"
+ebpf_tree_blake3 = "0e4aceb45466a1ddb8b22acc73ff726fc0f0606377a653f400e5592f0f536c09"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "7adc9e05535e0afc1141e7906e32fa6011cc2b563ae22b4195de2e190b011e12"
+blake3 = "e642ace8b8e9a3f549434d21c45413688fc6e3ec3afb7292f078cd0850f996ec"
 size = 16224
 
 [contract]
-# The six attach targets the loader plants (src/ebpf/loader.rs; the
+# The eight attach targets the loader plants (src/ebpf/loader.rs; the
 # exit probe lives in ebpf/src/exits.rs), documented for the registry
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.

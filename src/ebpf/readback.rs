@@ -34,13 +34,22 @@ use super::{PIN_MAP_DROP_CENSUS, PIN_MAP_OFFSETS, PIN_MAP_STATS};
 
 /// The stats slots this module reads. The index contract with the
 /// kernel side (ebpf/src/main.rs's STATS_EVENTS, STATS_ZJW_DROPS,
-/// STATS_ZJW_WALKED, STATS_ZJW_STAGE_BASE, STATS_ZJW_STAGE_COUNT) -
-/// both sides keep the slots in lockstep.
+/// STATS_ZJW_WALKED, STATS_ZJW_STAGE_BASE, STATS_ZJW_STAGE_COUNT,
+/// STATS_QUESTIONS_REFUSED) - both sides keep the slots in lockstep.
 const STATS_EVENTS: u32 = 0;
 const STATS_ZJW_DROPS: u32 = 1;
 const STATS_ZJW_WALKED: u32 = 2;
 const STATS_ZJW_STAGE_BASE: u32 = 3;
 const STATS_ZJW_STAGE_COUNT: u32 = 14;
+/// The question census slot (night-frontier-Z5): the count of refused
+/// questions - tracked_inodes inserts the kernel refused because the
+/// map is full - cumulative since attach. The camera cannot remember
+/// the questions it never took; counting the refusals is the honesty
+/// the map itself allows, and the count is what the refusing
+/// command's error carries (src/ebpf/tracked.rs). The writer is the
+/// userspace tracked_inodes writer (the insert is a userspace
+/// syscall); the BPF programs never touch the slot.
+const STATS_QUESTIONS_REFUSED: u32 = STATS_ZJW_STAGE_BASE + STATS_ZJW_STAGE_COUNT;
 
 /// Read one stats slot through the pin: the same `MapData::from_pin`
 /// lane the events counter rides - a pinned map opens by path, like
@@ -56,11 +65,55 @@ fn read_stats_slot(slot: u32) -> Result<u64, String> {
         .map_err(|e| format!("stats[{slot}] read failed: {e}"))
 }
 
+/// Write one stats slot through the pin: the read_stats_slot write
+/// twin - the question census bump's only writer path (the ring and
+/// walk census slots are kernel-written; the question census is the
+/// one slot the userspace side owns, because the refusal it counts
+/// happens in the userspace insert syscall).
+fn set_stats_slot(slot: u32, value: u64) -> Result<(), String> {
+    let map_data = MapData::from_pin(PIN_MAP_STATS)
+        .map_err(|e| format!("pinned stats map {PIN_MAP_STATS}: {e}"))?;
+    let mut owned = Map::Array(map_data);
+    let mut stats: Array<_, u64> = Array::try_from(&mut owned)
+        .map_err(|e| format!("the pinned stats map is not an array map: {e}"))?;
+    stats
+        .set(slot, &value, 0)
+        .map_err(|e| format!("stats[{slot}] write failed: {e}"))
+}
+
 /// Read the events counter through the pin: stats[STATS_EVENTS] as
 /// the kernel holds it right now. Errors name the pin path (a missing
 /// pin reads as a diagnosis, not a generic failure).
 pub fn read_events_counter() -> Result<u64, String> {
     read_stats_slot(STATS_EVENTS)
+}
+
+/// The question census (night-frontier-Z5): the count of refused
+/// questions exactly as the pinned stats map holds it right now,
+/// cumulative since attach. Errors name the pin path (a missing pin
+/// reads as a diagnosis, not a generic failure) - and a camera
+/// planted by a binary older than the census carries no slot at all,
+/// the same named unavailability the drop census documents.
+pub fn read_question_census() -> Result<u64, String> {
+    read_stats_slot(STATS_QUESTIONS_REFUSED)
+}
+
+/// Count ONE refused question (night-frontier-Z5): read the census
+/// slot, write it back incremented, return the post-bump count (the
+/// number the refusing command's error carries). The read-modify-
+/// write is two syscalls, not one atomic - two commands refusing at
+/// the same instant may fold into one count. That fold is the
+/// census's named bound, not a hope: it is a floor (never a lie
+/// upward), every refusal still names itself in its own command's
+/// error, and the question-census leg in
+/// scripts/netrunner/critical-sim.sh pins the sequential shape
+/// exactly (accepted + refused == attempts).
+pub fn count_question_refusal() -> Result<u64, String> {
+    let bumped = read_question_census()?
+        .checked_add(1)
+        .ok_or_else(|| "stats[STATS_QUESTIONS_REFUSED] overflowed: implausible".to_owned())?;
+    set_stats_slot(STATS_QUESTIONS_REFUSED, bumped)?;
+    Ok(bumped)
 }
 
 /// The write probe's kernel-side drop census (night-hunter-2): the

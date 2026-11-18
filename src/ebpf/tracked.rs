@@ -20,15 +20,61 @@
 //! does not match the query), and the whole map dies at the next
 //! `doctor --detach` - the honest cleanup, named here.
 //!
+//! A map that HAS filled refuses new questions (night-frontier-Z5,
+//! the question census): the kernel answers E2BIG, the writer counts
+//! the refusal in the pinned stats map's question-census slot, and
+//! the error names the camera, the cumulative count, and the remedy -
+//! the question map obeys the census law like every bounded resource
+//! the camera owns: its refusals are counted, never silent. The
+//! census dies with the map at the next detach (the whole estate
+//! does), so the counts are comparable only within one attach
+//! session.
+//!
 //! The two functions repeat the open-map-do dance on purpose: a
 //! shared closure helper would have to name aya's inference-heavy
 //! `HashMap<&mut MapData, _>` shape at every call site - eight
 //! duplicated lines beat a generic that fights the reader.
 
-use aya::maps::{HashMap, Map, MapData};
+use aya::maps::{HashMap, Map, MapData, MapError};
 
 use super::PIN_MAP_TRACKED_INODES;
 use super::events::pack_filter_key;
+
+/// The kernel's own refusal shape for a full hash map: BPF_MAP_UPDATE
+/// _ELEM answers E2BIG once max_entries are live. Pure, so the
+/// classification is pinnable without a pinned map - and so a
+/// permission refusal (EPERM at the syscall) can never be mistaken
+/// for a capacity refusal: the census counts only questions the
+/// kernel refused for CAPACITY, never for access.
+fn is_map_full_error(error: &MapError) -> bool {
+    let errno = match error {
+        MapError::SyscallError(syscall) => syscall.io_error.raw_os_error(),
+        MapError::IoError(err) => err.raw_os_error(),
+        _ => None,
+    };
+    errno == Some(libc::E2BIG)
+}
+
+/// The refusal message for a question the camera could not take
+/// (night-frontier-Z5, the question census): the cause, the camera's
+/// own count, and the remedy - refusal-with-a-name, the shape every
+/// camera boundary carries. `census` is `Ok(count)` when the bump
+/// landed (the count INCLUDES this refusal) and `Err(reason)` when
+/// the census is unreadable on this camera (a missing pin, an older
+/// estate) - the message degrades honestly, naming why, and never
+/// invents the number. Pure, so the wording is pinnable without a
+/// pinned map.
+fn refused_question_error(insert_error: &MapError, census: Result<u64, String>) -> String {
+    let counted = match census {
+        Ok(count) => format!("{count} refused since attach, this one included; "),
+        Err(reason) => format!("the question census is unreadable on this camera ({reason}); "),
+    };
+    format!(
+        "the camera refused this question: its question map has no capacity \
+         left (the tracked_inodes insert failed: {insert_error}); {counted}\
+         stale questions from killed commands clear at the next doctor --detach"
+    )
+}
 
 /// Insert the key for one file: presence in the map is the whole
 /// meaning (the value is always 1; the kprobes never read it).
@@ -51,8 +97,19 @@ pub fn track_file(inode: u64, device: u64) -> Result<(), String> {
     let mut owned = Map::HashMap(map_data);
     let mut map: HashMap<_, u64, u8> = HashMap::try_from(&mut owned)
         .map_err(|e| format!("the pinned tracked_inodes map is not a hash map: {e}"))?;
-    map.insert(&key, &1u8, 0)
-        .map_err(|e| format!("the tracked_inodes insert failed: {e}"))
+    map.insert(&key, &1u8, 0).map_err(|error| {
+        if is_map_full_error(&error) {
+            // night-frontier-Z5: the census lands BEFORE the message
+            // reads it, so the count includes this refusal. The bump
+            // is best-effort: a census failure degrades the message
+            // (the count section names why), never masks the insert
+            // error.
+            let census = super::readback::count_question_refusal();
+            refused_question_error(&error, census)
+        } else {
+            format!("the tracked_inodes insert failed: {error}")
+        }
+    })
 }
 
 /// Remove the key for one file. Removing an absent key is a success

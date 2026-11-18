@@ -44,6 +44,16 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z5 D1, the question census.** The question map
+  obeys the census law - a tracked_inodes insert the kernel refuses
+  for capacity (the map full, E2BIG) bumps a pinned census slot in
+  the stats map (stats[17], the map grew one slot), and the
+  refusing command's error names the camera, the cumulative count,
+  and the remedy. The conservation identity accepted + refused ==
+  attempts is proven live by the question-census leg in
+  `scripts/netrunner/critical-sim.sh` (1024 stale-key fills, two
+  named refusals, consecutive counts).
+
 - **night-depth-hardening-4 + night-zen-lts-1/2, the LTS depth audit
   (docs/LTS_DEPTH_AUDIT.md) - the whole root repo, five pillars,
   skip-if-peak honored.** Stability: the BTF member walk carries a
