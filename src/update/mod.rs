@@ -105,7 +105,24 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
         return Err(refusal);
     }
 
-    let output = Command::new("curl")
+    // curl resolves through fixed probes before the PATH fallback
+    // (night-zen-lts-1): this is the one network surface, and a
+    // hostile PATH must not be able to substitute a fake curl whose
+    // verdict the user reads. The fixed paths cover the mainstream
+    // distros; an exotic layout falls back to PATH - the residual
+    // exposure there is a message, never a download.
+    let mut command = None;
+    for candidate in ["/usr/bin/curl", "/bin/curl", "/usr/local/bin/curl"] {
+        if std::fs::metadata(candidate).is_ok() {
+            command = Some(Command::new(candidate));
+            break;
+        }
+    }
+    let mut output = match command {
+        Some(cmd) => cmd,
+        None => Command::new("curl"),
+    };
+    let output = output
         .args([
             "--silent",
             "--max-time",

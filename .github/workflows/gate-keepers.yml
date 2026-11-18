@@ -9,7 +9,7 @@
 # docs-only or workflow-only change never skips the gates that
 # police it.
 #
-# Checks performed by gate-keepers.sh (18 sections: the pre-commit
+# Checks performed by gate-keepers.sh (21 sections: the pre-commit
 # self-install seat plus 17 numbered gates):
 #    0. Pre-commit hook self-install
 #    1. Shell quad (bash -n, shellcheck, shfmt, source resolution)
@@ -110,7 +110,7 @@ jobs:
           sudo install -m755 /tmp/b3sum /usr/local/bin/b3sum
           b3sum --version
 
-      # The wholesale run: all 18 sections in one shot - exit code 0
+      # The wholesale run: all 21 sections in one shot - exit code 0
       # or the push is blocked.
       - name: Run gate-keepers.sh (wholesale)
         run: bash scripts/gate-keepers.sh
@@ -185,7 +185,7 @@ jobs:
       # rendered fixtures, the manifest, the diff verdict, the
       # digest, the commit.
       - name: Upload the certificate
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4, SHA pin
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, SHA pin
         with:
           name: determinism-certificate
           path: target/determinism-certificate/certificate.txt

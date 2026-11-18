@@ -54,6 +54,11 @@
 //! binary ships. The night-hunter-4 diagnostic trace therefore
 //! lives at the attach boundary (src/ebpf/loader.rs), not here.
 
+// The byte-level decode lives beside the parser (night-zen-lts-1):
+// the 600-cap split put decode_info / kind_extra_bytes / u32_at in
+// their own read-in-one-breath module.
+use super::btf_decode::{decode_info, kind_extra_bytes, u32_at};
+
 /// The BTF magic, as a little-endian u16 over the file's first two
 /// bytes (0x9F 0xEB in the file).
 const BTF_MAGIC: u16 = 0xEB9F;
@@ -140,6 +145,14 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
     ])
 }
 
+/// The total-work budget the anonymous-member walk shares across its
+/// recursion (night-zen-lts-1): a malformed blob's type graph must not
+/// turn a member search into a grind. Real structs cost a few dozen
+/// units (struct file's members + its anonymous aggregates); the
+/// budget bounds the hostile worst case at a fraction of a second,
+/// fuzz target included.
+const MEMBER_WALK_BUDGET: u64 = 1024;
+
 /// One member's byte offset inside a located struct, direct or
 /// through any anonymous aggregate the struct embeds. A bitfield
 /// result (a bit offset that is not byte-aligned) is refused by
@@ -151,7 +164,8 @@ pub(crate) fn member_offset(
     sname: &str,
     mname: &str,
 ) -> Result<u64, String> {
-    let Some(bit_offset) = ctx.find_member(entry, mname, 0, 8) else {
+    let mut budget = MEMBER_WALK_BUDGET;
+    let Some(bit_offset) = ctx.find_member(entry, mname, 0, 8, &mut budget) else {
         return Err(format!("struct {sname} has no member {mname} in BTF"));
     };
     if bit_offset % 8 != 0 {
@@ -264,8 +278,7 @@ impl<'a> BtfFile<'a> {
         while pos + 12 <= end {
             let name_off = u32_at(self.data, pos);
             let info = u32_at(self.data, pos + 4);
-            let kind = (info >> 24) & 0x1F;
-            let vlen = (info & 0xFFFF) as usize;
+            let (kind, vlen) = decode_info(info);
             let extra = kind_extra_bytes(kind, vlen);
             let Some(extra) = extra else {
                 // A truncated record: stop the walk rather than read
@@ -301,8 +314,7 @@ impl<'a> BtfFile<'a> {
         while pos + 12 <= end {
             let name_off = u32_at(self.data, pos);
             let info = u32_at(self.data, pos + 4);
-            let kind = (info >> 24) & 0x1F;
-            let vlen = (info & 0xFFFF) as usize;
+            let (kind, vlen) = decode_info(info);
             let extra = kind_extra_bytes(kind, vlen);
             let Some(extra) = extra else {
                 break;
@@ -334,8 +346,7 @@ impl<'a> BtfFile<'a> {
                 return Some(pos);
             }
             let info = u32_at(self.data, pos + 4);
-            let kind = (info >> 24) & 0x1F;
-            let vlen = (info & 0xFFFF) as usize;
+            let (kind, vlen) = decode_info(info);
             let extra = kind_extra_bytes(kind, vlen)?;
             if pos + 12 + extra > end {
                 return None;
@@ -359,8 +370,7 @@ impl<'a> BtfFile<'a> {
             ));
         };
         let info = u32_at(self.data, proto_pos + 4);
-        let kind = (info >> 24) & 0x1F;
-        let vlen = (info & 0xFFFF) as usize;
+        let (kind, vlen) = decode_info(info);
         if kind != 13 {
             return Err(format!(
                 "{fname}'s type id {proto_id} is not a FUNC_PROTO (kind {kind})"
@@ -456,6 +466,10 @@ impl<'a> BtfFile<'a> {
         out
     }
 
+    /// The total-work budget the anonymous-member walk shares across its
+    /// recursion (night-zen-lts-1): a malformed blob's type graph must not
+    /// turn a member search into a grind. Real structs cost a few dozen
+    /// units (struct file's members + its anonymous aggregates); the
     /// One member's bit offset anywhere in the aggregate tree rooted
     /// at `entry`, C-correct: `file->f_path` names a direct member
     /// or a member of an anonymous struct/union the aggregate embeds,
@@ -472,11 +486,19 @@ impl<'a> BtfFile<'a> {
         want: &str,
         base_bits: u32,
         depth: u8,
+        budget: &mut u64,
     ) -> Option<u32> {
         if depth == 0 {
             return None;
         }
         for (name, type_id, bit_offset) in self.members_of(entry) {
+            // The shared ceiling: member visits and aggregate hops
+            // both spend it, so a hostile graph exhausts the budget
+            // instead of the clock.
+            if *budget == 0 {
+                return None;
+            }
+            *budget -= 1;
             // The anonymous member: its fields ride the inner
             // aggregate's own member list, at this member's base. A
             // sum that overflows belongs to a malformed blob and
@@ -488,8 +510,8 @@ impl<'a> BtfFile<'a> {
                 return Some(absolute);
             }
             if name.is_empty()
-                && let Some(nested) = self.aggregate_of(type_id)
-                && let Some(found) = self.find_member(nested, want, absolute, depth - 1)
+                && let Some(nested) = self.aggregate_of(type_id, budget)
+                && let Some(found) = self.find_member(nested, want, absolute, depth - 1, budget)
             {
                 return Some(found);
             }
@@ -501,10 +523,15 @@ impl<'a> BtfFile<'a> {
     /// const/volatile/restrict/typedef chain wrapping it - the only
     /// shape an anonymous member can be walked into. Everything
     /// else stays skipped: a pointer or a scalar member hides no
-    /// field the host's own naming can reach.
-    fn aggregate_of(&self, type_id: u32) -> Option<StructEntry> {
+    /// field the host's own naming can reach. The shared walk budget
+    /// bounds the record hops a malformed blob can force.
+    fn aggregate_of(&self, type_id: u32, budget: &mut u64) -> Option<StructEntry> {
         let mut id = type_id;
         for _ in 0..8 {
+            if *budget == 0 {
+                return None;
+            }
+            *budget -= 1;
             let pos = self.record_pos(id)?;
             let info = u32_at(self.data, pos + 4);
             let kind = (info >> 24) & 0x1F;
@@ -512,7 +539,7 @@ impl<'a> BtfFile<'a> {
             match kind {
                 // STRUCT / UNION: the shape that can be entered.
                 4 | 5 => {
-                    let vlen = (info & 0xFFFF) as usize;
+                    let (_, vlen) = decode_info(info);
                     return Some(StructEntry {
                         members_pos: pos + 12,
                         vlen,
@@ -525,29 +552,6 @@ impl<'a> BtfFile<'a> {
         }
         None
     }
-}
-
-/// The per-kind trailing payload sizes in bytes. None when the
-/// record cannot fit: the walk stops.
-fn kind_extra_bytes(kind: u32, vlen: usize) -> Option<usize> {
-    match kind {
-        1 => Some(4), // INT
-        2 | 7 | 8 | 9 | 10 | 11 | 12 | 16 | 18 => Some(0),
-        3 => Some(12),                        // ARRAY
-        4 | 5 => Some(vlen.checked_mul(12)?), // STRUCT / UNION
-        6 => Some(vlen.checked_mul(8)?),      // ENUM
-        13 => Some(vlen.checked_mul(8)?),     // FUNC_PROTO
-        14 => Some(4),                        // VAR
-        15 => Some(vlen.checked_mul(12)?),    // DATASEC
-        17 => Some(4),                        // DECL_TAG
-        19 => Some(vlen.checked_mul(12)?),    // ENUM64
-        _ => None,
-    }
-}
-
-pub(crate) fn u32_at(data: &[u8], off: usize) -> u32 {
-    let b = data.get(off..off + 4).unwrap_or(&[0; 4]);
-    u32::from_le_bytes([b[0], b[1], b[2], b[3]])
 }
 
 #[cfg(test)]

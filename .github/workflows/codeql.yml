@@ -76,10 +76,10 @@ jobs:
       # silent tar+zstd of the whole target tree plus upload that ran
       # ~27 minutes AFTER the analysis had already finished and
       # uploaded. Post steps have no per-step timeout, so the only
-      # backstop was the 45-minute job timeout. save-if: false
+      # backstop was the job timeout. save-if: false
       # removes the write entirely: the hang class cannot recur, and
-      # the worst case is a cold autobuild (minutes) inside a
-      # 45-minute budget.
+      # the worst case is a cold autobuild (minutes) inside the
+      # job budget.
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
         with:

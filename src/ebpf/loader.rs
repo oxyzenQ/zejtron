@@ -196,12 +196,18 @@ pub fn attach() -> Result<String, String> {
     //      shape refuses here, by name, with zero pins touched.
     let lane = btf_unlink::verify_unlink_lane().map_err(|e| {
         format!(
-            "attach refused: cannot verify the unlink/rename probes' anchors              from BTF ({e}). The unlink probe reads the dentry at the argument              position the host's BTF vouches for, and the rename probe walks              renamedata.old_dentry at the member offset the same BTF vouches              for - a guessed position reads garbage silently. No probe is              planted"
+            "attach refused: cannot verify the unlink/rename probes' anchors \
+             from BTF ({e}). The unlink probe reads the dentry at the argument \
+             position the host's BTF vouches for, and the rename probe walks \
+             renamedata.old_dentry at the member offset the same BTF vouches \
+             for - a guessed position reads garbage silently. No probe is \
+             planted"
         )
     })?;
     vlog!(
         "btf",
-        "unlink anchor verified from BTF: vfs_unlink's struct dentry * rides          argument {}; rename anchor verified: renamedata.old_dentry at offset {}",
+        "unlink anchor verified from BTF: vfs_unlink's struct dentry * rides \
+         argument {}; rename anchor verified: renamedata.old_dentry at offset {}",
         lane.dentry_arg,
         lane.old_dentry_offset
     );

@@ -54,8 +54,12 @@ echo ""
 # (recursive). No hardcoding — new directories are covered the day
 # they land. The */target/* exclusion is defensive only (a cargo
 # invocation from a script never runs with cwd inside scripts/).
+# The root qc runner rides the same cap: it is infra like any script
+# under scripts/, just parked at the tree root (night-zen-lts-2).
 FILES=$(find scripts -type f \( -name '*.sh' -o -name '*.py' \) \
 	-not -path '*/target/*' 2>/dev/null | sort)
+FILES="${FILES}
+zejtron-qc.sh"
 
 if [ -z "$FILES" ]; then
 	echo "No .sh/.py files found under scripts/"

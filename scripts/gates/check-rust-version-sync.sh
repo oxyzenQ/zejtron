@@ -108,6 +108,23 @@ for wf in .github/workflows/*.yml; do
 			echo "OK: $wf toolchain pin = \"$WF_TOOLCHAIN\""
 		fi
 	done < <(grep -E '^[[:space:]]*toolchain: *"[0-9]+\.[0-9]+' "$wf" | sed 's/.*toolchain: *"\(.*\)".*/\1/')
+
+	# The quoted-literal RUSTUP_TOOLCHAIN env pins (night-zen-lts-2):
+	# the MSRV legs spell their pin this way, so a version bump that
+	# edits the toolchain: inputs but misses one env leaves that leg
+	# demanding an uninstalled pin - or silently riding an older
+	# toolchain under the pinned name. Quoted numeric literals only:
+	# unquoted channel aliases (stable) and matrix references are
+	# deliberate moving lanes, not pins.
+	while IFS= read -r WF_RUSTUP; do
+		[ -z "$WF_RUSTUP" ] && continue
+		if [ "$WF_RUSTUP" != "$FULL_VERSION" ]; then
+			echo "FAIL: $wf RUSTUP_TOOLCHAIN pin = \"$WF_RUSTUP\" — expected \"$FULL_VERSION\""
+			FAILED=$((FAILED + 1))
+		else
+			echo "OK: $wf RUSTUP_TOOLCHAIN pin = \"$WF_RUSTUP\""
+		fi
+	done < <(grep -E '^[[:space:]]*RUSTUP_TOOLCHAIN: *"[0-9]+\.[0-9]+' "$wf" | sed 's/.*RUSTUP_TOOLCHAIN: *"\(.*\)".*/\1/')
 done
 
 # ── 4. The eBPF tool pin constants ──

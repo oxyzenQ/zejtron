@@ -69,7 +69,10 @@ MATRIX_CACHE="${ZEJTRON_MATRIX_CACHE:-${HOME}/.cache/zejtron-sandbox/matrix}"
 # The witness ladder, below-floor to moving-latest: each name is a
 # suite the packer's SUITE_TABLE resolves and the sandbox's --kernel
 # accepts. The order IS the report order (oldest kernel first).
-DEFAULT_SUITES="focal jammy noble cachyos"
+# The CI ladder's six (supermassive-kernel-witnesses.yml): the local
+# seat cannot reproduce a Debian-6.1 or mainline-6.6 refusal unless its
+# default list matches what CI proves (night-zen-lts-2 back-port).
+DEFAULT_SUITES="focal jammy bookworm mainline noble cachyos"
 
 SUITES=""
 BINARY=""

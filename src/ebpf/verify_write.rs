@@ -33,7 +33,7 @@
 use std::fs;
 use std::io::Write;
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use super::events::FILE_OP_WRITE;
@@ -67,12 +67,93 @@ fn stage_meaning(stage: u64) -> &'static str {
 }
 
 /// Demand one recorded write through the freshly planted probe.
+///
+/// The scratch rides an OS-random name and is created by an atomic
+/// `mkdir(2)` whose result is ownership-checked BEFORE any byte is
+/// written (night-zen-lts-1): a pre-planted directory fails the mkdir
+/// and the caller retries with a fresh name, and a directory we did
+/// not create is refused outright - root never writes through a
+/// predictable, attacker-shaped path. The entropy source is std's
+/// `RandomState` (per-process OS-seeded SipHash keys), so the hardening
+/// carries zero new dependencies, per the module's own law.
 pub fn verify_write_probe() -> Result<(), String> {
-    let dir = std::env::temp_dir().join(format!("zejtron-verify-write-{}", std::process::id()));
-    let probe = dir.join("probe");
+    let (dir, probe) = create_scratch()?;
     let result = verify_once(&dir, &probe);
     let _ = fs::remove_dir_all(&dir);
     result
+}
+
+/// Create the verification scratch: `mkdir(2)` (atomic, no
+/// follow-the-symlink semantics) under a random name, retrying the
+/// handful of times a collision deserves, then refusing any directory
+/// whose owner is not this process's effective uid - the
+/// pre-created-and-planted variant of the old predictable path is
+/// dead by construction, not by hope.
+fn create_scratch() -> Result<(PathBuf, PathBuf), String> {
+    let euid = self_effective_uid()?;
+    let mut last = String::new();
+    for _ in 0..4 {
+        let dir = std::env::temp_dir().join(format!(
+            "zejtron-verify-write-{}-{:016x}",
+            std::process::id(),
+            scratch_nonce()
+        ));
+        match fs::create_dir(&dir) {
+            Ok(()) => {
+                let owned = fs::metadata(&dir)
+                    .map_err(|e| format!("the write verification scratch: {e}"))?
+                    .uid();
+                if owned != euid {
+                    return Err(format!(
+                        "the write verification scratch {dir:?} is not owned by \
+                         this process's effective uid ({owned} != {euid}) - refusing \
+                         to write through a directory we did not create"
+                    ));
+                }
+                return Ok((dir.clone(), dir.join("probe")));
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                last = format!("the write verification scratch {dir:?}: {e}");
+            }
+            Err(e) => {
+                return Err(format!("the write verification scratch {dir:?}: {e}"));
+            }
+        }
+    }
+    Err(format!(
+        "the write verification scratch collided {last} four times - \
+         refusing to reuse an existing directory"
+    ))
+}
+
+/// One u64 of OS-seeded entropy: `RandomState` seeds its SipHash keys
+/// from the OS per process, so each `build_hasher().finish()` yields a
+/// fresh unpredictable value with nothing beyond std.
+fn scratch_nonce() -> u64 {
+    use std::hash::{BuildHasher, Hasher};
+    std::collections::hash_map::RandomState::new()
+        .build_hasher()
+        .finish()
+}
+
+/// The effective uid, read from `/proc/self/status` (the estate's
+/// procfs idiom - no libc dependency; std exposes no euid getter).
+/// A host where this cannot be parsed gets a refusal, never a guess.
+fn self_effective_uid() -> Result<u32, String> {
+    let status =
+        fs::read_to_string("/proc/self/status").map_err(|e| format!("/proc/self/status: {e}"))?;
+    for line in status.lines() {
+        if let Some(rest) = line.strip_prefix("Uid:") {
+            let field = rest
+                .split_whitespace()
+                .nth(1)
+                .ok_or_else(|| "Uid: line lost its effective-uid field".to_owned())?;
+            return field
+                .parse::<u32>()
+                .map_err(|e| format!("the effective uid {field:?}: {e}"));
+        }
+    }
+    Err("/proc/self/status carried no Uid: line".to_owned())
 }
 
 /// One verification attempt: create the scratch, track it, push

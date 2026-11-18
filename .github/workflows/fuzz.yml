@@ -134,12 +134,18 @@ jobs:
           workspaces: fuzz
 
       - name: Restore the fuzz corpus cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6 restore, SHA pin
         with:
           path: fuzz/corpus/${{ matrix.target }}
-          # The run id keys a fresh save per run; the restore keys
-          # pull the latest accumulated corpus from any prior run, so
-          # the fuzzer keeps growing where the last one stopped.
+          # Restore-only on push: the corpus accumulated by the last
+          # run feeds this one, and nothing new is saved until the
+          # weekly sweep. The run-id-keyed per-push save minted three
+          # brand-new cache entries per push (one per target), each
+          # orphaning the previous generation - the per-push churn that
+          # evicts the cold-but-needed release-* entries under the
+          # shared 10 GB budget the estate already hit once
+          # (night-zen-lts-2). The corpus now grows once a week, three
+          # entries per week, bounded.
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
           restore-keys: |
             fuzz-corpus-${{ matrix.target }}-
@@ -160,7 +166,17 @@ jobs:
           fi
 
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked
+        run: |
+          # Pinned, per the estate's own pin law (gate-keepers.yml: "Tool
+          # pins make findings meaningful: a red wholesale run means the
+          # tree drifted, never that a linter released overnight") - this
+          # was the one unpinned scanner on a per-push lane, an
+          # unauthenticated crates.io-to-execute surface on a repo that
+          # otherwise sha256-pins every downloaded byte. The pin is the
+          # version the lane has been running (crates.io max_stable at
+          # pin time), so the lock changes behavior only when someone
+          # deliberately bumps it (night-zen-lts-2).
+          cargo install cargo-fuzz --version 0.13.2 --locked
 
       - name: Fuzz
         run: |
@@ -176,3 +192,14 @@ jobs:
           echo "fuzz budget: ${BUDGET}s (event: ${{ github.event_name }})"
           cargo fuzz run ${{ matrix.target }} \
             -- -max_total_time="${BUDGET}" -rss_limit_mb=4096 -timeout=25
+
+      - name: Save the fuzz corpus cache (weekly sweep only)
+        # The save half of the split cache: only the scheduled sweep
+        # writes back, so the corpus grows at a bounded rate instead of
+        # minting three orphaning entries per push (the churn note on
+        # the restore step).
+        if: github.event_name == 'schedule'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6 save, SHA pin
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}

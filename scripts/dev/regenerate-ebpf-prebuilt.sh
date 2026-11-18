@@ -280,7 +280,7 @@ blake3 = "${OBJ_SHA}"
 size = ${OBJ_SIZE}
 
 [contract]
-# The six attach targets the loader plants (src/ebpf/loader.rs; the
+# The eight attach targets the loader plants (src/ebpf/loader.rs; the
 # exit probe lives in ebpf/src/exits.rs), documented for the registry
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.

@@ -44,6 +44,47 @@ v11.0.0
 
 ### Added
 
+- **night-depth-hardening-4 + night-zen-lts-1/2, the LTS depth audit
+  (docs/LTS_DEPTH_AUDIT.md) - the whole root repo, five pillars,
+  skip-if-peak honored.** Stability: the BTF member walk carries a
+  total-work budget (a malformed blob can no longer grind the walk;
+  fuzz-target included) and the doctor JSON exits lane honors the
+  one-offset-per-render law it claimed (the sample hoisted out of the
+  row closure). Security: the attach self-verification's root-writable
+  predictable /tmp scratch is dead by construction (OS-random name via
+  std RandomState, atomic mkdir(2) with collision retry, effective-uid
+  ownership check read from /proc/self/status before the first byte) -
+  the one surface where a local attacker shaped what root wrote;
+  pathguard's HOME trailing-slash blocklist miss fixed via component
+  comparison; the update lane's curl resolves through fixed probes
+  before PATH; the doctor kernel row reads /proc/sys/kernel/osrelease
+  directly. Determinism: the net lane's ARP and route rows sort at the
+  collection boundary (byte-stable across runs and kernel hash
+  generations - proven under live neighbor churn), the BTF kind_flag
+  decodes vlen:10|klen:6 per btf.h (the future-kernel guard the corpus
+  tests pin). Hygiene: btf.rs split per the 600 no-mercy law
+  (btf_decode.rs carries the byte-level decode), the dead no-op and
+  era-entry zombies removed from gate-keepers, the root qc runner
+  joins the wholesale lint quad and the scripts LOC cap, the comment
+  rot from the GNU purge counted honestly (four->two platforms,
+  18->21 sections, 45-minute->10, six->eight targets) and the
+  cert-binary's false v3-inheritance claim rewritten to its real
+  scope. Infra: cargo-fuzz pinned 0.13.2 (the estate's one unpinned
+  scanner on a per-push lane), the fuzz corpus cache split
+  restore/save with the save gated to the weekly sweep (the per-push
+  churn that eroded the shared cache budget is gone), the release
+  lane's apt step gained Acquire::Retries and lost its unpinned apt
+  b3sum (the pinned bootstrap 1.8.7 signs the release), the
+  maintenance lane rebases before its weekly push, the container E2E
+  lane rides the ebpf-build cache with its cap recalibrated, the local
+  kernel-matrix seat rides the CI ladder's six suites, and the
+  version-sync gate polices RUSTUP_TOOLCHAIN pins. Verified false and
+  skipped: the floor lane's rust-std target step is NOT redundant (its
+  dtolnay step carries no targets input). The deterministic-output
+  contract holds across distros 5.15+ for every sorted surface; the
+  residual doctor variance is inherent evidence content (the doctor's
+  own PID, live kernel memory), named in the audit.
+
 - **night-depth-hardening-Z1, the reproducible release chain (D4 -
   the published hash is the hash anyone can rebuild from source).**
   The release lane now pins PROCESS identity, not just artifact

@@ -48,7 +48,7 @@ name: zejtron - Release
     tags:
       - v*
   # night-improve-31 (the sibling's recovery lane): a dispatch on the
-  # tag ref re-runs the whole pipeline - validate, all four builds,
+  # tag ref re-runs the whole pipeline - validate, both builds,
   # publish - WITHOUT re-pushing anything, so a mid-flight red (a
   # transient API 5xx, a runner hiccup) heals with one click instead
   # of delete-and-re-push the tag. In the Run workflow dialog pick
@@ -139,11 +139,11 @@ jobs:
           - platform: linux-amd64-v3-musl
             target: x86_64-unknown-linux-musl
             rustflags: "-D warnings -C target-cpu=x86-64-v3 -C target-feature=+crt-static"
-            install_packages: musl-tools b3sum
+            install_packages: musl-tools
           - platform: linux-amd64-v4-musl
             target: x86_64-unknown-linux-musl
             rustflags: "-D warnings -C target-cpu=x86-64-v4 -C target-feature=+crt-static"
-            install_packages: musl-tools b3sum
+            install_packages: musl-tools
 
     env:
       TAG: ${{ needs.validate.outputs.tag }}
@@ -159,8 +159,15 @@ jobs:
       - name: Install system packages
         if: matrix.install_packages != ''
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ${{ matrix.install_packages }}
+          # Acquire::Retries, the same posture the kernel-floor and
+          # witness lanes carry: a slow mirror must not red the one
+          # lane nobody can re-dispatch cheaply (the tag run). The
+          # b3sum here is NOT apt-installed - the pinned 1.8.7 the
+          # bootstrap installs below produces the published checksums,
+          # so the signing tool's version is a pin, not a PATH-order
+          # accident (night-zen-lts-2).
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo apt-get -o Acquire::Retries=3 install -y ${{ matrix.install_packages }}
 
       - name: Install Rust toolchain (pinned)
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
@@ -488,7 +495,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, SHA pin
         with:
-          # One artifact per platform; the release job merges the four
+          # One artifact per platform; the release job merges the two
           # by pattern (merge-multiple) so GPG signing stays in the
           # build-class jobs while the matrix scales.
           name: release-artifacts-${{ matrix.platform }}

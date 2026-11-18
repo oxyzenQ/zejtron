@@ -153,16 +153,22 @@ fn write_exits(out: &mut String, lane: &ExitLane, window_label: &str) {
             write_string(out, window_label);
             out.push_str(",\"processes\":");
             let shown = rows.len().min(super::memory::ledger::TOP_N);
+            // The offset sampled once per exits block
+            // (night-frontier-Z2): every `at` in this document renders
+            // under the same measurement. The sample rides OUTSIDE the
+            // row closure - sampling per row let a wall-clock step
+            // (an NTP correction) split one document's rows across
+            // two civil times, which both violates the one-offset
+            // law and makes the JSON non-reproducible within a breath
+            // (night-zen-lts-1 restored the law the comment already
+            // claimed).
+            let render_offset = crate::info::clock::wall_offset_ns();
             write_array(out, shown, |out, index| {
                 let row = &rows[index];
                 out.push_str("{\"pid\":");
                 let _ = write!(out, "{}", row.pid);
                 out.push_str(",\"comm\":");
                 write_string(out, &row.comm);
-                // The offset sampled once per exits block
-                // (night-frontier-Z2): every `at` in this document renders
-                // under the same measurement.
-                let render_offset = crate::info::clock::wall_offset_ns();
                 out.push_str(",\"at\":");
                 write_string(
                     out,

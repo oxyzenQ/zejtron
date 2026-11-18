@@ -56,7 +56,7 @@
 #        assert that Cargo.toml contains its own version string - the
 #        tautology that once broke CI on every bump)
 #   14.  Release parity (scripts/gates/check-release-parity.sh: the
-#        four arch-baseline platforms' -C codegen tokens in
+#        two arch-baseline platforms' -C codegen tokens in
 #        .cargo/config.toml's pro-linux-amd64-* aliases must equal the
 #        release matrix's rustflags, so a local alias build reproduces
 #        the release optimization tier bit-for-bit; a one-file edit
@@ -187,9 +187,11 @@ fi
 
 # ── 1. Shell quad ───────────────────────────────────────────────────────────
 header "1. Shell scripts (strict quad)"
-SHELL_FILES=$(find scripts .githooks -type f -name '*.sh' 2>/dev/null | sort)
+SHELL_FILES=$(find scripts .githooks -type f \( -name '*.sh' -o -name 'zejtron-qc.sh' \) 2>/dev/null | sort)
 if [ -z "${SHELL_FILES}" ]; then
-	# .githooks/pre-commit is extensionless; lint it explicitly.
+	# The pre-commit shim is extensionless and the qc runner rides the
+	# root; the find covers both by name, so this arm only fires on a
+	# tree that has neither - keep the quad honest instead of guessing.
 	SHELL_FILES=""
 fi
 
@@ -395,7 +397,10 @@ def is_emoji(cp):
 
 
 SKIP_DIRS = {".git", "target", "assets", "node_modules", "__pycache__"}
-SKIP_FILES = {"CHANGELOG.md", "CHANGELOG-V10.0.0-ERA.md"}
+# CHANGELOG.md self-references the era's version strings by design;
+# the era archive file moved under docs/archive/ (SKIP_PREFIXES), so
+# the bare-name entry for it is gone (night-zen-lts-2).
+SKIP_FILES = {"CHANGELOG.md"}
 SKIP_PREFIXES = ("docs/archive/",)
 
 findings = 0

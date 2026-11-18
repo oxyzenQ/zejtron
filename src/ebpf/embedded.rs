@@ -84,13 +84,16 @@ pub fn misalignment(bytes: &[u8]) -> Option<usize> {
 /// proceed.
 pub fn alignment_violation(bytes: &[u8], name: &str) -> Option<String> {
     misalignment(bytes).map(|m| {
+        // The message carries the byte offset, not the raw pointer
+        // (night-zen-lts-1): an ASLR address varies per run and per
+        // host, so embedding it would make a deterministic build
+        // regression print nondeterministic bytes.
         format!(
-            "the embedded {name} BPF object sits {m} bytes past an 8-byte boundary \
-             ({:p}) - aya's ELF parser must read 8-byte-aligned bytes, and the \
+            "the embedded {name} BPF object sits {m} bytes past an 8-byte boundary - \
+             aya's ELF parser must read 8-byte-aligned bytes, and the \
              AlignedElf embedding is supposed to guarantee exactly that. This is a \
              build regression, not an environment problem: rebuild from source, and \
-             report it if it persists",
-            bytes.as_ptr()
+             report it if it persists"
         )
     })
 }

@@ -300,12 +300,14 @@ jobs:
         run: cargo pro-linux-amd64-v3-musl --locked
 
       # night-frontier-Z4, the cross-dialect determinism seat: the
-      # certificate's TEST binary rides the SAME static v3 musl shape
-      # (the target-triple rustflags are the alias's own .cargo
-      # contract, so the test build inherits them verbatim). The
-      # guest runs the certificate module's fixture render on the
-      # BOOTED kernel - no cargo in the guest, the harness binary is
-      # self-sufficient (a 3.9 MB musl release test shape).
+      # certificate's TEST binary rides the static musl profile shape.
+      # Scope stated honestly (night-zen-lts-2 corrected the claim):
+      # the alias's -C target-cpu=x86-64-v3 rides the ALIAS invocation
+      # only - this plain cargo test does not inherit it, so the cert
+      # binary is a baseline-x86-64 musl build. That is fine for what
+      # it proves: every leg builds the SAME shape, so the digests
+      # compare equal across kernels; nobody may assert the v3 label
+      # on this binary - the release lane's tripwire owns that claim.
       - name: Build the certificate test binary (the cross-dialect seat)
         run: |
           cargo test --locked --profile pro-linux-amd64-v3-musl \

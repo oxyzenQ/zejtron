@@ -51,12 +51,15 @@ jobs:
   container-e2e:
     name: Container E2E - docker (musl static)
     runs-on: ubuntu-24.04
-    # The five-minute fail-fast law (night-T-4, the owner's estate
-    # mandate): a healthy run finishes in under two minutes (the
-    # latest green was 1.9m); the cap catches a hung docker pull, a
-    # wedged binary, or a stalled build at five minutes instead of
-    # burning the runner for twenty-five.
-    timeout-minutes: 5
+    # The fail-fast law (night-T-4, the owner's estate mandate), the
+    # cap recalibrated once (night-zen-lts-2): a warm run still
+    # finishes in under two minutes, but this lane alone restored no
+    # ebpf-build cache - a rust-cache miss plus a cold nested eBPF
+    # build could breach five minutes through no fault of the lane.
+    # Ten minutes still catches a hung docker pull or a wedged binary
+    # far inside the budget; the ebpf cache below makes the cold miss
+    # the rare event.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
@@ -74,7 +77,19 @@ jobs:
       # The ebpf feature is the default (night-improve-5): the build is
       # the source-built lane host-side (the musl target does not
       # change the build script's host), so the prerequisites ride the
-      # tree's bootstrap (the zylaxion CI precedent).
+      # tree's bootstrap (the zylaxion CI precedent) - and the same
+      # ebpf-build cache every other compile lane shares, so this lane
+      # stops being the one that cold-rebuilds the nested object
+      # (night-zen-lts-2).
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
       - name: Install the eBPF build prerequisites
         run: |
           ./scripts/dev/bootstrap-ebpf.sh

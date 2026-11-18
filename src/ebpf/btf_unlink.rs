@@ -42,7 +42,8 @@
 //! btf.rs (the harness's compile graph stays minimal); this file is
 //! the parameter-index generalization of that walk.
 
-use super::btf::{BtfFile, FuncEntry, member_offset, u32_at};
+use super::btf::{BtfFile, FuncEntry, member_offset};
+use super::btf_decode::{decode_info, u32_at};
 
 /// The verified unlink/rename anchors, in the offsets-map slots they
 /// ride: the vfs_unlink parameter index that carries the
@@ -165,8 +166,9 @@ fn func_param_count(ctx: &BtfFile<'_>, func: FuncEntry, fname: &str) -> Result<u
         ));
     };
     let info = u32_at(ctx.data, proto_pos + 4);
-    let kind = (info >> 24) & 0x1F;
-    let vlen = (info & 0xFFFF) as usize;
+    // The shared decode (night-zen-lts-1): the kind_flag's vlen:10 |
+    // klen:6 field shape, not a blind 16-bit vlen.
+    let (kind, vlen) = decode_info(info);
     if kind != 13 {
         return Err(format!(
             "{fname}'s type id {proto_id} is not a FUNC_PROTO (kind {kind})"

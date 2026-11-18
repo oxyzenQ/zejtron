@@ -502,6 +502,7 @@ pub mod events;
 mod events_contract_tests;
 
 pub mod btf;
+mod btf_decode;
 /// The planting half of the loader (night-hunter-4's pure move at
 /// the 600 LOC cap): the probe-object names and the per-program
 /// plant chain the loader's attach orchestrates.

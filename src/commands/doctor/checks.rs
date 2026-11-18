@@ -28,12 +28,20 @@ pub(super) fn check_kernel_distro() -> CheckResult {
 /// message composes it with the distro, and the JSON lane's root
 /// facts read the same probe (one source, two surfaces).
 pub(super) fn kernel_release() -> Option<String> {
-    let out = Command::new("uname").arg("-r").output().ok()?;
-    if !out.status.success() {
-        return None;
+    // /proc/sys/kernel/osrelease carries exactly what `uname -r`
+    // reports, without the PATH-resolved subprocess (night-zen-lts-1):
+    // a hostile PATH cannot feed the readiness row a forged kernel
+    // string, and the row renders on a host whose PATH lost uname
+    // entirely. The command-based probes below (systemctl, journalctl)
+    // stay PATH-resolved by contract: their availability IS the fact
+    // the row reports - host truth, not host decoration.
+    let s = fs::read_to_string("/proc/sys/kernel/osrelease").ok()?;
+    let s = s.trim();
+    if s.is_empty() {
+        None
+    } else {
+        Some(s.to_owned())
     }
-    let s = String::from_utf8_lossy(&out.stdout).trim().to_owned();
-    if s.is_empty() { None } else { Some(s) }
 }
 
 /// The host's distro name, read once and shared: the kernel check's

@@ -246,4 +246,10 @@ jobs:
           # the deletions beside the modifications.
           git add -- ebpf-prebuilt
           git commit -m "chore(deps): maintenance deps weekly"
+          # A push landing on main between the checkout and this push
+          # used to fail the whole weekly run non-fast-forward, with
+          # no self-heal until the next Sunday (night-zen-lts-2):
+          # rebase onto the fetched tip first.
+          git fetch origin "${DEFAULT_BRANCH}"
+          git rebase "origin/${DEFAULT_BRANCH}"
           git push origin "HEAD:${DEFAULT_BRANCH}"

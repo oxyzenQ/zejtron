@@ -36,8 +36,8 @@ rm -rf "$RUN1" "$RUN2"
 # the fixtures, writes them under its own directory. The test filter
 # pins the certificate module (the rest of the suite runs in the
 # ordinary gates).
-ZEJTRON_CERT_OUT="$RUN1" cargo test --bin zejtron the_certificate_
-ZEJTRON_CERT_OUT="$RUN2" cargo test --bin zejtron the_certificate_
+ZEJTRON_CERT_OUT="$RUN1" cargo test --locked --bin zejtron the_certificate_
+ZEJTRON_CERT_OUT="$RUN2" cargo test --locked --bin zejtron the_certificate_
 
 # The verdict: the two directories must be byte-identical, manifest
 # included.

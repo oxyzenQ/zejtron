@@ -5,7 +5,7 @@
 #
 # ZEJTRON RELEASE PARITY CHECK (the sibling's NIGHT-lts-9 lineage)
 #
-# The release pipeline builds the four arch-baseline packages from
+# The release pipeline builds the two arch-baseline packages from
 # .github/workflows/release.yml's matrix rustflags; the README tells
 # owners a local `cargo pro-linux-amd64-<platform>` reproduces the
 # release artifact's optimization tier BIT-FOR-BIT. Until now nothing
@@ -149,6 +149,6 @@ if [ "$FAILED" -gt 0 ]; then
 	echo "FAIL: $FAILED platform(s) out of parity"
 	exit 1
 else
-	echo "OK: all four release platforms in local-alias/matrix parity"
+		echo "OK: all release platforms in local-alias/matrix parity"
 	exit 0
 fi

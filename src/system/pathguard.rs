@@ -110,12 +110,17 @@ fn is_dangerous(canonical: &Path) -> bool {
         }
     }
 
-    // User credential stores — never valid for zejtron state
-    let user_deny_subdirs: &[&str] = &[".ssh/", ".gnupg/", ".kwallet/", ".local/share/keyrings/"];
+    // User credential stores — never valid for zejtron state. The
+    // prefixes build through PathBuf::join and compare by components,
+    // not by string concatenation: a trailing slash on HOME used to
+    // produce `/home/z//.ssh/` and the starts_with silently missed
+    // (night-zen-lts-1) - component comparison is immune to slash
+    // repetition.
+    let user_deny_subdirs: &[&str] = &[".ssh", ".gnupg", ".kwallet", ".local/share/keyrings"];
     if !home.is_empty() {
+        let home = PathBuf::from(home);
         for sub in user_deny_subdirs {
-            let full = format!("{home}/{sub}");
-            if s.starts_with(&full) {
+            if canonical.starts_with(home.join(sub)) {
                 return true;
             }
         }

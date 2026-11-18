@@ -357,6 +357,13 @@ fn read_arp() -> Vec<ArpEntry> {
             iface: fields[5].to_owned(),
         });
     }
+    // Byte-stable across runs and kernels (night-zen-lts-1): the
+    // kernel's hash-bucket + insertion order is neither stable across
+    // runs (neighbors churn) nor across kernel versions (hash changes),
+    // so the rows sort at the collection boundary - interface, then
+    // address. The same total-order discipline the other render
+    // boundaries carry.
+    entries.sort_by(|a, b| a.iface.cmp(&b.iface).then(a.ip.cmp(&b.ip)));
     entries
 }
 
@@ -396,6 +403,15 @@ fn read_routes() -> Vec<RouteEntry> {
             metric,
         });
     }
+    // The same byte-stability law the ARP lane carries (night-zen-lts-1):
+    // /proc/net/route's file order is the kernel's table walk, not a
+    // contract - sort on (iface, destination, gateway) at the boundary.
+    routes.sort_by(|a, b| {
+        a.iface
+            .cmp(&b.iface)
+            .then(a.destination.cmp(&b.destination))
+            .then(a.gateway.cmp(&b.gateway))
+    });
     routes
 }
 
