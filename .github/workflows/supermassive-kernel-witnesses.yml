@@ -25,6 +25,19 @@
 #     a second kernel generation - the direction the ordinary CI
 #     legs can only compute, never exercise;
 #
+#   * bookworm 6.1.0-N amd64 - the DEBIAN LTS-LINE witness
+#     (night-runner-3, the owner's boot checklist: the 6.1 LTS line
+#     had no runtime record): the Debian stable main pocket's
+#     current 6.1.0-XX point-release kernel, fetched through the
+#     same Packages-index resolution the ubuntu pockets ride (the
+#     suite pins the LTS line; the boot log records the exact ABI);
+#   * mainline 6.6 LTS - the FROZEN MAINLINE witness (night-runner-3,
+#     the checklist's other pending LTS line): one pinned build
+#     directory on kernel.ubuntu.com/mainline that the archive keeps
+#     verbatim, exactly one unsigned generic amd64 image deb, loud
+#     refusal on any other shape - the frozen-ABI twin of the GA
+#     pockets;
+#
 #   * cachyos - the MOVING-LATEST witness (night-improve-53, the
 #     owner's ask that the best-spec leg ride the latest kernel):
 #     the owner's own distro line, unpinned - the packer resolves the
@@ -116,6 +129,12 @@ jobs:
             envelope: low
           - suite: noble
             title: kernel witness - noble GA 6.8.0 (above the floor, report mode)
+            envelope: low
+          - suite: bookworm
+            title: kernel witness - bookworm GA 6.1 LTS (the Debian LTS line, report mode)
+            envelope: low
+          - suite: mainline-6.6
+            title: kernel witness - mainline 6.6 LTS (the frozen mainline build, report mode)
             envelope: low
           - suite: cachyos
             title: kernel witness - cachyos current (the latest line, best envelope)

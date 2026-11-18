@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # LOC_EXEMPT: the kernel-floor provisioner rides the 1000-line cap
 # (it sat at exactly 1000 before the night-dragon-maintenance-T1
-# bytecode guard added its lines); it cannot split into local
+# bytecode guard added its lines, and the night-runner-3 LTS
+# witness suites rode it further); it cannot split into local
 # modules without creating the imported-under-sudo __pycache__
 # class that very guard exists to prevent.
 """zejtron sandbox provisioner (night-improve-43, the kernel-floor
@@ -58,7 +59,9 @@ Usage (the bash entrypoint scripts/sandbox/zejtron-sandbox.sh owns
 the orchestration; these subcommands are its legs):
   python3 scripts/sandbox/rootfs-pack.py kernel --suite SUITE --cache DIR
       (SUITE = floor, the jammy GA 5.15.0 floor kernel; a GA witness name
-      - focal, jammy, noble; or cachyos, the moving-latest witness)
+      - focal, jammy, noble, or bookworm, the Debian 6.1 LTS line; or
+      mainline-6.6, the frozen mainline 6.6 LTS build; or cachyos, the
+      moving-latest witness)
   python3 scripts/sandbox/rootfs-pack.py initrd --cache DIR --repo DIR \
       --binary PATH --init PATH [--payload PATH] [--lane floor|arbitrary]
   python3 scripts/sandbox/rootfs-pack.py self-test
@@ -131,6 +134,36 @@ SUITE_TABLE = {
         "version_prefix": "6.8.0",
         "out": "vmlinuz-noble",
     },
+    # The LTS-line witnesses (night-runner-3): the two pending LTS
+    # lines on the owner's boot checklist that carried no runtime
+    # record. bookworm resolves the Debian stable main pocket (the
+    # 6.1 LTS line) - Debian's stable pocket carries the CURRENT
+    # 6.1.0-XX point-release kernel (Debian replaces the ABI inside
+    # main at point releases, unlike Ubuntu's frozen GA pocket), so
+    # this suite pins the LTS LINE (the 6.1.0-N name shape + the
+    # 6.1.x deb version) and the boot log records the exact ABI the
+    # witness rode. mainline-6.6 resolves a FROZEN mainline build
+    # directory (kernel.ubuntu.com/mainline keeps published builds
+    # verbatim): one pinned dir, one unsigned generic amd64 image
+    # deb, the version prefix guards the identity the same way.
+    "bookworm": {
+        "pocket": "bookworm",
+        "dist_base": "https://deb.debian.org/debian/dists/",
+        "pool_base": "https://deb.debian.org/debian/",
+        "kernel_re": re.compile(r"^linux-image-6\.1\.0-([0-9]+)-amd64$"),
+        "version_prefix": "6.1.",
+        "out": "vmlinuz-bookworm",
+        "resolver_note": "the {pocket} stable point-release kernel (the 6.1 LTS line)",
+    },
+    "mainline-6.6": {
+        "kind": "mainline",
+        "index_url": "https://kernel.ubuntu.com/mainline/v6.6.95/",
+        "pkg_re": re.compile(
+            r'href="(?P<deb>amd64/linux-image-unsigned-6\.6\.[0-9]+-0606[0-9]+-generic_[0-9.-]+_amd64\.deb)"'
+        ),
+        "version_prefix": "6.6.",
+        "out": "vmlinuz-mainline-6.6",
+    },
     # The moving-latest witness (night-improve-53): the owner's own
     # distro line, unpinned - the resolver takes the repo's CURRENT
     # flagship package; the .ver sidecar decides cache reuse.
@@ -145,8 +178,8 @@ SUITE_TABLE = {
 }
 
 
-def suite_packages_url(pocket):
-    return f"{ARCHIVE_DIST}{pocket}/main/binary-amd64/Packages.gz"
+def suite_packages_url(pocket, base=ARCHIVE_DIST):
+    return f"{base}{pocket}/main/binary-amd64/Packages.gz"
 
 # iproute2 for the loopback bring-up, jq for the typed JSON law (night-dragon-4).
 ROOT_PACKAGES = ["iproute2", "jq"]
@@ -488,7 +521,11 @@ def suite_index(cache, suite):
     pkg_path = os.path.join(cache, f"{entry['pocket']}-Packages.gz")
     if not os.path.exists(pkg_path):
         say(f"fetching the {entry['pocket']} main-pocket Packages index...")
-        download_atomic(suite_packages_url(entry["pocket"]), pkg_path, timeout=600)
+        download_atomic(
+            suite_packages_url(entry["pocket"], entry.get("dist_base", ARCHIVE_DIST)),
+            pkg_path,
+            timeout=600,
+        )
     with open(pkg_path, "rb") as fh:
         return parse_packages(fh.read())
 
@@ -503,6 +540,8 @@ def fetch_suite_kernel(cache, suite):
     kernel under the suite's name."""
     if SUITE_TABLE[suite].get("kind") == "archpkg":
         return fetch_arch_pkg_kernel(cache, suite)
+    if SUITE_TABLE[suite].get("kind") == "mainline":
+        return fetch_mainline_kernel(cache, suite)
     entry = SUITE_TABLE[suite]
     out = os.path.join(cache, entry["out"])
     if os.path.exists(out):
@@ -521,26 +560,18 @@ def fetch_suite_kernel(cache, suite):
         )
     cands.sort()
     abi, name, meta = cands[-1]
-    say(f"{suite} kernel: {name} ({meta['version']}, the {entry['pocket']} GA release-day kernel)")
+    note = entry.get(
+        "resolver_note", "the {pocket} GA release-day kernel"
+    ).format(pocket=entry["pocket"])
+    say(f"{suite} kernel: {name} ({meta['version']}, {note})")
     deb_path = os.path.join(cache, f"{name}.deb")
     if not _intact_deb(deb_path):
         say(f"downloading {os.path.basename(meta['filename'])}...")
-        download_atomic(ARCHIVE_POOL + meta["filename"], deb_path, timeout=900)
+        download_atomic(entry.get("pool_base", ARCHIVE_POOL) + meta["filename"], deb_path, timeout=900)
     with open(deb_path, "rb") as fh:
         data = deb_data_tar(fh.read())
-    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
-        member = next(
-            (
-                m
-                for m in tar.getmembers()
-                if m.name.startswith("./boot/vmlinuz-") or m.name.startswith("boot/vmlinuz-")
-            ),
-            None,
-        )
-        if member is None:
-            raise SystemExit(f"no vmlinuz inside the {suite}-kernel deb")
-        with open(out, "wb") as fh:
-            fh.write(tar.extractfile(member).read())
+    with open(out, "wb") as fh:
+        fh.write(_vmlinuz_from_deb_bytes(data, suite))
     os.chmod(out, 0o644)
     say(f"kernel: {out} ({os.path.getsize(out) // 1024} KiB)")
     return out
@@ -608,6 +639,67 @@ def fetch_arch_pkg_kernel(cache, suite):
     with open(ver_file, "w", encoding="utf-8") as fh:
         fh.write(ver)
     say(f"kernel: {out} ({os.path.getsize(out) // 1024} KiB, {ver})")
+    return out
+
+
+def _vmlinuz_from_deb_bytes(data, suite):
+    """The one vmlinuz inside a kernel image deb's data.tar - the
+    ./boot/vmlinuz- shape the ubuntu and debian image packages both
+    ship; a deb without it is not the image the suite asked for."""
+    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+        member = next(
+            (
+                m
+                for m in tar.getmembers()
+                if m.name.startswith("./boot/vmlinuz-") or m.name.startswith("boot/vmlinuz-")
+            ),
+            None,
+        )
+        if member is None:
+            raise SystemExit(f"no vmlinuz inside the {suite}-kernel deb")
+        return tar.extractfile(member).read()
+
+
+def fetch_mainline_kernel(cache, suite):
+    """The frozen mainline-build witness (night-runner-3, the 6.6 LTS
+    line): one pinned build directory on kernel.ubuntu.com/mainline -
+    the archive keeps published builds verbatim, so the pin IS the
+    frozen ABI the runtime record documents, unlike the moving
+    cachyos latest. The directory ships exactly one unsigned generic
+    amd64 image deb; any other shape fails loudly instead of booting
+    a stranger under the suite's name."""
+    entry = SUITE_TABLE[suite]
+    out = os.path.join(cache, entry["out"])
+    if os.path.exists(out):
+        return out
+    listing = http_get_text(entry["index_url"], timeout=120)
+    debs = [m.group("deb") for m in entry["pkg_re"].finditer(listing)]
+    if len(debs) != 1:
+        raise SystemExit(
+            f"expected exactly one amd64 linux-image-unsigned deb in {entry['index_url']}, "
+            f"found {len(debs)} - the archive shape moved; the witness refuses to boot a "
+            "different kernel under the suite's name"
+        )
+    deb = debs[0]
+    version = deb[len("amd64/linux-image-unsigned-"):].split("-generic_")[0]
+    if not version.startswith(entry["version_prefix"]):
+        raise SystemExit(
+            f"the pinned mainline deb {deb} does not carry the "
+            f"{entry['version_prefix']} version prefix - the pin drifted; re-pin the build"
+        )
+    deb_path = os.path.join(cache, os.path.basename(deb))
+    if not _intact_deb(deb_path):
+        say(f"downloading {os.path.basename(deb)} ({version}, the frozen mainline build)...")
+        download_atomic(entry["index_url"] + deb, deb_path, timeout=900)
+    with open(deb_path, "rb") as fh:
+        data = deb_data_tar(fh.read())
+    payload = _vmlinuz_from_deb_bytes(data, suite)
+    tmp = out + ".part"
+    with open(tmp, "wb") as fh:
+        fh.write(payload)
+    os.replace(tmp, out)
+    os.chmod(out, 0o644)
+    say(f"kernel: {out} ({os.path.getsize(out) // 1024} KiB, {version})")
     return out
 
 
@@ -836,6 +928,7 @@ def self_test():
         "focal": ("linux-image-unsigned-5.4.0-26-generic", "26"),
         "jammy": ("linux-image-unsigned-5.15.0-25-generic", "25"),
         "noble": ("linux-image-unsigned-6.8.0-31-generic", "31"),
+        "bookworm": ("linux-image-6.1.0-47-amd64", "47"),
     }
     for suite, (ga_name, ga_abi) in ga_names.items():
         m = SUITE_TABLE[suite]["kernel_re"].match(ga_name)
@@ -851,15 +944,43 @@ def self_test():
         and not SUITE_TABLE["floor"]["kernel_re"].match("linux-image-unsigned-5.16.0-25-generic")
         and not SUITE_TABLE["floor"]["kernel_re"].match("linux-image-5.15.0-25-generic")
         and not SUITE_TABLE["focal"]["kernel_re"].match("linux-image-unsigned-5.5.0-26-generic")
-        and not SUITE_TABLE["noble"]["kernel_re"].match("linux-image-unsigned-6.9.0-31-generic"),
+        and not SUITE_TABLE["noble"]["kernel_re"].match("linux-image-unsigned-6.9.0-31-generic")
+        and not SUITE_TABLE["bookworm"]["kernel_re"].match("linux-image-6.2.0-1-amd64")
+        and not SUITE_TABLE["bookworm"]["kernel_re"].match("linux-image-6.1.0-47-amd64-unsigned"),
     )
     check(
         "the suite table is complete and shaped",
-        set(SUITE_TABLE) == {"floor", "focal", "jammy", "noble", "cachyos"}
+        set(SUITE_TABLE)
+        == {"floor", "focal", "jammy", "noble", "cachyos", "bookworm", "mainline-6.6"}
         and SUITE_TABLE["floor"]["pocket"] == "jammy"
         and SUITE_TABLE["jammy"]["pocket"] == "jammy"
-        and len({e["out"] for e in SUITE_TABLE.values()}) == 5,
+        and SUITE_TABLE["bookworm"]["pool_base"].startswith("https://deb.debian.org/")
+        and len({e["out"] for e in SUITE_TABLE.values()}) == 7,
         "floor and jammy share the pocket; each suite owns its vmlinuz cache file",
+    )
+
+    # the frozen mainline-build witness (night-runner-3): the regex
+    # pins the amd64 unsigned generic image deb alone (headers,
+    # modules, arm64 flavors, and logs never match).
+    mainline = SUITE_TABLE["mainline-6.6"]
+    pinned = mainline["pkg_re"].search(
+        'href="amd64/linux-image-unsigned-6.6.95-060695-generic_6.6.95-060695.202506271118_amd64.deb"'
+    )
+    check(
+        "mainline regex matches the pinned build's image deb",
+        bool(pinned) and pinned.group("deb").endswith("_amd64.deb"),
+    )
+    check(
+        "mainline regex rejects headers, modules, and foreign flavors",
+        not mainline["pkg_re"].search(
+            'href="amd64/linux-headers-6.6.95-060695-generic_6.6.95-060695.202506271118_amd64.deb"'
+        )
+        and not mainline["pkg_re"].search(
+            'href="amd64/linux-modules-6.6.95-060695-generic_6.6.95-060695.202506271118_amd64.deb"'
+        )
+        and not mainline["pkg_re"].search(
+            'href="arm64/linux-image-unsigned-6.6.95-060695-generic_6.6.95-060695.202506271118_arm64.deb"'
+        ),
     )
 
     # the moving-latest witness (night-improve-53): the cachyos regex

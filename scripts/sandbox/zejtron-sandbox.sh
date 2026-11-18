@@ -35,7 +35,16 @@
 # direction), jammy is the floor kernel ridden on the report lane,
 # and noble is the above-floor witness (6.8 GA, BTF readable: the
 # attach lifecycle in the success direction on a second kernel
-# generation). The cachyos preset (night-improve-53) is the
+# generation). The LTS-line presets (night-runner-3) close the two
+# pending lines on the owner's boot checklist: bookworm resolves the
+# Debian stable main pocket (the 6.1 LTS line - Debian's stable
+# pocket carries the CURRENT 6.1.0-XX point-release kernel, unlike
+# Ubuntu's frozen GA pocket, so the suite pins the LTS line and the
+# boot log records the exact ABI), and mainline-6.6 resolves a
+# FROZEN mainline build directory (kernel.ubuntu.com keeps
+# published builds verbatim - one pinned dir, one unsigned generic
+# amd64 image deb, loud refusal on any other shape). The cachyos
+# preset (night-improve-53) is the
 # moving-latest witness - the owner's own distro line, unpinned:
 # the packer resolves the repo's CURRENT flagship kernel
 # (linux-cachyos, the newest line the repo ships) and re-checks the
@@ -50,13 +59,17 @@
 #   scripts/sandbox/zejtron-sandbox.sh --self-test    # rootless preflight + packer self-test
 #
 # Options:
-#   --kernel floor|focal|jammy|noble|cachyos|PATH
+#   --kernel floor|focal|jammy|noble|cachyos|bookworm|mainline-6.6|PATH
 #                           floor = the jammy GA 5.15.0 kernel on
 #                           the strict identity lane (the default,
 #                           the lane's point). A GA witness name
 #                           (focal, jammy, noble) resolves that
 #                           Ubuntu suite's GA kernel from the LIVE
-#                           archive's main pocket; cachyos resolves
+#                           archive's main pocket; bookworm resolves
+#                           the Debian stable main pocket (the 6.1
+#                           LTS line); mainline-6.6 resolves the
+#                           pinned frozen mainline 6.6 LTS build;
+#                           cachyos resolves
 #                           the repo's CURRENT flagship kernel (the
 #                           moving-latest witness, re-checked on
 #                           every call); PATH is any local
@@ -315,7 +328,7 @@ floor)
 	VMLINUZ="$(python3 "${SCRIPT_DIR}/rootfs-pack.py" kernel --suite floor --cache "${CACHE}")" ||
 		die "kernel resolution failed"
 	;;
-focal | jammy | noble | cachyos)
+focal | jammy | noble | cachyos | bookworm | mainline-6.6)
 	VMLINUZ="$(python3 "${SCRIPT_DIR}/rootfs-pack.py" kernel --suite "${KERNEL}" --cache "${CACHE}")" ||
 		die "kernel resolution failed"
 	LANE="arbitrary"
