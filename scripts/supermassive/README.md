@@ -102,7 +102,7 @@ privileged 5.15+ host they pin the probe lane's declaration.
 ## Run it
 
 ```
-./scripts/supermassive/legs/low.sh                 # 60s wall budget
+./scripts/supermassive/legs/low.sh                 # 75s wall budget
 ./scripts/supermassive/legs/best.sh                # 300s wall budget
 ./scripts/supermassive/supermassive.sh --leg low --bin PATH   # explicit binary
 ./scripts/supermassive/supermassive.sh --self-test # the engine alone
@@ -290,7 +290,7 @@ pockets: focal 5.4.0-26.30, noble 6.8.0-31.31) through the
 packer's one suite table. Proven live the same night, all three
 sides of the floor line, under TCG (KVM is the CI lane's
 contract): focal 5.4.0-26 BELOW the floor - 276/276, the attach
-specs in the refusal direction, 11s wall of the 60s budget;
+specs in the refusal direction, 11s wall of the 75s budget;
 jammy 5.15.0-25 at the floor - 280/280, the success direction,
 12s; noble 6.8.0-31 ABOVE the floor - 280/280, the privileged
 attach lifecycle in the success direction on a second kernel
@@ -348,7 +348,7 @@ by four lanes:
 - the local twin `scripts/sandbox/zejtron-sandbox.sh --battery` -
   the same VM on a developer box (KVM when `/dev/kvm` is
   writable, TCG software emulation otherwise; under TCG the low
-  leg's 60s wall budget can breach without the binary being at
+  leg's 75s wall budget can breach without the binary being at
   fault - the budget is a real-hardware contract).
 
 <!-- ZEJTRON-DISCLAIMER -->
