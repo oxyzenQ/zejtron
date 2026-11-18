@@ -267,8 +267,10 @@ fn collect_verifies_the_running_test_binary_authentic() {
 /// fails HERE, in every lane that compiles the crate.
 #[test]
 fn the_embedded_camera_object_recomputes_the_build_stamp() {
-    let stamped = option_env!("ZEJTRON_CAMERA_OBJECT_B3")
-        .expect("every build of this tree stamps the camera object digest");
+    // env!, not option_env!.expect(): the lint-clippy law - and the
+    // honest shape, since a test binary of this tree cannot exist
+    // without the stamp (the build.rs lanes always produce it).
+    let stamped = env!("ZEJTRON_CAMERA_OBJECT_B3");
     let (status, detail) = camera_object_row(Some(stamped), crate::ebpf::loader::PROBE_ELF);
     assert_eq!(status, DepthStatus::Pass, "{detail}");
     assert!(
