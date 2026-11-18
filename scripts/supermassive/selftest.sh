@@ -390,44 +390,60 @@ case "\$1 \$2" in
 	"doctor --detach") exit 0 ;;
 esac
 if [[ "\$1" == "why" ]]; then
-	# The camera's own track-is-live narration (spinner::wait rides
-	# after track_file) - the surface syncs the storm on this line.
-	# The mute seat omits it on purpose.
-	[[ "$mode" != "mute" ]] && printf '[watching for events... 6s]\n' >&2
-	dir="\$(dirname "\$2")"
-	count_file="\$dir/storm.count"
-	for _ in \$(seq 1 150); do
-		[[ -s "\$count_file" ]] && break
-		sleep 0.2
-	done
-	truth="\$(cat "\$count_file" 2>/dev/null || echo 0)"
-	case "$mode" in
-		honest)
-			delivered=\$(( truth < 6553 ? truth : 6553 ))
-			drops=\$(( truth - delivered ))
-			;;
-		silent)
-			delivered=\$(( truth < 6553 ? truth : 6553 ))
-			drops=\$(( truth - delivered - 7 ))
-			[[ \$drops -lt 0 ]] && drops=0
-			;;
-		fabricate)
-			delivered=\$(( truth + 5 ))
-			drops=0
-			;;
-		census-lies)
-			delivered=\$truth
-			drops=0
-			;;
-	esac
-	printf 'Unaccounted:\n'
-	printf '  %d ring drops (file_events reserve failures since attach - events the kernel saw but the ring could not hold)\n' "\$drops"
-	printf '\n'
-	printf 'Raw kernel events (file_events ring, as drained; CLOCK_MONOTONIC ns):\n'
-	for ((i = 0; i < delivered; i++)); do
-		printf '  %d op=write inode=42 device=0x2 pid=7\n' "\$((1000000 + i))"
-	done
-	exit 0
+	hot="\$2"
+	dir="\$(dirname "\$hot")"
+	# The MUTE seat: never shows the post-track sleep - the sync seat
+	# must refuse it. Every other seat reproduces the real camera's
+	# kernel-truth window shape: a TWIN renders the drain result the
+	# moment the storm's sidecar count lands, while the FOREGROUND
+	# execs a sleep carrying the storm's hot path in argv - blocked
+	# in hrtimer_nanosleep with the path in cmdline, exactly the
+	# state the surface's /proc sync waits for (the real why sits
+	# there for its whole window: track, then narrated sleep).
+	if [[ "$mode" == "mute" ]]; then
+		count_file="\$dir/storm.count"
+		for _ in \$(seq 1 150); do
+			[[ -s "\$count_file" ]] && break
+			sleep 0.2
+		done
+		printf 'Unaccounted:\n  0 ring drops (none)\n\nRaw kernel events (file_events ring, as drained; CLOCK_MONOTONIC ns):\n' >&2
+		exit 0
+	fi
+	(
+		count_file="\$dir/storm.count"
+		for _ in \$(seq 1 150); do
+			[[ -s "\$count_file" ]] && break
+			sleep 0.2
+		done
+		truth="\$(cat "\$count_file" 2>/dev/null || echo 0)"
+		case "$mode" in
+			honest)
+				delivered=\$(( truth < 4096 ? truth : 4096 ))
+				drops=\$(( truth - delivered ))
+				;;
+			silent)
+				delivered=\$(( truth < 4096 ? truth : 4096 ))
+				drops=\$(( truth - delivered - 7 ))
+				[[ \$drops -lt 0 ]] && drops=0
+				;;
+			fabricate)
+				delivered=\$(( truth + 5 ))
+				drops=0
+				;;
+			census-lies)
+				delivered=\$truth
+				drops=0
+				;;
+		esac
+		printf 'Unaccounted:\n'
+		printf '  %d ring drops (file_events reserve failures since attach - events the kernel saw but the ring could not hold)\n' "\$drops"
+		printf '\n'
+		printf 'Raw kernel events (file_events ring, as drained; CLOCK_MONOTONIC ns):\n'
+		for ((i = 0; i < delivered; i++)); do
+			printf '  %d op=write inode=42 device=0x2 pid=7\n' "\$((1000000 + i))"
+		done
+	) &
+	exec -a "why \$hot" sleep 3
 fi
 exit 3
 STUB

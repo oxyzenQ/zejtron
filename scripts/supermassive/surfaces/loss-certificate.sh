@@ -103,32 +103,47 @@ surface_loss_certificate() {
 	) &
 	window_pid=$!
 
-	# The settle is a SIGNAL, not a sleep. The camera narrates the
-	# wait ("[watching for events... 6s]" on stderr) at the instant
-	# spinner::wait begins - which is AFTER track_file landed and the
-	# window is live (src/ebpf/fileprobe.rs: track, sample, narrate,
-	# sleep, untrack, drain). The storm starts only when that
-	# narration lands in the why's stderr: no write can precede the
-	# track, so the ground truth counts exactly the in-window writes.
-	# (The first live run's own finding, fixed the same night: a
-	# fixed 1.5s sleep raced the why's startup on the floor VM -
-	# 1365 of 40000 writes crossed the filter before the track, and
-	# the certificate caught them as silent loss. The race is the
-	# harness's, the catch was the certificate's, the fix is sync.)
-	local synced=0
+	# The settle is KERNEL TRUTH, not a sleep. The why's flow inside
+	# collect_live is exact (src/ebpf/fileprobe.rs): track_file lands
+	# FIRST, then the offset sample, then the narrated wait - the
+	# process spends the whole window blocked in the post-track sleep
+	# (clock_nanosleep, wchan hrtimer_nanosleep). So the storm starts
+	# only when /proc shows the why process holding the storm's hot
+	# path in its cmdline AND blocked in hrtimer_nanosleep - a state
+	# that exists only AFTER the track landed. No write can precede
+	# the track, so the ground truth counts exactly the in-window
+	# writes. (The first live run's own finding, fixed the same
+	# night: a fixed 1.5s sleep raced the why's startup on the floor
+	# VM - 1365 of 40000 writes crossed the filter before the track,
+	# and the certificate caught them as silent loss. The second
+	# draft synced on the stderr narration and CI caught THAT: the
+	# narration is TTY-gated, and a piped stderr never carries it.
+	# The kernel's own /proc row is the one signal that cannot lie.)
+	local why_pid synced=0
 	for _ in $(seq 1 60); do
-		if grep -q "watching for events" "$SM_SCRATCH/lc-why.err" 2>/dev/null; then
+		why_pid=""
+		for proc_dir in /proc/[0-9]*; do
+			[[ -r "$proc_dir/cmdline" && -r "$proc_dir/wchan" ]] || continue
+			tr '\0' ' ' <"$proc_dir/cmdline" 2>/dev/null | grep -qF -- "$hot" || continue
+			if grep -q "hrtimer_nanosleep" "$proc_dir/wchan" 2>/dev/null; then
+				why_pid="${proc_dir##*/}"
+				break
+			fi
+		done
+		if [[ -n "$why_pid" ]]; then
 			synced=1
 			break
 		fi
 		sleep 0.1
 	done
 	if [[ "$synced" -ne 1 ]]; then
-		# A window that never announced itself is a broken sync seat,
-		# not a slow host - storm into it and the conservation math
-		# would be fiction. Fail by name, clean the attach by hand.
-		sm_fail "loss-certificate: the window's own narration signals the track" \
-			"the why never narrated the wait within 6s - the sync seat is broken, the storm never ran"
+		# A window that never shows the post-track sleep is a broken
+		# sync seat, not a slow host - storm into it and the
+		# conservation math would be fiction. Fail by name, reap the
+		# window, clean the attach by hand.
+		sm_fail "loss-certificate: the window shows its post-track sleep" \
+			"no process holding the storm's path blocked in hrtimer_nanosleep within 6s - the sync seat is broken, the storm never ran"
+		wait "$window_pid" 2>/dev/null || true
 		sm_run "$SM_SCRATCH/lc-detach.out" "$SM_SCRATCH/lc-detach.err" rc 20 -- \
 			"$SM_DEFAULT_BIN" doctor --detach
 		sm_assert_rc 0 "$rc" \
@@ -138,16 +153,16 @@ surface_loss_certificate() {
 
 	# The storm: exactly one write(2) per iteration, pure builtins
 	# (no fork, no open - the fd rides from the pre-window open). The
-	# window is 6s wide from the narration; the deadline keeps four
-	# of them so every counted write completes while the inode is
-	# still tracked (two seconds of slack for the untrack, the drain,
-	# and the render). The counter is the generator's own loop
-	# variable - the ground truth lives OUTSIDE the camera by
-	# construction. The target rides a named test seam
-	# (SM_LOSS_CERT_TARGET, the selftest's hermetic seat); unset it
-	# means 40000, far past the ring's measured capacity (4096 held
-	# records on the floor kernel - aya's own accounting, see the
-	# census-lies bound below).
+	# window is 6s wide from the track (the sync proves the track is
+	# already live); the deadline keeps four of them so every counted
+	# write completes while the inode is still tracked (two seconds
+	# of slack for the untrack, the drain, and the render). The
+	# counter is the generator's own loop variable - the ground truth
+	# lives OUTSIDE the camera by construction. The target rides a
+	# named test seam (SM_LOSS_CERT_TARGET, the selftest's hermetic
+	# seat); unset it means 40000, far past the ring's measured
+	# capacity (4096 held records on the floor kernel - aya's own
+	# accounting, see the census-lies bound below).
 	local storm_target="${SM_LOSS_CERT_TARGET:-40000}"
 	[[ "$storm_target" -ge 1 ]] 2>/dev/null || storm_target=40000
 	local storm_deadline=$((SECONDS + 4))
