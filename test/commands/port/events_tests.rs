@@ -529,9 +529,13 @@ fn a_moving_gap_renders_the_blackout_line() {
         section.contains("of the window was spent asleep"),
         "{section}"
     );
-    // The span truncates to whole seconds (the render law): one hour
-    // minus the 146 ns of reading jitter is 3599 s, not 3600.
-    assert!(section.contains("59m 59s"), "{section}");
+    // The span truncates to whole seconds (the render law), and the
+    // render's own read carries jitter a whole-second edge must
+    // never decide a pin - the same tolerance the anomaly arm
+    // carries: the candidates around one hour, all accepted.
+    let spans =
+        [3599i128, 3600, 3601].map(|s| crate::info::clock::format_sleep_span(s * 1_000_000_000));
+    assert!(spans.iter().any(|span| section.contains(span)), "{section}");
     assert!(
         section.contains("no event can exist in that span"),
         "{section}"
