@@ -368,7 +368,16 @@ stream_law "doctor" doctor
 stream_law "proc" --normalize '/kworker/d; s/pid=[0-9]+/pid=N/g; s/state=[RSDZTt?]/state=X/g; s/^[0-9]+ roots Â· [0-9]+ processes$/N roots Â· M processes/' proc --me --depth 2
 stream_law "recent" recent "$SCRATCH/tree"
 stream_law "path" path sh
-stream_law "net" net
+# The net leg's normalize (the proc leg's own doctrine, one class
+# over): the interface counters are kernel-owned facts that
+# legitimately move between two spawns - the runner's own NIC ticks
+# between the captures, and the root-native lane failed on exactly
+# this drift. The check's contract is verbose-must-not-leak-into-
+# stdout, not a promise to freeze /proc/net/dev mid-read: the
+# packet/byte/error counter values ride the normalization, and any
+# leaked diagnostic line still fails the compare (the vlog wording
+# carries none of these tokens).
+stream_law "net" --normalize 's/rx=[0-9]+/rx=N/g; s/tx=[0-9]+/tx=N/g; s/errors=[0-9]+/errors=N/g; s/drops=[0-9]+/drops=N/g; s/rx [0-9.]+[KMG]?B/rx SUM/g; s/tx [0-9.]+[KMG]?B/tx SUM/g' net
 
 # 6. The safety battery (night-total-hardening-1): the absurd asks are
 #    parse-time refusals (exit 2), the sane asks ride, every refusal
