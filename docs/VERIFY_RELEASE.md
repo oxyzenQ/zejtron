@@ -159,6 +159,46 @@ Replace `project-vX.Y.Z-linux-amd64-v3-musl` with the actual archive name
 levels, both fully static musl - night-badass-1 retired the gnu
 pair).
 
+## 4a. The reproducible release chain - rebuild the published hash yourself
+
+(night-depth-hardening-Z1, the cosmostrix D4 lineage) Checksums and
+signatures prove WHO shipped an artifact; reproducibility proves WHAT
+it is: the published hash must be the hash anyone can rebuild from
+source. The CI carries the standing proof on every push
+(`.github/workflows/reproducible-release.yml`: `reproducible_build` +
+`reproducible_verify`) - two INDEPENDENT runners build the pinned
+release shape (`linux-amd64-v3-musl`: static musl, x86-64-v3) from
+the same commit with the same `SOURCE_DATE_EPOCH` pin (the commit
+timestamp build.rs honors in `ZEJTRON_BUILD_TIME`), the release lane's
+exact flag composition plus the redacted path prefixes
+(`--remap-path-prefix` folds the builder's HOME and checkout path to
+`redacted`, so the embedded path strings cannot leak a host), and NO
+shared cache - and the verify job requires byte identity (`cmp`).
+
+To re-verify locally on one host (two cold builds, byte-identical):
+
+```bash
+bash scripts/release/repro-build.sh
+```
+
+The build time embedded in the binary (`ZEJTRON_BUILD_TIME`, shown by
+`zejtron -V`) honors `SOURCE_DATE_EPOCH` - set it to the commit
+timestamp (`git log -1 --format=%ct`) and your rebuild embeds the same
+minute as the published artifact. Without the variable (plain dev
+builds) the wall clock is used, exactly as before.
+
+What is NOT yet claimed honestly: the local two-pass proof shares one
+checkout path and one host (the CI two-runner job is the stronger
+cross-host proof), and the standing proof covers the
+linux-amd64-v3-musl lane - the flagship static shape the release page
+leads with. The nested eBPF object is part of the release bytes on a
+git checkout, so its determinism (the pinned nightly + bpf-linker) is
+part of what the lane proves. This kills, permanently, the class of
+"builds modified without a trace": there is no such thing as a
+silent divergent build of a released zejtron shape - anyone can name
+the exact bytes the release page hashes, from source, on their own
+machine.
+
 ## GPG signature (when the release ships .asc files)
 
 ```bash

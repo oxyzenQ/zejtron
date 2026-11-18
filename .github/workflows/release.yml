@@ -248,8 +248,30 @@ jobs:
           # option_env! src/info's build_label() reads; the verify
           # step below closes the loop on the artifact bytes.
           ZEJTRON_BUILD: pro-${{ matrix.platform }}
-          RUSTFLAGS: ${{ matrix.rustflags }}
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          # night-depth-hardening-Z1, the reproducible release chain
+          # (the cosmostrix D4 lineage): the build stamp pins to the
+          # commit timestamp - build.rs honors SOURCE_DATE_EPOCH in
+          # ZEJTRON_BUILD_TIME, so the published artifact's build
+          # minute is the commit's, identical on every host that
+          # checks out this commit, and a foreign rebuild reproduces
+          # it. The redacted path prefixes make the embedded path
+          # strings constant regardless of the builder's HOME and
+          # checkout location (the registry path and the workspace
+          # path otherwise leak into panic locations and break every
+          # foreign rebuild byte-wise); the runtime tripwire asserts
+          # the composition survived the expansion - a lost redaction
+          # is a release that only this runner can reproduce.
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH
+          REDACTED_FLAGS="--remap-path-prefix=${HOME}/.cargo=redacted --remap-path-prefix=${PWD}=redacted"
+          export RUSTFLAGS="${{ matrix.rustflags }} ${REDACTED_FLAGS}"
+          case "$RUSTFLAGS" in
+            *"--remap-path-prefix=${HOME}/.cargo=redacted"*) ;;
+            *) echo "::error::the release composition lost its path redaction"; exit 1 ;;
+          esac
+          cargo build --release --locked --target ${{ matrix.target }}
 
       # night-dragon-maintenance-T1: the artifact-level label check.
       # The v4 legs verify WITHOUT executing the artifact (the

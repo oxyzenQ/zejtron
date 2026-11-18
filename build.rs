@@ -92,7 +92,22 @@ fn main() {
     // family ISO 8601 `YYYY-MM-DD HH:MMZ` contract the `-V` report
     // carries (night-pro-1: the estate-wide format the flagship
     // already stamped, replacing the US-ambiguous M/D/YYYY shape).
-    let build_time = format_build_time_utc();
+    //
+    // night-depth-hardening-Z1 (the cosmostrix D4 lineage): the
+    // reproducible release chain pins the stamp to SOURCE_DATE_EPOCH
+    // when it is set - the commit timestamp the release lane and the
+    // reproducibility lanes export, identical on every host that
+    // checks out this commit, so a rebuild from source embeds the
+    // same minute the published artifact carries. Unset: the wall
+    // clock serves exactly as before - plain dev builds stamp
+    // freshness, release shapes stamp the pinned epoch.
+    println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
+    let build_time = std::env::var("SOURCE_DATE_EPOCH")
+        .ok()
+        .and_then(|raw| raw.trim().parse::<i64>().ok())
+        .filter(|secs| *secs >= 0)
+        .map(format_unix_secs_as_build_time)
+        .unwrap_or_else(format_build_time_utc);
     println!("cargo:rustc-env=ZEJTRON_BUILD_TIME={build_time}");
 
     // night-improve-1, retargeted by night-improve-5 and made

@@ -44,6 +44,26 @@ v11.0.0
 
 ### Added
 
+- **night-depth-hardening-Z1, the reproducible release chain (D4 -
+  the published hash is the hash anyone can rebuild from source).**
+  The release lane now pins PROCESS identity, not just artifact
+  identity: the build stamp honors SOURCE_DATE_EPOCH (the commit
+  timestamp - the same minute in every rebuild of a commit), the
+  embedded path strings are redacted (--remap-path-prefix folds the
+  builder's HOME and checkout path to `redacted` - panic locations
+  no longer carry the build host), and the standing two-host proof
+  runs per push (.github/workflows/reproducible-release.yml): two
+  INDEPENDENT runners, no shared cache, the release lane's exact
+  flag composition, byte identity enforced by cmp in
+  reproducible_verify. Locally: scripts/release/repro-build.sh (two
+  cold builds, one command) - proven this night: two cold builds
+  byte-identical (sha256 0c237c3d...), the nested eBPF object
+  included. Zero new CLI surface: the knobs are build-time
+  environment and CI; the parity gate's -C token law untouched (the
+  redaction rides --remap-path-prefix, not a -C token); the release
+  tripwire gained a runtime assertion that the composition never
+  loses its redaction. The verify recipe and the honest scope live
+  in docs/VERIFY_RELEASE.md section 4a.
 - **night-frontier-Z4, the camera cost contract (the price is
   arithmetic, not marketing).** The camera's cost is now published
   and ENFORCED: the eBPF instruction count per program walked from

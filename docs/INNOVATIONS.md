@@ -266,7 +266,19 @@ asserts the refusal direction - the attach MUST refuse, naming its
 reason, never faking a success. How the estate is shaped and why
 lives in [workflow/about-ci.md](workflow/about-ci.md).
 
-**14. The verifier-first release doctrine**
+**14. The verifier-first release doctrine** - and night-depth-
+hardening-Z1 deepens it into a REPRODUCIBLE release chain: the
+release lane pins the build stamp to the commit timestamp
+(SOURCE_DATE_EPOCH, honored by build.rs in ZEJTRON_BUILD_TIME) and
+redacts the builder's HOME and checkout path from the embedded path
+strings (--remap-path-prefix folds them to `redacted`), so the hash
+the release page publishes is the hash ANYONE can rebuild from
+source. The standing proof runs per push
+(.github/workflows/reproducible-release.yml): two INDEPENDENT
+runners, no shared cache, one flag composition, byte identity via
+cmp; scripts/release/repro-build.sh re-verifies locally with two
+cold builds. The verify recipes and the honest scope live in
+[VERIFY_RELEASE.md](VERIFY_RELEASE.md) (section 4a).
 (`scripts/package/install-on-my-machine.sh`, `ebpf-prebuilt/manifest.toml`,
 `docs/VERIFY_RELEASE.md`). The hole: shipping shapes nobody tested.
 x86-64 only ships exactly what the Supermassive E2E suite proves on
@@ -365,6 +377,28 @@ probe that grows, a ring that resizes, or a binary that balloons
 fails the suite until the contract is consciously re-pinned in a
 commit that says why. Pinned by `test/ebpf/cost_tests.rs`; the
 live budgets by the camera-cost surface on the witness kernels.
+
+**18. The reproducible release chain** (night-depth-hardening-Z1,
+the cosmostrix D4 lineage; `.github/workflows/reproducible-release.yml`,
+`scripts/release/repro-build.sh`, `build.rs`,
+[VERIFY_RELEASE.md](VERIFY_RELEASE.md) section 4a). The hole: a
+published hash proves an artifact is UNMODIFIED SINCE PUBLICATION -
+it proves nothing about what the build process was; a modified
+build (a tampered toolchain, a patched dependency, a flag drift)
+ships a perfectly self-consistent hash of the wrong bytes. The
+chain pins PROCESS identity: two independent CI runners build the
+release shape from the same commit - same pinned toolchain (the
+repo's rust-toolchain.toml and the nested eBPF nightly), same
+SOURCE_DATE_EPOCH (the commit timestamp, honored by the build stamp),
+same flag composition (the release matrix's own, plus the redacted
+path prefixes), NO shared cache - and the verify job fails unless
+the two artifacts are byte-identical (cmp). A rebuild on any machine
+rides the same recipe (scripts/release/repro-build.sh, two cold
+builds, one command), and the local proof has passed: two cold
+builds byte-identical, the nested eBPF object included. Zero new
+CLI surface: the knobs are build-time environment and CI; the
+parity gate's -C token law is untouched (the redaction rides
+--remap-path-prefix, not a -C token).
 
 ## How a newcomer reads this tree
 

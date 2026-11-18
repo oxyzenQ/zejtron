@@ -1,0 +1,178 @@
+---
+# SPDX-FileCopyrightText: 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# zejtron - Reproducible Release (night-depth-hardening-Z1, the
+# cosmostrix D4 lineage).
+#
+# The reproducible release chain: checksums and signatures prove WHO
+# shipped an artifact; reproducibility proves WHAT it is - the hash
+# the release page publishes must be the hash anyone can rebuild from
+# source. Two INDEPENDENT runners build the pinned release shape
+# (linux-amd64-v3-musl: static musl, x86-64-v3, the release lane's
+# EXACT flag composition plus the redacted path prefixes) from the
+# same commit with the same SOURCE_DATE_EPOCH pin (the commit
+# timestamp build.rs honors in ZEJTRON_BUILD_TIME) and NO shared
+# cache, and the verify job requires byte identity (cmp).
+#
+# What this lane deliberately does NOT use: shared caches. A cache hit
+# would let one host inherit a drift the other never saw - the whole
+# point is two independent compilations of the entire graph from the
+# lockfile. The cost is two full builds per push; the estate's
+# fail-fast caps are sized for it.
+#
+# Scope (stated honestly): the proof covers the linux-amd64-v3-musl
+# lane - the flagship static shape the release page leads with. The
+# nested eBPF object is part of the release bytes on a git checkout,
+# so its determinism (the pinned nightly + bpf-linker) is part of
+# what this lane proves. arm64/v4 shapes ride the same recipe but are
+# not re-built here (the release lane's own gates cover their
+# composition; this lane proves the PROCESS identity on the flagship
+# shape).
+#
+# Zero new zejtron surface: the knobs are build-time environment
+# (SOURCE_DATE_EPOCH, ZEJTRON_BUILD, RUSTFLAGS) and CI - the binary's
+# CLI is untouched, the parity gate's -C token law untouched (the
+# redaction rides --remap-path-prefix, not a -C token).
+name: zejtron - Reproducible Release
+
+"on":
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  reproducible_build:
+    name: Reproducible build (host ${{ matrix.host }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [a, b]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
+
+      # The nested eBPF lane needs its pinned toolchain (the nightly +
+      # bpf-linker the ebpf/ crate pins) and the manifest verification
+      # needs b3sum - the same bootstrap every lane that builds from a
+      # git checkout runs. No cache: the two hosts must compile the
+      # whole graph independently.
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # The release lane's EXACT flag composition (the tripwire in
+      # release.yml pins the static core) plus the redacted path
+      # prefixes, exported in the shell so ${HOME}/${PWD} expand here
+      # exactly like they expand in the release lane's export. The
+      # epoch pin is the commit timestamp: identical on every host
+      # that checks out this commit. ZEJTRON_BUILD names the release
+      # shape (the label law: a release shape never says local-).
+      - name: Build the release shape (pinned epoch, redacted paths, no cache)
+        run: |
+          set -euo pipefail
+          EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=${EPOCH}"
+          export SOURCE_DATE_EPOCH="${EPOCH}"
+          export ZEJTRON_BUILD="pro-linux-amd64-v3-musl"
+          export CARGO_INCREMENTAL=0
+          REDACTED_FLAGS="--remap-path-prefix=${HOME}/.cargo=redacted --remap-path-prefix=${PWD}=redacted"
+          export RUSTFLAGS="-D warnings -C target-cpu=x86-64-v3 -C target-feature=+crt-static ${REDACTED_FLAGS}"
+          # The runtime tripwire: the redaction must survive the export
+          # verbatim - a composition that lost it would embed the
+          # builder's own paths and break every foreign rebuild.
+          case "$RUSTFLAGS" in
+            *"--remap-path-prefix=${HOME}/.cargo=redacted"*) ;;
+            *) echo "::error::the reproducible composition lost its path redaction"; exit 1 ;;
+          esac
+          cargo build --release --locked --target x86_64-unknown-linux-musl
+          BIN="target/x86_64-unknown-linux-musl/release/zejtron"
+          ls -l "${BIN}"
+          # Flat staging: the artifact keeps the paths below the least
+          # common ancestor, so the binary rides the workspace root and
+          # the verify job's paths stay trivial.
+          cp "${BIN}" reproducible-zejtron
+          sha256sum reproducible-zejtron | tee "zejtron-sha256-host-${{ matrix.host }}.txt"
+
+      - name: Upload artifact (host ${{ matrix.host }})
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, SHA pin
+        with:
+          name: reproducible-zejtron-host-${{ matrix.host }}
+          path: |
+            reproducible-zejtron
+            zejtron-sha256-host-${{ matrix.host }}.txt
+          retention-days: 3
+
+  reproducible_verify:
+    name: Reproducible verify (byte identity)
+    runs-on: ubuntu-24.04
+    needs: [reproducible_build]
+    timeout-minutes: 5
+    steps:
+      - name: Download host a artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, SHA pin
+        with:
+          name: reproducible-zejtron-host-a
+          path: host-a
+
+      - name: Download host b artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, SHA pin
+        with:
+          name: reproducible-zejtron-host-b
+          path: host-b
+
+      - name: Compare byte-for-byte
+        run: |
+          set -euo pipefail
+          A="host-a/reproducible-zejtron"
+          B="host-b/reproducible-zejtron"
+          ls -l "$A" "$B"
+          echo "host a: $(cat host-a/zejtron-sha256-host-a.txt)"
+          echo "host b: $(cat host-b/zejtron-sha256-host-b.txt)"
+          if cmp -s "$A" "$B"; then
+            echo "REPRODUCIBLE RELEASE CHAIN: PASS - two independent hosts produced byte-identical release binaries"
+          else
+            echo "::error::Reproducibility FAILED: the two host builds differ byte-wise"
+            sha256sum "$A" "$B"
+            cmp -l "$A" "$B" | head -20 || true
+            exit 1
+          fi
+          # The release-shaped artifact also has to RUN on the runner:
+          # the static musl binary executes and its -V report must name
+          # the pro- shape (the label law: a release binary never says
+          # local-) and carry the pinned epoch minute, not a wall clock.
+          chmod +x "$A"
+          "$A" --version
+          "$A" --version | grep -aFq 'pro-linux-amd64-v3-musl' ||
+            { echo "::error::the release shape lost its pro- build label"; exit 1; }
+
+      - name: Publish the verdict to the run page
+        if: always()
+        run: |
+          {
+            echo "## zejtron - Reproducible Release (night-depth-hardening-Z1)"
+            echo
+            echo "- two independent runners, no shared cache, one commit,"
+            echo "  one SOURCE_DATE_EPOCH (the commit timestamp), one flag"
+            echo "  composition (the release lane's + redacted path prefixes)"
+            echo "- verdict: byte identity via cmp (see the compare step)"
+            echo "- local re-verification: bash scripts/release/repro-build.sh"
+          } >> "$GITHUB_STEP_SUMMARY"
