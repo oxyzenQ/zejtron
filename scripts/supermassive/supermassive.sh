@@ -21,7 +21,7 @@
 #
 # Options:
 #   --leg low|best        required: which time budget the run claims
-#                         (low = 60s wall, best = 300s wall; the depth
+#                         (low = 75s wall, best = 300s wall; the depth
 #                         is identical on both legs - only the budget
 #                         differs)
 #   --bin PATH            the binary to exercise ($ZEJTRON_BIN_PATH,
@@ -103,11 +103,16 @@ done
 
 case "$LEG" in
 low)
-	# The low-spec contract: 2 vCPU / 4 GiB class host, 60s wall.
+	# The low-spec contract: 2 vCPU / 4 GiB class host, 75s wall (the
+	# cost contract's own growth, night-frontier-Z4: the two
+	# proof-bearing surfaces the estate gained since the 60s contract
+	# - the loss certificate's overload window and the camera-cost
+	# budgets - are work the leg now owes, so the wall moved WITH the
+	# estate; the depth is identical, only the clock widened).
 	# Per-test timeout 20s: every zejtron invocation is a fast procfs
 	# read; the one slow documented flag (--check-update) carries a
 	# 15s in-binary curl ceiling, so 20s is the honest per-test floor.
-	SM_WALL_BUDGET=60
+	SM_WALL_BUDGET=75
 	SM_TEST_TIMEOUT=20
 	;;
 best)
@@ -204,7 +209,7 @@ fi
 
 ALL_SURFACES=(path recent port proc holds touch why net doctor doctor-ram
 	doctor-cpu doctor-disk doctor-network doctor-gpu help version storm
-	loss-certificate simulation)
+	loss-certificate camera-cost simulation)
 
 # The documented-flag manifest. Every documented flag of every
 # surface; the runner reports any flag no surface exercised as
@@ -284,6 +289,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/help.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/version.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/storm.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/loss-certificate.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/camera-cost.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/simulation.sh"
 
 for surface in "${run_surfaces[@]}"; do

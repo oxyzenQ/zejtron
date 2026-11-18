@@ -507,6 +507,7 @@ pub mod btf;
 /// plant chain the loader's attach orchestrates.
 mod btf_unlink;
 mod btf_writev;
+pub mod cost;
 /// The pin estate's identity (night-frontier-Z2): the generation
 /// stamp - written at attach, re-derived at every recording boundary,
 /// refused by name on drift.

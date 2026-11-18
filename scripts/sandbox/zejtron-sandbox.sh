@@ -267,7 +267,7 @@ mkdir -p "${CACHE}"
 ACCEL_FLAGS=(-machine "q35,accel=kvm" -cpu host)
 if [ ! -w /dev/kvm ]; then
 	note "WARNING: /dev/kvm not usable — falling back to TCG software emulation."
-	note "         Slower (the low leg's 60s wall budget may breach), and the"
+	note "         Slower (the low leg's 75s wall budget may breach), and the"
 	note "         native/v3/v4 builds may SIGILL; the binary probe prefers"
 	note "         a static musl build for this reason."
 	ACCEL_FLAGS=(-machine "q35,accel=tcg" -cpu max)

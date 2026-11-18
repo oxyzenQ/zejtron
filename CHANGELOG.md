@@ -44,6 +44,28 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z4, the camera cost contract (the price is
+  arithmetic, not marketing).** The camera's cost is now published
+  and ENFORCED: the eBPF instruction count per program walked from
+  the committed prebuilt object with a pure std ELF64 section walk
+  (8 programs, 1092 instructions, plus 346 shared helper
+  instructions - 1438 total), the kernel-side ring bytes scanned
+  from the BPF source itself (3 rings x 256 KiB = 768 KiB), and the
+  runtime budgets asserted live per push on every root CI leg - the
+  attach plants the whole estate inside 2000 ms, the representative
+  surfaces run under `ulimit -v` 64 MiB with the camera planted
+  (the kernel enforces the ceiling, a regression cannot pass), and
+  the shipped binary stays under 16 MiB. Every derived number is
+  pinned by a test: a probe that grows, a ring that resizes, or a
+  binary that balloons fails the suite until the contract is
+  consciously re-pinned in a commit that says why. The published
+  table lives in docs/CAMERA-COST.md; the derivation harness prints
+  it (`cargo test cost -- --nocapture`). The low leg's wall budget
+  moves 60s -> 75s with the estate's own growth (the two
+  proof-bearing surfaces the night added - the loss certificate's
+  overload window and these budgets are work the leg now owes).
+  Zero new CLI flags: the surface rides existing ones, the pins
+  ride tests.
 - **night-frontier-Z4, the cross-dialect determinism (the proof rig
   rides the kernel span).** The determinism certificate now renders
   its hermetic fixtures INSIDE every witness micro-VM - focal 5.4,

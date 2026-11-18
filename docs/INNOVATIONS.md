@@ -349,6 +349,23 @@ provenance of every file lives in [corpus/README.md](corpus/README.md);
 the certificate pins are `test/evidence/certificate_tests.rs` and
 `test/ebpf/btf_corpus_tests.rs`, `test/corpus/proc_corpus_tests.rs`.
 
+**17. The camera cost contract** (night-frontier-Z4;
+`src/ebpf/cost.rs`, `scripts/supermassive/surfaces/camera-cost.sh`,
+[docs/CAMERA-COST.md](CAMERA-COST.md)). The hole: "lightweight" is
+a word every tool prints and none can prove. The cost contract
+publishes arithmetic instead: the eBPF instruction count per program
+(walked from the committed prebuilt object - a pure std ELF64 section
+walk, 8 programs at 1092 instructions plus 346 shared, 1438 total),
+the kernel-side ring bytes (3 x 256 KiB, scanned from the BPF
+SOURCE so a resize moves the sum), and the runtime budgets (attach
+<= 2000 ms, userland address space <= 64 MiB enforced with
+`ulimit -v`, shipped binary <= 16 MiB) asserted live per push on
+every root CI leg. Every derived number is pinned by a test - a
+probe that grows, a ring that resizes, or a binary that balloons
+fails the suite until the contract is consciously re-pinned in a
+commit that says why. Pinned by `test/ebpf/cost_tests.rs`; the
+live budgets by the camera-cost surface on the witness kernels.
+
 ## How a newcomer reads this tree
 
 This page for the shape, [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md)
