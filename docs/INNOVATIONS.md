@@ -418,6 +418,55 @@ fails the suite until the contract is consciously re-pinned in a
 commit that says why. Pinned by `test/ebpf/cost_tests.rs`; the
 live budgets by the camera-cost surface on the witness kernels.
 
+**19. The off-path write truth** (night-frontier-Z7, D4;
+`ebpf/src/offpath.rs`, the record-verification lane
+`src/ebpf/verify_offpath.rs`, the anchor ladder
+`src/ebpf/btf_offpath.rs`, [docs/EBPF_LIFECYCLE.md](EBPF_LIFECYCLE.md)
+section 5). The hole: the Limitations line that stood for eras -
+"they do not see mmap'd writes, async kiocb (io_uring/AIO),
+splice-class copies" - was THE attacker's map: write a file through
+a MAP_SHARED mapping and every kprobe write camera (this one
+included) renders silence. The close is three lanes on the camera
+the estate already runs, at the cost model no permanent monitor
+ships: the kernel's own page-dirty path anchors the mmap truth
+(the ladder `filemap_dirty_folio` -> `__set_page_dirty_nobuffers`
+is chosen from the host's BTF at attach - the corpus proves BOTH
+shapes across 5.15 -> 7.x: the folio-less 5.15 GA vouches the page
+anchor, every folio-era dialect vouches the folio one - and the
+descent's two hops, page.mapping at 24 and address_space.host at 0,
+are the sturdiest walk values in the whole corpus), the splice
+truth rides the write probe's own syscall tracepoint with BOTH
+descriptors resolved through the fd-table walk (the direction
+named: into the file, or the content moving away - the
+exfiltration half the write-class records cannot express), and the
+io_uring truth rides the submit tracepoint with the request
+descended through BTF-walked offsets and the write-class opcode
+filter (a tracked file's async READ never renders as a write).
+Everything rides the tracked_inodes gate - the cost is bounded by
+QUESTIONS, not host activity, the combination no per-syscall
+monitor can copy without rebuilding its whole cost story. Every
+capability is record-verified at attach (a REAL mmap store, a REAL
+splice, a REAL raw-syscall io_uring write must come back through
+the probe - the verify_write doctrine carried whole), named in the
+attach summary, and a capability the host cannot vouch for is
+unplanted and named down: the generation stamp's fourth slot
+carries the capability mask, the presence law reads it, and a
+named-down capability is never mistaken for a crashed attach. The
+vocabulary grows append-only (ops 6-9; the rows name the silent
+path: "wrote (mmap (dirty page))", "wrote (splice (into))",
+"spliced out", "wrote (io_uring (async))"), the splice-out row is
+its own kind, the cost table re-pinned consciously (the shared
+text 346 -> 653 - the walks became bpf2bpf subprograms), and the
+named residuals stay named: tmpfs/ramfs pages are never clean (an
+mmap write to a memory-backed file stays outside the dirty
+record), vmsplice's direction is flags-dependent, O_PATH peeks
+never reach vfs_open. Pinned by `test/ebpf/btf_offpath_tests.rs`
+(the ladder's decision law, synthetic), `test/ebpf/btf_corpus_tests.rs`
+(the off-path chains per real dialect), `test/ebpf/estate_tests.rs`
+(the mask verdict), `test/ebpf/cost_tests.rs` (the conscious
+re-pin), and the C77 root leg's live windows (a real mmap store and
+a real splice inside real why windows, the rows demanded by name).
+
 **18. The reproducible release chain** (night-depth-hardening-Z1,
 the cosmostrix D4 lineage; `.github/workflows/reproducible-release.yml`,
 `scripts/release/repro-build.sh`, `build.rs`,

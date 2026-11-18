@@ -95,6 +95,20 @@ pub const PIN_LINK_UNLINK: &str = "/sys/fs/bpf/zejtron/unlink_probe_link";
 /// Program pin - the rename probe (night-frontier-2): the vfs_rename
 /// kprobe, the movement half of the forensic pair.
 pub const PIN_PROG_RENAME: &str = "/sys/fs/bpf/zejtron/rename_probe";
+/// The mmap-dirty probe's program pin (night-frontier-Z7, D4) - the
+/// anchor symbol is per-host (the dirty ladder), the pin name is
+/// role-named.
+pub const PIN_PROG_DIRTY: &str = "/sys/fs/bpf/zejtron/dirty_probe";
+/// The mmap-dirty probe's link pin.
+pub const PIN_LINK_DIRTY: &str = "/sys/fs/bpf/zejtron/dirty_probe_link";
+/// The splice probe's program pin (night-frontier-Z7, D4).
+pub const PIN_PROG_SPLICE: &str = "/sys/fs/bpf/zejtron/splice_probe";
+/// The splice probe's link pin.
+pub const PIN_LINK_SPLICE: &str = "/sys/fs/bpf/zejtron/splice_probe_link";
+/// The io_uring probe's program pin (night-frontier-Z7, D4).
+pub const PIN_PROG_IOURING: &str = "/sys/fs/bpf/zejtron/iouring_probe";
+/// The io_uring probe's link pin.
+pub const PIN_LINK_IOURING: &str = "/sys/fs/bpf/zejtron/iouring_probe_link";
 
 /// Link pin - the rename probe's attach link.
 pub const PIN_LINK_RENAME: &str = "/sys/fs/bpf/zejtron/rename_probe_link";
@@ -153,7 +167,7 @@ pub const PIN_MAP_GENERATION: &str = "/sys/fs/bpf/zejtron/generation";
 /// dropping in silence, twenty-four from night-frontier-Z2: the
 /// generation stamp joined when the estate had to prove it is this
 /// boot's own camera.
-pub const ALL_PINS: [&str; 24] = [
+pub const ALL_PINS: [&str; 30] = [
     PIN_LINK,
     PIN_LINK_SOCK,
     PIN_LINK_OPEN,
@@ -178,13 +192,37 @@ pub const ALL_PINS: [&str; 24] = [
     PIN_MAP_OFFSETS,
     PIN_MAP_DROP_CENSUS,
     PIN_MAP_GENERATION,
+    PIN_LINK_DIRTY,
+    PIN_LINK_SPLICE,
+    PIN_LINK_IOURING,
+    PIN_PROG_DIRTY,
+    PIN_PROG_SPLICE,
+    PIN_PROG_IOURING,
 ];
 
 /// True when every pin of a complete attach exists. A partial pin set
 /// (a crashed attach, a manual rm) reads as NOT attached - `attach`
 /// cleans and replants, the doctor names the partial set.
 pub fn all_pins_present() -> bool {
-    ALL_PINS.iter().all(|p| Path::new(p).exists())
+    let mask = estate::read_offpath_mask().unwrap_or(0);
+    ALL_PINS.iter().all(|p| {
+        if let Some(bit) = offpath_pin_bit(p) {
+            mask & bit != 0
+        } else {
+            Path::new(p).exists()
+        }
+    })
+}
+
+/// The off-path pin's capability bit, or None for a core pin - the
+/// one mapping the presence law and the mask verdict share.
+fn offpath_pin_bit(pin: &str) -> Option<u64> {
+    match pin {
+        PIN_PROG_DIRTY | PIN_LINK_DIRTY => Some(estate::OFFPATH_BIT_DIRTY),
+        PIN_PROG_SPLICE | PIN_LINK_SPLICE => Some(estate::OFFPATH_BIT_SPLICE),
+        PIN_PROG_IOURING | PIN_LINK_IOURING => Some(estate::OFFPATH_BIT_IOURING),
+        _ => None,
+    }
 }
 
 /// True when at least one pin exists - the "zejtron left something in
@@ -506,6 +544,7 @@ mod btf_decode;
 /// The planting half of the loader (night-hunter-4's pure move at
 /// the 600 LOC cap): the probe-object names and the per-program
 /// plant chain the loader's attach orchestrates.
+mod btf_offpath;
 mod btf_unlink;
 mod btf_writev;
 pub mod cost;
@@ -531,8 +570,10 @@ pub mod readback;
 /// record is trusted.
 pub mod reverify;
 pub mod ringbuf;
+pub mod summary;
 pub mod tracked;
-pub mod verify_write;
+mod verify_offpath;
+mod verify_write;
 
 /// The verb surface: the loader's attach/detach, the doctor's and
 /// the verbs' single truth.

@@ -131,7 +131,13 @@ fn offsets_slots_are_frozen_then_appended() {
     assert_eq!(OFF_SLOT_INODE_I_SB, 12);
     assert_eq!(OFF_SLOT_UNLINK_DENTRY_ARG, 13);
     assert_eq!(OFF_SLOT_RENAMEDATA_OLD_DENTRY, 14);
-    assert_eq!(OFF_SLOTS, 15);
+    // The off-path slots (night-frontier-Z7, D4): the dirty descent
+    // pair and the io_kiocb hop, appended at the tail - the legacy
+    // indices never renumber, the append-only law holds.
+    assert_eq!(OFF_SLOT_PAGE_MAPPING, 15);
+    assert_eq!(OFF_SLOT_ADDR_SPACE_HOST, 16);
+    assert_eq!(OFF_SLOT_IO_KIOCB_FILE, 17);
+    assert_eq!(OFF_SLOTS, 18);
 }
 
 // ── night-frontier-Z1, the drop-census slots ────────────────────────

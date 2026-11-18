@@ -270,6 +270,30 @@ hard way:
   types expose no ACPI power management - and the docs name that
   absence rather than decorating a skip that can never fire.
 
+- **The off-path write truth.** The three silent paths - mmap'd
+  writes, splice-class copies, async kiocb (io_uring) writes - are
+  the eras-long Limitations line night-frontier-Z7 (D4) closed.
+  The kernel's own page-dirty path is the mmap truth: the anchor
+  ladder (filemap_dirty_folio on folio kernels,
+  __set_page_dirty_nobuffers on the folio-less line) is chosen from
+  the host's own BTF at attach, the mapping descends to the backing
+  inode through the offsets map, and the tracked_inodes gate bounds
+  the cost by QUESTIONS, not host activity. The splice truth rides
+  the write probe's own syscall tracepoint with both descriptors
+  resolved through the fd-table walk; the io_uring truth rides the
+  submit tracepoint with the request descended through BTF-walked
+  offsets and the write-class opcode filter. Every capability is
+  record-verified at attach (a real action must come back through
+  the probe - verify_offpath.rs, the verify_write doctrine carried
+  whole) and named in the attach summary; a capability the host
+  cannot vouch for is unplanted and named down, its mask bit never
+  set, the presence law reading the mask so a named-down capability
+  is never mistaken for a crashed attach. The corpus pins the
+  chains per dialect (page.mapping at 24 and address_space.host at
+  0 in every one of the five - the sturdiest walk values in the
+  corpus - and the ladder's verdict: 5.15 rides the page shape,
+  every folio-era dialect rides filemap_dirty_folio).
+
 - **The pre-attach past.** The camera starts at attach. What
   crossed the kernel before the attach is unreachable by this lane,
   and the surfaces that care say so through their fallback ladder

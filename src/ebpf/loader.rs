@@ -48,6 +48,7 @@
 use aya::Ebpf;
 
 use super::btf;
+use super::btf_offpath;
 use super::btf_unlink;
 use super::btf_writev;
 use super::embedded;
@@ -100,6 +101,16 @@ pub fn attach() -> Result<String, String> {
             // under the one directory) refuses by name with the
             // remedy; a stamped estate is the honest already-shape.
             super::estate::verify_at_drain()?;
+            let planted_mask = super::estate::read_offpath_mask()?;
+            super::estate::mask_consistency_verdict(planted_mask, &|pin| {
+                std::path::Path::new(pin).exists()
+            })
+            .map_err(|e| {
+                format!(
+                    "{e}. The estate's off-path mask must describe the pins exactly - \
+                         the additive lanes' own law"
+                )
+            })?;
             let count = super::readback::read_events_counter();
             return Ok(attach_already_summary(
                 &count,
@@ -212,6 +223,63 @@ pub fn attach() -> Result<String, String> {
         lane.old_dentry_offset
     );
 
+    // 1.75. The off-path lanes (night-frontier-Z7, D4): the mmap-dirty
+    //       anchor ladder, the off-path offsets, and the io_uring
+    //       shape, all from the same BTF blob the core parses rode.
+    //       These lanes are ADDITIVE - a host that cannot vouch for a
+    //       capability NAMES it down here and plants nothing for it;
+    //       the core camera's five probes never depend on any of them.
+    //       The hard refusals the core lanes carry (wrong-shaped
+    //       symbols, missing BTF for the core walk) do not apply to
+    //       the additive set: a present-but-moved io_kiocb is a
+    //       named-down, not a dead camera.
+    let btf_data = std::fs::read("/sys/kernel/btf/vmlinux")
+        .map_err(|e| format!("attach refused: cannot read /sys/kernel/btf/vmlinux: {e}"))?;
+    let dirty_anchor = match super::btf_offpath::verify_dirty_anchor_in(&btf_data) {
+        Ok(anchor) => {
+            vlog!(
+                "btf",
+                "dirty anchor verified from BTF: {symbol} (the mmap-dirty probe rides it)",
+                symbol = anchor.symbol
+            );
+            Some(anchor)
+        }
+        Err(error) => {
+            vlog!("btf", "mmap-dirty capability named down: {error}");
+            None
+        }
+    };
+    let offpath_offsets = match btf_offpath::parse_offpath_offsets(&btf_data) {
+        Ok(offsets) => {
+            vlog!(
+                "btf",
+                "off-path offsets verified: page.mapping {pm}, address_space.host {host},                  io_kiocb.file {file}",
+                pm = offsets.page_mapping.unwrap_or(0),
+                host = offsets.address_space_host.unwrap_or(0),
+                file = offsets.io_kiocb_file.unwrap_or(0)
+            );
+            Some(offsets)
+        }
+        Err(error) => {
+            vlog!("btf", "the off-path offsets parse named down: {error}");
+            None
+        }
+    };
+    let iouring_lane = match super::btf_offpath::verify_iouring_lane_in(&btf_data) {
+        Ok(Some(lane)) => Some(lane),
+        Ok(None) => {
+            vlog!(
+                "btf",
+                "io_uring capability named down (no io_kiocb in this kernel's BTF)"
+            );
+            None
+        }
+        Err(error) => {
+            vlog!("btf", "io_uring capability named down: {error}");
+            None
+        }
+    };
+
     // 1.8. The mount prerequisites (night-improve-61): the tracepoint
     //      attaches resolve through tracefs and the pins live on
     //      bpffs, and a fresh server mounts NEITHER by default. The
@@ -228,6 +296,18 @@ pub fn attach() -> Result<String, String> {
         format!("attach refused: {e}. The three tracepoint probes resolve their attach points through tracefs")
     })?;
     vlog!("engine", "tracefs seat: {tracefs_seat}");
+    // The io_uring tracepoint's seat (night-frontier-Z7, D4): the
+    // BTF shape can vouch for the io_kiocb walk, and the event is
+    // still absent on a kernel built without io_uring event tracing.
+    // Availability is scanned at the attach boundary, by name.
+    let iouring_seated = iouring_lane.is_some()
+        && std::path::Path::new("/sys/kernel/tracing/events/io_uring/io_uring_submit_sqe").exists();
+    if iouring_lane.is_some() && !iouring_seated {
+        vlog!(
+            "engine",
+            "io_uring capability named down (the io_uring_submit_sqe tracepoint is absent on this kernel)"
+        );
+    }
     super::mounts::ensure_bpffs().map_err(|e| {
         format!(
             "attach refused: {e}. The probe estate pins its programs, links, and maps into bpffs"
@@ -289,7 +369,12 @@ pub fn attach() -> Result<String, String> {
         Ebpf::load(PROBE_ELF).map_err(|e| fail(format!("the probe object failed to load: {e}")))?;
     vlog!("engine", "probe object loaded - planting eight programs");
 
-    let attach_result = plant::plant(&mut bpf, writev_symbol);
+    let attach_result = plant::plant(
+        &mut bpf,
+        writev_symbol,
+        dirty_anchor.as_ref(),
+        iouring_lane.as_ref().filter(|_| iouring_seated),
+    );
     match attach_result {
         Ok(()) => {
             // 6.5. Write the BTF-parsed offsets through the pin - the
@@ -297,7 +382,12 @@ pub fn attach() -> Result<String, String> {
             //     rides on. A failure here cleans everything (the
             //     fail protocol); a probe whose offsets cannot be
             //     written is a probe that must not stay planted.
-            if let Err(e) = plant::write_offsets(&offsets, &lane) {
+            if let Err(e) = plant::write_offsets(
+                &offsets,
+                &lane,
+                offpath_offsets.as_ref(),
+                iouring_lane.as_ref().filter(|_| iouring_seated),
+            ) {
                 return Err(fail(e));
             }
             // 6.6. The write probe's own verification (night-improve-59):
@@ -317,6 +407,25 @@ pub fn attach() -> Result<String, String> {
                 vlog!("engine", "write probe self-verification failed: {e}");
                 return Err(fail(e));
             }
+            // The off-path record verifications (night-frontier-Z7,
+            // D4): every planted capability fires its real action on
+            // a tracked scratch and must see its own record back.
+            // A failure is NOT an attach refusal - the capability
+            // unplants and NAMING carries it (the additive lanes'
+            // own law: the core camera never depends on them).
+            let dirty_planted = dirty_anchor.is_some() && offpath_offsets.is_some();
+            let splice_planted = true; // the sys_enter anchor is the core write probe's own
+            let iouring_planted = iouring_lane.is_some() && iouring_seated;
+            let verdict = super::verify_offpath::verify_offpath_probes(
+                dirty_planted,
+                splice_planted,
+                iouring_planted,
+            );
+            super::estate::write_offpath_mask(verdict.mask).map_err(fail)?;
+            for reason in &verdict.named_down {
+                vlog!("engine", "{reason}");
+            }
+            let offpath_mask = verdict.mask;
             // 7. The fresh counter read: the verification battery's
             //    N=0 shape. A freshly attached counter reads zero
             //    (the kernel zeroes new maps); the readback proves
@@ -329,6 +438,7 @@ pub fn attach() -> Result<String, String> {
             Ok(attach_success_summary(
                 &count,
                 writev_symbol,
+                offpath_mask,
                 crate::output::verbose::enabled(),
             ))
         }
@@ -412,125 +522,7 @@ pub fn detach() -> Result<String, String> {
     ))
 }
 
-// ── The summary lane (quiet by default, loud on request) ────────────
-
-/// The estate's shape, classified from the pin base names: every pin
-/// is a program, a link, or a map, and the naming contract carries
-/// the role - `*_link` is a link, `probe` / `*_probe` is a program,
-/// everything else is a map. The attach summary's (programs, links,
-/// maps) counts derive from this one walk, so a future probe pair
-/// updates the success line without touching it. The loader_tests
-/// pin the classification against ALL_PINS, so a naming drift is
-/// caught, not printed wrong.
-pub(crate) fn estate_counts() -> (usize, usize, usize) {
-    let mut programs = 0;
-    let mut links = 0;
-    let mut maps = 0;
-    for pin in super::ALL_PINS {
-        let base = Path::new(pin)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(pin);
-        if base.ends_with("_link") {
-            links += 1;
-        } else if base == "probe" || base.ends_with("_probe") {
-            programs += 1;
-        } else {
-            maps += 1;
-        }
-    }
-    (programs, links, maps)
-}
-
-/// The counter readback as a display label: `N=<events>` when the
-/// pinned map answered, the honest unreadable note when it did not.
-fn count_label(count: &Result<u64, String>) -> String {
-    match count {
-        Ok(n) => format!("N={n}"),
-        Err(e) => format!("counter unreadable ({e})"),
-    }
-}
-
-/// The fresh-attach success summary. Default: ONE quiet line - the
-/// estate's shape and the camera's posture, no probe names, no pin
-/// list (the quiet-by-default law; the details are one `-v` away).
-/// Verbose: the full report the wall used to print by default -
-/// every probe by name and role, the BTF verification claims, the
-/// counter read, and the whole pin list, multi-line.
-pub(crate) fn attach_success_summary(
-    count: &Result<u64, String>,
-    writev_symbol: &str,
-    verbose: bool,
-) -> String {
-    let (programs, links, maps) = estate_counts();
-    if !verbose {
-        return format!(
-            "eBPF probes attached successfully ({programs} programs, {links} links, \
-             {maps} maps). Lazy Camera is now recording."
-        );
-    }
-    format!(
-        "probes attached: tracepoints sched/sched_process_exec + \
-         sock/inet_sock_set_state + sched/sched_process_exit (the post-mortem \
-         exit probe) + raw_syscalls/sys_enter (the write probe, verified by its \
-         own recorded write), kprobes vfs_open + {writev_symbol} \
-         (the vectorized-write probe, verified from this host's BTF) + \
-         vfs_unlink + vfs_rename (the unlink/rename probes, verified from this \
-         host's BTF), offsets verified from this host's BTF, counter live; \
-         events since attach: {}\npins: {PIN_DIR} (probe, probe_link, stats, \
-         sock_probe, sock_probe_link, sock_events, exit_probe, exit_probe_link, \
-         proc_events, open_probe, open_probe_link, \
-         write_probe, write_probe_link, writev_probe, writev_probe_link, \
-         unlink_probe, unlink_probe_link, rename_probe, rename_probe_link, \
-         tracked_inodes, file_events, offsets, drop_census)",
-        count_label(count)
-    )
-}
-
-/// The idempotent already-attached summary. Default: one quiet line
-/// with the live counter; verbose: the same plus the pins-present
-/// claim and the detach pointer.
-pub(crate) fn attach_already_summary(count: &Result<u64, String>, verbose: bool) -> String {
-    if !verbose {
-        return format!(
-            "eBPF probes already attached; nothing to do \
-             (events since attach: {}).",
-            count_label(count)
-        );
-    }
-    format!(
-        "probe is already attached - nothing to do (all pins present; \
-         doctor --detach removes it); events since attach: {}",
-        count_label(count)
-    )
-}
-
-/// The detach summary. Default: one quiet line - the count that came
-/// down, and the swept note only when the sledgehammer actually
-/// swept something (a legacy or foreign leftover is an event worth
-/// surfacing even quietly). Verbose: the same facts with the pin
-/// directory named.
-pub(crate) fn detach_summary(removed: usize, swept: usize, verbose: bool) -> String {
-    if !verbose {
-        return if swept > 0 {
-            format!(
-                "eBPF probes detached ({removed} pins removed, {swept} \
-                 foreign entries swept)."
-            )
-        } else {
-            format!("eBPF probes detached ({removed} pins removed).")
-        };
-    }
-    if swept > 0 {
-        return format!(
-            "probes detached: unpinned {removed} pin(s), swept {swept} foreign \
-             entr{}; {PIN_DIR} is gone",
-            if swept == 1 { "y" } else { "ies" }
-        );
-    }
-    format!("probes detached: unpinned {removed} pin(s); {PIN_DIR} is gone")
-}
-
+use super::summary::{attach_already_summary, attach_success_summary, detach_summary};
 use std::path::Path;
 
 #[cfg(test)]

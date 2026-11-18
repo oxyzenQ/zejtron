@@ -229,7 +229,15 @@ fn collect_live(
         // a Writes-only window that dropped writev rows would be the
         // false negative reborn one layer up.
         let is_write = event.op == crate::ebpf::events::FILE_OP_WRITE
-            || event.op == crate::ebpf::events::FILE_OP_WRITEV;
+            || event.op == crate::ebpf::events::FILE_OP_WRITEV
+            // The off-path write truths ride the Writes filter too
+            // (night-frontier-Z7, D4): a Writes-only window that
+            // dropped the mmap/io_uring/splice-into rows would be
+            // the false-negative reborn one layer up - the exact
+            // gap these ops exist to close.
+            || event.op == crate::ebpf::events::FILE_OP_MMAP_DIRTY
+            || event.op == crate::ebpf::events::FILE_OP_SPLICE_IN
+            || event.op == crate::ebpf::events::FILE_OP_IO_URING_WRITE;
         // And the forensic pair (op=3 / op=5, night-frontier-2): the
         // unlink and rename probes closed the ledger's oldest hole -
         // the death and movement of the watched file. Both-filter
@@ -417,6 +425,20 @@ fn event_kind(op: u8) -> EvidenceKind {
         },
         crate::ebpf::events::FILE_OP_UNLINK => EvidenceKind::Unlinked,
         crate::ebpf::events::FILE_OP_RENAME => EvidenceKind::Renamed,
+        // The off-path write truths (night-frontier-Z7, D4): the via
+        // qualifier names the path no write(2) crossed - the whole
+        // point of the new vocabulary, the row tells the operator
+        // WHICH silent path carried the bytes.
+        crate::ebpf::events::FILE_OP_MMAP_DIRTY => EvidenceKind::Wrote {
+            via: Some("mmap (dirty page)"),
+        },
+        crate::ebpf::events::FILE_OP_SPLICE_IN => EvidenceKind::Wrote {
+            via: Some("splice (into)"),
+        },
+        crate::ebpf::events::FILE_OP_SPLICE_OUT => EvidenceKind::SplicedOut,
+        crate::ebpf::events::FILE_OP_IO_URING_WRITE => EvidenceKind::Wrote {
+            via: Some("io_uring (async)"),
+        },
         _ => EvidenceKind::Wrote { via: None },
     }
 }

@@ -44,6 +44,26 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z7 D4, the off-path write truth (mmap / io_uring
+  / splice).** The Limitations line that stood for eras is dead:
+  mmap'd writes record through the kernel's own page-dirty path
+  (the anchor ladder chosen from the host's own BTF at attach),
+  splice-class copies record through the write probe's own
+  tracepoint with both descriptors resolved and the direction
+  named, and async kiocb writes record through the io_uring submit
+  tracepoint with BTF-walked request descent and the write-class
+  opcode filter. All three ride the tracked_inodes gate (cost
+  bounded by questions, not host activity), are record-verified at
+  attach (a real action must come back through the probe - a
+  capability that cannot demonstrate its own record unplants and
+  names itself down; the generation stamp's fourth slot carries the
+  capability mask), and name their set in the attach summary. The
+  vocabulary grows append-only (ops 6-9; the splice-out row is its
+  own `spliced-out` kind), the walk tables grew three corpus-pinned
+  slots (page.mapping / address_space.host / io_kiocb.file - the
+  first two never moved across 5.15 -> 7.x), and the named
+  residuals stay named (tmpfs/ramfs dirty pages, vmsplice, O_PATH).
+
 - **night-frontier-Z6 D3, the sleep blackout (proof of absence).**
   The record stamps ride CLOCK_MONOTONIC (which does not run while
   the host sleeps); the kernel's CLOCK_BOOTTIME does - their

@@ -235,6 +235,17 @@ fn every_kind_word_has_one_text_phrase_and_one_json_object() {
         unit: Some("sshd".to_owned()),
     };
     assert_eq!(runs.phrase(), "runs /usr/sbin/sshd (unit sshd)");
+    // The off-path write truths (night-frontier-Z7, D4): the via
+    // qualifier names the silent path, and the splice-out record's
+    // kind token IS the whole fact.
+    let mmap = super::super::row::EvidenceKind::Wrote {
+        via: Some("mmap (dirty page)"),
+    };
+    assert_eq!(mmap.phrase(), "wrote (mmap (dirty page))");
+    assert_eq!(mmap.kind_word(), "wrote");
+    let spliced = super::super::row::EvidenceKind::SplicedOut;
+    assert_eq!(spliced.phrase(), "spliced out");
+    assert_eq!(spliced.kind_word(), "spliced-out");
 }
 
 #[test]

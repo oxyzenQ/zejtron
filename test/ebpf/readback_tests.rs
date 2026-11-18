@@ -98,8 +98,20 @@ fn fd_walk_slots_are_the_offsets_map_contract() {
         crate::ebpf::events::OFF_SLOT_UNLINK_DENTRY_ARG + 1
     );
     assert_eq!(
-        crate::ebpf::events::OFF_SLOTS,
+        crate::ebpf::events::OFF_SLOT_PAGE_MAPPING,
         crate::ebpf::events::OFF_SLOT_RENAMEDATA_OLD_DENTRY + 1
+    );
+    assert_eq!(
+        crate::ebpf::events::OFF_SLOT_ADDR_SPACE_HOST,
+        crate::ebpf::events::OFF_SLOT_PAGE_MAPPING + 1
+    );
+    assert_eq!(
+        crate::ebpf::events::OFF_SLOT_IO_KIOCB_FILE,
+        crate::ebpf::events::OFF_SLOT_ADDR_SPACE_HOST + 1
+    );
+    assert_eq!(
+        crate::ebpf::events::OFF_SLOTS,
+        crate::ebpf::events::OFF_SLOT_IO_KIOCB_FILE + 1
     );
     assert_eq!(
         std::mem::size_of::<crate::ebpf::btf::ProbeOffsets>() / std::mem::size_of::<u64>(),

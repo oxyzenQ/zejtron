@@ -75,13 +75,17 @@ BUILT_OBJECT="ebpf/target/bpfel-unknown-none/release/${OBJECT_NAME}"
 # first half, read live from ebpf/rust-toolchain.toml). Kept in
 # lockstep with build/ebpf.rs's BPF_LINKER_VERSION constant.
 BPF_LINKER_VERSION="0.11.1"
-# The eight attach targets the loader plants (src/ebpf/loader.rs; the
+# The eleven attach targets the loader plants (src/ebpf/loader.rs; the
 # exit probe lives in ebpf/src/exits.rs, the unlink/rename pair in
-# ebpf/src/unlink.rs). The manifest documents the contract; the commit
-# that changes the probe set edits this list in the same commit. The
+# ebpf/src/unlink.rs, and night-frontier-Z7's off-path trio in
+# ebpf/src/offpath.rs - the dirty ladder plants ONE of its two shapes
+# per host, the splice probe rides raw_syscalls/sys_enter, the io_uring
+# probe plants only when the tracepoint seat exists). The manifest
+# documents the contract; the commit that changes the probe set edits
+# this list in the same commit. The
 # write probe rides the raw_syscalls/sys_enter tracepoint since
 # night-improve-59 - the stale vfs_write name went with this rewrite.
-ATTACH_TARGETS="\"sched_process_exec\", \"inet_sock_set_state\", \"vfs_open\", \"raw_syscalls/sys_enter\", \"vfs_writev\", \"vfs_unlink\", \"vfs_rename\", \"sched_process_exit\""
+ATTACH_TARGETS="\"sched_process_exec\", \"inet_sock_set_state\", \"vfs_open\", \"raw_syscalls/sys_enter\", \"vfs_writev\", \"vfs_unlink\", \"vfs_rename\", \"sched_process_exit\", \"filemap_dirty_folio\", \"__set_page_dirty_nobuffers\", \"io_uring/io_uring_submit_sqe\""
 
 # The version mirror law: root Cargo.toml, ebpf/Cargo.toml, and the
 # manifest's [contract] version must all say the same thing. The

@@ -28,7 +28,7 @@ fn agreed() -> [u64; OFF_SLOTS as usize] {
 fn agreeing_tables_read_as_the_all_clear() {
     let planted = agreed();
     let derived = agreed();
-    assert_eq!(drift_slot(&planted, &derived), None);
+    assert_eq!(drift_slot(&planted, &derived, u64::MAX), None);
 }
 
 #[test]
@@ -38,24 +38,27 @@ fn the_first_drifting_slot_is_the_named_one() {
     // Drift the LAST slot: the compare must still name the first
     // mismatch in order, not the deepest one, not a count.
     derived[OFF_SLOTS as usize - 1] += 1;
-    assert_eq!(drift_slot(&planted, &derived), Some(OFF_SLOTS as usize - 1));
+    assert_eq!(
+        drift_slot(&planted, &derived, u64::MAX),
+        Some(OFF_SLOTS as usize - 1)
+    );
     // And the FIRST slot.
     let mut derived_first = agreed();
     derived_first[0] += 1;
-    assert_eq!(drift_slot(&planted, &derived_first), Some(0));
+    assert_eq!(drift_slot(&planted, &derived_first, u64::MAX), Some(0));
 }
 
 #[test]
 fn every_slot_drifts_by_name() {
     // One drifting slot at a time, across the whole table: no slot is
-    // exempt from the compare - the walk table is fifteen slots, and
+    // exempt from the compare - the walk table is eighteen slots, and
     // a single stale one is enough to make records untrustworthy.
     let planted = agreed();
     for slot in 0..OFF_SLOTS as usize {
         let mut derived = agreed();
         derived[slot] = planted[slot] + 8;
         assert_eq!(
-            drift_slot(&planted, &derived),
+            drift_slot(&planted, &derived, u64::MAX),
             Some(slot),
             "slot {slot} ({}) drifted and the compare missed it",
             SLOT_NAMES[slot]

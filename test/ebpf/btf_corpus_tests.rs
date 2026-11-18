@@ -245,3 +245,103 @@ fn the_btf_corpus_derivation_tables() {
         );
     }
 }
+
+// ── night-frontier-Z7, D4: the off-path chains per dialect ───────────
+
+#[test]
+fn the_offpath_chains_derive_per_dialect() {
+    // The dirty descent (page.mapping / address_space.host) and the
+    // io_uring request hop, derived from every committed blob - the
+    // off-path lanes' own corpus lock. The anchor ladder's verdict
+    // rides with them: which dirty symbol each dialect's BTF vouches
+    // for (the folio shape where the folio exists, the page shape on
+    // the folio-less line).
+    // The pin table, filled from the derivation harness below
+    // (--nocapture), never guessed. The measured story across the
+    // whole frozen span: page.mapping at 24 in EVERY dialect, and
+    // address_space.host at 0 (the mapping's FIRST member) - the two
+    // anchors the mmap-dirty truth rides are the most stable walk
+    // values in the corpus, the dentry.d_inode-at-48 law's sibling.
+    // io_kiocb.file rides an anonymous union at offset 0 in every
+    // dialect that carries io_uring. And the ladder's verdict is the
+    // version story itself: the folio-less 5.15 GA vouches
+    // __set_page_dirty_nobuffers (the page shape), every folio-era
+    // dialect vouches filemap_dirty_folio - both shapes prove real,
+    // per kernel, from committed bytes.
+    let pinned: [(&str, u64, u64, Option<u64>, &str); 5] = [
+        (
+            "5.15.0-25-generic.btf",
+            24,
+            0,
+            Some(0),
+            "__set_page_dirty_nobuffers",
+        ),
+        ("6.1.0-50-amd64.btf", 24, 0, Some(0), "filemap_dirty_folio"),
+        (
+            "6.6.95-060695-generic.btf",
+            24,
+            0,
+            Some(0),
+            "filemap_dirty_folio",
+        ),
+        (
+            "6.8.0-31-generic.btf",
+            24,
+            0,
+            Some(0),
+            "filemap_dirty_folio",
+        ),
+        ("7.3.3-1-cachyos.btf", 24, 0, Some(0), "filemap_dirty_folio"),
+    ];
+    // The stability law: the dirty-descent pair NEVER moved across
+    // the whole span - the runtime derivation's sturdiest chain.
+    for (dialect, want) in CORPUS.iter().zip(pinned.iter()) {
+        assert_eq!(want.1, 24, "{} page.mapping stayed", dialect.blob);
+        assert_eq!(want.2, 0, "{} address_space.host stayed", dialect.blob);
+        assert_eq!(want.3, Some(0), "{} io_kiocb.file stayed", dialect.blob);
+    }
+    for (dialect, want) in CORPUS.iter().zip(pinned.iter()) {
+        assert_eq!(dialect.blob, want.0, "the pin table rides the corpus order");
+        let data = corpus_btf(dialect.blob);
+        let offpath = crate::ebpf::btf_offpath::parse_offpath_offsets(&data)
+            .unwrap_or_else(|e| panic!("{} must derive the off-path chains: {e}", dialect.blob));
+        assert_eq!(
+            offpath.page_mapping,
+            Some(want.1),
+            "{} page.mapping",
+            dialect.blob
+        );
+        assert_eq!(
+            offpath.address_space_host,
+            Some(want.2),
+            "{} address_space.host",
+            dialect.blob
+        );
+        assert_eq!(
+            offpath.io_kiocb_file, want.3,
+            "{} io_kiocb.file",
+            dialect.blob
+        );
+        let anchor = crate::ebpf::btf_offpath::verify_dirty_anchor_in(&data)
+            .unwrap_or_else(|e| panic!("{} must vouch for a dirty anchor: {e}", dialect.blob));
+        assert_eq!(anchor.symbol, want.4, "{} dirty anchor", dialect.blob);
+    }
+}
+
+#[test]
+fn the_offpath_derivation_harness() {
+    // The derivation harness (the corpus table's own shape): prints
+    // every number a new dialect pins. Run with --nocapture.
+    for dialect in &CORPUS {
+        let data = corpus_btf(dialect.blob);
+        let offpath = crate::ebpf::btf_offpath::parse_offpath_offsets(&data)
+            .expect("the committed dialect derives");
+        let anchor =
+            crate::ebpf::btf_offpath::verify_dirty_anchor_in(&data).expect("the anchor resolves");
+        println!("=== {} ===", dialect.blob);
+        println!("page.mapping: {:?}", offpath.page_mapping);
+        println!("address_space.host: {:?}", offpath.address_space_host);
+        println!("io_kiocb.file: {:?}", offpath.io_kiocb_file);
+        println!("dirty anchor: {}", anchor.symbol);
+    }
+}

@@ -178,6 +178,59 @@ pub const FILE_OP_WRITEV: u8 = 4;
 /// op=5, the vocabulary's sixth word; the numbering never renumbers.
 pub const FILE_OP_RENAME: u8 = 5;
 
+/// `op` for FileEvent: an mmap'd page of the file became dirty
+/// (night-frontier-Z7, D4 - the off-path write truth): a memory
+/// store through a MAP_SHARED mapping wrote the file WITHOUT any
+/// write(2) crossing - the exact gap every kprobe write camera
+/// (this one included, until now) renders as silence, and the gap a
+/// real attacker writes through deliberately. The probe anchors the
+/// kernel's own page-dirtying path (filemap_dirty_folio on folio
+/// kernels, __set_page_dirty_nobuffers on the page-shape ones - the
+/// anchor chosen from the host's own BTF at attach), descends the
+/// mapping to the backing inode through BTF-walked offsets, and the
+/// tracked_inodes gate keeps the cost bounded by questions, not by
+/// host activity. The record carries the dirtying process's pid (the
+/// write fault runs in the writer's context). Named residual: tmpfs/
+/// ramfs-backed files keep no clean page to dirty (their aops never
+/// call the anchors), so an mmap write to a memory-backed file stays
+/// outside this record class - named in the README, never guessed at.
+/// op=6, the vocabulary's seventh word.
+pub const FILE_OP_MMAP_DIRTY: u8 = 6;
+
+/// `op` for FileEvent: splice moved data INTO the file (night-
+/// frontier-Z7, D4): splice(2) copied from another descriptor (a
+/// pipe, another file) into the tracked file's descriptor - a copy
+/// path that crosses no write(2) and no writev probe. The probe
+/// rides raw_syscalls/sys_enter (the write probe's own tracepoint,
+/// the zero-observed-failures anchor class), filters to __NR_splice,
+/// resolves BOTH descriptors through the BTF-verified fd-table walk,
+/// and records the tracked side. op=7, the vocabulary's eighth word.
+pub const FILE_OP_SPLICE_IN: u8 = 7;
+
+/// `op` for FileEvent: splice moved data OUT OF the file (night-
+/// frontier-Z7, D4): splice(2) copied the tracked file's content
+/// away - the exfiltration half of the copy-path truth, the
+/// direction the write-class probes never saw because nothing wrote
+/// the file. Same probe, same fd-table walk, the tracked side named.
+/// op=8, the vocabulary's ninth word.
+pub const FILE_OP_SPLICE_OUT: u8 = 8;
+
+/// `op` for FileEvent: an io_uring write-class submission targeted
+/// the file (night-frontier-Z7, D4): async kiocb writes call
+/// call_write_iter directly and cross NEITHER write probe - the
+/// named residual since night-improve-42. The probe rides the
+/// io_uring:io_uring_submit_sqe tracepoint (availability-scanned per
+/// host at attach; a kernel without it refuses the capability by
+/// name, never guesses), descends the submitted io_kiocb to its
+/// struct file through BTF-walked offsets, filters to the write-class
+/// opcodes (IORING_OP_WRITEV / WRITE_FIXED / WRITE - the liburing ABI
+/// numbers), and the tracked_inodes gate bounds the cost. The record
+/// fires at submission; the acting pid is the submitting task (for
+/// io-wq offload, the worker's own - the task that drove the kernel
+/// path, named as such by the row). op=9, the vocabulary's tenth
+/// word.
+pub const FILE_OP_IO_URING_WRITE: u8 = 9;
+
 /// One file action, as the kernel saw it at the moment it happened.
 ///
 /// Offsets (repr(C), natural alignment, pinned by test):
@@ -316,23 +369,46 @@ pub const OFF_SLOT_UNLINK_DENTRY_ARG: u32 = 13;
 /// the member's own reshuffles stay data, never a compiled guess.
 #[allow(dead_code)]
 pub const OFF_SLOT_RENAMEDATA_OLD_DENTRY: u32 = 14;
+/// `offsets[15]`: struct page, member mapping (night-frontier-Z7,
+/// D4): the page-shape dirty anchor's one hop from a struct page to
+/// the address_space that backs it. The folio-shape kernels need no
+/// hop at all (the anchor's arg0 IS the address_space, BTF-vouched),
+/// and on them struct folio embeds struct page at offset 0 anyway -
+/// one slot serves every kernel that anchors either shape.
+#[allow(dead_code)]
+pub const OFF_SLOT_PAGE_MAPPING: u32 = 15;
+/// `offsets[16]`: struct address_space, member host (night-frontier-
+/// Z7, D4): the mapping-to-inode hop - the backing inode the
+/// tracked_inodes gate reads. The one offset the mmap-dirty truth
+/// rides on every anchor shape.
+#[allow(dead_code)]
+pub const OFF_SLOT_ADDR_SPACE_HOST: u32 = 16;
+/// `offsets[17]`: struct io_kiocb, member file (night-frontier-Z7,
+/// D4): the submitted request to its struct file - the descent the
+/// io_uring probe walks before the filter map. Derived per host; a
+/// kernel whose io_kiocb carries the member under no verifiable
+/// shape leaves the io_uring capability unplanted, named at attach.
+/// The write-class opcode filter needs NO slot: the tracepoint's own
+/// record carries the opcode at its stable ABI offset (third field
+/// since 5.5), one fewer host-shaped value to derive.
+#[allow(dead_code)]
+pub const OFF_SLOT_IO_KIOCB_FILE: u32 = 17;
 
 /// The number of slots the offsets map carries (the map's
 /// max_entries on the BPF side, the write count on the host side).
-/// Fifteen: the eight frozen file-walk slots, the four fd-walk
-/// slots night-improve-57 appends (the syscall-stub write probe),
-/// and the three unlink/rename slots night-frontier-2 appends (the
-/// inode-to-superblock hop plus the two BTF-derived kprobe anchors).
-/// The file slots were never renumbered - the five process-stream
-/// slots night-improve-4 appended (8..13) are gone with the
-/// lifecycle stream (night-improve-34), and the fd-walk slots reuse
-/// the free tail.
+/// Eighteen: the fifteen the ledger grammar carried through
+/// night-frontier-2 plus the three off-path slots night-frontier-Z7
+/// appends (15..17 - the page.mapping / address_space.host dirty
+/// descent and the io_kiocb file hop). The file slots were never
+/// renumbered - the vocabulary's append-only law holds: a capability
+/// the host cannot verify leaves its slots zero, and the programs
+/// that would read them are never attached.
 ///
 /// BPF-side-only by design (the BPF crate sizes the offsets Array
 /// with it; the host writes the slots by OFF_SLOT_* index and never
 /// needs the count); the scoped allow names the split.
 #[allow(dead_code)]
-pub const OFF_SLOTS: u32 = 15;
+pub const OFF_SLOTS: u32 = 18;
 
 // ── The drop-census map slots ───────────────────────────────────────
 //
@@ -357,8 +433,10 @@ pub const OFF_SLOTS: u32 = 15;
 pub const DROP_SLOT_SOCK: u32 = 0;
 
 /// `drop_census[1]`: file_events reserve failures since attach - the
-/// file actions (opens, writes, writevs, unlinks, renames) five
-/// probes saw but the ring could not hold.
+/// file actions (opens, writes, writevs, unlinks, renames, and the
+/// off-path trio night-frontier-Z7 adds: mmap dirties, splice moves
+/// both ways, io_uring writes) eight probes saw but the ring could
+/// not hold.
 pub const DROP_SLOT_FILE: u32 = 1;
 
 /// `drop_census[2]`: proc_events reserve failures since attach - the

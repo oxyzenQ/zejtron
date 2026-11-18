@@ -84,9 +84,12 @@ fn estate_counts_classify_the_whole_pin_estate() {
     // every pin, so a future probe pair updates the summary line
     // without touching it, and a naming drift fails here instead of
     // printing a wrong count.
-    let (programs, links, maps) = estate_counts();
-    assert_eq!(programs, 8, "the estate plants eight probe programs");
-    assert_eq!(links, 8, "every program rides one link pin");
+    let (programs, links, maps) = crate::ebpf::summary::estate_counts();
+    assert_eq!(
+        programs, 11,
+        "the estate plants eleven probe programs (the three off-path night-frontier-Z7 adds)"
+    );
+    assert_eq!(links, 11, "every program rides one link pin");
     assert_eq!(maps, 8, "the estate plants eight maps");
     assert_eq!(
         programs + links + maps,
@@ -100,14 +103,16 @@ fn attach_success_default_is_one_quiet_line() {
     // The default success line: single-line, under 100 chars, no
     // probe names, no pin list, no pin directory - the estate's
     // shape and the camera's posture, nothing else.
-    let concise = attach_success_summary(&Ok(0), "vfs_writev", false);
+    let concise = attach_success_summary(&Ok(0), "vfs_writev", 0b111, false);
     assert!(
         !concise.contains('\n'),
         "default output is one line: {concise}"
     );
     assert!(
-        concise.chars().count() < 100,
-        "default attach output must stay under 100 chars, got {}: {concise}",
+        concise.chars().count() < 160,
+        "default attach output must stay one line (the quiet law's own \
+         bound, widened consciously for the off-path capability label), \
+         got {}: {concise}",
         concise.chars().count()
     );
     assert!(!concise.contains("sched_process_exec"));
@@ -118,10 +123,13 @@ fn attach_success_default_is_one_quiet_line() {
     assert!(!concise.contains(PIN_DIR), "no pin directory: {concise}");
     assert!(!concise.contains("BTF"), "no BTF detail: {concise}");
     // The shape it DOES carry: the counts and the camera posture.
-    assert!(concise.contains("8 programs"));
-    assert!(concise.contains("8 links"));
+    assert!(concise.contains("11 programs"));
+    assert!(concise.contains("11 links"));
     assert!(concise.contains("8 maps"));
     assert!(concise.contains("probes attached successfully"));
+    // The off-path truth rides the quiet line (night-frontier-Z7,
+    // D4): the capability set named, never claimed silently.
+    assert!(concise.contains("off-path truth: mmap-dirty+splice+io_uring"));
     assert!(concise.contains("Lazy Camera is now recording"));
 }
 
@@ -130,8 +138,8 @@ fn attach_verbose_carries_the_probe_and_pin_details() {
     // -v is where the wall lives: the probe names, the BTF
     // verification claims, the counter read, and the whole pin
     // list, multi-line - strictly more than the quiet line.
-    let concise = attach_success_summary(&Ok(0), "vfs_writev", false);
-    let verbose = attach_success_summary(&Ok(0), "vfs_writev", true);
+    let concise = attach_success_summary(&Ok(0), "vfs_writev", 0b111, false);
+    let verbose = attach_success_summary(&Ok(0), "vfs_writev", 0b111, true);
     assert!(verbose.contains("sched_process_exec"));
     assert!(verbose.contains("vfs_writev"));
     assert!(verbose.contains("vfs_open"));

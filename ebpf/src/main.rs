@@ -221,6 +221,15 @@ mod sock;
 // file probes already carry.
 mod unlink;
 
+// The off-path write programs (night-frontier-Z7, D4): the mmap-dirty
+// truth (two anchor shapes, the loader plants the one the host's BTF
+// vouches for), the splice copy truth (the write probe's own
+// tracepoint, both descriptors resolved), and the io_uring submission
+// truth (the availability-scanned tracepoint, BTF-walked io_kiocb) -
+// the dedicated-module shape again, publishing to the same file_events
+// ring under the same tracked_inodes gate.
+mod offpath;
+
 use events::{
     DROP_SLOT_FILE, DROP_SLOTS, FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITEV, FileEvent,
     OFF_SLOTS, OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH,
@@ -355,7 +364,7 @@ pub(crate) fn count_ring_drop(slot: u32) {
 /// estate plants and sweeps as one atomic unit.
 #[allow(non_upper_case_globals)]
 #[map(name = "generation")]
-pub(crate) static generation: Array<u64> = Array::with_max_entries(3, 0);
+pub(crate) static generation: Array<u64> = Array::with_max_entries(4, 0);
 
 /// The probe: increment stats[STATS_EVENTS] on every process exec.
 /// The counter is the phase-1 chain proof - the doctor's readback.

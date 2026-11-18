@@ -301,6 +301,9 @@ fn write_kind_fields(out: &mut String, kind: &EvidenceKind) {
         }
         K::Unlinked => {}
         K::Renamed => {}
+        // The splice-out record carries no per-variant fields - the
+        // kind token IS the whole fact (the Unlinked shape).
+        K::SplicedOut => {}
         K::JournalMention => {}
     }
 }

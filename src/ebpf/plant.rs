@@ -23,13 +23,17 @@ use aya::programs::links::FdLink;
 
 use super::btf;
 use super::btf_unlink::UnlinkLane;
-use super::events::{OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_UNLINK_DENTRY_ARG};
+use super::events::{
+    OFF_SLOT_ADDR_SPACE_HOST, OFF_SLOT_IO_KIOCB_FILE, OFF_SLOT_PAGE_MAPPING,
+    OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_UNLINK_DENTRY_ARG,
+};
 use super::{
-    PIN_LINK, PIN_LINK_EXIT, PIN_LINK_OPEN, PIN_LINK_RENAME, PIN_LINK_SOCK, PIN_LINK_UNLINK,
-    PIN_LINK_WRITE, PIN_LINK_WRITEV, PIN_MAP_DROP_CENSUS, PIN_MAP_FILE_EVENTS, PIN_MAP_GENERATION,
-    PIN_MAP_OFFSETS, PIN_MAP_PROC_EVENTS, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS,
-    PIN_MAP_TRACKED_INODES, PIN_PROG, PIN_PROG_EXIT, PIN_PROG_OPEN, PIN_PROG_RENAME, PIN_PROG_SOCK,
-    PIN_PROG_UNLINK, PIN_PROG_WRITE, PIN_PROG_WRITEV,
+    PIN_LINK, PIN_LINK_DIRTY, PIN_LINK_EXIT, PIN_LINK_IOURING, PIN_LINK_OPEN, PIN_LINK_RENAME,
+    PIN_LINK_SOCK, PIN_LINK_SPLICE, PIN_LINK_UNLINK, PIN_LINK_WRITE, PIN_LINK_WRITEV,
+    PIN_MAP_DROP_CENSUS, PIN_MAP_FILE_EVENTS, PIN_MAP_GENERATION, PIN_MAP_OFFSETS,
+    PIN_MAP_PROC_EVENTS, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS, PIN_MAP_TRACKED_INODES, PIN_PROG,
+    PIN_PROG_DIRTY, PIN_PROG_EXIT, PIN_PROG_IOURING, PIN_PROG_OPEN, PIN_PROG_RENAME, PIN_PROG_SOCK,
+    PIN_PROG_SPLICE, PIN_PROG_UNLINK, PIN_PROG_WRITE, PIN_PROG_WRITEV,
 };
 use crate::output::verbose::vlog;
 
@@ -130,6 +134,28 @@ pub(super) const EXIT_PROGRAM: &str = "sched_process_exit";
 pub(super) const EXIT_TRACEPOINT_CATEGORY: &str = "sched";
 pub(super) const EXIT_TRACEPOINT_EVENT: &str = "sched_process_exit";
 
+/// The mmap-dirty program names (night-frontier-Z7, D4) - the ELF
+/// symbols in ebpf/src/offpath.rs. Which ONE plants is the dirty
+/// ladder's verdict (btf_offpath.rs): the folio shape on folio
+/// kernels, the page shape on the folio-less line; the other program
+/// stays unloaded.
+pub(super) const DIRTY_FOLIO_PROGRAM: &str = "dirty_folio_probe";
+pub(super) const DIRTY_PAGE_PROGRAM: &str = "dirty_page_probe";
+
+/// The splice probe's program name - the write probe's own
+/// tracepoint, filtered to __NR_splice.
+pub(super) const SPLICE_PROGRAM: &str = "splice_probe";
+pub(super) const SPLICE_TRACEPOINT_CATEGORY: &str = "raw_syscalls";
+pub(super) const SPLICE_TRACEPOINT_EVENT: &str = "sys_enter";
+
+/// The io_uring probe's program name and tracepoint pair -
+/// availability-scanned at the attach boundary (tracefs), shape-
+/// verified from BTF; a host without either names the capability
+/// down.
+pub(super) const IOURING_PROGRAM: &str = "iouring_probe";
+pub(super) const IOURING_TRACEPOINT_CATEGORY: &str = "io_uring";
+pub(super) const IOURING_TRACEPOINT_EVENT: &str = "io_uring_submit_sqe";
+
 /// The tracked_inodes filter map name in the probe object.
 pub(super) const MAP_TRACKED_INODES: &str = "tracked_inodes";
 
@@ -155,7 +181,12 @@ pub(super) const MAP_GENERATION: &str = "generation";
 /// point, pin programs + links + maps. Any error names itself; the
 /// caller's fail() protocol cleans up everything the attempt
 /// planted - never a half-attached probe.
-pub(super) fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
+pub(super) fn plant(
+    bpf: &mut Ebpf,
+    writev_symbol: &str,
+    dirty: Option<&super::btf_offpath::DirtyAnchor>,
+    iouring: Option<&super::btf_offpath::IouringLane>,
+) -> Result<(), String> {
     plant_tracepoint(
         bpf,
         PROGRAM,
@@ -210,6 +241,53 @@ pub(super) fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
         PIN_PROG_EXIT,
         PIN_LINK_EXIT,
     )?;
+    // The off-path trio (night-frontier-Z7, D4): the dirty anchor's
+    // verified shape plants exactly one program; the splice probe
+    // rides the write probe's own tracepoint; the io_uring probe
+    // plants only when the availability scan passed. Each is the
+    // plant_kprobe/plant_tracepoint chain the core programs use -
+    // same pins, same fail protocol, no new machinery.
+    if let Some(anchor) = dirty {
+        let dirty_program = match anchor.shape {
+            super::btf_offpath::DirtyShape::Folio => DIRTY_FOLIO_PROGRAM,
+            super::btf_offpath::DirtyShape::Page => DIRTY_PAGE_PROGRAM,
+        };
+        plant_kprobe(
+            bpf,
+            dirty_program,
+            anchor.symbol,
+            PIN_PROG_DIRTY,
+            PIN_LINK_DIRTY,
+        )?;
+    } else {
+        vlog!(
+            "engine",
+            "mmap-dirty capability named down (no vouchable dirty anchor in this kernel's BTF)"
+        );
+    }
+    plant_tracepoint(
+        bpf,
+        SPLICE_PROGRAM,
+        SPLICE_TRACEPOINT_CATEGORY,
+        SPLICE_TRACEPOINT_EVENT,
+        PIN_PROG_SPLICE,
+        PIN_LINK_SPLICE,
+    )?;
+    if iouring.is_some() {
+        plant_tracepoint(
+            bpf,
+            IOURING_PROGRAM,
+            IOURING_TRACEPOINT_CATEGORY,
+            IOURING_TRACEPOINT_EVENT,
+            PIN_PROG_IOURING,
+            PIN_LINK_IOURING,
+        )?;
+    } else {
+        vlog!(
+            "engine",
+            "io_uring capability named down (no vouchable io_kiocb.file in this kernel's BTF or no tracepoint seat)"
+        );
+    }
     bpf.take_map(MAP_STATS)
         .ok_or_else(|| format!("the probe object carries no '{MAP_STATS}' map"))?
         .pin(PIN_MAP_STATS)
@@ -267,7 +345,12 @@ pub(super) fn plant(bpf: &mut Ebpf, writev_symbol: &str) -> Result<(), String> {
 /// old_dentry member offset), written through the OFF_SLOT_*
 /// constants so a contract drift names its slot. Every write error
 /// names the slot.
-pub(super) fn write_offsets(offsets: &btf::ProbeOffsets, lane: &UnlinkLane) -> Result<(), String> {
+pub(super) fn write_offsets(
+    offsets: &btf::ProbeOffsets,
+    lane: &UnlinkLane,
+    offpath: Option<&super::btf_offpath::OffPathOffsets>,
+    iouring: Option<&super::btf_offpath::IouringLane>,
+) -> Result<(), String> {
     vlog!(
         "engine",
         "writing the BTF-parsed offsets into the pinned map"
@@ -300,7 +383,57 @@ pub(super) fn write_offsets(offsets: &btf::ProbeOffsets, lane: &UnlinkLane) -> R
         .map_err(|e| format!("offsets[{OFF_SLOT_UNLINK_DENTRY_ARG}] write failed: {e}"))?;
     map.set(OFF_SLOT_RENAMEDATA_OLD_DENTRY, &lane.old_dentry_offset, 0)
         .map_err(|e| format!("offsets[{OFF_SLOT_RENAMEDATA_OLD_DENTRY}] write failed: {e}"))?;
+    // The off-path slots (night-frontier-Z7, D4), by their own
+    // constants: the dirty-descent pair (15, 16) rides whenever the
+    // parse vouched for it - the probe plants only when the anchor
+    // ladder verified, and a zero slot the probe never reads is the
+    // honest shape. The io_kiocb hop (17) rides only when the
+    // io_uring lane verified; a named-down capability leaves the
+    // slot zero, and its program is never attached.
+    if let Some(offpath) = offpath {
+        let dirty_pair = [
+            (OFF_SLOT_PAGE_MAPPING, offpath.page_mapping),
+            (OFF_SLOT_ADDR_SPACE_HOST, offpath.address_space_host),
+        ];
+        for (slot, value) in dirty_pair {
+            let Some(value) = value else {
+                return Err(format!(
+                    "the off-path offsets parse lost the slot {slot} the anchor verified - refusing"
+                ));
+            };
+            map.set(slot, &value, 0)
+                .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
+        }
+    }
+    if let Some(lane) = iouring {
+        map.set(OFF_SLOT_IO_KIOCB_FILE, &lane.io_kiocb_file_offset, 0)
+            .map_err(|e| format!("offsets[{OFF_SLOT_IO_KIOCB_FILE}] write failed: {e}"))?;
+    }
     Ok(())
+}
+
+/// Unplant ONE off-path capability (night-frontier-Z7, D4): the
+/// record verification failed for it, so its pins come down - the
+/// pinned links first (the detach law: an interrupted cleanup leaves
+/// a DETACHED probe), then the program pins. The mask rewrite is the
+/// caller's (it knows the final verdict set). Returns the number of
+/// pins actually removed.
+pub(super) fn unplant_offpath_capability(bit: u64) -> Result<usize, String> {
+    let pins: &[&str] = match bit {
+        super::estate::OFFPATH_BIT_DIRTY => &[PIN_PROG_DIRTY, PIN_LINK_DIRTY],
+        super::estate::OFFPATH_BIT_SPLICE => &[PIN_PROG_SPLICE, PIN_LINK_SPLICE],
+        super::estate::OFFPATH_BIT_IOURING => &[PIN_PROG_IOURING, PIN_LINK_IOURING],
+        _ => return Err(format!("unknown off-path capability bit {bit}")),
+    };
+    let mut removed = 0usize;
+    // Link first, then program - the detach law's own order.
+    for pin in [pins[1], pins[0]] {
+        if std::fs::remove_file(pin).is_ok() {
+            removed += 1;
+            vlog!("engine", "off-path capability unplanted: {pin}");
+        }
+    }
+    Ok(removed)
 }
 
 /// Plant ONE kprobe program (night-improve-3): load, attach at the

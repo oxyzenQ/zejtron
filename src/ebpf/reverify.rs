@@ -51,18 +51,23 @@
 
 use aya::maps::{Array, Map, MapData};
 
-use super::events::{OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_UNLINK_DENTRY_ARG, OFF_SLOTS};
-use super::{PIN_MAP_OFFSETS, btf, btf_unlink};
+use super::estate;
+use super::events::{
+    OFF_SLOT_ADDR_SPACE_HOST, OFF_SLOT_IO_KIOCB_FILE, OFF_SLOT_PAGE_MAPPING,
+    OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_UNLINK_DENTRY_ARG, OFF_SLOTS,
+};
+use super::{PIN_MAP_OFFSETS, btf, btf_offpath, btf_unlink};
 
 /// The refusal marker (the repo-owned sentinel): every drift refusal
 /// starts with this exact string, so a classifier or a test matches
 /// the class, never the prose.
 pub const OFFSETS_DRIFT: &str = "offsets drift at the drain boundary";
 
-/// The fifteen slots the re-derivation covers, in events.rs
+/// The eighteen slots the re-derivation covers, in events.rs
 /// OFF_SLOT_* order: the thirteen struct offsets the attach trace
-/// (src/ebpf/loader.rs's OFF_TRACE) names, plus the two anchor slots
-/// the symbol walk resolves. A slot's name is the refusal's own
+/// (src/ebpf/loader.rs's OFF_TRACE) names, the two anchor slots the
+/// symbol walk resolves, and the three off-path slots
+/// night-frontier-Z7 appends. A slot's name is the refusal's own
 /// word for the slot - `struct member` for the byte offsets, the
 /// position/offset phrasing for the two anchors.
 const SLOT_NAMES: [&str; OFF_SLOTS as usize] = [
@@ -81,6 +86,9 @@ const SLOT_NAMES: [&str; OFF_SLOTS as usize] = [
     "inode.i_sb",
     "vfs_unlink dentry argument position",
     "renamedata.old_dentry offset",
+    "page.mapping",
+    "address_space.host",
+    "io_kiocb.file",
 ];
 
 /// The planted walk table, exactly as the pinned offsets map holds
@@ -123,6 +131,17 @@ fn derived_offsets() -> Result<[u64; OFF_SLOTS as usize], String> {
     derived[..struct_walk.len()].copy_from_slice(&struct_walk);
     derived[OFF_SLOT_UNLINK_DENTRY_ARG as usize] = u64::from(lane.dentry_arg);
     derived[OFF_SLOT_RENAMEDATA_OLD_DENTRY as usize] = lane.old_dentry_offset;
+    // The off-path slots (night-frontier-Z7, D4): the dirty pair and
+    // the io_kiocb hop re-derive from the same blob. A host whose
+    // BTF cannot vouch for them derives zeros - which is exactly
+    // what a named-down capability's planted slot holds, so the
+    // compare below stays honest in both directions (a planted
+    // capability whose chain MOVED still refuses by slot).
+    if let Ok(offpath) = btf_offpath::parse_offpath_offsets(&data) {
+        derived[OFF_SLOT_PAGE_MAPPING as usize] = offpath.page_mapping.unwrap_or(0);
+        derived[OFF_SLOT_ADDR_SPACE_HOST as usize] = offpath.address_space_host.unwrap_or(0);
+        derived[OFF_SLOT_IO_KIOCB_FILE as usize] = offpath.io_kiocb_file.unwrap_or(0);
+    }
     Ok(derived)
 }
 
@@ -134,8 +153,30 @@ fn derived_offsets() -> Result<[u64; OFF_SLOTS as usize], String> {
 fn drift_slot(
     planted: &[u64; OFF_SLOTS as usize],
     derived: &[u64; OFF_SLOTS as usize],
+    mask: u64,
 ) -> Option<usize> {
-    (0..OFF_SLOTS as usize).find(|&slot| planted[slot] != derived[slot])
+    (0..OFF_SLOTS as usize).find(|&slot| {
+        // The named-down capabilities' slots ride zeros in the map
+        // by design - the capability bit is off, no probe reads them,
+        // and the host's BTF may vouch for a chain nothing planted.
+        // The compare skips those slots; a PLANTED capability's slots
+        // must re-derive and match, exactly like the core set.
+        let bit = match slot {
+            slot if slot == OFF_SLOT_PAGE_MAPPING as usize
+                || slot == OFF_SLOT_ADDR_SPACE_HOST as usize =>
+            {
+                Some(estate::OFFPATH_BIT_DIRTY)
+            }
+            slot if slot == OFF_SLOT_IO_KIOCB_FILE as usize => Some(estate::OFFPATH_BIT_IOURING),
+            _ => None,
+        };
+        if let Some(bit) = bit
+            && mask & bit == 0
+        {
+            return false;
+        }
+        planted[slot] != derived[slot]
+    })
 }
 
 /// The refusal message: by slot, the planted value beside the
@@ -164,7 +205,11 @@ fn drift_message(slot: usize, planted: u64, derived: u64) -> String {
 pub fn verify_offsets_at_drain() -> Result<(), String> {
     let planted = planted_offsets()?;
     let derived = derived_offsets()?;
-    match drift_slot(&planted, &derived) {
+    // The mask names which off-path slots carry real walks: an
+    // unreadable stamp (a pre-Z2 estate) reads as zero - every
+    // off-path slot is skipped and the core fifteen still verify.
+    let mask = estate::read_offpath_mask().unwrap_or(0);
+    match drift_slot(&planted, &derived, mask) {
         None => Ok(()),
         Some(slot) => Err(drift_message(slot, planted[slot], derived[slot])),
     }

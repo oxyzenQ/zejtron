@@ -21,18 +21,32 @@ use crate::ebpf::cost;
 /// The pinned instruction table: one row per program section, the
 /// shared helper text separate. Sorted by section name (the walker's
 /// own order), frozen.
-const PROGRAM_PINS: [(&str, usize); 8] = [
+const PROGRAM_PINS: [(&str, usize); 11] = [
+    // night-frontier-Z7 (D4), the conscious re-pin: the off-path
+    // trio rides the same cost contract - the folio-shape dirty
+    // anchor is a 4-instruction stub over the shared subprogram
+    // (bpf2bpf call; the walk itself lives in the shared text), the
+    // page-shape anchor reads the page.mapping hop inline, the
+    // io_uring probe carries its opcode filter and request walk,
+    // and the splice probe rides the sys_enter section beside the
+    // write probe (the two programs share the one section, the
+    // walker sums them - 591 + 39 = 630). The walk helpers moved
+    // into the shared text, 346 -> 653. The rows stay in the
+    // walker's own (byte-sorted) section order.
+    ("kprobe/__set_page_dirty_nobuffers", 18),
+    ("kprobe/filemap_dirty_folio", 4),
     ("kprobe/vfs_open", 109),
     ("kprobe/vfs_rename", 21),
     ("kprobe/vfs_unlink", 36),
     ("kprobe/vfs_writev", 104),
-    ("tracepoint/raw_syscalls/sys_enter", 591),
+    ("tracepoint/io_uring/io_uring_submit_sqe", 143),
+    ("tracepoint/raw_syscalls/sys_enter", 630),
     ("tracepoint/sched/sched_process_exec", 12),
     ("tracepoint/sched/sched_process_exit", 75),
     ("tracepoint/sock/inet_sock_set_state", 144),
 ];
 
-const SHARED_TEXT_PIN: usize = 346;
+const SHARED_TEXT_PIN: usize = 653;
 
 /// The kernel-side ring contract: three bounded rings, the file
 /// events ring, the sock events ring, and the process exit ring,

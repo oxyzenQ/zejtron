@@ -89,7 +89,7 @@ pub fn verify_write_probe() -> Result<(), String> {
 /// whose owner is not this process's effective uid - the
 /// pre-created-and-planted variant of the old predictable path is
 /// dead by construction, not by hope.
-fn create_scratch() -> Result<(PathBuf, PathBuf), String> {
+pub(crate) fn create_scratch() -> Result<(PathBuf, PathBuf), String> {
     let euid = self_effective_uid()?;
     let mut last = String::new();
     for _ in 0..4 {
@@ -129,7 +129,7 @@ fn create_scratch() -> Result<(PathBuf, PathBuf), String> {
 /// One u64 of OS-seeded entropy: `RandomState` seeds its SipHash keys
 /// from the OS per process, so each `build_hasher().finish()` yields a
 /// fresh unpredictable value with nothing beyond std.
-fn scratch_nonce() -> u64 {
+pub(crate) fn scratch_nonce() -> u64 {
     use std::hash::{BuildHasher, Hasher};
     std::collections::hash_map::RandomState::new()
         .build_hasher()

@@ -59,12 +59,29 @@ pub const GEN_SLOT_BOOT: u32 = 0;
 pub const GEN_SLOT_OBJECT: u32 = 1;
 /// `generation[2]`: the attach instant, unix seconds.
 pub const GEN_SLOT_ATTACHED: u32 = 2;
+/// `generation[3]`: the off-path capability mask (night-frontier-Z7,
+/// D4): bit 0 = the mmap-dirty probe planted, bit 1 = the splice
+/// probe planted, bit 2 = the io_uring probe planted. A capability
+/// the host could not verify (a missing anchor rung, a missing
+/// tracepoint, a record-verify failure) is UNPLANTED and carries NO
+/// bit - the presence law reads this mask, so a named-down
+/// capability's pins are never mistaken for a partial (crashed)
+/// attach, and every drain can see exactly which off-path truths the
+/// camera serves. The mask is written after the record verifications
+/// settle (the verify failures unplant their capability first), so
+/// the stamp always describes the estate that actually exists.
+pub const GEN_SLOT_OFFPATH: u32 = 3;
+/// The mask bits (the same contract the attach summary and the
+/// presence law read).
+pub const OFFPATH_BIT_DIRTY: u64 = 1;
+pub const OFFPATH_BIT_SPLICE: u64 = 2;
+pub const OFFPATH_BIT_IOURING: u64 = 4;
 /// The map's slot count (the BPF side's max_entries, hardcoded
 /// beside the map). Userspace-only by design - the readers name the
 /// slots by constant and never need the count; the scoped allow is
 /// the honest count of that split.
 #[allow(dead_code)]
-pub const GENERATION_SLOTS: u32 = 3;
+pub const GENERATION_SLOTS: u32 = 4;
 
 /// FNV-1a 64-bit: the pure identity digest (see the module doc for
 /// why FNV and not blake3 here). Offset basis 0xcbf29ce484222325,
@@ -213,6 +230,85 @@ pub fn verify_at_drain() -> Result<(), String> {
         boot_id_fnv()?,
         object_fnv(),
     )
+}
+
+/// Write the off-path capability mask into the stamp's fourth slot
+/// (the pin writer's own lane). Called after the record verifications
+/// settle, so the mask names the estate that actually exists - the
+/// whole contract the presence law and every drain read.
+pub fn write_offpath_mask(mask: u64) -> Result<(), String> {
+    let map_data = MapData::from_pin(PIN_MAP_GENERATION).map_err(|e| {
+        format!("{GENERATION_IDENTITY}: pinned generation map {PIN_MAP_GENERATION}: {e}")
+    })?;
+    let mut map = Map::Array(map_data);
+    let mut generation: Array<_, u64> = Array::try_from(&mut map).map_err(|e| {
+        format!("{GENERATION_IDENTITY}: the pinned generation map is not an array: {e}")
+    })?;
+    generation.set(GEN_SLOT_OFFPATH, &mask, 0).map_err(|e| {
+        format!("{GENERATION_IDENTITY}: generation[{GEN_SLOT_OFFPATH}] write failed: {e}")
+    })
+}
+
+/// Read the planted off-path capability mask. `Err` when the estate
+/// carries no generation pin at all (the pre-Z2 shape - the presence
+/// law then reads the core pins only, the attach replants stamped).
+pub fn read_offpath_mask() -> Result<u64, String> {
+    let map_data = MapData::from_pin(PIN_MAP_GENERATION).map_err(|e| {
+        format!(
+            "{GENERATION_IDENTITY}: pinned generation map {PIN_MAP_GENERATION}: {e}              (an estate planted before the generation stamp carries no identity              at all - re-attach to plant a stamped one)"
+        )
+    })?;
+    let map = Map::Array(map_data);
+    let generation: Array<_, u64> = Array::try_from(&map).map_err(|e| {
+        format!("{GENERATION_IDENTITY}: the pinned generation map is not an array: {e}")
+    })?;
+    generation.get(&GEN_SLOT_OFFPATH, 0).map_err(|e| {
+        format!("{GENERATION_IDENTITY}: generation[{GEN_SLOT_OFFPATH}] read failed: {e}")
+    })
+}
+
+/// The mask-consistency verdict: every off-path pin's presence must
+/// match its mask bit exactly. A pin without its bit is an orphan
+/// (a named-down unplant that failed mid-way); a bit without its
+/// pins is a claim the estate cannot back - both refuse by name at
+/// the identity boundary, the same class the boot/object stamps
+/// carry.
+pub fn mask_consistency_verdict(
+    mask: u64,
+    pin_present: &dyn Fn(&str) -> bool,
+) -> Result<(), String> {
+    for (bit, program_pin, link_pin) in [
+        (
+            OFFPATH_BIT_DIRTY,
+            super::PIN_PROG_DIRTY,
+            super::PIN_LINK_DIRTY,
+        ),
+        (
+            OFFPATH_BIT_SPLICE,
+            super::PIN_PROG_SPLICE,
+            super::PIN_LINK_SPLICE,
+        ),
+        (
+            OFFPATH_BIT_IOURING,
+            super::PIN_PROG_IOURING,
+            super::PIN_LINK_IOURING,
+        ),
+    ] {
+        let both_pins = pin_present(program_pin) && pin_present(link_pin);
+        let mask_claims = mask & bit != 0;
+        if both_pins != mask_claims {
+            return Err(format!(
+                "{GENERATION_IDENTITY}: the off-path mask disagrees with the pins \
+                 (mask bit {bit} claims {mask_claims}, program pin {} = {}, \
+                 link pin {} = {both_pins}) - the estate describes a capability \
+                 set it does not hold; re-attach (doctor --detach, then doctor --attach)",
+                program_pin,
+                pin_present(program_pin),
+                link_pin
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

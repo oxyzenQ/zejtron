@@ -97,7 +97,10 @@ fn the_slot_contract_is_the_map_layout() {
     assert_eq!(GEN_SLOT_BOOT, 0);
     assert_eq!(GEN_SLOT_OBJECT, 1);
     assert_eq!(GEN_SLOT_ATTACHED, 2);
-    assert_eq!(GENERATION_SLOTS, 3);
+    // night-frontier-Z7 (D4): the off-path capability mask rides the
+    // fourth slot - the presence law's whole contract.
+    assert_eq!(GEN_SLOT_OFFPATH, 3);
+    assert_eq!(GENERATION_SLOTS, 4);
 }
 
 #[test]
@@ -127,4 +130,39 @@ fn the_missing_stamp_reads_as_a_named_refusal() {
     let error = verify_at_drain().unwrap_err();
     assert!(error.starts_with(GENERATION_IDENTITY), "{error}");
     assert!(error.contains("generation stamp"), "{error}");
+}
+
+// ── night-frontier-Z7, D4: the off-path capability mask pins ─────────
+
+#[test]
+fn the_mask_bits_are_distinct_and_total() {
+    // Three capabilities, three bits, no overlap - the presence
+    // law's whole vocabulary.
+    assert_eq!(OFFPATH_BIT_DIRTY, 1);
+    assert_eq!(OFFPATH_BIT_SPLICE, 2);
+    assert_eq!(OFFPATH_BIT_IOURING, 4);
+    assert_ne!(OFFPATH_BIT_DIRTY & OFFPATH_BIT_SPLICE, 1);
+}
+
+#[test]
+fn the_mask_verdict_demands_pins_for_every_claimed_bit() {
+    // The pure verdict: a claimed bit with no pins refuses (the
+    // estate describes a capability set it does not hold); a pin
+    // set with no claimed bit refuses the same way (an orphan the
+    // named-down unplant failed to take down).
+    let absent = |pin: &str| -> bool { pin.ends_with("nothing") };
+    let mask = OFFPATH_BIT_DIRTY | OFFPATH_BIT_SPLICE | OFFPATH_BIT_IOURING;
+    let error = mask_consistency_verdict(mask, &absent).expect_err("claims without pins refuse");
+    assert!(error.contains("disagrees with the pins"), "{error}");
+
+    let present = |_pin: &str| -> bool { true };
+    assert_eq!(mask_consistency_verdict(mask, &present), Ok(()));
+
+    let partial = |pin: &str| -> bool { pin.ends_with("_link") };
+    let error = mask_consistency_verdict(mask, &partial).expect_err("half-planted refuses");
+    assert!(error.contains("disagrees with the pins"), "{error}");
+
+    // The named-down shape: an empty mask with no pins is the honest
+    // estate (every capability named down) - the all-clear.
+    assert_eq!(mask_consistency_verdict(0, &absent), Ok(()));
 }

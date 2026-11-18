@@ -190,10 +190,18 @@ fn pin_constants_carry_the_removal_order() {
     assert_eq!(ALL_PINS[21], PIN_MAP_OFFSETS);
     assert_eq!(ALL_PINS[22], PIN_MAP_DROP_CENSUS);
     assert_eq!(ALL_PINS[23], PIN_MAP_GENERATION);
+    // The off-path trio (night-frontier-Z7, D4): links first, then
+    // programs - the same removal order the core pins keep.
+    assert_eq!(ALL_PINS[24], PIN_LINK_DIRTY);
+    assert_eq!(ALL_PINS[25], PIN_LINK_SPLICE);
+    assert_eq!(ALL_PINS[26], PIN_LINK_IOURING);
+    assert_eq!(ALL_PINS[27], PIN_PROG_DIRTY);
+    assert_eq!(ALL_PINS[28], PIN_PROG_SPLICE);
+    assert_eq!(ALL_PINS[29], PIN_PROG_IOURING);
     assert_eq!(
         ALL_PINS.len(),
-        24,
-        "twenty-four pins: 8 links, 8 programs, 8 maps"
+        30,
+        "thirty pins: 11 links, 11 programs, 8 maps"
     );
     for pin in ALL_PINS {
         assert!(

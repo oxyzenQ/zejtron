@@ -25,21 +25,32 @@ instruction is 8 bytes. The derivation harness prints this table
 
 | program (its attach hook) | instructions |
 | --- | --- |
+| `kprobe/__set_page_dirty_nobuffers` (D4, the page-shape dirty anchor) | 18 |
+| `kprobe/filemap_dirty_folio` (D4, the folio-shape dirty anchor) | 4 |
 | `kprobe/vfs_open` | 109 |
 | `kprobe/vfs_rename` | 21 |
 | `kprobe/vfs_unlink` | 36 |
 | `kprobe/vfs_writev` | 104 |
-| `tracepoint/raw_syscalls/sys_enter` | 591 |
+| `tracepoint/io_uring/io_uring_submit_sqe` (D4) | 143 |
+| `tracepoint/raw_syscalls/sys_enter` (the write probe + the D4 splice probe) | 630 |
 | `tracepoint/sched/sched_process_exec` | 12 |
 | `tracepoint/sched/sched_process_exit` | 75 |
 | `tracepoint/sock/inet_sock_set_state` | 144 |
-| programs total | **1092** |
-| `.text` (shared helper text, BPF-to-BPF calls) | 346 |
-| **the whole camera** | **1438** |
+| programs total | **1296** |
+| `.text` (shared helper text, BPF-to-BPF calls) | 653 |
+| **the whole camera** | **1949** |
 
-For scale: a 1438-instruction camera is a few microseconds of work
-per event. The tool that watches your files costs less bytecode than
-one screen of C.
+night-frontier-Z7 (D4) re-pinned the table consciously: the off-path
+trio rides the same cost contract - the mmap-dirty truth, the splice
+truth, and the io_uring truth, all still gated by tracked_inodes so
+the cost stays bounded by questions, not host activity. The walk
+helpers became BPF-to-BPF subprograms (the shared text grew
+346 -> 653; the folio-shape anchor is a 4-instruction stub over the
+shared walk).
+
+For scale: a 1949-instruction camera is a few microseconds of work
+per event. The tool that watches your files - INCLUDING the silent
+paths no other tool sees - costs less bytecode than one screen of C.
 
 ## The kernel-side memory cost (source-derived, pinned)
 

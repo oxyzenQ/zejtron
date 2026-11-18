@@ -524,6 +524,17 @@ if [ "$IS_ROOT" = "1" ]; then
 	if "$BIN" doctor --attach >"$SCRATCH/attach.out" 2>"$SCRATCH/attach.err"; then
 		attach_ok=1
 		pass "doctor --attach attaches on this host"
+		# The off-path truth label (night-frontier-Z7, D4): the attach
+		# summary names the capability set it planted AND record-
+		# verified (each capability fired its real action through the
+		# probe before the label may claim it) - never a silent claim.
+		if grep -q "off-path truth:" "$SCRATCH/attach.out"; then
+			offpath_label="$(grep -oE 'off-path truth: [a-z_+-]+' "$SCRATCH/attach.out" | head -1 | cut -d' ' -f3-)"
+			pass "attach names its off-path capability set: ${offpath_label}"
+		else
+			fail "attach names its off-path capability set" \
+				"the summary carries no off-path label: $(head -1 "$SCRATCH/attach.out")"
+		fi
 	else
 		note "attach refused on this host ($(head -1 "$SCRATCH/attach.err")) - the forensic pair rides the refusal direction"
 	fi
@@ -657,6 +668,53 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	else
 		fail "sleep gap: the awake host's window names no blackout" \
 			"rc=$sleep_rc: $(grep -E 'sleep (blackout|clock anomaly)' "$sleep_dir/why.out" | head -1)"
+	fi
+
+	# 7b-2. The off-path live windows (night-frontier-Z7, D4): the
+	#       attach's own record verification already fired real mmap,
+	#       splice, and io_uring writes through the probes (an attach
+	#       that cannot demonstrate a record unplants and names the
+	#       capability); these legs drive REAL off-path actions inside
+	#       REAL why windows and demand the rows name the silent
+	#       paths. The actor compiles from the tree's own C source;
+	#       a seat without cc (the micro-VM witnesses) skips by name -
+	#       the attach verification carried the live proof there.
+	if [ "$attach_ok" = "1" ] && command -v cc >/dev/null 2>&1; then
+		cc -O2 -o "$SCRATCH/offpath-actor" scripts/ci/offpath-actor.c 2>/dev/null || true
+	fi
+	if [ "$attach_ok" = "1" ] && [ -x "$SCRATCH/offpath-actor" ]; then
+		op_file="$SCRATCH/offpath-proof.bin"
+		: >"$op_file"
+		timeout 20 "$BIN" why "$op_file" --since 5s --raw \
+			>"$SCRATCH/offpath-mmap.out" 2>"$SCRATCH/offpath-mmap.err" &
+		op_why=$!
+		sleep 0.5
+		"$SCRATCH/offpath-actor" mmap "$op_file"
+		op_rc=$?
+		wait "$op_why" || true
+		if [ "$op_rc" -eq 0 ] && grep -q "write (mmap dirty page)" "$SCRATCH/offpath-mmap.out"; then
+			pass "off-path live window: a real mmap store renders the dirty-page row"
+		else
+			fail "off-path live window: a real mmap store renders the dirty-page row" \
+				"actor rc=$op_rc: $(grep -E 'write|splice|unknown' "$SCRATCH/offpath-mmap.out" | head -2 | tr '\n' ' ')"
+		fi
+
+		: >"$op_file"
+		timeout 20 "$BIN" why "$op_file" --since 5s --raw \
+			>"$SCRATCH/offpath-splice.out" 2>"$SCRATCH/offpath-splice.err" &
+		op_why=$!
+		sleep 0.5
+		"$SCRATCH/offpath-actor" splice "$op_file"
+		op_rc=$?
+		wait "$op_why" || true
+		if [ "$op_rc" -eq 0 ] && grep -q "splice (into)" "$SCRATCH/offpath-splice.out"; then
+			pass "off-path live window: a real splice renders the into row"
+		else
+			fail "off-path live window: a real splice renders the into row" \
+				"actor rc=$op_rc: $(grep -E 'write|splice|unknown' "$SCRATCH/offpath-splice.out" | head -2 | tr '\n' ' ')"
+		fi
+	elif [ "$attach_ok" = "1" ]; then
+		note "off-path live windows skipped (no cc on this seat) - the attach's record verification carried the proof"
 	fi
 
 	# 7c. The question-census leg (night-frontier-Z5): the camera's

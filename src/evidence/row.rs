@@ -239,6 +239,12 @@ pub enum EvidenceKind {
     /// `renamed` - the rename probe's record (night-frontier-2): the
     /// file moved away from the name the ledger knows it by.
     Renamed,
+    /// `spliced-out` - the splice probe's outbound record
+    /// (night-frontier-Z7, D4): the file's CONTENT was copied away
+    /// through splice(2) - the exfiltration half the write-class
+    /// records cannot express, because nothing wrote the file. The
+    /// row names who moved the data out.
+    SplicedOut,
     /// `journal mention` - the journal grep hit, the log lane's
     /// weakest record class.
     JournalMention,
@@ -265,6 +271,7 @@ impl EvidenceKind {
             Self::Wrote { .. } => "wrote",
             Self::Unlinked => "unlinked",
             Self::Renamed => "renamed",
+            Self::SplicedOut => "spliced-out",
             Self::JournalMention => "journal-mention",
         }
     }
@@ -313,6 +320,7 @@ impl EvidenceKind {
             },
             Self::Unlinked => "unlinked".to_owned(),
             Self::Renamed => "renamed".to_owned(),
+            Self::SplicedOut => "spliced out".to_owned(),
             Self::JournalMention => "journal mention".to_owned(),
         }
     }

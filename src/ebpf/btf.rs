@@ -575,3 +575,10 @@ mod writev_tests;
 #[cfg(test)]
 #[path = "../../test/ebpf/btf_unlink_tests.rs"]
 mod unlink_lane_tests;
+// The off-path lanes' anchor pins (night-frontier-Z7, D4): the same
+// sibling shape - the shared pub(super) blob builders drive the dirty
+// anchor ladder and the io_kiocb shape against synthetic records;
+// the REAL-dialect pins ride the corpus suite.
+#[cfg(test)]
+#[path = "../../test/ebpf/btf_offpath_tests.rs"]
+mod offpath_lane_tests;
