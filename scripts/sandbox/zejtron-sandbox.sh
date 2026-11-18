@@ -85,6 +85,13 @@
 #                           the static musl builds win instead, the
 #                           safest under TCG emulation)
 #   --extra HOST:GUEST      overlay one host file into the image
+#   --cert-test HOST_PATH   pack the certificate test binary (the
+#                           musl release test shape) and have the
+#                           battery payload render the determinism
+#                           fixtures ON THE BOOTED KERNEL, relaying
+#                           SANDBOX-RENDER digest rows for the
+#                           cross-dialect verdict (night-frontier-Z4;
+#                           battery mode only)
 #                           (repeatable; GUEST is relative to /, e.g.
 #                           /usr/local/bin/jq - scenario tooling the
 #                           base userland does not carry: jq, busybox)
@@ -116,6 +123,7 @@ CACHE="${ZEJTRON_SANDBOX_CACHE:-${HOME}/.cache/zejtron-sandbox}"
 KERNEL="floor"
 BINARY=""
 EXTRAS=()
+CERT_TEST=""
 ENVELOPE="low"
 NET=0
 TIMEOUT=1800
@@ -170,6 +178,10 @@ while [ $# -gt 0 ]; do
 		;;
 	--extra)
 		EXTRAS+=("${2:?}")
+		shift 2
+		;;
+	--cert-test)
+		CERT_TEST="${2:?}"
 		shift 2
 		;;
 	--envelope)
@@ -393,6 +405,48 @@ run)
 	;;
 esac
 chmod +x "${PAYLOAD}"
+
+# night-frontier-Z4, the cross-dialect determinism seat: an OPTIONAL
+# certificate test binary (--cert-test HOST_PATH, the musl release
+# test shape the lane builds). When packed, the payload renders the
+# certificate fixtures ON THE BOOTED KERNEL after the suite's
+# verdict is captured (the block re-ends the payload with the
+# suite's own rc - the suite's exit code stays the payload's
+# verdict), and relays per-file digests through SANDBOX-RENDER
+# sentinel rows. The fixtures are hermetic by shape (no camera, no
+# wall clock - the certificate module's own contract), so every
+# dialect of the witness span (focal 5.4 -> cachyos 7.x) must emit
+# THE SAME bytes; the CI verdict job compares the digests across the
+# legs and against the host render. A missing file is an assembly
+# error, never a silent skip.
+if [ -n "${CERT_TEST}" ] && [ "$MODE" = "battery" ]; then
+	[ -f "${CERT_TEST}" ] || die "cert-test binary not found: ${CERT_TEST}"
+	EXTRAS+=("${CERT_TEST}:/opt/zejtron/zejtron-cert")
+	cat >>"${PAYLOAD}" <<'EOF'
+
+# ── the cross-dialect determinism seat (night-frontier-Z4) ──────────
+if [ -x /opt/zejtron/zejtron-cert ]; then
+	ZEJTRON_CERT_OUT=/tmp/cert /opt/zejtron/zejtron-cert the_certificate_ --test-threads 1 >/tmp/cert-run.log 2>&1
+	cert_rc=$?
+	echo "SANDBOX-RESULT: cross-dialect render (the certificate fixtures on this kernel) - rc=$cert_rc"
+	if [ "$cert_rc" -eq 0 ]; then
+		(
+			cd /tmp/cert || exit 1
+			for f in $(ls -1 *.txt | LC_ALL=C sort); do
+				echo "SANDBOX-RENDER: $f $(sha256sum "$f" | awk '{print $1}')"
+			done
+			cat $(ls -1 *.txt | LC_ALL=C sort) | sha256sum |
+				awk '{print "SANDBOX-RENDER-MANIFEST: " $1}'
+		)
+	else
+		echo "SANDBOX-RENDER: FAILED (the render log's tail rides the console)"
+		tail -n 5 /tmp/cert-run.log 2>/dev/null || true
+	fi
+fi
+exit "$rc"
+EOF
+	chmod +x "${PAYLOAD}"
+fi
 
 # ── the initramfs (rootless build, cached debs make re-runs fast) ───────
 INITRD="${CACHE}/initrd.gz"

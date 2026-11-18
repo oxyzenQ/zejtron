@@ -287,6 +287,25 @@ jobs:
       - name: Build the static pro-v3 musl binary
         run: cargo pro-linux-amd64-v3-musl --locked
 
+      # night-frontier-Z4, the cross-dialect determinism seat: the
+      # certificate's TEST binary rides the SAME static v3 musl shape
+      # (the target-triple rustflags are the alias's own .cargo
+      # contract, so the test build inherits them verbatim). The
+      # guest runs the certificate module's fixture render on the
+      # BOOTED kernel - no cargo in the guest, the harness binary is
+      # self-sufficient (a 3.9 MB musl release test shape).
+      - name: Build the certificate test binary (the cross-dialect seat)
+        run: |
+          cargo test --locked --profile pro-linux-amd64-v3-musl \
+            --target x86_64-unknown-linux-musl --no-run \
+            --message-format=json > cert-build.json
+          CERT_BIN="$(jq -r 'select(.executable != null and
+            .target.kind[0] == "bin") | .executable' cert-build.json |
+            head -n 1)"
+          test -n "$CERT_BIN" || { echo "no bin test executable resolved" >&2; exit 1; }
+          cp "$CERT_BIN" /tmp/zejtron-cert-test
+          ls -la /tmp/zejtron-cert-test
+
       # The lane itself: the operator's own instrument, under KVM, in
       # report mode, riding the static payload. The twin resolves the
       # suite's GA kernel (or the cachyos repo's current flagship),
@@ -302,6 +321,7 @@ jobs:
             --kernel "${{ matrix.suite }}" \
             --envelope "${{ matrix.envelope }}" \
             --binary "$PWD/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron" \
+            --cert-test /tmp/zejtron-cert-test \
             --battery \
             --timeout 180
 
@@ -424,4 +444,156 @@ jobs:
             echo '```'
             grep -E '^  FAIL ' "$LOG" | head -40 || true
             echo '```'
+            echo
+            echo "### the cross-dialect render rows (night-frontier-Z4)"
+            echo
+            echo '```'
+            grep -E '^SANDBOX-RENDER' "$LOG" || true
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # The per-leg render rows ride an artifact for the verdict
+          # job: every witness dialect's fixture digests, one file.
+          mkdir -p "${{ runner.temp }}/cross-dialect"
+          grep -E '^SANDBOX-(RESULT: cross-dialect|RENDER)' "$LOG" \
+            > "${{ runner.temp }}/cross-dialect/render-${{ matrix.suite }}.txt" || true
+
+      - name: Upload the cross-dialect render rows
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, SHA pin
+        with:
+          name: cross-dialect-render-${{ matrix.suite }}
+          path: ${{ runner.temp }}/cross-dialect/render-${{ matrix.suite }}.txt
+          if-no-files-found: ignore
+
+  # night-frontier-Z4, the cross-dialect determinism verdict: the
+  # certificate fixtures are hermetic by shape (no camera, no wall
+  # clock), so the SAME bytes must come out of EVERY kernel the
+  # witness span boots - focal 5.4 (no BTF, no camera), jammy 5.15,
+  # bookworm 6.1, mainline 6.6, noble 6.8, cachyos 7.x - and the
+  # host. "Two conformant runs diff to empty" becomes CROSS-DIALECT,
+  # CROSS-DECADE: one command (this push) proves the render is a
+  # pure function of its fixture on six kernel generations and the
+  # build host, all in one table. Any digest that differs is a
+  # determinism lie and fails here, by kernel, by file.
+  cross-dialect-verdict:
+    name: cross-dialect determinism (the fixtures on 5.4 -> 7.x)
+    runs-on: ubuntu-24.04
+    needs: witness
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+          targets: x86_64-unknown-linux-musl
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
+        with:
+          prefix-key: cross-dialect-verdict
+
+      - name: Build the certificate test binary (the host seat)
+        run: |
+          cargo test --locked --profile pro-linux-amd64-v3-musl \
+            --target x86_64-unknown-linux-musl --no-run \
+            --message-format=json > cert-build.json
+          CERT_BIN="$(jq -r 'select(.executable != null and
+            .target.kind[0] == "bin") | .executable' cert-build.json |
+            head -n 1)"
+          test -n "$CERT_BIN" || { echo "no bin test executable resolved" >&2; exit 1; }
+          cp "$CERT_BIN" /tmp/zejtron-cert-test
+
+      - name: Render the fixtures on the host
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          rm -rf /tmp/cert-host && mkdir -p /tmp/cert-host
+          ZEJTRON_CERT_OUT=/tmp/cert-host /tmp/zejtron-cert-test the_certificate_ --test-threads 1
+          # The host baseline: one digest per fixture (the glob walks
+          # byte-sorted under LC_ALL=C), plus the whole-directory
+          # manifest digest the legs must match.
+          (
+            cd /tmp/cert-host
+            for f in ./*.txt; do
+              echo "SANDBOX-RENDER: ${f#./} $(sha256sum "$f" | awk '{print $1}')"
+            done
+            cat ./*.txt | sha256sum | awk '{print "SANDBOX-RENDER-MANIFEST: " $1}'
+          ) | tee /tmp/host-renders.txt
+
+      - name: Download the witness render rows
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, SHA pin
+        with:
+          pattern: cross-dialect-render-*
+          merge-multiple: true
+          path: witness-renders
+
+      - name: The cross-dialect verdict
+        run: |
+          set -euo pipefail
+          # The six dialects the span promises (the witness matrix):
+          # a missing leg is a missing proof, never a pass. The block
+          # REDIRECTS into the certificate file - a pipeline would run
+          # the counters in a subshell and the verdict would lie.
+          WANTED="focal jammy bookworm mainline-6.6 noble cachyos"
+          out=/tmp/cross-dialect-certificate.txt
+          host_manifest="$(awk '/^SANDBOX-RENDER-MANIFEST:/ {print $2}' /tmp/host-renders.txt)"
+          fail=0
+          legs=0
+          {
+            echo "## The cross-dialect determinism certificate (night-frontier-Z4)"
+            echo
+            echo "The certificate fixtures rendered on the build host AND inside"
+            echo "every witness micro-VM; the digests below must all be EQUAL -"
+            echo '```'
+            cat /tmp/host-renders.txt
+            echo '```'
+            echo
+            echo '| kernel (witness leg) | render verdict | manifest digest | vs host |'
+            echo '| --- | --- | --- | --- |'
+            for suite in $WANTED; do
+              f="witness-renders/render-${suite}.txt"
+              legs=$((legs + 1))
+              if [ ! -s "$f" ]; then
+                echo "| ${suite} | MISSING (no render rows) | - | REFUSE |"
+                fail=1
+                continue
+              fi
+              if ! grep -q 'cross-dialect render .* - rc=0' "$f"; then
+                echo "| ${suite} | FAILED (the in-guest render exited nonzero) | - | REFUSE |"
+                fail=1
+                continue
+              fi
+              manifest="$(awk '/^SANDBOX-RENDER-MANIFEST:/ {print $2}' "$f")"
+              if [ "$manifest" == "$host_manifest" ]; then
+                echo "| ${suite} | rendered | $manifest | EQUAL |"
+              else
+                echo "| ${suite} | rendered | ${manifest:-none} | REFUSE |"
+                echo "DIGEST MISMATCH on ${suite}:" >&2
+                diff <(grep '^SANDBOX-RENDER: ' /tmp/host-renders.txt) \
+                  <(grep '^SANDBOX-RENDER: ' "$f") >&2 || true
+                fail=1
+              fi
+            done
+          } > "$out"
+          cat "$out"
+          cat "$out" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$legs" -ne 6 ]; then
+            echo "the span promised six dialects, saw $legs" >&2
+            fail=1
+          fi
+          if [ "$fail" -eq 0 ]; then
+            echo "CERTIFICATE: the fixtures render byte-identical across"
+            echo "5.4.0-26, 5.15.0-25, 6.1.0-N, 6.6.95, 6.8.0-31, 7.x AND the"
+            echo "host - the determinism law holds cross-dialect, cross-decade."
+          else
+            echo "CERTIFICATE REFUSED: a dialect's render differed (see the mismatch above)" >&2
+            exit 1
+          fi
+
+      - name: Upload the cross-dialect certificate
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, SHA pin
+        with:
+          name: cross-dialect-certificate
+          path: /tmp/cross-dialect-certificate.txt
+          if-no-files-found: ignore
