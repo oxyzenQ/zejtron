@@ -103,23 +103,54 @@ surface_loss_certificate() {
 	) &
 	window_pid=$!
 
-	# The settle: the why's track_file lands near-instantly after
-	# exec, but the storm must never precede the window - a write
-	# before the track is a write the ground truth counts and the
-	# camera never saw (a conservation break by construction).
-	sleep 1.5
+	# The settle is a SIGNAL, not a sleep. The camera narrates the
+	# wait ("[watching for events... 6s]" on stderr) at the instant
+	# spinner::wait begins - which is AFTER track_file landed and the
+	# window is live (src/ebpf/fileprobe.rs: track, sample, narrate,
+	# sleep, untrack, drain). The storm starts only when that
+	# narration lands in the why's stderr: no write can precede the
+	# track, so the ground truth counts exactly the in-window writes.
+	# (The first live run's own finding, fixed the same night: a
+	# fixed 1.5s sleep raced the why's startup on the floor VM -
+	# 1365 of 40000 writes crossed the filter before the track, and
+	# the certificate caught them as silent loss. The race is the
+	# harness's, the catch was the certificate's, the fix is sync.)
+	local synced=0
+	for _ in $(seq 1 60); do
+		if grep -q "watching for events" "$SM_SCRATCH/lc-why.err" 2>/dev/null; then
+			synced=1
+			break
+		fi
+		sleep 0.1
+	done
+	if [[ "$synced" -ne 1 ]]; then
+		# A window that never announced itself is a broken sync seat,
+		# not a slow host - storm into it and the conservation math
+		# would be fiction. Fail by name, clean the attach by hand.
+		sm_fail "loss-certificate: the window's own narration signals the track" \
+			"the why never narrated the wait within 6s - the sync seat is broken, the storm never ran"
+		sm_run "$SM_SCRATCH/lc-detach.out" "$SM_SCRATCH/lc-detach.err" rc 20 -- \
+			"$SM_DEFAULT_BIN" doctor --detach
+		sm_assert_rc 0 "$rc" \
+			"loss-certificate: doctor --detach cleans the failed-sync leg (exit 0)"
+		return
+	fi
 
 	# The storm: exactly one write(2) per iteration, pure builtins
-	# (no fork, no open - the fd rides from the pre-window open), a
-	# deadline one second inside the window's close so every counted
-	# write completes while the inode is still tracked. The counter
-	# is the generator's own loop variable - the ground truth lives
-	# OUTSIDE the camera by construction. The target rides a named
-	# test seam (SM_LOSS_CERT_TARGET, the selftest's hermetic seat);
-	# unset it means 40000, far past the ring's 6553-record capacity.
+	# (no fork, no open - the fd rides from the pre-window open). The
+	# window is 6s wide from the narration; the deadline keeps four
+	# of them so every counted write completes while the inode is
+	# still tracked (two seconds of slack for the untrack, the drain,
+	# and the render). The counter is the generator's own loop
+	# variable - the ground truth lives OUTSIDE the camera by
+	# construction. The target rides a named test seam
+	# (SM_LOSS_CERT_TARGET, the selftest's hermetic seat); unset it
+	# means 40000, far past the ring's measured capacity (4096 held
+	# records on the floor kernel - aya's own accounting, see the
+	# census-lies bound below).
 	local storm_target="${SM_LOSS_CERT_TARGET:-40000}"
 	[[ "$storm_target" -ge 1 ]] 2>/dev/null || storm_target=40000
-	local storm_deadline=$((SECONDS + 3))
+	local storm_deadline=$((SECONDS + 4))
 	storm_count=0
 	while ((storm_count < storm_target && SECONDS < storm_deadline)); do
 		printf 'zejtron-loss-cert-%06d\n' "$storm_count" >&3
@@ -155,10 +186,11 @@ surface_loss_certificate() {
 		sm_fail "loss-certificate: delivered + drops == ground truth" \
 			"delivered $delivered + drops $drops = $total, ground truth $storm_count - events lost uncounted (the silent-loss direction)"
 	elif [[ "$drops" -eq 0 && "$storm_count" -gt 8192 ]]; then
-		# 8192 > the 256 KiB ring's whole capacity (6553 records):
-		# a storm past this bound with zero counted drops means the
-		# census did not count a real overload - the lying-census
-		# direction, named.
+		# 8192 is twice the ring's MEASURED capacity (4096 held
+		# records on the floor kernel, aya's own accounting): a storm
+		# past this bound with zero counted drops means the census
+		# did not count a real overload - the lying-census direction,
+		# named.
 		sm_fail "loss-certificate: the census counts a real overload" \
 			"$storm_count writes flooded a 6553-record ring yet drop_census reads 0 - the census missed the overload"
 	elif [[ "$drops" -eq 0 ]]; then

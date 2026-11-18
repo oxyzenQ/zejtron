@@ -282,9 +282,13 @@ pub(crate) static stats: Array<AtomicU64> = Array::with_max_entries(STATS_SLOTS,
 #[map(name = "tracked_inodes")]
 pub(crate) static tracked_inodes: HashMap<u64, u8> = HashMap::with_max_entries(1024, 0);
 
-/// The file_events ring buffer (night-improve-3): 256 KiB, 6553
-/// records of 40 bytes. The filter map is the bound; a failed
-/// reservation drops the event without failing the probe.
+/// The file_events ring buffer (night-improve-3): 256 KiB. The
+/// record is 40 bytes, but aya's ring accounting (the 8-byte length
+/// header, the page framing) decides the real capacity - measured
+/// at 4096 held records on the floor kernel (the loss certificate's
+/// first live run); do not re-derive a count from 40 here. The
+/// filter map is the bound; a failed reservation drops the event
+/// without failing the probe.
 #[allow(non_upper_case_globals)]
 #[map(name = "file_events")]
 pub(crate) static file_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);

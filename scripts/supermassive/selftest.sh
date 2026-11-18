@@ -390,6 +390,10 @@ case "\$1 \$2" in
 	"doctor --detach") exit 0 ;;
 esac
 if [[ "\$1" == "why" ]]; then
+	# The camera's own track-is-live narration (spinner::wait rides
+	# after track_file) - the surface syncs the storm on this line.
+	# The mute seat omits it on purpose.
+	[[ "$mode" != "mute" ]] && printf '[watching for events... 6s]\n' >&2
 	dir="\$(dirname "\$2")"
 	count_file="\$dir/storm.count"
 	for _ in \$(seq 1 150); do
@@ -490,6 +494,9 @@ STUB
 	# The too-slow host: no overload reached, the skip names it.
 	run_matrix honest 3000 5 0 1 "no overload reached"
 
+	# The mute camera: a window that never announces itself is a
+	# broken sync seat, not a slow host - the storm never runs.
+	run_matrix mute 20000 3 1 0 "the sync seat is broken"
 	# The refusing camera: no attach, no certificate - the skip
 	# names why (its own stub, attach exits 1).
 	local_refuse_stub="$SM_SCRATCH/stub-refuse"
