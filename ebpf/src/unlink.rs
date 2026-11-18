@@ -91,6 +91,10 @@ unsafe fn identity_of(
     dentry: usize,
     o: &[u64; crate::events::OFF_SLOTS as usize],
 ) -> Option<(u64, u64)> {
+    // SAFETY: every hop is a probe-read helper call (bpf_probe_read_kernel
+    // beneath, a bad address returns None, never a fault) at a
+    // BTF-verified offset from the attach-time map; the verifier
+    // re-proves the chain at load time.
     unsafe {
         let inode = read_ptr_at(dentry, o[OFF_SLOT_DENTRY_D_INODE as usize])?;
         let ino = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize])?;
@@ -105,6 +109,12 @@ unsafe fn identity_of(
 /// of ring traffic is spent (the open probe's price control), and a
 /// pass publishes the 40-byte record with the acting process's pid.
 unsafe fn publish_if_tracked(dentry: usize, op: u8) {
+    // SAFETY: the offset reads run through the probe-read helpers (a
+    // bad address returns None, never a fault) at BTF-verified
+    // offsets, tracked_inodes.get is a typed map lookup the verifier
+    // checks, file_events.output is the ring's typed publish helper,
+    // and bpf_ktime_get_ns is an infallible integer helper - the
+    // verifier re-proves the whole body at load time.
     unsafe {
         let Some(o) = read_offset_set() else { return };
         let Some((ino, device)) = identity_of(dentry, &o) else { return };
@@ -148,6 +158,13 @@ unsafe fn publish_if_tracked(dentry: usize, op: u8) {
 /// nothing more.
 #[kprobe(function = "vfs_unlink")]
 pub fn unlink_probe(ctx: ProbeContext) -> u32 {
+    // SAFETY: the context is touched ONLY through fixed-register
+    // loads (compile-time pt_regs offsets, the pinned-offset shape
+    // this module documents below) and aya probe-reads, every kernel
+    // hop runs through the probe-read helpers (a bad address returns
+    // None, never a fault), every offset comes from the BTF-verified
+    // offsets map written at attach, and the verifier re-proves the
+    // whole body at load time.
     unsafe {
         let Some(o) = read_offset_set() else { return 0 };
         let arg = o[OFF_SLOT_UNLINK_DENTRY_ARG as usize] as usize;
@@ -211,6 +228,12 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
 /// process moved it.
 #[kprobe(function = "vfs_rename")]
 pub fn rename_probe(ctx: ProbeContext) -> u32 {
+    // SAFETY: the renamedata register read is a fixed-offset volatile
+    // load at a compile-time pt_regs offset (the pinned-offset shape
+    // the unlink probe documents), every kernel hop runs through the
+    // probe-read helpers (a bad address returns None, never a fault)
+    // at BTF-verified offsets, and the verifier re-proves the whole
+    // body at load time.
     unsafe {
         let Some(o) = read_offset_set() else { return 0 };
         // arg0: struct renamedata * (BTF-verified at attach). The one

@@ -78,6 +78,11 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
     // The reads come first (an unread fact is dropped, never
     // guessed); the filter bounds the ring traffic before anything
     // else happens.
+    // SAFETY: every read inside is aya's ctx.read_at probe-read at a
+    // compile-time-constant context offset - a bad offset returns
+    // Err, never a fault - and the verifier re-proves the whole body
+    // at load time (the module doc's contract, this comment is the
+    // lint-facing form).
     let event = unsafe {
         let skaddr: u64 = match ctx.read_at::<u64>(ctx_offsets::SKADDR) {
             Ok(value) => value,

@@ -44,6 +44,10 @@ fn main() {
     // curl, and every other pipe citizen on the host follows. The
     // libc pull is the dependency policy's own escape hatch (the
     // Cargo.toml note under aya), arriving at its first raw syscall.
+    // SAFETY: signal(2) takes two integer constants and touches no
+    // pointers; resetting SIGPIPE to SIG_DFL restores the kernel's
+    // default disposition. This runs on the main thread before any
+    // other thread exists, so there is no handler race to lose.
     #[cfg(unix)]
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);

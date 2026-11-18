@@ -125,6 +125,10 @@ unsafe fn zjw_drop(stage: u64, fd: u64) {
 pub fn write_probe(ctx: TracePointContext) -> u32 {
     // The id check first: sys_enter fires for EVERY syscall, so the
     // non-write traffic leaves after one comparison.
+    // SAFETY: aya's TracePointContext::read_at is a probe-read of the
+    // tracepoint context at a compile-time-constant offset - a bad
+    // offset returns Err, never a fault - and the verifier re-proves
+    // the read at load time.
     let id: i64 = match unsafe { ctx.read_at::<i64>(SYS_ENTER_ID) } {
         Ok(value) => value,
         Err(_) => return 0,
@@ -132,6 +136,9 @@ pub fn write_probe(ctx: TracePointContext) -> u32 {
     if id != NR_WRITE {
         return 0;
     }
+    // SAFETY: the same probe-read contract as the id read above: a
+    // constant context offset, Err on a bad read, verifier-proven at
+    // load.
     let fd: u64 = match unsafe { ctx.read_at::<u64>(SYS_ENTER_ARG0) } {
         Ok(value) => value,
         Err(_) => return 0,
@@ -139,6 +146,14 @@ pub fn write_probe(ctx: TracePointContext) -> u32 {
     let fd = fd as u32;
     let fdu = u64::from(fd);
 
+    // SAFETY: every kernel dereference inside goes through the
+    // probe-read helpers (read_ptr_at / read_u64_at / read_u32_at -
+    // bpf_probe_read_kernel beneath, a bad address returns None,
+    // never a fault), every hop is bounded by the BTF-verified
+    // offsets map the host wrote at attach, the fd is bounds-checked
+    // against max_fds before the fd_array index, bpf_get_current_task
+    // is a helper call the verifier types, and the verifier re-proves
+    // the whole body at load time.
     unsafe {
         let Some(o) = super::read_offset_set() else {
             zjw_drop(1, fdu);

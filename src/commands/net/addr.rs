@@ -206,6 +206,10 @@ struct SocketGuard {
 
 impl SocketGuard {
     fn new() -> Option<Self> {
+        // SAFETY: socket(2) takes three integer constants, returns a
+        // fresh descriptor or -1, and touches no pointers; the fd
+        // check below is the refusal path. The descriptor is stored
+        // in the guard and closed exactly once by Drop.
         let fd = unsafe {
             libc::socket(
                 libc::AF_NETLINK,
@@ -217,11 +221,19 @@ impl SocketGuard {
             return None;
         }
         let guard = SocketGuard { fd };
-        // zeroed() seeds the padding field libc's newer sockaddr_nl
-        // carries (Padding<u16>) and the zero pid the kernel
-        // requires; the family is the one field that carries a law.
+        // SAFETY: sockaddr_nl is a repr(C) struct of integers (u16
+        // family, u32 pid and groups) plus a padding field, so the
+        // all-zero byte pattern is a valid value; zeroed() seeds that
+        // padding and the zero pid the kernel requires, and the
+        // family field below is the one field that carries a law.
         let mut kernel: libc::sockaddr_nl = unsafe { std::mem::zeroed() };
         kernel.nl_family = libc::AF_NETLINK as u16;
+        // SAFETY: fd is a live descriptor from the socket(2) call
+        // above (its refusal path already returned), `kernel` is an
+        // initialized sockaddr_nl, and the cast to *const sockaddr is
+        // the C netlink idiom - both structs lead with the u16 family
+        // field the kernel reads first. The length passed is the
+        // exact size of the concrete struct, never the generic one.
         let bound = unsafe {
             libc::bind(
                 fd,
@@ -239,6 +251,10 @@ impl SocketGuard {
             tv_sec: 1,
             tv_usec: 0,
         };
+        // SAFETY: fd is live, `timeout` is an initialized timeval,
+        // and the option/value pair is the kernel's fixed contract
+        // for SO_RCVTIMEO; the length passed is the exact size of the
+        // concrete struct.
         let timed = unsafe {
             libc::setsockopt(
                 fd,
@@ -257,8 +273,17 @@ impl SocketGuard {
     /// Send the dump request to the kernel (pid 0): false on any
     /// send refusal or short write.
     fn send_request(&self, request: &[u8; 24]) -> bool {
+        // SAFETY: sockaddr_nl is a repr(C) struct of integers plus a
+        // padding field, so the all-zero byte pattern is a valid
+        // value; zeroed() seeds the padding and the zero pid, and the
+        // family field below names the kernel's netlink route lane.
         let mut kernel: libc::sockaddr_nl = unsafe { std::mem::zeroed() };
         kernel.nl_family = libc::AF_NETLINK as u16;
+        // SAFETY: self.fd is a live descriptor owned by this guard,
+        // `request` is an initialized 24-byte array whose full length
+        // is passed as the write bound, and the sockaddr cast is the
+        // same C netlink idiom as bind above with the exact concrete
+        // size.
         let sent = unsafe {
             libc::sendto(
                 self.fd,
@@ -276,6 +301,9 @@ impl SocketGuard {
     /// the honest stop for a dump that will not end) or a
     /// non-positive length.
     fn recv(&self, buf: &mut [u8]) -> Option<usize> {
+        // SAFETY: self.fd is live, `buf` is a caller-owned writable
+        // slice whose full length is passed as the read bound, so the
+        // kernel can never write past the slice's end.
         let n = unsafe {
             libc::recv(
                 self.fd,
@@ -290,6 +318,10 @@ impl SocketGuard {
 
 impl Drop for SocketGuard {
     fn drop(&mut self) {
+        // SAFETY: the guard exclusively owns its descriptor - it was
+        // created by the socket(2) call in new(), never duplicated,
+        // and never closed on any other path - so close(2) runs
+        // exactly once on a descriptor this struct alone owns.
         unsafe {
             libc::close(self.fd);
         }

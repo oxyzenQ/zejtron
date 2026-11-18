@@ -42,4 +42,12 @@ aya-ebpf = "0.3"
 name = "zejtron-ebpf"
 path = "src/main.rs"
 
+# NIGHT-guard-1, the kernel-side twin: the same SAFETY-comment law the
+# root crate's [lints.clippy] table carries. CI clippy rides the root
+# crate only, so this table is a local-audit instrument - the
+# annotations themselves are the value: every unsafe block in the
+# probes names the verifier-and-probe-read proof that makes it sound.
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"
+
 [workspace]

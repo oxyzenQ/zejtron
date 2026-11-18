@@ -55,7 +55,14 @@ const BPF_FS_MAGIC: i64 = 0xcafe_4a11;
 /// an unstatable path is not a mounted anything).
 fn fs_magic(path: &str) -> Option<i64> {
     let c_path = CString::new(path).ok()?;
+    // SAFETY: statfs is a repr(C) struct of integers (every field a
+    // C integer type), so the all-zero byte pattern is a valid value
+    // for every layout the libc crate models.
     let mut buffer = unsafe { std::mem::zeroed::<libc::statfs>() };
+    // SAFETY: c_path is a NUL-terminated CString owned for the whole
+    // call, and `buffer` is an initialized, exclusively borrowed
+    // statfs the kernel writes through the raw pointer for the
+    // duration of the call only.
     let rc = unsafe { libc::statfs(c_path.as_ptr(), &raw mut buffer) };
     if rc != 0 {
         return None;
@@ -112,6 +119,11 @@ fn mount_filesystem(fstype: &str, target: &str) -> Result<(), String> {
     let c_source = CString::new(fstype).map_err(|e| format!("{fstype} source: {e}"))?;
     let c_target = CString::new(target).map_err(|e| format!("{target}: {e}"))?;
     let c_fstype = CString::new(fstype).map_err(|e| format!("{fstype} type: {e}"))?;
+    // SAFETY: all three path arguments are NUL-terminated CStrings
+    // that live for the whole call, flags is the plain constant 0,
+    // and the data pointer is null - legal for the filesystems this
+    // helper mounts (tracefs and bpffs take no data string). The rc
+    // check below is the refusal path.
     let rc = unsafe {
         libc::mount(
             c_source.as_ptr(),

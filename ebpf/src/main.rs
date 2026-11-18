@@ -373,6 +373,11 @@ pub fn sched_process_exec(_ctx: TracePointContext) -> u32 {
 /// The caller passes a kernel address; the read is probe-read, so a
 /// bad address returns `None` instead of faulting.
 pub(crate) unsafe fn read_u64_at(base: usize, offset: u64) -> Option<u64> {
+    // SAFETY: bpf_probe_read_kernel is a helper the verifier types:
+    // wrapping_add cannot overflow the address arithmetic, and a bad
+    // kernel address returns Err (mapped to None below), never a
+    // fault - the fn's documented contract is honored by the probe
+    // read itself.
     unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const u64).ok() }
 }
 
@@ -381,6 +386,9 @@ pub(crate) unsafe fn read_u64_at(base: usize, offset: u64) -> Option<u64> {
 /// # Safety
 /// Same contract as [`read_u64_at`].
 pub(crate) unsafe fn read_u32_at(base: usize, offset: u64) -> Option<u32> {
+    // SAFETY: the same probe-read contract as read_u64_at -
+    // wrapping_add address math, a helper-typed read, Err on a bad
+    // address, never a fault.
     unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const u32).ok() }
 }
 
@@ -389,6 +397,9 @@ pub(crate) unsafe fn read_u32_at(base: usize, offset: u64) -> Option<u32> {
 /// # Safety
 /// Same contract as [`read_u64_at`].
 pub(crate) unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
+    // SAFETY: the same probe-read contract as read_u64_at -
+    // wrapping_add address math, a helper-typed read, Err on a bad
+    // address, never a fault.
     unsafe { bpf_probe_read_kernel(base.wrapping_add(offset as usize) as *const usize).ok() }
 }
 
@@ -418,6 +429,13 @@ pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
 /// contract, nothing more.
 #[kprobe(function = "vfs_open")]
 pub fn open_probe(ctx: ProbeContext) -> u32 {
+    // SAFETY: the context is read through aya's ctx.arg probe-read
+    // and fixed-register volatile loads (the pinned-offset shape the
+    // unlink probe documents at length), every kernel hop goes
+    // through the probe-read helpers (a bad address returns None,
+    // never a fault), every offset comes from the BTF-verified
+    // offsets map written at attach, and the verifier re-proves the
+    // whole body at load time.
     unsafe {
         // arg0: const struct path * — extraction failure drops the
         // event (never fail the probed path).
@@ -485,6 +503,11 @@ pub fn open_probe(ctx: ProbeContext) -> u32 {
 /// the section only types the program.
 #[kprobe(function = "vfs_writev")]
 pub fn writev_probe(ctx: ProbeContext) -> u32 {
+    // SAFETY: the same contract as the open probe: aya probe-reads
+    // and fixed-register volatile loads on the context, every kernel
+    // hop through the probe-read helpers (a bad address returns
+    // None, never a fault), BTF-verified offsets from the attach-time
+    // map, and the verifier re-proves the whole body at load time.
     unsafe {
         // arg0: struct file * (BTF-verified at attach).
         let Some(file) = ctx.arg::<u64>(0) else { return 0 };

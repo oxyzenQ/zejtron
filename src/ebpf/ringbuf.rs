@@ -151,11 +151,14 @@ pub fn drain_sock_events_from(ring: &mut RingBuf<MapData>, out: &mut Vec<SockEve
         if record.len() != SOCK_EVENT_BYTES {
             continue;
         }
-        // The pod-cast: the bytes are a repr(C) SockEvent by the
-        // contract both sides compile from one file, and the length
-        // check above is the bounds proof. Reading a u64-aligned
-        // struct from a byte slice the kernel wrote is the one
-        // unsafe step aya's API leaves to the caller.
+        // SAFETY: the bytes are a repr(C) SockEvent by the contract
+        // both sides compile from one file, the length check above is
+        // the bounds proof (record.len() equals the struct's exact
+        // byte size), and read_unaligned tolerates the ring's record
+        // starts. Reading a struct from a byte slice the kernel
+        // wrote is the one unsafe step aya's API leaves to the
+        // caller; the pointer is valid for the record's bytes only,
+        // and the read happens inside that window.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const SockEvent) };
         batch.push(event);
     }
@@ -185,8 +188,10 @@ pub fn drain_file_events() -> Result<Vec<FileEvent>, String> {
         if record.len() != FILE_EVENT_BYTES {
             continue;
         }
-        // The pod-cast, the file record's turn: the same
-        // contract-and-bounds proof as the sock reader's.
+        // SAFETY: the same contract-and-bounds proof as the sock
+        // reader's: a repr(C) FileEvent both sides compile from one
+        // file, the length check above pins the record's byte size,
+        // and read_unaligned tolerates the ring's record starts.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const FileEvent) };
         batch.push(event);
     }
@@ -208,8 +213,11 @@ pub fn drain_proc_exits() -> Result<Vec<ProcExitEvent>, String> {
         if record.len() != PROCEXIT_EVENT_BYTES {
             continue;
         }
-        // The pod-cast, the exit record's turn: the same
-        // contract-and-bounds proof as the file reader's.
+        // SAFETY: the same contract-and-bounds proof as the file
+        // reader's: a repr(C) ProcExitEvent both sides compile from
+        // one file, the length check above pins the record's byte
+        // size, and read_unaligned tolerates the ring's record
+        // starts.
         let event = unsafe { core::ptr::read_unaligned(record.as_ptr() as *const ProcExitEvent) };
         batch.push(event);
     }

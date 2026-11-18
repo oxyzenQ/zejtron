@@ -95,6 +95,16 @@ autotests = false
 autobenches = false
 autoexamples = false
 
+# NIGHT-guard-1 (the audit-score lint): every unsafe block must carry
+# a SAFETY comment stating the invariant that makes it sound. The
+# lint denies at compile time, so a new unsafe block cannot land
+# unannotated on any lane that runs clippy (build.sh check-all, the
+# fast CI lane). The estate's unsafe blocks are FFI/syscall seams and
+# the kernel-to-userspace ring casts; each one's comment names the
+# proof, so an auditor greps the proof instead of trusting it.
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"
+
 [dependencies]
 # chrono dropped (the sibling's Hinnant-style lineage, night-improve-13):
 # was `chrono = { version = "0.4", default-features = false,

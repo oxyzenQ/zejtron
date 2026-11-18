@@ -89,6 +89,9 @@ pub fn sched_process_exit(_ctx: TracePointContext) -> u32 {
     if proc_events
         .output::<ProcExitEvent>(
             &ProcExitEvent {
+                // SAFETY: bpf_ktime_get_ns is a helper call - integer
+                // arguments, no dereference, an infallible monotonic
+                // clock read the verifier types.
                 timestamp_ns: unsafe { bpf_ktime_get_ns() },
                 pid: tgid,
                 _pad: 0,
