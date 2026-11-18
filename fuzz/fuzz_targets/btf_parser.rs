@@ -24,6 +24,11 @@
 //! included file free of `crate::` paths, and gate 18 holds the law.
 
 #![no_main]
+// The harness view compiles the WHOLE included module trees while
+// using a slice of each - the root crate uses the rest, so dead-code
+// silence here is the honest posture (the proofs package's own law),
+// not a suppression of real dead code.
+#![allow(dead_code)]
 
 #[path = "../../src/ebpf/btf.rs"]
 mod btf;
