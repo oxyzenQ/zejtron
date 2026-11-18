@@ -79,7 +79,7 @@ fn inspect_does_not_change_mtime() {
 fn timestamp_format_is_stable_shape() {
     let formatted = format_system_time(UNIX_EPOCH + Duration::from_secs(1_700_000_000));
 
-    // The civil clock's contract (src/clock.rs): the tree's
+    // The civil clock's contract (src/info/clock.rs): the tree's
     // long-standing zero-padded core plus the explicit UTC
     // marker. Ground truth: 1_700_000_000 = 2023-11-14 22:13:20
     // UTC (verified via date -u -d @1700000000).

@@ -60,12 +60,12 @@ external-default-features = "allow"
 # - chrono: dropped night-improve-13 (the sibling's Hinnant-style
 #   lineage). The `clock` feature dragged iana-time-zone + num-traits
 #   into the lockfile for two timestamp-formatting call sites;
-#   wall-clock math is the civil_from_days algorithm in src/clock.rs
+#   wall-clock math is the civil_from_days algorithm in src/info/clock.rs
 #   and build.rs (std only, UTC with an explicit marker). No time
 #   crate comes back through the front door.
 [[bans.deny]]
 name = "chrono"
-reason = "dropped night-improve-13 (Hinnant civil_from_days, std only); see src/clock.rs and Cargo.toml"
+reason = "dropped night-improve-13 (Hinnant civil_from_days, std only); see src/info/clock.rs and Cargo.toml"
 
 [[bans.deny]]
 name = "iana-time-zone"

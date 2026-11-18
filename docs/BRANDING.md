@@ -121,7 +121,7 @@ mark verdicts, not prose.
 
 ## 5.1 The Civil Clock (UTC Markers)
 
-Every wall-clock surface renders through `src/clock.rs` - Howard
+Every wall-clock surface renders through `src/info/clock.rs` - Howard
 Hinnant's `civil_from_days` algorithm on `std::time` only, no time
 crate, no timezone database in the binary:
 

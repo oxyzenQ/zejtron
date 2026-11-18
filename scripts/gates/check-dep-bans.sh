@@ -14,7 +14,7 @@
 #
 # Banned everywhere, no exceptions:
 #   chrono, iana-time-zone, time  — the civil clock contract is
-#     std-only (night-improve-13; src/clock.rs carries the math)
+#     std-only (night-improve-13; src/info/clock.rs carries the math)
 #   serde, serde_core, serde_derive, serde_json — the JSON lane is
 #     hand-written in src/evidence/json.rs (std-only,
 #     byte-deterministic); no crates exist only to move JSON
