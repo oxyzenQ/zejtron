@@ -1,0 +1,225 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The proofs lane (night-datapath-1, the proven datapath - the
+# zelynic night-frontier-Z6 port): the per-push verdict vehicle for
+# the decidable instruments the proofs package carries. The included
+# sources are #[path] wirings of the userspace tree's leaf law files
+# - src/ebpf/events.rs and src/info/clock.rs, the SAME bytes the
+# binary builds - so a theorem this lane verifies is a theorem the
+# datapath runs (the fuzz harnesses' include law, one directory over).
+#
+# Trigger discipline: push and pull_request, no schedule. The lane is
+# capped at 15 minutes wall per job (the estate's per-push budget
+# law) and its hosted measurement is 40 seconds for the whole Kani
+# tier plus under a second for the property tier - the budget is a
+# ceiling, not a runtime.
+#
+# No night lane exists, and that is a measured verdict, not an
+# omission: the zelynic reference split a solver-bound tier (four
+# theorems measured unfinished at ten minutes) into
+# proofs-night.yml with per-harness 300-minute budgets. zejtron's
+# theorems carry no such circuit - the slowest harness measured 39.7
+# seconds (the civil-arithmetic round trip, 41 symbolic bits, this
+# host's CPU, kani 0.68.0, CaDiCaL backend), and every other harness
+# finished in under a second. A night lane with nothing solver-bound
+# in it would be a schedule-only lane the estate's law already
+# forbids. The split rule stays armed, not triggered: if any Kani or
+# loom lane ever runs over 30 minutes, it must split into micro
+# tests - one harness per invocation is already the finest split a
+# for-all theorem allows (a verdict is never lost to a sibling's
+# budget), and the honest further lever is lemma decomposition, a
+# proof-shape change that needs its own signed round. A harness that
+# cannot decide inside 30 minutes moves to that round; the budget is
+# never the lever.
+#
+# The loom instrument is censused, NOT adopted, by signed census
+# verdict (night-datapath-1): loom 0.7.3 proves interleavings of
+# shared-memory protocols, and zejtron's proof-carrying cores are
+# pure functions with no shared mutable state - the two atomics the
+# userspace tree carries are plain startup statics, not
+# location-backed raw-memory CAS. Inventing shared state a checker
+# could explore would prove a model, not the binary. The verdict is
+# standing-enforced: the loom-census job below re-reads the tree on
+# every push and fails the day the basis moves. The record rides
+# proofs/Cargo.toml's header and docs/PROOFS.md.
+#
+# Check-name discipline (the owner's call): every check name carries
+# its engine - "Kani bounded model checking (...)", "Proptest
+# exhaustion (...)", "Loom concurrency census (...)" - the shape the
+# Miri lane already sets ("Miri UB verification (...)"). A generic
+# tier label hides the instrument a buyer is buying; the names move
+# no step, no pin, no budget.
+
+name: zejtron - Proofs
+
+"on":
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# One run per ref: a new push supersedes the previous run's verdict
+# (the sibling's concurrency shape, every workflow in the estate).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  property:
+    name: Proptest exhaustion (4096 cases per law, stable, rootless)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # NIGHT-strict-3: the compile is warning-gated - registry
+      # dependencies stay capped by cargo's --cap-lints, so only
+      # first-party code can fail. Probe-verified on this crate: the
+      # clean tree compiles and passes under the flag.
+      RUSTFLAGS: -D warnings
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain (the root pin, minimal profile)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+
+      - name: Cache cargo registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: proofs-property-${{ runner.os }}-${{ hashFiles('proofs/Cargo.lock') }}
+          restore-keys: proofs-property-${{ runner.os }}-
+
+      # The law files compile from src/ under this package's own
+      # crate - no root build, no nightly, no eBPF objects: the proof
+      # lane's footprint is the instruments plus the law bytes.
+      - name: Property exhaustion (proptest, 4096 cases per law)
+        run: cd proofs && cargo test --locked
+
+  kani:
+    name: Kani bounded model checking (6 totality theorems, all inputs)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # NIGHT-strict-3: the crate compilation under the kani driver is
+      # warning-gated too. kani 0.68.0 carries no --deny-warnings flag;
+      # RUSTFLAGS is the vehicle, and cargo passes it into the kani
+      # driver's rustc invocation. Probe-verified on the sibling's
+      # lane: the clean tree verifies under the flag.
+      RUSTFLAGS: -D warnings
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain (the root pin, minimal profile)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+
+      # The pinned kani release: cargo-kani is a thin wrapper whose
+      # first run downloads the bundled verification toolchain. The
+      # cache keys on the release version - a bump re-downloads by
+      # construction.
+      - name: Install kani-verifier (pinned release)
+        run: cargo install --locked kani-verifier@0.68.0
+
+      - name: Cache the kani toolchain bundle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: ~/.kani
+          key: kani-0.68.0-${{ runner.os }}
+
+      - name: Kani first-time setup (bundled toolchain)
+        run: cargo kani setup
+
+      - name: Cache cargo registry
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: proofs-kani-${{ runner.os }}-${{ hashFiles('proofs/Cargo.lock') }}
+          restore-keys: proofs-kani-${{ runner.os }}-
+
+      # The decidable tier: six theorems, one invocation per harness -
+      # a verdict is never lost to a sibling's budget. Measured on the
+      # port host: five harnesses under a second each, the
+      # civil-arithmetic round trip 39.7 seconds; the whole tier is
+      # 40 seconds of solver time inside the 15-minute job.
+      - name: For-all theorems (the decidable tier)
+        run: |
+          cd proofs
+          for h in \
+            device_token_zero_extends_for_all_inputs \
+            record_sizes_are_the_shared_contract_for_all_inputs \
+            is_port_surface_event_matches_the_spec_for_all_inputs \
+            pack_filter_key_is_injective_on_the_documented_domain \
+            pack_filter_key_aliases_exactly_as_documented_for_all_inputs \
+            civil_arithmetic_round_trips_and_stays_in_domain_for_all_inputs; do
+            cargo kani --lib --harness "$h"
+          done
+
+  loom-census:
+    name: Loom concurrency census (absence guard, signed verdict)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
+        with:
+          persist-credentials: false
+
+      # The signed census verdict (proofs/Cargo.toml's header,
+      # docs/PROOFS.md): loom is censused, NOT adopted - zejtron's
+      # proof-carrying cores are pure functions, the userspace tree's
+      # two atomics are plain startup statics, and no shared-memory
+      # protocol exists for an interleaving checker to explore. This
+      # guard re-reads the tree every push and fails the day the
+      # signed basis moves: the reopen trigger made mechanical, not
+      # archival.
+      - name: Enforce the signed census verdict (the absence scan)
+        run: |
+          set -eu
+          # The count-must-survive-a-no-match law: grep exits 1 on zero
+          # matches and set -e would kill the scan, so every count rides
+          # wc -l (exit 0 always) - the SC2126 style hint is disabled.
+          # shellcheck disable=SC2126
+          stray=$(grep -rEn 'Atomic[A-Za-z0-9]*::from_(ptr|mut|mut_ptr)' \
+            --include='*.rs' src proofs fuzz test | wc -l)
+          # shellcheck disable=SC2126
+          loom_api=$(grep -rEn '\bloom::' \
+            --include='*.rs' src ebpf/src proofs fuzz test | wc -l)
+          # shellcheck disable=SC2126
+          loom_dep=$(grep -E '^[[:space:]]*loom[[:space:]]*=' \
+            Cargo.toml ebpf/Cargo.toml proofs/Cargo.toml fuzz/Cargo.toml \
+            | wc -l)
+          echo "location-backed atomic sites outside the designated files (must stay 0): ${stray}"
+          echo "loom api references in code (must stay 0): ${loom_api}"
+          echo "loom manifest dependencies (must stay 0): ${loom_dep}"
+          if [ "${stray}" -gt 0 ]; then
+            echo "FAIL: a location-backed atomic landed outside the designated"
+            echo "files - the census's no-shared-memory basis has moved. Restore"
+            echo "the shape or re-sign the census (docs/PROOFS.md)."
+            exit 1
+          fi
+          if [ "${loom_api}" -gt 0 ] || [ "${loom_dep}" -gt 0 ]; then
+            echo "FAIL: loom entered the tree without a standing lane - the census"
+            echo "NO (censused, NOT adopted) holds only while loom stays out. Give"
+            echo "the instrument a real shared-memory protocol and a signed round,"
+            echo "or take it back out."
+            exit 1
+          fi
+          echo "CENSUS: loom absent, no location-backed atomics outside the"
+          echo "designated files - the signed verdict holds."

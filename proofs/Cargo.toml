@@ -1,0 +1,72 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# night-datapath-1 (the proven datapath, the zelynic night-frontier-Z6
+# port): the proof-harness package. A detached nested package - the
+# ebpf/ crate's own detachment shape - so the proof instruments never
+# enter the root manifest's dependency graph (the dependency law holds:
+# nothing here ships in any binary, and the root crate's Cargo.lock
+# never sees these crates).
+#
+# Two instruments, one package, each with its own lane:
+#
+#  * proptest  (dev-dependency): property-based exhaustion of the pure
+#    cores' laws on stable - thousands of shrinkable cases per law per
+#    run, the sampled-but-shrinking instrument.
+#  * kani      (sysroot-provided by cargo kani, no manifest entry):
+#    bounded model checking - FOR ALL INPUTS within the harness's
+#    domain, the totality laws become machine-checked theorems. The
+#    harnesses live in the #[cfg(kani)] module and only compile under
+#    the kani toolchain.
+#
+# The loom instrument was examined and returned a signed census NO
+# (night-datapath-1): loom 0.7.3 proves interleavings of shared-memory
+# protocols, and zejtron's proof-carrying cores (events.rs, clock.rs)
+# are pure functions with no shared mutable state at all - the two
+# atomics the userspace tree carries are plain statics set once at
+# startup, not location-backed raw-memory CAS. Expressing a protocol
+# loom could prove would mean INVENTING shared state the datapath does
+# not have: a model, not a proof of the bytes the binary runs. The
+# verdict is standing-enforced, not archival: the proofs.yml
+# loom-census job re-reads the tree on every push and fails the day a
+# location-backed atomic lands outside its designated file or a loom
+# dependency enters without a standing lane. The instrument reopens
+# the day the tree carries a real shared-memory protocol.
+#
+# The included sources are #[path] wirings of the userspace tree's
+# leaf law files - the SAME bytes the binary builds (the fuzz
+# harnesses' include law, one directory over). A law the proofs verify
+# is a law the datapath runs.
+#
+# Why libc rides [dependencies]: the wired clock_core file's monotonic
+# helper reads CLOCK_MONOTONIC through the libc pair the root crate
+# already depends on. The proofs crate compiles the same bytes, so it
+# carries the same dependency - dev-instrument only, publish=false,
+# detached from the root graph.
+
+[package]
+name = "zejtron-proofs"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "AGPL-3.0-only"
+repository = "https://github.com/oxyzenQ/zejtron"
+description = "Proof harnesses for zejtron's pure cores (proptest exhaustion on stable, Kani bounded model checking under the kani toolchain)."
+
+[dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+# The cfg name the kani harness module evaluates: cfg(kani) is set only
+# by the kani toolchain's cargo-kani invocation. Without the
+# registration the unexpected_cfgs lint fires on every build with the
+# cfg unset.
+rust = { unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] } }
+
+[lints.clippy]
+# NIGHT-guard-1's law holds here too: every unsafe block states its
+# proof (the wired clock_core carries its own).
+undocumented_unsafe_blocks = "deny"

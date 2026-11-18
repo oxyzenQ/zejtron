@@ -6,9 +6,11 @@
 //! cross-encoding proof (st_dev and s_dev are two encodings of one
 //! (major, minor) pair - both sides must land on the same canonical
 //! integer or the filter never matches), the op numbering, the
-//! offsets slot indices. Wired from src/ebpf/events.rs.
+//! offsets slot indices. Wired from src/ebpf/mod.rs (night-datapath-1
+//! moved the declaration out of the law file, so the gate lanes run
+//! the same pins against the same bytes).
 
-use super::*;
+use super::events::*;
 use crate::commands::lane::device_token_from_stat;
 use core::mem::offset_of;
 use std::os::unix::fs::MetadataExt;

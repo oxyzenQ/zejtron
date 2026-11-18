@@ -165,6 +165,26 @@ release's prerelease flag), and every rewrite consumes an optional
 old-version suffix, so a tree sitting on an rc cut bumps to the next rc
 or to stable with no stale `-rc.N` tail on any rewritten surface.
 
+## Proofs (the proven datapath)
+
+The `zejtron - Proofs` workflow runs on every push and pull request -
+the per-push verdict vehicle for the decidable instruments. Three
+jobs, one checks list: **Proptest exhaustion** (4096 shrinkable cases
+per law, stable, rootless), **Kani bounded model checking** (six
+totality theorems, FOR ALL INPUTS in each harness's domain, one
+invocation per harness so a verdict is never lost to a sibling's
+budget - the whole tier measured 40 seconds against the 15-minute
+job ceiling), and the **Loom concurrency census** (the signed census
+verdict's standing absence guard - a per-push scan that fails the day
+a location-backed atomic lands outside the designated files or loom
+enters without a standing lane; a guard, not a lane). The proof
+targets are the leaf law files wired through `#[path]` - the SAME
+bytes the binary builds, the fuzz harnesses' include law - so a
+theorem the lane verifies is a theorem the datapath runs. The full
+record lives in `docs/PROOFS.md`: the theorem table with its measured
+budgets, the armed 30-minute split rule, why no night lane exists,
+and the signed loom verdict.
+
 ## Release Command Flow
 
 ```sh

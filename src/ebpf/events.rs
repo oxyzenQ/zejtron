@@ -419,6 +419,9 @@ pub struct ProcExitEvent {
 /// record-length check agree on.
 pub const PROCEXIT_EVENT_BYTES: usize = core::mem::size_of::<ProcExitEvent>();
 
-#[cfg(test)]
-#[path = "../../test/ebpf/file_events_tests.rs"]
-mod tests;
+// The contract pins live in test/ebpf/file_events_tests.rs, wired
+// from src/ebpf/mod.rs (night-datapath-1): this file is a leaf law
+// library - plain core Rust the proofs package compiles through
+// #[path] alongside the binary - so no #[cfg(test)] module may ride
+// inside it. The host-side wiring keeps the same test file in the
+// same gate lanes; nothing moved but the declaration.

@@ -493,6 +493,14 @@ pub mod embedded;
 /// into the object, the host compiles the same file for the readers.
 pub mod events;
 
+// The events contract's test pins (night-improve-3). The declaration
+// rides here, not inside events.rs (night-datapath-1): the law file
+// stays a pure leaf the proofs package compiles through #[path], and
+// the same test file stays in the same gate lanes.
+#[cfg(test)]
+#[path = "../../test/ebpf/file_events_tests.rs"]
+mod events_contract_tests;
+
 pub mod btf;
 /// The planting half of the loader (night-hunter-4's pure move at
 /// the 600 LOC cap): the probe-object names and the per-program
