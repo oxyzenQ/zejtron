@@ -535,6 +535,101 @@ STUB
 	fi
 fi
 
+# 9. The camera-cost surface's logic (night-frontier-Z4): the same
+# hermetic stub treatment - the runtime budgets' verdict directions
+# proved on known-good and known-bad fixtures, no kernel, no root.
+# The surface rides the suite's set -Eeuo pipefail world, so the
+# seats also prove the ceiling block's own set -e safety (a bare
+# subshell there would kill the suite - the first live run's
+# finding, honored in the surface).
+# The gate's 1d source-resolution check verifies the target exists,
+# fail-closed - shellcheck's follow is a convenience here, not the
+# verifier (the same law the surface source above rides).
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/camera-cost.sh"
+
+if [[ -e /sys/fs/bpf/zejtron ]]; then
+	sm_skip "selftest: the camera-cost matrix" \
+		"a live camera is attached on this host - the matrix rides a hermetic stub, not a real estate"
+else
+	write_cost_stub() {
+		local path="$1" mode="$2"
+		cat >"$path" <<STUB
+#!/usr/bin/env bash
+# The stub camera-cost seat (mode: $mode).
+case "\$1" in
+	doctor)
+		case "\${2:-}" in
+			--attach)
+				[[ "$mode" == "slow" ]] && sleep 2.2
+				exit 0
+				;;
+			--detach) exit 0 ;;
+			"")
+				[[ "$mode" == "fat" ]] && exit 7
+				exit 0
+				;;
+		esac
+		;;
+	--version) exit 0 ;;
+	proc) [[ "$mode" == "fat" ]] && exit 7; exit 0 ;;
+	path) exit 0 ;;
+	why) [[ "$mode" == "fat" ]] && exit 7; exit 0 ;;
+esac
+exit 3
+STUB
+		chmod 755 "$path"
+	}
+
+	run_cost_seat() {
+		# <mode> <want-pass> <want-fail> <want-skip> <needle>
+		local mode="$1" wp="$2" wf="$3" ws="$4" needle="$5"
+		local stub="$SM_SCRATCH/stub-cost-$mode"
+		write_cost_stub "$stub" "$mode"
+		local bp=$SM_PASS bf=$SM_FAIL bs=$SM_SKIP
+		local bfail_txt="$SM_FAILURES" bskip_txt="$SM_SKIP_REASONS"
+		rm -rf "$SM_SCRATCH/cost"
+		SM_DEFAULT_BIN="$stub"
+		surface_camera_cost
+		SM_DEFAULT_BIN=""
+		if [[ "$wf" -gt 0 ]]; then
+			probe_failures=$((probe_failures + wf))
+		fi
+		local gp=$((SM_PASS - bp)) gf=$((SM_FAIL - bf)) gs=$((SM_SKIP - bs))
+		if [[ "$gp" -eq "$wp" && "$gf" -eq "$wf" && "$gs" -eq "$ws" ]]; then
+			sm_pass "selftest: the camera-cost $mode seat lands ($gp pass / $gf fail / $gs skip)"
+		else
+			probe_failures=$((probe_failures + 1))
+			sm_fail "selftest: the camera-cost $mode seat" \
+				"want $wp pass / $wf fail / $ws skip, got $gp / $gf / $gs"
+			return 0
+		fi
+		if [[ -n "$needle" ]]; then
+			if [[ "$wf" -gt 0 ]] && grep -qF -- "$needle" <<<"${SM_FAILURES#"$bfail_txt"}"; then
+				sm_pass "selftest: the camera-cost $mode failure names its direction"
+			elif [[ "$ws" -gt 0 ]] && grep -qF -- "$needle" <<<"${SM_SKIP_REASONS#"$bskip_txt"}"; then
+				sm_pass "selftest: the camera-cost $mode skip names its reason"
+			else
+				probe_failures=$((probe_failures + 1))
+				sm_fail "selftest: the camera-cost $mode seat's needle" \
+					"the inventory never named: $needle"
+			fi
+		fi
+	}
+
+	# The honest camera: every budget holds - size, attach, both
+	# ceilings, detach, pin directory gone (7 passes).
+	run_cost_seat honest 7 0 0 ""
+	# The slow camera: the attach plants in 2.2s - over the 2s
+	# contract. The measured milliseconds name the miss.
+	run_cost_seat slow 6 1 0 "the attach took"
+	# The fat camera: the estate live under the ceiling refuses AND
+	# the planted doctor refuses - BOTH ceiling blocks name it (the
+	# stub fails every invocation, so both directions of the ceiling
+	# are exercised: without and with the camera planted).
+	run_cost_seat fat 5 2 0 "outgrew the contract"
+fi
+
 rm -rf "$SM_SCRATCH"
 
 # The verdict: the failure counter must hold EXACTLY the deliberate

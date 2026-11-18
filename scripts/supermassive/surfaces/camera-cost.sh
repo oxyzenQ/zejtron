@@ -81,15 +81,26 @@ surface_camera_cost() {
 	# (EPOCHREALTIME is the timer - bash 5, no date fork, sub-ms
 	# resolution; the attach itself rides sm_run's own 20s cap as the
 	# outer belt.)
+	# The userland memory ceiling: the representative surfaces run
+	# under ulimit -v 65536 (64 MiB of ADDRESS SPACE, the kernel
+	# enforcing the contract). The subshells ride the `|| rc2=$?`
+	# capture - a bare subshell under the suite's set -Eeuo pipefail
+	# would kill the WHOLE suite on the ceiling's own refusal (the
+	# first live run's finding, fixed the same night: the floor VM
+	# died inside the ceiling block, the verdict shipped without its
+	# summary). The invocations ride the documented flag spellings
+	# (--version, not a bare `version` - the parser's usage error
+	# rc 2 would fail the block for a reason that has nothing to do
+	# with memory).
 	printf 'cost-contract probe file\n' >"$scratch/probe.txt"
+	rc2=0
 	(
 		ulimit -v 65536
-		"$SM_DEFAULT_BIN" version >/dev/null 2>&1 &&
+		"$SM_DEFAULT_BIN" --version >/dev/null 2>&1 &&
 			"$SM_DEFAULT_BIN" proc --me >/dev/null 2>&1 &&
 			"$SM_DEFAULT_BIN" path "$scratch/probe.txt" >/dev/null 2>&1 &&
 			"$SM_DEFAULT_BIN" why "$scratch/probe.txt" --raw >/dev/null 2>&1
-	)
-	rc2=$?
+	) || rc2=$?
 	if [[ "$rc2" -eq 0 ]]; then
 		sm_pass "camera-cost: the representative surfaces run under the 64 MiB ceiling"
 	else
@@ -98,11 +109,11 @@ surface_camera_cost() {
 	fi
 	# The ceiling holds while the CAMERA IS ATTACHED - the whole
 	# point: the plant must not change the tool's price.
+	rc2=0
 	(
 		ulimit -v 65536
 		"$SM_DEFAULT_BIN" doctor >/dev/null 2>&1
-	)
-	rc2=$?
+	) || rc2=$?
 	if [[ "$rc2" -eq 0 ]]; then
 		sm_pass "camera-cost: the doctor answers under the 64 MiB ceiling WITH the camera planted"
 	else
