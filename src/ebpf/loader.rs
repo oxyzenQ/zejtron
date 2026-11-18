@@ -420,7 +420,8 @@ pub fn attach() -> Result<String, String> {
                 dirty_planted,
                 splice_planted,
                 iouring_planted,
-            );
+            )
+            .map_err(fail)?;
             super::estate::write_offpath_mask(verdict.mask).map_err(fail)?;
             for reason in &verdict.named_down {
                 vlog!("engine", "{reason}");

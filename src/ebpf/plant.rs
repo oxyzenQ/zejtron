@@ -433,6 +433,13 @@ pub(super) fn unplant_offpath_capability(bit: u64) -> Result<usize, String> {
             vlog!("engine", "off-path capability unplanted: {pin}");
         }
     }
+    if removed < 2 {
+        return Err(format!(
+            "the named-down unplant removed only {removed} of 2 pins - a \
+             half-removed capability is the half state the estate refuses; \
+             the attach cannot proceed (the fail protocol cleans everything)"
+        ));
+    }
     Ok(removed)
 }
 

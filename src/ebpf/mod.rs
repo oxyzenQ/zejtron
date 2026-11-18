@@ -204,19 +204,24 @@ pub const ALL_PINS: [&str; 30] = [
 /// (a crashed attach, a manual rm) reads as NOT attached - `attach`
 /// cleans and replants, the doctor names the partial set.
 pub fn all_pins_present() -> bool {
-    let mask = estate::read_offpath_mask().unwrap_or(0);
-    ALL_PINS.iter().all(|p| {
-        if let Some(bit) = offpath_pin_bit(p) {
-            mask & bit != 0
-        } else {
-            Path::new(p).exists()
-        }
-    })
+    // THE CORE-CAMERA LAW (night-frontier-Z7, restored): the window
+    // paths' presence verdict is the CORE pins' existence, exactly
+    // the pre-D4 semantics - a named-down or inconsistent off-path
+    // capability must NEVER flip the core camera into the log lane
+    // (the C77 root leg caught that live: a mask/pin disagreement
+    // turned every why into an empty log-lane render). The mask
+    // stays the ATTACH boundary's bookkeeping: the idempotence path
+    // runs the mask-consistency verdict by name, and the reverify
+    // reads it to skip the named-down slots. An orphan off-path pin
+    // shows in the doctor's pins row (named), never in this verdict.
+    ALL_PINS
+        .iter()
+        .all(|p| offpath_pin_bit(p).is_none() && Path::new(p).exists())
 }
 
 /// The off-path pin's capability bit, or None for a core pin - the
 /// one mapping the presence law and the mask verdict share.
-fn offpath_pin_bit(pin: &str) -> Option<u64> {
+pub(crate) fn offpath_pin_bit(pin: &str) -> Option<u64> {
     match pin {
         PIN_PROG_DIRTY | PIN_LINK_DIRTY => Some(estate::OFFPATH_BIT_DIRTY),
         PIN_PROG_SPLICE | PIN_LINK_SPLICE => Some(estate::OFFPATH_BIT_SPLICE),

@@ -64,16 +64,23 @@ pub struct OffPathVerdict {
 /// verdict's mask names which ones PROVED themselves. The caller
 /// writes the mask into the generation stamp and prints the
 /// named-down reasons.
-pub fn verify_offpath_probes(dirty: bool, splice: bool, iouring: bool) -> OffPathVerdict {
+pub fn verify_offpath_probes(
+    dirty: bool,
+    splice: bool,
+    iouring: bool,
+) -> Result<OffPathVerdict, String> {
     let mut mask = 0u64;
     let mut named_down = Vec::new();
     if dirty {
         match verify_capability(verify_mmap_once, FILE_OP_MMAP_DIRTY) {
             Ok(()) => mask |= OFFPATH_BIT_DIRTY,
             Err(error) => {
-                if let Err(unplant_error) = unplant_offpath_capability(OFFPATH_BIT_DIRTY) {
-                    named_down.push(format!("mmap-dirty unplant failed: {unplant_error}"));
-                }
+                // The named-down MUST be clean: an unplant that
+                // removes fewer than both pins is the half state the
+                // estate refuses - the error propagates and the
+                // caller's fail protocol takes the whole estate down
+                // (never a half-attached camera).
+                unplant_offpath_capability(OFFPATH_BIT_DIRTY)?;
                 named_down.push(format!("mmap-dirty named down: {error}"));
             }
         }
@@ -82,9 +89,7 @@ pub fn verify_offpath_probes(dirty: bool, splice: bool, iouring: bool) -> OffPat
         match verify_capability(verify_splice_once, FILE_OP_SPLICE_IN) {
             Ok(()) => mask |= OFFPATH_BIT_SPLICE,
             Err(error) => {
-                if let Err(unplant_error) = unplant_offpath_capability(OFFPATH_BIT_SPLICE) {
-                    named_down.push(format!("splice unplant failed: {unplant_error}"));
-                }
+                unplant_offpath_capability(OFFPATH_BIT_SPLICE)?;
                 named_down.push(format!("splice named down: {error}"));
             }
         }
@@ -93,14 +98,12 @@ pub fn verify_offpath_probes(dirty: bool, splice: bool, iouring: bool) -> OffPat
         match verify_capability(verify_iouring_once, FILE_OP_IO_URING_WRITE) {
             Ok(()) => mask |= OFFPATH_BIT_IOURING,
             Err(error) => {
-                if let Err(unplant_error) = unplant_offpath_capability(OFFPATH_BIT_IOURING) {
-                    named_down.push(format!("io_uring unplant failed: {unplant_error}"));
-                }
+                unplant_offpath_capability(OFFPATH_BIT_IOURING)?;
                 named_down.push(format!("io_uring named down: {error}"));
             }
         }
     }
-    OffPathVerdict { mask, named_down }
+    Ok(OffPathVerdict { mask, named_down })
 }
 
 /// One capability's door: the hardened scratch, the tracked key, the
