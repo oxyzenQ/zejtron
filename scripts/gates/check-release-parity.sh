@@ -149,6 +149,6 @@ if [ "$FAILED" -gt 0 ]; then
 	echo "FAIL: $FAILED platform(s) out of parity"
 	exit 1
 else
-		echo "OK: all release platforms in local-alias/matrix parity"
+	echo "OK: all release platforms in local-alias/matrix parity"
 	exit 0
 fi
