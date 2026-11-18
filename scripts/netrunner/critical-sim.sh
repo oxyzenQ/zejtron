@@ -646,7 +646,7 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 			r=0
 			while [ "$r" -lt 64 ]; do
 				r=$((r + 1))
-				n=$(( (round - 1) * 64 + r ))
+				n=$(((round - 1) * 64 + r))
 				qc_file="$qc_dir/hot-$n.bin"
 				: >"$qc_file"
 				"$BIN" why "$qc_file" --since 8s --raw \

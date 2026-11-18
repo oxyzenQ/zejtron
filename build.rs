@@ -21,6 +21,12 @@ mod ebpf;
 #[path = "build/prebuilt.rs"]
 mod prebuilt;
 
+// The camera object's build-time digest stamp (night-frontier-Z5, split
+// out of build/ebpf.rs per the 600-LOC cap - the btf_decode.rs
+// precedent). Both staging lanes call it over the staged bytes.
+#[path = "build/camera.rs"]
+mod camera;
+
 // The std-only BLAKE3 the prebuilt lane verifies the manifest's
 // object pin with (night-weekly-maintenance-1: the checksum lane
 // upgraded from the night-improve-5 SHA-256) - build.rs stays
