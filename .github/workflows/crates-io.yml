@@ -71,6 +71,15 @@ jobs:
     # tags); 15 keeps the dry-run package honest while the publish
     # lane stays wider.
     timeout-minutes: 15
+
+    env:
+      # NIGHT-strict-3: the package dry run compiles the crate, so it
+      # denies warnings - a warning fails the tag-gated publish lane,
+      # the same contract every other compiling lane holds. The dry
+      # run has no target-level rustflags contract to shadow, so the
+      # env token is safe here.
+      RUSTFLAGS: -D warnings
+
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin

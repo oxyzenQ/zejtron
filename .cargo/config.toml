@@ -120,6 +120,16 @@ pro-native-arm64-musl = [
 # Parity contract (scripts/gates/check-release-parity.sh): the -C
 # tokens below must equal the release matrix's rustflags verbatim -
 # a one-file edit can no longer silently break that contract.
+#
+# NIGHT-strict-3 (the estate-wide warning-denial law): the release-
+# shaped aliases carry "-D","warnings" as the leading rustflag token,
+# mirroring the release matrix's env order, so every lane that builds
+# through these aliases (supermassive, its e2e/alpine/container legs,
+# the kernel floor and kernel witnesses) fails on the first warning -
+# same posture as the release lane, no env RUSTFLAGS override (an env
+# var would SHADOW the target-level rustflags and silently drop the
+# -C codegen contract). The pro-native dev aliases stay lint-free:
+# a local scratch build has no business failing on warnings.
 pro-linux-amd64-v3-musl = [
   "build",
   "--profile",
@@ -127,7 +137,7 @@ pro-linux-amd64-v3-musl = [
   "--config",
   "env.ZEJTRON_BUILD=\"local-pro-linux-amd64-v3-musl\"",
   "--config",
-  "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=x86-64-v3\",\"-C\",\"target-feature=+crt-static\"]",
+  "target.x86_64-unknown-linux-musl.rustflags=[\"-D\",\"warnings\",\"-C\",\"target-cpu=x86-64-v3\",\"-C\",\"target-feature=+crt-static\"]",
   "--target",
   "x86_64-unknown-linux-musl",
 ]
@@ -138,7 +148,7 @@ pro-linux-amd64-v4-musl = [
   "--config",
   "env.ZEJTRON_BUILD=\"local-pro-linux-amd64-v4-musl\"",
   "--config",
-  "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=x86-64-v4\",\"-C\",\"target-feature=+crt-static\"]",
+  "target.x86_64-unknown-linux-musl.rustflags=[\"-D\",\"warnings\",\"-C\",\"target-cpu=x86-64-v4\",\"-C\",\"target-feature=+crt-static\"]",
   "--target",
   "x86_64-unknown-linux-musl",
 ]

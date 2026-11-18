@@ -103,6 +103,12 @@ jobs:
       # (the stable pin the main crate's lanes ride) cannot leak into
       # the fuzz build.
       RUSTUP_TOOLCHAIN: nightly
+      # NIGHT-strict-3: the harness build denies warnings too - a
+      # warning in the fuzz compile fails the lane, the same contract
+      # every other compiling lane holds. cargo-fuzz composes its own
+      # sancov instrumentation flags ON TOP of this env value, so the
+      # deny token rides along without touching the sanitizer setup.
+      RUSTFLAGS: -D warnings
 
     steps:
       - name: Checkout
