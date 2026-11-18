@@ -105,7 +105,9 @@ reason - a wedged leg fails the leg, not the lane).
 The dependency footprint must stay **minimal**. No new runtime dependencies
 should be added unless absolutely necessary. Dependency refreshes are handled by
 the weekly maintenance workflow, which runs `cargo update` in every workspace
-(auto-detected by walking each committed `Cargo.toml` - root, `ebpf/`, `fuzz/`),
+(auto-detected by `scripts/ci/refresh-cargo-deps.sh`, which walks each committed
+`Cargo.toml` - root, `ebpf/`, `fuzz/`, and any future subfolder workspace - and
+runs `cargo update` in each parent directory),
 proves the prebuilt lane through the ONE WRITER (the parity rider: the
 read-only verdict first, a rebuild only when the manifest pin lags the swept
 tree), executes the full

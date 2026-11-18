@@ -87,21 +87,19 @@ jobs:
       - name: Install codespell
         run: python3 -m pip install --user codespell==2.4.3
 
-      # night-zen-1: the refresh walks every committed Cargo.toml and
-      # runs cargo update in each workspace, so ebpf/ and fuzz/ ride
-      # the same weekly lane as the root crate (the root-only cargo
+      # night-zen-1, moved into its own file by night-consistent-2:
+      # the refresh script walks every committed Cargo.toml and runs
+      # cargo update in each workspace, so ebpf/ and fuzz/ ride the
+      # same weekly lane as the root crate (the root-only cargo
       # update left two of the three committed lockfiles permanently
       # stale). New workspaces join the lane without touching this
       # file; target trees are excluded so cache-restored build output
-      # can never join the walk.
+      # can never join the walk. The walk, the exclusions, and the
+      # deterministic order now live in
+      # scripts/ci/refresh-cargo-deps.sh and stay one command here.
       - name: Refresh Cargo dependencies
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          while IFS= read -r manifest; do
-            echo "Refreshing $(dirname "$manifest")"
-            (cd "$(dirname "$manifest")" && cargo update)
-          done < <(find . -name Cargo.toml -not -path '*/target/*' | sort)
+        run: ./scripts/ci/refresh-cargo-deps.sh
 
       # night-zen-2: the parity rider (the zelynic sweep fix, ported).
       # A sweep that moves ebpf/Cargo.lock changes the ebpf/ tree hash,
