@@ -111,6 +111,8 @@ jobs:
       # miri component - exactly what `./scripts/build.sh miri` would
       # auto-install locally. The +nightly override in the runner wins
       # over the rust-toolchain.toml stable pin by construction.
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Install nightly + miri (the runner's own toolchain)
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:

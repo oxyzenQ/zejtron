@@ -76,6 +76,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Install Rust (1.98.1, the MSRV floor)
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
@@ -127,6 +129,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Install Rust (1.98.1, the MSRV floor)
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
@@ -186,6 +190,8 @@ jobs:
       # has served dead answers for the ubuntu.com zones (the floor
       # workflow's verified outage) - the public resolvers go first,
       # and the assertion stays loud.
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Harden DNS (bypass the runner resolver's dead ubuntu.com answers)
         run: |
           if grep -q 'nameserver 1.1.1.1' /etc/resolv.conf; then

@@ -48,6 +48,8 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Install Rust
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
@@ -191,6 +193,8 @@ jobs:
       # (the bot commit 9708883 incident, recorded in
       # docs/MAINTENANCE.md). The artifact now carries the whole
       # validated lane: every workspace lockfile plus ebpf-prebuilt/.
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Download validated dependency lane
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, SHA pin
         with:

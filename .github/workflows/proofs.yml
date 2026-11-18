@@ -86,6 +86,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Install Rust toolchain (the root pin, minimal profile)
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
@@ -123,6 +125,8 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Install Rust toolchain (the root pin, minimal profile)
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
         with:
@@ -189,6 +193,8 @@ jobs:
       # guard re-reads the tree every push and fails the day the
       # signed basis moves: the reopen trigger made mechanical, not
       # archival.
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Enforce the signed census verdict (the absence scan)
         run: |
           set -eu

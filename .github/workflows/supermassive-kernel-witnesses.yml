@@ -144,6 +144,8 @@ jobs:
       # asserts the resolution loudly - if ubuntu.com is unreachable
       # even via the public resolvers, the job fails here with the
       # diagnosis, not three steps later in an apt timeout.
+      - name: Harden DNS (the poisoned-resolver defense)
+        uses: ./.github/actions/harden-dns
       - name: Harden DNS (bypass the runner resolver's dead ubuntu.com answers)
         run: |
           if grep -q 'nameserver 1.1.1.1' /etc/resolv.conf; then
