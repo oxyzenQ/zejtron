@@ -30,23 +30,28 @@ const PROGRAM_PINS: [(&str, usize); 11] = [
     // io_uring probe carries its opcode filter and request walk,
     // and the splice probe rides the sys_enter section beside the
     // write probe (the two programs share the one section, the
-    // walker sums them - 591 + 39 = 630). The walk helpers moved
-    // into the shared text, 346 -> 653. The rows stay in the
-    // walker's own (byte-sorted) section order.
-    ("kprobe/__set_page_dirty_nobuffers", 18),
-    ("kprobe/filemap_dirty_folio", 4),
+    // walker sums them). THE INLINE LAW (found live by the C77 root
+    // leg): a bpf2bpf call into .text leaves an unresolved
+    // pseudo-call at BPF_PROG_LOAD - the 5.15 runner's verifier
+    // refused the splice probe with EPERM - so every walk is
+    // #[inline(always)] and each program carries its own hops (the
+    // folio anchor 95, the page anchor 109, the splice probe's 344
+    // beside the write probe's 591 in the shared section). The rows
+    // stay in the walker's own (byte-sorted) section order.
+    ("kprobe/__set_page_dirty_nobuffers", 109),
+    ("kprobe/filemap_dirty_folio", 95),
     ("kprobe/vfs_open", 109),
     ("kprobe/vfs_rename", 21),
     ("kprobe/vfs_unlink", 36),
     ("kprobe/vfs_writev", 104),
     ("tracepoint/io_uring/io_uring_submit_sqe", 143),
-    ("tracepoint/raw_syscalls/sys_enter", 630),
+    ("tracepoint/raw_syscalls/sys_enter", 935),
     ("tracepoint/sched/sched_process_exec", 12),
     ("tracepoint/sched/sched_process_exit", 75),
     ("tracepoint/sock/inet_sock_set_state", 144),
 ];
 
-const SHARED_TEXT_PIN: usize = 653;
+const SHARED_TEXT_PIN: usize = 382;
 
 /// The kernel-side ring contract: three bounded rings, the file
 /// events ring, the sock events ring, and the process exit ring,

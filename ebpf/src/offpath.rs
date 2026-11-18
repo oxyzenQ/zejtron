@@ -75,6 +75,16 @@
 //! every capability: an anchor that cannot record one real mmap
 //! write, one real splice, one real io_uring write is unplanted and
 //! NAMED - the silent-anchor class cannot survive attach, anywhere.
+//!
+//! THE INLINE LAW (found live by the C77 root leg): the shared walk
+//! helpers are `#[inline(always)]` because a bpf2bpf call into .text
+//! leaves an unresolved pseudo-call at BPF_PROG_LOAD - the 5.15
+//! runner's verifier refused the splice probe with EPERM while the
+//! log stopped at instruction zero (aya 0.16 loads each program's
+//! own section alone). The estate's own probes are inline-only for
+//! the same reason; this module now carries the same discipline, and
+//! the cost table's per-program counts prove it (no 4-instruction
+//! call stubs, no shared-text growth).
 
 use aya_ebpf::{
     helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns},
@@ -132,6 +142,7 @@ fn mapping_is_page_cache(mapping: usize) -> bool {
 /// op=6 record. A failed hop drops the event (a passive probe never
 /// fails the path it rides); a failed reservation counts in the
 /// file-events drop slot.
+#[inline(always)]
 unsafe fn dirty_publish(mapping: usize) -> u32 {
     if !mapping_is_page_cache(mapping) {
         return 0;
@@ -227,6 +238,7 @@ pub fn dirty_page_probe(ctx: ProbeContext) -> u32 {
 /// fdtable.fd). Returns the struct file address, `None` on any
 /// failed hop (a bad fd, an unreadable table - the event drops,
 /// never the kernel path).
+#[inline(always)]
 unsafe fn resolve_fd(fd: u64) -> Option<usize> {
     // SAFETY: bpf_get_current_task is a helper call the verifier
     // types; every dereference is a probe read bounded by the
@@ -250,6 +262,7 @@ unsafe fn resolve_fd(fd: u64) -> Option<usize> {
 /// (file->f_inode / file->f_path.mnt->mnt_sb - the writev probe's
 /// shape), the filter map, and the direction-named record. Returns
 /// 0 always (a passive probe never fails the path).
+#[inline(always)]
 unsafe fn splice_publish(file: usize, op: u8) -> u32 {
     // SAFETY: the same probe-read contract as every walk in this
     // crate: offsets from the attach-time map, probe reads that

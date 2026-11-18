@@ -25,30 +25,32 @@ instruction is 8 bytes. The derivation harness prints this table
 
 | program (its attach hook) | instructions |
 | --- | --- |
-| `kprobe/__set_page_dirty_nobuffers` (D4, the page-shape dirty anchor) | 18 |
-| `kprobe/filemap_dirty_folio` (D4, the folio-shape dirty anchor) | 4 |
+| `kprobe/__set_page_dirty_nobuffers` (D4, the page-shape dirty anchor) | 109 |
+| `kprobe/filemap_dirty_folio` (D4, the folio-shape dirty anchor) | 95 |
 | `kprobe/vfs_open` | 109 |
 | `kprobe/vfs_rename` | 21 |
 | `kprobe/vfs_unlink` | 36 |
 | `kprobe/vfs_writev` | 104 |
 | `tracepoint/io_uring/io_uring_submit_sqe` (D4) | 143 |
-| `tracepoint/raw_syscalls/sys_enter` (the write probe + the D4 splice probe) | 630 |
+| `tracepoint/raw_syscalls/sys_enter` (the write probe + the D4 splice probe) | 935 |
 | `tracepoint/sched/sched_process_exec` | 12 |
 | `tracepoint/sched/sched_process_exit` | 75 |
 | `tracepoint/sock/inet_sock_set_state` | 144 |
-| programs total | **1296** |
-| `.text` (shared helper text, BPF-to-BPF calls) | 653 |
-| **the whole camera** | **1949** |
+| programs total | **1783** |
+| `.text` (shared helper text) | 382 |
+| **the whole camera** | **2165** |
 
 night-frontier-Z7 (D4) re-pinned the table consciously: the off-path
 trio rides the same cost contract - the mmap-dirty truth, the splice
 truth, and the io_uring truth, all still gated by tracked_inodes so
-the cost stays bounded by questions, not host activity. The walk
-helpers became BPF-to-BPF subprograms (the shared text grew
-346 -> 653; the folio-shape anchor is a 4-instruction stub over the
-shared walk).
+the cost stays bounded by questions, not host activity. THE INLINE
+LAW (found live by the C77 root leg): a bpf2bpf call into .text
+leaves an unresolved pseudo-call at BPF_PROG_LOAD (the 5.15 runner's
+verifier refused the splice probe with EPERM), so every walk is
+inlined and each program carries its own hops - the estate's
+inline-only discipline, now proven by the table itself.
 
-For scale: a 1949-instruction camera is a few microseconds of work
+For scale: a 2165-instruction camera is a few microseconds of work
 per event. The tool that watches your files - INCLUDING the silent
 paths no other tool sees - costs less bytecode than one screen of C.
 
