@@ -327,8 +327,15 @@ anchor over the framed payload (the estate's own std-only BLAKE3,
 zero new dependencies). `-V` carries the status line
 (`Depth-matrix: fp=... status=verified anchor=b3:... layers=...`, the
 report's green provenance seat on a terminal, plain bytes in a pipe)
-and `zejtron sig` renders the whole four-depth matrix with the dual
-fingerprint row and the honest self-hash note. The constants come
+and `zejtron sig` renders the whole five-depth matrix with the dual
+fingerprint row and the honest self-hash note - and since
+night-frontier-Z5 the matrix carries D4, the camera object: the
+runtime re-hashes the embedded eBPF probe object (the one artifact
+that executes at ring 0) against the digest the build stamped over
+the same bytes as it staged them (build/ebpf.rs, both lanes), so a
+camera patched after the build refuses from the binary alone - the
+D3 self-hash needs a published hash to compare against, D4 needs
+nothing but itself. The constants come
 from the generator script - the committed truth source, carrying the
 identity once the way NOTICE does. The verify recipes and the honest
 limits (what AUTHENTIC proves and what only the pinned D3 hash

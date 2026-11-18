@@ -224,9 +224,12 @@ fn identity_core_extraction_law() {
     assert!(view.binding_ok);
 }
 
-/// The collected matrix on a linux host: all four depths pass, the
-/// rows ride in D0..D3 order, the image hash is present, and the
-/// verdict is the full 4/4 line. The test binary verifies itself.
+/// The collected matrix on a linux host: all five depths pass, the
+/// rows ride in D0..D4 order, the image hash is present, and the
+/// verdict is the full 5/5 line. The test binary verifies itself -
+/// the D4 row is the real self-check: the test binary's own build
+/// stamped the digest over the same object bytes it embedded, so a
+/// patched camera fails every suite lane that builds the crate.
 #[test]
 #[cfg(target_os = "linux")]
 fn collect_verifies_the_running_test_binary_authentic() {
@@ -234,14 +237,14 @@ fn collect_verifies_the_running_test_binary_authentic() {
     assert!(matrix.refused.is_none(), "no depth may refuse: {matrix:?}");
     assert!(matrix.is_authentic());
     let ids: Vec<&str> = matrix.rows.iter().map(|row| row.id).collect();
-    assert_eq!(ids, vec!["D0", "D1", "D2", "D3"]);
+    assert_eq!(ids, vec!["D0", "D1", "D2", "D3", "D4"]);
     for row in &matrix.rows {
         assert_eq!(row.status, DepthStatus::Pass, "row {} refused", row.id);
     }
-    assert_eq!(matrix.verified, 4);
+    assert_eq!(matrix.verified, 5);
     assert_eq!(
         matrix.verdict_text(),
-        "SIGNATURE: AUTHENTIC (4/4 depths verified)"
+        "SIGNATURE: AUTHENTIC (5/5 depths verified)"
     );
     assert_eq!(matrix.identity, "rezky_nightky (oxyzenQ) 2026");
     assert_eq!(matrix.authors, AUTHORS_ORACLE);
@@ -254,6 +257,53 @@ fn collect_verifies_the_running_test_binary_authentic() {
     assert_eq!(hash.len(), 64);
     assert_eq!(matrix.commit, super::super::build_hash());
     assert_eq!(matrix.build_time, super::super::build_time());
+}
+
+// ── night-frontier-Z5, the D4 camera-object pins ─────────────────────
+
+/// The pristine build's real self-check: the stamp the test binary's
+/// own build.rs produced recomputes from the very PROBE_ELF bytes the
+/// binary carries. A build whose object was patched after staging
+/// fails HERE, in every lane that compiles the crate.
+#[test]
+fn the_embedded_camera_object_recomputes_the_build_stamp() {
+    let stamped = option_env!("ZEJTRON_CAMERA_OBJECT_B3")
+        .expect("every build of this tree stamps the camera object digest");
+    let (status, detail) = camera_object_row(Some(stamped), crate::ebpf::loader::PROBE_ELF);
+    assert_eq!(status, DepthStatus::Pass, "{detail}");
+    assert!(
+        detail.contains("recomputes from the embedded probe object"),
+        "{detail}"
+    );
+    assert!(detail.starts_with("b3:"), "{detail}");
+}
+
+/// The tamper arm, through the real verify path: one flipped byte in
+/// the embedded object must refuse, naming BOTH digests - the
+/// recomputed one and the stamped one.
+#[test]
+fn a_patched_camera_object_refuses_naming_both_digests() {
+    let stamped = "e642ace8b8e9a3f549434d21c45413688fc6e3ec3afb7292f078cd0850f996ec";
+    let mut patched = crate::ebpf::loader::PROBE_ELF.to_vec();
+    let middle = patched.len() / 2;
+    patched[middle] ^= 0x01;
+    let (status, detail) = camera_object_row(Some(stamped), &patched);
+    assert_eq!(status, DepthStatus::Refused, "{detail}");
+    assert!(detail.contains("hashes to b3:"), "{detail}");
+    assert!(detail.contains(stamped), "{detail}");
+    assert!(detail.contains("patched after the build"), "{detail}");
+}
+
+/// The absence arm: a build without the stamp (an older build.rs) is
+/// unavailable with the reason named - never a guess, never a pass.
+#[test]
+fn a_build_without_the_stamp_names_the_unavailability() {
+    let (status, detail) = camera_object_row(None, crate::ebpf::loader::PROBE_ELF);
+    assert_eq!(status, DepthStatus::Unavailable, "{detail}");
+    assert!(
+        detail.contains("did not stamp the camera object digest"),
+        "{detail}"
+    );
 }
 
 /// The verdict's honest-partial arm: unavailable depths are named in
@@ -302,7 +352,7 @@ fn verdict_text_names_the_unavailable_depths() {
     assert!(matrix.is_authentic());
     assert_eq!(
         matrix.verdict_text(),
-        "SIGNATURE: AUTHENTIC (2/4 depths verified; D1, D3 unavailable on this host)"
+        "SIGNATURE: AUTHENTIC (2/5 depths verified; D1, D3 unavailable on this host)"
     );
 }
 
@@ -381,6 +431,7 @@ fn matrix_report_shape_is_pinned() {
         "D1 embedded-marker",
         "D2 anchor-integrity",
         "D3 binary-self-hash",
+        "D4 camera-object",
     ] {
         let count = lines.iter().filter(|l| l.starts_with(label)).count();
         assert_eq!(count, 1, "row label must appear exactly once: {label}");
@@ -394,7 +445,7 @@ fn matrix_report_shape_is_pinned() {
     assert!(report.contains(&format!("anchor      b3:{}", DEPTH_ANCHOR_HEX_ORACLE)));
     assert!(report.contains(&format!("commit      {}", matrix.commit)));
     assert!(report.contains(&format!("build-time  {}", matrix.build_time)));
-    assert!(report.contains("verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)"));
+    assert!(report.contains("verdict: SIGNATURE: AUTHENTIC (5/5 depths verified)"));
     // The self-hash note closes the report (the honest-limits law).
     assert!(
         report.contains("note: the self-hash is a fingerprint to compare against a\npublished release hash; it cannot embed its own digest."),
@@ -422,12 +473,12 @@ fn matrix_json_is_one_line_with_the_documented_keys() {
         "\"binary_self_hash\":\"",
         "\"depths\":[",
         "\"verdict\":\"AUTHENTIC\"",
-        "\"verified\":\"4/4\"",
+        "\"verified\":\"5/5\"",
     ] {
         assert!(json.contains(key), "the JSON lane must carry {key}: {json}");
     }
-    assert_eq!(json.matches("\"depth\":").count(), 4);
-    assert_eq!(json.matches("\"status\":\"pass\"").count(), 4);
+    assert_eq!(json.matches("\"depth\":").count(), 5);
+    assert_eq!(json.matches("\"status\":\"pass\"").count(), 5);
 }
 
 /// The JSON lane's absence arm, synthesized: an unavailable image

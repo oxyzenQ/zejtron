@@ -5,7 +5,7 @@
 //! night-signature-advanced-1 upgrade): the binary's own anti-theft /
 //! anti-fake-claim verification. The estate already states its
 //! identity (the -V `Copyright:` line, the trademark and licensing
-//! layers); this module makes the claim CHECKABLE, at four depths, by
+//! layers); this module makes the claim CHECKABLE, at five depths, by
 //! the binary itself and by anyone holding the artifact:
 //!
 //! - **D0 runtime identity** - the masked manifest materializes to
@@ -25,6 +25,13 @@
 //!   (`/proc/self/exe`), b3sum-verifiable outside the binary: the
 //!   owner pins one hash per release and any hacked or rebuilt
 //!   artifact answers for the bytes it actually carries.
+//! - **D4 camera object** (night-frontier-Z5) - BLAKE3 over the
+//!   embedded eBPF probe object, the one artifact that executes at
+//!   ring 0, compared against the digest the build stamped over the
+//!   same bytes as it staged them (build/ebpf.rs): a binary whose
+//!   camera was patched after the build refuses by name, from the
+//!   binary alone - the D3 self-hash needs a published hash to
+//!   compare against, D4 needs nothing but itself.
 //!
 //! The honesty law runs through every depth: an unverifiable depth is
 //! `unavailable` with the reason named, a contradicting depth is
@@ -91,7 +98,7 @@ pub(crate) struct SigMatrix {
     pub refused: Option<(&'static str, String)>,
     /// The unavailable depth ids, in row order.
     pub unavailable_ids: Vec<&'static str>,
-    /// How many of the four depths verified.
+    /// How many of the five depths verified.
     pub verified: usize,
 }
 
@@ -186,6 +193,18 @@ pub(crate) fn collect() -> SigMatrix {
     };
     let rows = push_row(rows, "D3", "binary-self-hash", d3);
 
+    // D4 - the camera object (night-frontier-Z5). The seam takes the
+    // stamped digest and the embedded bytes as inputs so the tamper
+    // arm is pinnable without patching a real artifact: the pristine
+    // build feeds the real stamp and the real PROBE_ELF.
+    let stamped_digest = option_env!("ZEJTRON_CAMERA_OBJECT_B3");
+    let rows = push_row(
+        rows,
+        "D4",
+        "camera-object",
+        camera_object_row(stamped_digest, crate::ebpf::loader::PROBE_ELF),
+    );
+
     let refused = rows.iter().find_map(|row| match row.status {
         DepthStatus::Refused => Some((row.id, row.detail.clone())),
         _ => None,
@@ -231,6 +250,38 @@ fn push_row(
     rows
 }
 
+/// The D4 camera-object verification (night-frontier-Z5): the runtime
+/// re-hashes the embedded probe object and compares the digest against
+/// the build-time stamp. Pure over (stamped, embedded) so all three
+/// arms are pinnable without patching a real artifact - the pristine
+/// build passes with the real stamp and the real bytes, a flipped
+/// byte refuses naming both digests, and a build without the stamp
+/// (an older build.rs, an out-of-tree compile) names the
+/// unavailability instead of guessing.
+fn camera_object_row(stamped: Option<&str>, embedded: &[u8]) -> (DepthStatus, String) {
+    let Some(stamped) = stamped else {
+        return (
+            DepthStatus::Unavailable,
+            "the build did not stamp the camera object digest".to_owned(),
+        );
+    };
+    let recomputed = blake3::blake3_hex(embedded);
+    if recomputed == stamped {
+        (
+            DepthStatus::Pass,
+            format!("b3:{recomputed} recomputes from the embedded probe object"),
+        )
+    } else {
+        (
+            DepthStatus::Refused,
+            format!(
+                "the embedded probe object hashes to b3:{recomputed}, the build stamped \
+                 b3:{stamped} - the camera was patched after the build"
+            ),
+        )
+    }
+}
+
 impl SigMatrix {
     /// The verdict line's tail: AUTHENTIC with the verified count
     /// (naming the unavailable depths when the image lane cannot run
@@ -247,7 +298,7 @@ impl SigMatrix {
                 format!("SIGNATURE: REFUSED ({id} {name} — {reason})")
             }
             None => {
-                let mut line = format!("SIGNATURE: AUTHENTIC ({}/4 depths verified", self.verified);
+                let mut line = format!("SIGNATURE: AUTHENTIC ({}/5 depths verified", self.verified);
                 if !self.unavailable_ids.is_empty() {
                     line.push_str(&format!(
                         "; {} unavailable on this host",
@@ -349,7 +400,7 @@ pub(crate) fn matrix_json(matrix: &SigMatrix) -> String {
         },
     );
     out.push_str(",\"verified\":");
-    write_string(&mut out, &format!("{}/4", matrix.verified));
+    write_string(&mut out, &format!("{}/5", matrix.verified));
     out.push('}');
     out
 }

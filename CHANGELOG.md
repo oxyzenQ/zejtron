@@ -44,6 +44,18 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z5 D2, the camera's self-proven object (the
+  depth matrix grows D4).** `sig` re-hashes the embedded camera
+  object at runtime and compares it against the digest the build
+  stamped over the same bytes as it staged them
+  (ZEJTRON_CAMERA_OBJECT_B3, build/ebpf.rs, both lanes) - the
+  binary proves the eBPF object it carries (the ring-0 asset) is
+  the bytes it was built with, from the binary alone: the D3
+  self-hash needs a published hash to compare against, D4 needs
+  nothing but itself. The matrix renders five depths (the verdict
+  counts 5/5), the pristine-build pin is the standing tamper proof,
+  and the flipped-byte test drives the real verify path by name.
+
 - **night-frontier-Z5 D1, the question census.** The question map
   obeys the census law - a tracked_inodes insert the kernel refuses
   for capacity (the map full, E2BIG) bumps a pinned census slot in

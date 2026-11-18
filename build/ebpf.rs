@@ -95,6 +95,7 @@ pub(super) fn build_ebpf_object() {
     if !ebpf_dir.join("Cargo.toml").is_file() {
         let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
         crate::prebuilt::stage_prebuilt_object(&manifest_dir, &out_dir);
+        stamp_camera_digest(&out_dir);
         println!("cargo:rustc-env=ZEJTRON_EBPF_LANE=registry-prebuilt");
         return;
     }
@@ -133,7 +134,33 @@ pub(super) fn build_ebpf_object() {
     let dst = out_dir.join(EBPF_STAGED_OBJECT);
     std::fs::write(&dst, &data)
         .unwrap_or_else(|e| panic!("failed to stage {} into OUT_DIR: {e}", dst.display()));
+    stamp_camera_digest(&out_dir);
     println!("cargo:rustc-env=ZEJTRON_EBPF_LANE=source-built");
+}
+
+/// The camera object's build-time digest (night-frontier-Z5): BLAKE3
+/// over the staged object bytes, stamped `ZEJTRON_CAMERA_OBJECT_B3`
+/// so the runtime can re-hash what it embedded and refuse a patched
+/// camera (the sig surface's D4 row - the eBPF object is the one
+/// artifact that executes at ring 0, so it belongs inside the
+/// self-verification circle, not only inside the release checksum
+/// files). The same std-only BLAKE3 the prebuilt lane's manifest
+/// verification rides - one implementation, build side and registry
+/// side. Both staging lanes call this right after the object lands
+/// in OUT_DIR, so the digest always describes the exact bytes the
+/// host crate embeds.
+fn stamp_camera_digest(out_dir: &Path) {
+    let staged = out_dir.join(EBPF_STAGED_OBJECT);
+    let data = std::fs::read(&staged).unwrap_or_else(|e| {
+        panic!(
+            "failed to read the staged {} for the camera digest: {e}",
+            staged.display()
+        )
+    });
+    println!(
+        "cargo:rustc-env=ZEJTRON_CAMERA_OBJECT_B3={}",
+        crate::blake3::blake3_hex(&data)
+    );
 }
 
 /// The prebuilt-lane auto-heal (night-weekly-maintenance-1): any edit

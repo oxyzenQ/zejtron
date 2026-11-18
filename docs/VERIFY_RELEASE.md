@@ -42,7 +42,7 @@ matrix artifact before it ships.
 Every build embeds a verifiable signature chain, and the binary
 verifies itself. The ownership claim is embedded MASKED - opaque
 64-bit words no `strings(1)` or `rg` scan can find - and materializes
-to plaintext only at runtime. Four depths, each checkable on its own:
+to plaintext only at runtime. Five depths, each checkable on its own:
 
 | Depth | What it proves | How to check |
 |---|---|---|
@@ -50,6 +50,7 @@ to plaintext only at runtime. Four depths, each checkable on its own:
 | D1 embedded marker | The masked authors layer binds to the manifest identity (two independent encodings of one identity) | `zejtron sig` (the D1 row) |
 | D2 anchor integrity | The BLAKE3 anchor over the framed masked payload recomputes, and both FNV-64 fingerprints agree with the compile-time digests | `zejtron sig` (the D2 row) |
 | D3 binary self-hash | The BLAKE3 of the exact bytes the process runs from | `zejtron sig` (compare against `b3sum <binary>` or the pinned release hash) |
+| D4 camera object (night-frontier-Z5) | The embedded eBPF probe object recomputes the digest the build stamped over the same bytes as it staged them - a camera patched after the build refuses, from the binary alone | `zejtron sig` (the D4 row) |
 
 The at-rest contract (the anti-grep law): `grep -a rezky_nightky
 <binary>` and `strings <binary> | grep rezky` find NOTHING on an
