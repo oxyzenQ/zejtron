@@ -111,12 +111,15 @@ jobs:
   witness:
     name: ${{ matrix.title }}
     runs-on: ubuntu-24.04
-    # The five-minute fail-fast law (night-T-4): a healthy witness
-    # finishes in under three minutes (the latest greens were
-    # 2.5-3.0m); the cap catches a wedged KVM boot or a flaky apt
-    # mirror at five minutes, never the thirty a hung guest used to
-    # burn.
-    timeout-minutes: 5
+    # The fail-fast law (night-T-4), recalibrated at
+    # night-frontier-Z4: a healthy witness finished in 2.5-3.0m and
+    # the five-minute cap caught wedged boots and flaky mirrors -
+    # until the lane grew the cross-dialect seat (the certificate
+    # test build, ~1-2m of honest new work per leg). The cap moves
+    # WITH the estate: ten minutes catches a wedged boot or a flaky
+    # mirror, never the thirty a hung guest used to burn, and no
+    # longer eats an honest leg's build.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:

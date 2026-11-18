@@ -101,9 +101,11 @@ jobs:
     # The five-minute fail-fast law (night-T-4): a healthy floor run
     # finishes in under three minutes (the latest green was 2.7m); the
     # cap catches a wedged KVM boot, a stalled docker pull, or a flaky
-    # apt mirror at five minutes, never the thirty a hung guest used
-    # to burn.
-    timeout-minutes: 5
+    # apt mirror - recalibrated at night-frontier-Z4 (the suite grew
+    # two proof-bearing surfaces and the mirror stalls burned honest
+    # legs at five minutes; the cap moves WITH the estate, the thirty
+    # a hung guest used to burn stay caught at ten).
+    timeout-minutes: 10
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
