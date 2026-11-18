@@ -1,24 +1,33 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-//! The real-kernel BTF corpus pins (night-frontier-Z2, E2): the
-//! parser's regression lock over REAL kernel dialects - the floor
-//! lane's own GA kernel (jammy 5.15.0-25) and the second GA
-//! generation (noble 6.8.0-31), their .BTF sections extracted from
-//! the shipped vmlinuz packages and committed whole under corpus/btf
-//! (the provenance law lives in corpus/README.md). A parser change
-//! that would misread any committed dialect fails here, on every
-//! host, forever - the moving kernels stay locked live on the
-//! witness legs; the corpus freezes the dialects themselves.
+//! The real-kernel BTF corpus pins (night-frontier-Z2, E2; the
+//! five-dialect span is night-frontier-Z3): the parser's regression
+//! lock over REAL kernel dialects - the floor lane's own GA kernel
+//! (jammy 5.15.0-25), Debian bookworm's current 6.1 point release
+//! (6.1.0-50), the frozen mainline 6.6.95 build, the second GA
+//! generation (noble 6.8.0-31), and the 7.x line (cachyos 7.3.3 at
+//! capture time) - their .BTF sections extracted from the shipped
+//! vmlinuz packages and committed whole under corpus/btf (the
+//! provenance law lives in corpus/README.md, the extraction
+//! instrument in scripts/ci/corpus-extract-dialect.sh). A parser
+//! change that would misread any committed dialect fails here, on
+//! every host, forever - the moving kernels stay locked live on the
+//! witness legs; the corpus freezes the dialects themselves. The
+//! pre-BTF dialect (focal GA 5.4.0-26) is pinned as a NAMED ABSENCE:
+//! its payload carries no .BTF section, and the witness lane asserts
+//! that refusal direction on every push.
 //!
-//! THE TABLES ARE THE STORY: the two committed dialects disagree in
-//! exactly the slots the kernel generations moved - jammy's
-//! struct file.f_path sits at 16 while noble's rides 152 (the
-//! anonymous-aggregate rework the parser descends), f_inode follows
-//! it 32 -> 168, and task_struct.files moved 2928 -> 3080. A parser
-//! change that silently normalized the two tables - or pinned one
-//! generation's layout over the other - fails here. The integrity
-//! half rides the tree's own blake3 implementation
+//! THE TABLES ARE THE STORY: the five committed dialects disagree in
+//! exactly the slots the kernel generations moved - file.f_path
+//! rides three packings (16 pre-rework, 152 after the
+//! anonymous-aggregate rework, 64 on the re-packed 7.x line), f_inode
+//! rides with it, task_struct.files marches 2928 -> 3552 with the
+//! kernel's growth, and the mainline 6.6.95 build is a genuine struct
+//! inode outlier (i_ino 80, i_sb 56) against every distro build of
+//! its era. A parser change that silently normalized the tables - or
+//! pinned one generation's layout over the others - fails here. The
+//! integrity half rides the tree's own blake3 implementation
 //! (build/blake3.rs, path-included): a committed blob that drifts
 //! by one byte refuses by digest before any parse runs.
 //!
@@ -37,7 +46,10 @@ use super::*;
 /// The committed dialects: name, integrity digest, the thirteen
 /// struct offsets, the unlink dentry argument position, the
 /// renamedata old_dentry member offset. One row per real kernel,
-/// frozen.
+/// frozen. The span (night-frontier-Z3): 5.15, 6.1 (Debian
+/// bookworm's current point release), 6.6 (the frozen mainline
+/// build), 6.8, and the 7.x line (cachyos's flagship at capture
+/// time) - the walk table's whole migration history, frozen.
 struct Dialect {
     blob: &'static str,
     blake3: &'static str,
@@ -46,7 +58,7 @@ struct Dialect {
     old_dentry_offset: u64,
 }
 
-const CORPUS: [Dialect; 2] = [
+const CORPUS: [Dialect; 5] = [
     Dialect {
         blob: "5.15.0-25-generic.btf",
         blake3: "7e88b941af6ed12b4cdb88951f504a4a2ee2996bb887673181bd8640166e181a",
@@ -55,9 +67,30 @@ const CORPUS: [Dialect; 2] = [
         old_dentry_offset: 16,
     },
     Dialect {
+        blob: "6.1.0-50-amd64.btf",
+        blake3: "be59ef22432ab05aabdd205a0ed524db156d8d6623345aeaed0b4105897e7a26",
+        offsets: [48, 64, 16, 32, 8, 16, 0, 8, 3048, 32, 0, 8, 40],
+        dentry_arg: 2,
+        old_dentry_offset: 16,
+    },
+    Dialect {
+        blob: "6.6.95-060695-generic.btf",
+        blake3: "18e1c444e5a913a5e185b92d1cb35d15812248f6e3dfa69723e6f6a649fbd132",
+        offsets: [48, 80, 152, 168, 8, 16, 0, 8, 3056, 32, 0, 8, 56],
+        dentry_arg: 2,
+        old_dentry_offset: 16,
+    },
+    Dialect {
         blob: "6.8.0-31-generic.btf",
         blake3: "147f8e1e2bad64b65e858e203edd5a8984de456593a0e31db156f42a400fdb35",
         offsets: [48, 64, 152, 168, 8, 16, 0, 8, 3080, 32, 0, 8, 40],
+        dentry_arg: 2,
+        old_dentry_offset: 16,
+    },
+    Dialect {
+        blob: "7.3.3-1-cachyos.btf",
+        blake3: "85230401b1c90a414ceed7e46df3f83c02208d753a420205d3ae692b16d936b7",
+        offsets: [48, 64, 64, 32, 8, 16, 0, 8, 3552, 32, 0, 8, 40],
         dentry_arg: 2,
         old_dentry_offset: 16,
     },
@@ -110,32 +143,86 @@ fn the_parser_reads_every_committed_dialect_whole() {
 
 #[test]
 fn the_committed_dialects_disagree_where_the_generations_moved() {
-    // The corpus carries a RANGE, not a copy: the two generations'
-    // tables differ in exactly the slots the kernel moved. A parser
-    // change that normalized them (or a fixture that duplicated one
-    // blob under two names) would flatten this pin.
-    let (jammy, noble) = (&CORPUS[0], &CORPUS[1]);
-    assert_ne!(
-        jammy.offsets, noble.offsets,
-        "the dialects are one blob twice"
-    );
-    // The moved slots are the documented story: file.f_path (the
-    // anonymous-aggregate rework), file.f_inode riding after it, and
-    // task_struct.files (the fd table anchor the write probe climbs).
-    assert_ne!(jammy.offsets[2], noble.offsets[2], "file.f_path moved");
-    assert_ne!(jammy.offsets[3], noble.offsets[3], "file.f_inode moved");
-    assert_ne!(
-        jammy.offsets[8], noble.offsets[8],
-        "task_struct.files moved"
-    );
-    // And the UNMOVED slots are pinned too - the stability the
-    // offsets law's runtime derivation leans on.
-    assert_eq!(jammy.offsets[0], noble.offsets[0], "dentry.d_inode stayed");
-    assert_eq!(jammy.offsets[1], noble.offsets[1], "inode.i_ino stayed");
-    assert_eq!(
-        jammy.dentry_arg, noble.dentry_arg,
-        "the unlink anchor stayed"
-    );
+    // The corpus carries a RANGE, not a copy: five generations'
+    // tables, every pair distinct. A parser change that normalized
+    // them (or a fixture that duplicated one blob under two names)
+    // would flatten this pin.
+    for left in &CORPUS {
+        for right in &CORPUS {
+            if std::ptr::eq(left, right) {
+                continue;
+            }
+            assert_ne!(
+                left.offsets, right.offsets,
+                "{} and {} walk the same table",
+                left.blob, right.blob
+            );
+        }
+    }
+    // The f_path ladder is the documented story, now across three
+    // eras: the pre-rework packing (16) holds through Debian's 6.1
+    // point release, the anonymous-aggregate rework lands by 6.6
+    // (152 - the offset the parser descends), and the 7.x line
+    // re-packs it AGAIN (64 - a third layout no GA kernel ever
+    // shipped). A parser pinned to any single era misreads another.
+    let f_path: Vec<u64> = CORPUS.iter().map(|d| d.offsets[2]).collect();
+    assert_eq!(f_path[0], 16, "5.15 rides the pre-rework packing");
+    assert_eq!(f_path[1], 16, "6.1 still rides the pre-rework packing");
+    assert_eq!(f_path[2], 152, "6.6 rides the rework packing");
+    assert_eq!(f_path[3], 152, "6.8 rides the rework packing");
+    assert_eq!(f_path[4], 64, "the 7.x line re-packed the aggregate");
+    // f_inode rides with f_path through every migration: the pair
+    // moved together, three times, never independently.
+    let f_inode: Vec<u64> = CORPUS.iter().map(|d| d.offsets[3]).collect();
+    for (path, inode) in f_path.iter().zip(f_inode.iter()) {
+        assert_ne!(path, inode, "the pair never collapsed onto itself");
+    }
+    // task_struct.files - the fd-table anchor the write probe climbs
+    // - marched with the kernel's own growth across the frozen span
+    // (2928 -> 3048 -> 3056 -> 3080 -> 3552, strictly, in version
+    // order). A parser change that sorted or normalized the rows
+    // breaks this pin.
+    for window in CORPUS.windows(2) {
+        assert!(
+            window[0].offsets[8] < window[1].offsets[8],
+            "task_struct.files marched: {} -> {}",
+            window[0].blob,
+            window[1].blob
+        );
+    }
+    // The mainline outlier: the frozen 6.6.95 build carries a
+    // DIFFERENT struct inode than every distro kernel at the same
+    // era - inode.i_ino at 80 (the GA builds ride 64) and
+    // inode.i_sb at 56 (the GA builds ride 40). A parser tuned only
+    // on distro-published offsets misreads the mainline dialect; the
+    // corpus pins the outlier so that change fails here.
+    let mainline = &CORPUS[2];
+    for (index, dialect) in CORPUS.iter().enumerate() {
+        if index == 2 {
+            continue;
+        }
+        assert_ne!(
+            dialect.offsets[1], mainline.offsets[1],
+            "inode.i_ino: the mainline build is the outlier"
+        );
+        assert_ne!(
+            dialect.offsets[12], mainline.offsets[12],
+            "inode.i_sb: the mainline build is the outlier"
+        );
+    }
+    // And the anchor that NEVER moved across the whole 5.15 -> 7.x
+    // span: dentry.d_inode at 48, in all five dialects - the
+    // stability the offsets law's runtime derivation leans on.
+    for dialect in &CORPUS {
+        assert_eq!(dialect.offsets[0], 48, "dentry.d_inode stayed");
+    }
+    // The unlink anchor stayed too: one dentry argument position (2,
+    // the idmap+ kernels) and one renamedata old_dentry offset (16)
+    // across all five dialects.
+    for dialect in &CORPUS {
+        assert_eq!(dialect.dentry_arg, 2, "the unlink anchor stayed");
+        assert_eq!(dialect.old_dentry_offset, 16, "the rename anchor stayed");
+    }
 }
 
 #[test]

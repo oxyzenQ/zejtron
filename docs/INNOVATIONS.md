@@ -109,6 +109,17 @@ misread either dialect fails the suite on every host, forever.
 Pinned by `test/ebpf/btf_tests.rs`,
 `test/ebpf/btf_flatten_tests.rs`, `test/ebpf/reverify_tests.rs`,
 `test/ebpf/btf_corpus_tests.rs`, `test/ebpf/readback_tests.rs`.
+And night-frontier-Z3 freezes the SPAN: five REAL dialects committed
+whole under `corpus/btf/` - jammy 5.15.0-25, Debian bookworm's
+current 6.1 point release (6.1.0-50), the frozen mainline 6.6.95
+build, noble 6.8.0-31, cachyos 7.3.3 (the 7.x line) - extracted by
+the committed instrument (`scripts/ci/corpus-extract-dialect.sh`,
+one implementation, two seats: the maintainer's capture and the
+witness lane's per-push re-digestion), their walk tables pinned slot
+by slot WITH the migration history (f_path 16 -> 152 -> 64, three
+packings; task_struct.files 2928 -> 3552) and the mainline build's
+struct inode outlier pinned too; the pre-BTF 5.4 dialect is pinned
+as a named absence the witness lane asserts per push.
 
 **4. The unlink/rename forensic pair** (night-frontier-2;
 `src/ebpf/btf_unlink.rs`, `ebpf/src/unlink.rs`). The ledger's oldest
@@ -300,13 +311,16 @@ and the commit ride the artifact; hermeticity is the fixtures' own
 law (every camera consultation enters as an explicit None, every
 civil time renders only where the shape names it absent - a flaky
 certificate is not a certificate). The kernel dialect corpus is the
-parser lock made concrete: real kernel bytes (two GA BTF blobs, a
-real /proc bundle captured one dialect BELOW the attach floor),
-committed whole, digests pinned through the tree's own blake3, the
-derived walk tables pinned slot by slot - and the DIFFERENCE
-between dialects pinned too, because a corpus that carried one blob
-twice would prove nothing. The moving kernels stay locked live on
-the witness legs; the corpus freezes the dialects themselves. The
+parser lock made concrete: real kernel bytes (five BTF dialects
+spanning 5.15 -> 7.x, a real /proc bundle captured one dialect BELOW
+the attach floor, the pre-BTF 5.4 dialect pinned as a named
+absence), committed whole, digests pinned through the tree's own
+blake3, the derived walk tables pinned slot by slot - and the
+DIFFERENCE between dialects pinned too, because a corpus that
+carried one blob twice would prove nothing. The moving kernels stay
+locked live on the witness legs; the corpus freezes the dialects
+themselves, and the witness lane re-digests the frozen GA/mainline
+packages on every push so the freeze cannot drift from the boots. The
 provenance of every file lives in [corpus/README.md](corpus/README.md);
 the certificate pins are `test/evidence/certificate_tests.rs` and
 `test/ebpf/btf_corpus_tests.rs`, `test/corpus/proc_corpus_tests.rs`.

@@ -44,6 +44,27 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z3, the dialect corpus time-machine (the parser
+  lock now spans 5.15 through the 7.x line, frozen).** The kernel
+  dialect corpus grows from two frozen GA dialects to FIVE - jammy
+  5.15.0-25, Debian bookworm's current 6.1 point release (6.1.0-50),
+  the frozen mainline 6.6.95 build the witness lane pins, noble
+  6.8.0-31, and cachyos 7.3.3 (the 7.x line at capture time) - every
+  blob a REAL kernel package's .BTF section, extracted by the new
+  committed instrument (`scripts/ci/corpus-extract-dialect.sh`, one
+  implementation, two seats: the maintainer's capture and the
+  witness lane's per-push re-digestion of the same packages it
+  boots). The pinned disagreement is now the walk table's whole
+  migration history: file.f_path rides THREE packings across the
+  span (16 pre-rework, 152 after the anonymous-aggregate rework, 64
+  on the re-packed 7.x kernel), task_struct.files marches
+  2928 -> 3552, and the mainline 6.6.95 build is a genuine struct
+  inode outlier (i_ino 80, i_sb 56) no distro-published offsets
+  table carries. The pre-BTF dialect (focal GA 5.4.0-26) is pinned
+  as a named absence - its payload carries no .BTF section, the
+  instrument refuses by name, and the witness lane asserts that
+  refusal direction on every push. No flag, no subcommand, no
+  output-format change: corpus, instrument, and pins only.
 - **night-frontier-Z2 part C, the wall-offset skew law (the
   provenance timestamps are honest down to their own sample).** A
   rendered civil time is `monotonic stamp + wall offset`, and the
