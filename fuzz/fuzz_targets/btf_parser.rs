@@ -33,6 +33,14 @@
 #[path = "../../src/ebpf/btf.rs"]
 mod btf;
 
+// The byte-level decode (night-zen-lts-1, the btf.rs 600-cap split):
+// btf.rs and btf_unlink.rs reach it as `super::btf_decode`, which in
+// this harness view resolves HERE - the include law keeps every
+// included file free of `crate::` paths, so the split rides the same
+// sibling rule the writev and unlink verifiers use.
+#[path = "../../src/ebpf/btf_decode.rs"]
+mod btf_decode;
+
 #[path = "../../src/ebpf/btf_writev.rs"]
 mod btf_writev;
 
