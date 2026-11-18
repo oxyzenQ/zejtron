@@ -326,7 +326,15 @@ and issues the certificate only when the diff is empty - the digest
 and the commit ride the artifact; hermeticity is the fixtures' own
 law (every camera consultation enters as an explicit None, every
 civil time renders only where the shape names it absent - a flaky
-certificate is not a certificate). The kernel dialect corpus is the
+certificate is not a certificate). And night-frontier-Z4 widens the
+proof across the kernel span: the witness legs pack the musl
+certificate test binary, render the SAME hermetic fixtures on the
+BOOTED kernel (focal 5.4 -> cachyos 7.x - no camera, no wall clock,
+so the render cannot depend on the host), relay the per-file digests
+through the SANDBOX-RENDER sentinel rows, and the cross-dialect
+verdict job diffs every leg against the host render - the law holds
+cross-dialect, cross-decade, or the run page carries the
+mismatching kernel and file by name. The kernel dialect corpus is the
 parser lock made concrete: real kernel bytes (five BTF dialects
 spanning 5.15 -> 7.x, a real /proc bundle captured one dialect BELOW
 the attach floor, the pre-BTF 5.4 dialect pinned as a named

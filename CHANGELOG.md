@@ -44,6 +44,24 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z4, the cross-dialect determinism (the proof rig
+  rides the kernel span).** The determinism certificate now renders
+  its hermetic fixtures INSIDE every witness micro-VM - focal 5.4,
+  jammy 5.15, bookworm 6.1, mainline 6.6, noble 6.8, cachyos 7.x -
+  not just in two host invocations. The witness lane builds the
+  certificate's musl release test binary (the same static v3 shape
+  the payload rides), the sandbox twin packs it beside the camera
+  (--cert-test), the in-guest payload renders the fixtures on the
+  BOOTED kernel after the suite's verdict is captured (the suite's
+  exit code stays the payload's verdict), and the per-file digests
+  relay through SANDBOX-RENDER sentinel rows to a cross-dialect
+  verdict job that diffs every leg against the host render -
+  byte-for-byte, six kernel generations plus the build host, or the
+  mismatch names the kernel and the file. No camera, no wall clock,
+  so the render can only depend on the fixture: "two conformant runs
+  diff to empty" is now cross-dialect and cross-decade. Zero new
+  zejtron flags: the seat rides the sandbox twin's --cert-test, a
+  CI instrument option, not a zejtron CLI surface.
 - **night-frontier-Z3, the loss-under-load certificate (the drop
   census is proven, not just present).** The drop census counts the
   file ring's reserve failures; the suite's new loss-certificate
