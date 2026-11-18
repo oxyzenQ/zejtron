@@ -105,7 +105,7 @@ jobs:
     # two proof-bearing surfaces and the mirror stalls burned honest
     # legs at five minutes; the cap moves WITH the estate, the thirty
     # a hung guest used to burn stay caught at ten).
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
@@ -207,8 +207,11 @@ jobs:
             -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
             -e 's|security.ubuntu.com|archive.ubuntu.com|g' \
             "$SRC"
-          timeout 45 sudo apt-get -o Acquire::Retries=1 update -qq
-          timeout 120 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86 cpio
+          # The same generous-bounds recalibration the witness lane
+          # carries (night-depth-hardening-Z1): a slow mirror is not a
+          # wedged boot; the fallback waits.
+          timeout 90 sudo apt-get -o Acquire::Retries=1 update -qq
+          timeout 300 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86 cpio
 
       # The release lane's own shape: the alias builds for the musl
       # triple, so the pinned toolchain needs its rust-std target
