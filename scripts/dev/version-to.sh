@@ -16,11 +16,17 @@
 # CHANGELOG.md earns its release line (sibling lineage: a bump is a
 # release event - the ledger records it the same way the Cargo files
 # do: a bare version line under "## [Released]", newest first,
-# pre-release and stable alike, above "## [Unreleased]". Probed
-# honestly: a missing file, a missing anchor, a version the ledger
-# already carries, or a non-standard Released shape warns and writes
-# nothing - never claim a write that did not happen, and a ledger
-# this script did not create is not one it rewrites).
+# pre-release and stable alike, above "## [Unreleased]". The writer
+# enforces the sibling's ledger laws (the owner's v80.0.x lesson):
+# exactly one of each heading, Released above Unreleased (a pure
+# Released block sitting below Unreleased relocates), the owner's
+# pure shape inside Released, and a version line stranded outside
+# Released is deleted and re-spliced inside - every write is
+# verified after the fact, and a write that cannot verify restores
+# the file. Probed honestly: a missing file, a missing anchor, a
+# duplicate heading, or a non-standard Released shape refuses and
+# writes nothing - never claim a write that did not happen, and a
+# ledger this script did not create is not one it rewrites).
 # The input gate carries the release lane's full tag contract
 # (night-improve-9): release.yml validates a v-prefixed semver with an
 # OPTIONAL pre-release suffix (vX.Y.Z or vX.Y.Z-prerelease - the
@@ -71,30 +77,127 @@ cd "$repo_root"
 [[ -f README.md ]] || error "README.md not found"
 [[ -f docs/workflow/about-ci.md ]] || error "docs/workflow/about-ci.md not found"
 
+# ledger_relocate_released_block LINE - the sibling's law 1b heal
+# (the shape the owner hit on the v80.0.x line): a "## [Released]"
+# block sitting BELOW "## [Unreleased]" reads as released work under
+# Unreleased, and every reader lands on the wrong section. Only the
+# owner's pure shape relocates - heading, blank spacers, bare
+# version lines, nothing else (the block runs to end of file, so
+# foreign content in it means the shape is not this script's to
+# heal). The block moves above "## [Unreleased]", and the move
+# verifies on the temp copy before it lands - never trusted blind.
+ledger_relocate_released_block() {
+	local rline="$1" block bad tmp rest want got rnew uline
+	block="$(sed -n "${rline},\$p" CHANGELOG.md)"
+	bad="$(printf '%s\n' "${block}" | grep -vE '^(## \[Released\]|v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?)$' | head -3 || true)"
+	if [[ -n "${bad}" ]]; then
+		printf '%s\n' "${bad}" >&2
+		error "CHANGELOG.md -> ## [Released] sits below ## [Unreleased] AND carries foreign content - a ledger this script did not create is not one it rewrites; repair the shape by hand, then re-run"
+	fi
+	rest="$(sed -n "1,$((rline - 1))p" CHANGELOG.md)"
+	tmp="$(mktemp)"
+	awk -v blk="${block}" '
+		/^## \[Unreleased\]$/ && !done {
+			printf "%s\n\n", blk
+			done = 1
+		}
+		{ print }
+	' <<<"${rest}" >"${tmp}"
+	rnew="$(grep -n '^## \[Released\]$' "${tmp}" | cut -d: -f1 || true)"
+	uline="$(grep -n '^## \[Unreleased\]$' "${tmp}" | cut -d: -f1 || true)"
+	want="$(printf '%s\n' "${block}" | grep -cE '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$' || true)"
+	got="$(awk '/^## \[Released\]$/{f=1;next} /^## \[Unreleased\]$/{f=0} f&&/^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$/' "${tmp}" | wc -l)"
+	if [[ -z "${rnew}" || -z "${uline}" || "${rnew}" -ge "${uline}" || "${want}" -ne "${got}" ]]; then
+		rm -f "${tmp}"
+		error "CHANGELOG.md -> the relocation did not verify (## [Released] above ## [Unreleased] with every version line intact) - the file was left as found"
+	fi
+	mv "${tmp}" CHANGELOG.md
+	chmod 644 CHANGELOG.md
+	echo "  OK CHANGELOG.md        -> ## [Released] relocated above ## [Unreleased] (the owner shape restored)"
+}
+
 # Record the release in CHANGELOG.md's ledger (## [Released], newest
-# first). The probes mirror the sibling project's ledger writer:
-# every non-standard state warns and writes nothing instead of
+# first). The probes mirror the sibling project's ledger writer, and
+# the ledger laws are the sibling's night-bump-1 set: exactly one of
+# each heading, Released above Unreleased, the owner's pure shape
+# inside Released, and a version line stranded outside Released
+# heals - deleted and re-spliced inside, the only state the final
+# verify accepts. Every non-standard state refuses loudly instead of
 # claiming a rewrite that did not happen.
 changelog_release() {
-	local ver="v$1"
+	local ver="v$1" tmp backup
 	if [[ ! -f CHANGELOG.md ]]; then
 		echo "  ! CHANGELOG.md        -> file absent, nothing to write"
 		return 0
 	fi
-	# A version line never repeats: the re-run at a version the ledger
-	# already carries (the usual stale-tree re-entry) writes nothing.
-	if grep -qxF "${ver}" CHANGELOG.md; then
-		echo "  ! CHANGELOG.md        -> ${ver} already recorded, nothing to write"
+
+	# Law 1a: exactly one of each heading. More than one is a shape
+	# this script cannot parse and will not edit.
+	local rcount ucount
+	rcount="$(grep -c '^## \[Released\]$' CHANGELOG.md || true)"
+	ucount="$(grep -c '^## \[Unreleased\]$' CHANGELOG.md || true)"
+	if [[ "${rcount}" -gt 1 || "${ucount}" -gt 1 ]]; then
+		error "CHANGELOG.md -> ${rcount} '## [Released]' heading(s) and ${ucount} '## [Unreleased]' heading(s), expected exactly one of each; repair the headings by hand, then re-run"
+	fi
+
+	# Law 1b: Released must PRECEDE Unreleased. The pure-block shape
+	# below Unreleased relocates; anything richer refuses.
+	if [[ "${rcount}" -eq 1 && "${ucount}" -eq 1 ]]; then
+		local rline uline
+		rline="$(grep -n '^## \[Released\]$' CHANGELOG.md | cut -d: -f1)"
+		uline="$(grep -n '^## \[Unreleased\]$' CHANGELOG.md | cut -d: -f1)"
+		if [[ "${rline}" -gt "${uline}" ]]; then
+			ledger_relocate_released_block "${rline}"
+		fi
+	fi
+
+	# Law 1c: the owner's pure shape inside Released - blank spacers
+	# and bare version lines, nothing else. Its absence is hand-edit
+	# drift - refused, never guessed around.
+	if [[ "${rcount}" -eq 1 ]]; then
+		local junk
+		junk="$(awk '/^## \[Released\]$/{f=1;next} /^## \[Unreleased\]$/{f=0} f&&!/^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$/&&!/^$/' CHANGELOG.md | head -3 || true)"
+		if [[ -n "${junk}" ]]; then
+			printf '%s\n' "${junk}" >&2
+			error "CHANGELOG.md -> foreign content inside ## [Released] (the owner's shape is blank spacers + bare version lines) - a ledger this script did not create is not one it rewrites; repair the shape by hand, then re-run"
+		fi
+		if [[ -n "$(sed -n '/^## \[Released\]$/{n;p;}' CHANGELOG.md)" ]]; then
+			error "CHANGELOG.md -> the blank spacer under ## [Released] is gone (the owner shape is heading, blank line, version lines); restore the blank line, then re-run"
+		fi
+	fi
+
+	# A version line never repeats - and a line stranded OUTSIDE
+	# Released (the owner's broken state: the bare version line under
+	# ## [Unreleased] while both headings look fine) heals in place:
+	# delete the strays now, the verified splice below records the
+	# line where it belongs.
+	local total inside
+	total="$(grep -cxF "${ver}" CHANGELOG.md || true)"
+	inside="$(sed -n '/^## \[Released\]$/,/^## \[Unreleased\]$/p' CHANGELOG.md | grep -cxF "${ver}" || true)"
+	if [[ "${total}" -gt 0 && "${inside}" -eq "${total}" ]]; then
+		echo "  ! CHANGELOG.md        -> ${ver} already recorded in ## [Released], nothing to write"
 		return 0
 	fi
-	local tmp
+	if [[ "${total}" -gt 0 ]]; then
+		tmp="$(mktemp)"
+		grep -vxF "${ver}" CHANGELOG.md >"${tmp}"
+		mv "${tmp}" CHANGELOG.md
+		chmod 644 CHANGELOG.md
+		echo "  ! CHANGELOG.md        -> ${ver} recorded OUTSIDE ## [Released] (${total} line(s), ${inside} inside) - deleted; the verified splice below records it properly"
+	fi
+
+	# The splice: write, then VERIFY - the version line must sit
+	# inside ## [Released] exactly once with Released above
+	# Unreleased; any other outcome restores the backup and fails the
+	# run. A write this script cannot verify is a write it does not
+	# keep.
 	tmp="$(mktemp)"
-	if grep -q '^## \[Released\]$' CHANGELOG.md; then
-		# The section exists. This tool's own shape puts one blank
-		# spacer between the heading and the version lines - the new
-		# version splices in under it, above the current top line.
-		if [[ -z "$(sed -n '/^## \[Released\]$/{n;p;}' CHANGELOG.md)" ]]; then
-			awk -v ver="${ver}" '
+	backup="$(mktemp)"
+	cp CHANGELOG.md "${backup}"
+	if [[ "${rcount}" -eq 1 ]]; then
+		# The section exists with its verified spacer - splice the new
+		# version in under it, above the current top line.
+		awk -v ver="${ver}" '
         /^## \[Released\]$/ && !done {
           print
           getline spacer
@@ -105,18 +208,12 @@ changelog_release() {
         }
         { print }
       ' CHANGELOG.md >"${tmp}"
-			mv "${tmp}" CHANGELOG.md
-			chmod 644 CHANGELOG.md
-			echo "  OK CHANGELOG.md        -> ${ver} (## [Released], newest first)"
-		else
-			rm -f "${tmp}"
-			echo "  ! CHANGELOG.md        -> unexpected ## [Released] shape (no blank spacer under the heading) - nothing to write"
-		fi
-	else
+		mv "${tmp}" CHANGELOG.md
+		chmod 644 CHANGELOG.md
+	elif [[ "${ucount}" -eq 1 ]]; then
 		# No section yet - create it above "## [Unreleased]" (the
 		# unreleased work keeps its own section below the ledger).
-		if grep -q '^## \[Unreleased\]$' CHANGELOG.md; then
-			awk -v ver="${ver}" '
+		awk -v ver="${ver}" '
         /^## \[Unreleased\]$/ && !done {
           print "## [Released]"
           print ""
@@ -126,14 +223,37 @@ changelog_release() {
         }
         { print }
       ' CHANGELOG.md >"${tmp}"
-			mv "${tmp}" CHANGELOG.md
-			chmod 644 CHANGELOG.md
-			echo "  OK CHANGELOG.md        -> ${ver} (section created above ## [Unreleased])"
-		else
-			rm -f "${tmp}"
-			echo "  ! CHANGELOG.md        -> no ## [Unreleased] anchor found - nothing to write"
-		fi
+		mv "${tmp}" CHANGELOG.md
+		chmod 644 CHANGELOG.md
+	else
+		rm -f "${tmp}" "${backup}"
+		echo "  ! CHANGELOG.md        -> no ## [Unreleased] anchor found - nothing to write"
+		return 0
 	fi
+	total="$(grep -cxF "${ver}" CHANGELOG.md || true)"
+	inside="$(sed -n '/^## \[Released\]$/,/^## \[Unreleased\]$/p' CHANGELOG.md | grep -cxF "${ver}" || true)"
+	local order_ok=true
+	if [[ "$(grep -c '^## \[Released\]$' CHANGELOG.md || true)" -eq 1 && "$(grep -c '^## \[Unreleased\]$' CHANGELOG.md || true)" -eq 1 ]]; then
+		local rnow unow
+		rnow="$(grep -n '^## \[Released\]$' CHANGELOG.md | cut -d: -f1)"
+		unow="$(grep -n '^## \[Unreleased\]$' CHANGELOG.md | cut -d: -f1)"
+		[[ "${rnow}" -lt "${unow}" ]] || order_ok=false
+	else
+		order_ok=false
+	fi
+	if [[ "${total}" -ne 1 || "${inside}" -ne 1 || "${order_ok}" != true ]]; then
+		mv "${backup}" CHANGELOG.md
+		chmod 644 CHANGELOG.md
+		rm -f "${tmp}"
+		error "CHANGELOG.md -> the ledger write did not verify (the version line must sit inside ## [Released] exactly once, with Released above Unreleased) - the file was restored, nothing kept"
+	fi
+	rm -f "${tmp}" "${backup}"
+	if [[ "${rcount}" -eq 1 ]]; then
+		echo "  OK CHANGELOG.md        -> ${ver} (## [Released], newest first)"
+	else
+		echo "  OK CHANGELOG.md        -> ${ver} (section created above ## [Unreleased])"
+	fi
+	return 0
 }
 
 echo "Updating zejtron to ${TAG}"

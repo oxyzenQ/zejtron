@@ -154,8 +154,13 @@ repo, there is no second manifest to ride along), the release
 examples in `README.md` and this document, and the `CHANGELOG.md`
 ledger - the bumped version is recorded as a bare line under
 `## [Released]`, newest first, above `## [Unreleased]`. The ledger
-writer probes honestly: a missing file, an already-recorded version, or
-a non-standard section shape warns and writes nothing rather than
+writer enforces the ledger laws: exactly one of each section heading,
+Released above Unreleased (a pure Released block sitting below
+Unreleased relocates), the bare-version-lines-only shape inside
+Released, and a version line stranded outside Released is deleted and
+re-spliced inside; every write is verified after the fact and a write
+that cannot verify restores the file. A missing file, a duplicate
+heading, or a non-standard section shape refuses loudly rather than
 claiming a rewrite that did not happen, and the script's final
 verification fails if the ledger line for the new version is absent.
 The pass carries the release lane's full tag shape: the input accepts a
