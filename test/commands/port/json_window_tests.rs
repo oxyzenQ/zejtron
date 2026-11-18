@@ -116,6 +116,7 @@ fn json_changes_block_names_its_window() {
         None,
         None,
         None,
+        None,
     );
     assert!(out.contains("\"changes\":{\"available\":true"), "{out}");
     let start = window_field(&out, "window_start_utc");
@@ -156,6 +157,7 @@ fn json_two_sequential_runs_name_two_different_windows() {
         None,
         None,
         None,
+        None,
     );
     let two = super::port_report_json_with_exits(
         &[],
@@ -165,6 +167,7 @@ fn json_two_sequential_runs_name_two_different_windows() {
         Some(&[]),
         None,
         Some(second),
+        None,
         None,
         None,
         None,
@@ -191,6 +194,7 @@ fn json_unavailable_changes_block_keeps_both_fields_null() {
         &owners(),
         &stats,
         &opts,
+        None,
         None,
         None,
         None,
@@ -224,6 +228,7 @@ fn json_window_that_ran_without_a_clock_keeps_both_fields_null() {
         None,
         None,
         None,
+        None,
     );
     assert!(
         out.contains(
@@ -251,6 +256,7 @@ mod lane_honesty {
             &owners(),
             &stats,
             &opts,
+            None,
             None,
             None,
             None,
@@ -326,6 +332,7 @@ mod lane_honesty {
             None,
             None,
             None,
+            None,
         );
         assert!(
             out.contains("\"changes\":{\"available\":true,\"reason\":null,\"hint\":null"),
@@ -344,6 +351,7 @@ mod lane_honesty {
             &owners(),
             &stats,
             &opts,
+            None,
             None,
             None,
             None,

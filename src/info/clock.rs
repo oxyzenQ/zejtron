@@ -138,27 +138,28 @@ pub(crate) fn format_unix_secs(total_secs: i64) -> String {
 /// doc claimed the error direction over-included; that claim was the
 /// exact inversion of the arithmetic. A clock_gettime failure
 /// degrades to `None` - the honest absence, never a guess.
+/// The monotonic "now", in nanoseconds, read straight from the
+/// kernel's CLOCK_MONOTONIC through the libc pair the crate already
+/// carries (night-dragon-lts-1). CLOCK_MONOTONIC is the EXACT clock
+/// the eBPF records are stamped with (`bpf_ktime_get_ns`), so the
+/// window cutoffs built on this value compare stamps from the same
+/// domain - nanosecond resolution, no conversion.
+///
+/// The pre-fix source was /proc/uptime, which the kernel serves
+/// from CLOCK_BOOTTIME: identical to monotonic on a host that never
+/// suspended, but BOOTTIME includes suspend time while the eBPF
+/// stamps exclude it. On a host with cumulative suspend time S the
+/// computed cutoff sat S nanoseconds LATER than the true monotonic
+/// cutoff, silently dropping events from the last S nanoseconds of
+/// every window - with S >= the window, "Changes in the last 60s"
+/// rendered empty for events the camera had just captured. The old
+/// doc claimed the error direction over-included; that claim was the
+/// exact inversion of the arithmetic. A clock_gettime failure
+/// degrades to `None` - the honest absence, never a guess. The read
+/// itself lives in [`clock_gettime_ns`], shared with the sleep-gap
+/// law (night-frontier-Z6, D3).
 pub(crate) fn monotonic_now_ns() -> Option<u64> {
-    let mut timespec = libc::timespec {
-        tv_sec: 0,
-        tv_nsec: 0,
-    };
-    // SAFETY: clock_gettime writes through a pointer to a timespec
-    // this call owns for the whole call; the clock id is a kernel
-    // constant. The libc pair is the crate's second raw call (the
-    // SIGPIPE reset in main is the first) - the dependency policy's
-    // own escape hatch, used because std exposes no CLOCK_MONOTONIC
-    // source: std::time::Instant is opaque (no epoch-relative value)
-    // and /proc/uptime is boottime, not monotonic.
-    if unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut timespec) } != 0 {
-        return None;
-    }
-    // CLOCK_MONOTONIC starts at zero at boot and never runs
-    // backwards, so both fields are non-negative in practice; the
-    // saturating shape only guards the signedness of the raw types.
-    let secs = timespec.tv_sec.max(0) as u64;
-    let nanos = timespec.tv_nsec.max(0) as u64;
-    Some(secs.saturating_mul(1_000_000_000).saturating_add(nanos))
+    clock_gettime_ns(libc::CLOCK_MONOTONIC)
 }
 
 /// The wall-clock offset for rendering event timestamps: wall-now
@@ -246,6 +247,135 @@ fn time_of_day_from_parts(timestamp_ns: u64, offset_ns: i128) -> String {
         (time_of_day % 3_600) / 60,
         time_of_day % 60
     )
+}
+
+// ── The sleep-gap law (night-frontier-Z6, D3: the sleep blackout) ───
+//
+// The record stamps ride CLOCK_MONOTONIC, and MONOTONIC does not run
+// while the host sleeps - suspend, hibernate, a guest kernel's ACPI
+// sleep. The kernel serves a THIRD clock that does: CLOCK_BOOTTIME,
+// defined as identical to monotonic except that it INCLUDES the time
+// spent in suspend (the same source /proc/uptime's first column is
+// served from). So the kernel's own definition makes
+//
+//     gap = BOOTTIME - MONOTONIC == the cumulative suspend time
+//           since boot
+//
+// and the DELTA of two gap samples names exactly the span the host
+// slept between them. Three properties make that delta evidence, not
+// inference:
+//
+// - a wall step cannot fake it: the gap is the difference of two
+//   kernel clocks in the same breath - NTP moves the wall, never the
+//   pair (the Z2 companion: skew names a wall that moved, the sleep
+//   gap names a host that slept, and neither can masquerade as the
+//   other);
+// - an awake host cannot trip it: both clocks run during normal
+//   operation, so the gap is as steady as the kernel's timekeeping -
+//   the materiality bound below exists so the boundary never fires
+//   on clock noise;
+// - the delta is proof of ABSENCE: the stamps' clock does not run in
+//   the named span, so no event can exist there - the window's
+//   Unaccounted block names the blackout instead of leaving an
+//   unexplained hole (the anti-forensic shape this closes: suspend
+//   the host, manipulate, resume - the gap carries the story).
+//
+// Honesty bounds, named in the same breath as the claim:
+//
+// - the reading is two clock_gettime calls microseconds apart, so a
+//   single gap sample carries ~microseconds of inter-read skew; the
+//   MONOTONIC-first order makes the delta UNDERCOUNT a sleep, never
+//   overstate it;
+// - a hypervisor-level freeze (a paused VM, a snapshot-and-clone) is
+//   a different beast: the guest's clocks jump to the host's on
+//   resume, so the pairing may stay whole while the host lost time -
+//   that tamper is the wall-skew's and the event-record's story, not
+//   the gap's, and the docs say so (D3's domain is the kernel's OWN
+//   suspend accounting);
+// - a pairing that moves BACKWARDS (a paravirt clock resync) cannot
+//   measure a sleep honestly - the delta carries the anomaly arm so
+//   the untrustworthiness is named, never silently trusted.
+//
+// The gap's two sources are cross-pinned live at test time
+// (clock_gettime against /proc/uptime, the boottime-domain file the
+// monotonic cutoff fix night-dragon-lts-1 documented), so every
+// kernel the suite runs on proves the sampling reads true.
+
+/// Read the kernel's third clock pair in one breath: the gap
+/// BOOTTIME - MONOTONIC, in nanoseconds. MONOTONIC first, BOOTTIME
+/// second: `boot(t2) - mono(t1)` then undercounts the gap by the
+/// inter-read span - a blackout report may understate a sleep by
+/// microseconds, never overstate it (a count that errs toward
+/// absence is the honest direction for a proof-of-absence entry).
+/// `None` on a failed read - the honest absence, never a guessed
+/// zero.
+pub(crate) fn boottime_gap_ns() -> Option<i128> {
+    let mono = clock_gettime_ns(libc::CLOCK_MONOTONIC)? as i128;
+    let boot = clock_gettime_ns(libc::CLOCK_BOOTTIME)? as i128;
+    Some(boot - mono)
+}
+
+/// One clock read, in nanoseconds: the shared core of
+/// [`monotonic_now_ns`] and [`boottime_gap_ns`]. The libc pair is
+/// the crate's second raw call (the same escape hatch the
+/// monotonic read documented - std exposes no clock-id source).
+fn clock_gettime_ns(clock: libc::clockid_t) -> Option<u64> {
+    let mut timespec = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: clock_gettime writes through a pointer to a timespec
+    // this call owns for the whole call; the clock id is a kernel
+    // constant.
+    if unsafe { libc::clock_gettime(clock, &mut timespec) } != 0 {
+        return None;
+    }
+    // Both clocks start at zero at boot and never run backwards, so
+    // both fields are non-negative in practice; the saturating shape
+    // only guards the signedness of the raw types.
+    let secs = timespec.tv_sec.max(0) as u64;
+    let nanos = timespec.tv_nsec.max(0) as u64;
+    Some(secs.saturating_mul(1_000_000_000).saturating_add(nanos))
+}
+
+/// The sleep materiality bound, in nanoseconds: one rendered second.
+/// An awake host's gap is as steady as the kernel's timekeeping
+/// (microsecond jitter), and a paravirt clock's resync lands inside
+/// this bound on the hosts that resync gently - below it the delta
+/// is clock noise, and naming noise would be the lie of a boundary
+/// that fires on healthy hosts (the SKEW_BOUND reasoning, one
+/// granularity up: the spans a blackout names are minutes-and-
+/// seconds shaped).
+pub(crate) const SLEEP_BOUND_NS: i128 = 1_000_000_000;
+
+/// The material sleep delta of a capture: `post - pre` when the pair
+/// is readable and the movement exceeds [`SLEEP_BOUND_NS`] in either
+/// direction - `None` otherwise (clocks unreadable, or the host
+/// never slept inside the window: the absence stays absent, never a
+/// guessed zero). The SIGN is the story: positive is a blackout (the
+/// host slept), negative is the paravirt anomaly arm (the pairing
+/// itself moved backwards and cannot be trusted to measure). Pure,
+/// so the law is pinnable without a live suspend.
+pub(crate) fn material_sleep_ns(pre: Option<i128>, post: Option<i128>) -> Option<i128> {
+    let delta = post? - pre?;
+    (delta.abs() > SLEEP_BOUND_NS).then_some(delta)
+}
+
+/// Render a sleep span the way the entries speak it: whole seconds
+/// and up - `7s`, `14m 12s`, `2h 03m 04s`. Sub-second precision is
+/// truncated (never rounded): the rows' whole-second render
+/// granularity is the truth the ledgers serve, and a blackout that
+/// names milliseconds is noise, not evidence.
+pub(crate) fn format_sleep_span(ns: i128) -> String {
+    let secs = (ns / 1_000_000_000) as i64;
+    let hours = secs / 3_600;
+    let minutes = (secs % 3_600) / 60;
+    let seconds = secs % 60;
+    match (hours, minutes) {
+        (0, 0) => format!("{seconds}s"),
+        (0, _) => format!("{minutes}m {seconds:02}s"),
+        (_, _) => format!("{hours}h {minutes:02}m {seconds:02}s"),
+    }
 }
 
 #[cfg(test)]

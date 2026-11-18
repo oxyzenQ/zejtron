@@ -51,16 +51,34 @@ use super::tracked::{track_file, untrack_file};
 /// skewed civil times silently. `None` rides when the clocks were
 /// unreadable at the start (the render already degrades to
 /// `unknown UTC` on its own).
+///
+/// The third member is the capture's PRE sleep gap (night-frontier-
+/// Z6, D3): the BOOTTIME-MONOTONIC divergence sampled in the same
+/// breath as the pre offset - the kernel's own suspend accounting.
+/// The renderer samples the gap again at render time; a material
+/// delta is the span the host spent ASLEEP inside the window, the
+/// proof of absence the Unaccounted block names (no event can exist
+/// in a span the stamps' clock did not run through). `None` rides
+/// when the clocks were unreadable at the start - the honest
+/// absence, never a guessed zero.
+/// One live file window's capture: the selected events, the PRE wall
+/// offset (night-frontier-Z2) and the PRE sleep gap (night-frontier-
+/// Z6, D3) - the two measurements the render breath re-pairs against.
+pub type FileWindowCapture = (Vec<FileEvent>, Option<i128>, Option<i128>);
+
 pub fn capture_file_window(
     inode: u64,
     device: u64,
     window: Duration,
-) -> Result<(Vec<FileEvent>, Option<i128>), String> {
+) -> Result<FileWindowCapture, String> {
     track_file(inode, device)?;
     // The pre sample: after the key is in (the window is about to
     // open) and before the wait - the earliest instant the capture's
-    // own span can name.
+    // own span can name. The wall offset and the sleep gap ride the
+    // same breath: two measurements of one instant, each paired with
+    // its own re-read at render time.
     let pre_offset = crate::info::clock::wall_offset_ns();
+    let pre_gap = crate::info::clock::boottime_gap_ns();
     // The collection: the kprobes are live against the filter map
     // for exactly this long. std sleep, no reader thread — the ring
     // keeps the history and one drain takes it. The wait is
@@ -69,7 +87,7 @@ pub fn capture_file_window(
     crate::output::spinner::wait(window, "watching for events");
     untrack_file(inode, device)?;
     let drained = ringbuf::drain_file_events()?;
-    Ok((select_window(&drained, inode, device), pre_offset))
+    Ok((select_window(&drained, inode, device), pre_offset, pre_gap))
 }
 
 /// Keep only the events whose FULL identity (inode + device, both

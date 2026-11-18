@@ -44,6 +44,23 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z6 D3, the sleep blackout (proof of absence).**
+  The record stamps ride CLOCK_MONOTONIC (which does not run while
+  the host sleeps); the kernel's CLOCK_BOOTTIME does - their
+  divergence IS the kernel's own suspend accounting. Every `--since`
+  window now samples the gap pair at capture start and render time:
+  a material delta names the span the host spent asleep inside the
+  window in the Unaccounted block ("the host spent 14m 12s asleep
+  inside this capture; no event can exist in that span"), turning a
+  suspend/VM-pause hole into named evidence; a backwards-moving
+  pairing (a paravirt resync) is named as the anomaly instead of
+  trusted. Wall-independent: an NTP step reads as Z2's skew, never
+  as a sleep. Both event-window families ride it (the evidence
+  ledgers and the port window, text and JSON lanes - the JSON
+  carries the typed `sleep_delta_ns`). The sampling is cross-pinned
+  live against /proc/uptime on every kernel the suite runs on; the
+  awake-host negative runs per push in critical-sim.
+
 - **night-frontier-Z5 D2, the camera's self-proven object (the
   depth matrix grows D4).** `sig` re-hashes the embedded camera
   object at runtime and compares it against the digest the build

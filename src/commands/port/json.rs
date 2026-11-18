@@ -46,6 +46,7 @@ pub(super) fn port_report_json(
     events: Option<&[SockEvent]>,
     bounds: Option<(u64, u64)>,
     pre_offset: Option<i128>,
+    pre_gap: Option<i128>,
     lane_down: Option<LaneUnavailable>,
 ) -> String {
     let needs_exit_ring = events.is_some_and(|events| {
@@ -91,6 +92,7 @@ pub(super) fn port_report_json(
         exits.as_deref(),
         bounds,
         pre_offset,
+        pre_gap,
         ring_drops,
         lane_down,
     )
@@ -131,6 +133,7 @@ pub(super) fn port_report_json_with_exits(
     exits: Option<&[ProcExitEvent]>,
     bounds: Option<(u64, u64)>,
     pre_offset: Option<i128>,
+    pre_gap: Option<i128>,
     ring_drops: Option<u64>,
     lane_down: Option<LaneUnavailable>,
 ) -> String {
@@ -141,6 +144,12 @@ pub(super) fn port_report_json_with_exits(
     // half-second bound.
     let render_offset = crate::info::clock::wall_offset_ns();
     let skew = crate::info::clock::material_skew_ns(pre_offset, render_offset);
+    // The sleep gap rides the same breath (night-frontier-Z6, D3):
+    // the PRE gap against this render-time gap is the kernel's own
+    // suspend accounting across the capture, typed below when it
+    // moves materially.
+    let sleep =
+        crate::info::clock::material_sleep_ns(pre_gap, crate::info::clock::boottime_gap_ns());
     let mut out = String::with_capacity(512);
     out.push_str("{\"subject\":");
     match options.port {
@@ -238,6 +247,21 @@ pub(super) fn port_report_json_with_exits(
     match skew {
         Some(skew) => {
             let _ = write!(out, "{skew}");
+        }
+        None => out.push_str("null"),
+    }
+    // The sleep delta (night-frontier-Z6, D3): the signed movement of
+    // the BOOTTIME-MONOTONIC gap across the capture in nanoseconds,
+    // typed, null when the measurement did not answer (never a
+    // guessed zero). Positive is the blackout arm - the span the host
+    // spent asleep inside the window, where no event can exist;
+    // negative is the paravirt anomaly arm - the pairing moved
+    // backwards and cannot be trusted to measure. Never omitted: a
+    // consumer diffs the shape, not the field list.
+    out.push_str(",\"sleep_delta_ns\":");
+    match sleep {
+        Some(sleep) => {
+            let _ = write!(out, "{sleep}");
         }
         None => out.push_str("null"),
     }

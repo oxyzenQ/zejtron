@@ -216,6 +216,13 @@ pub(crate) struct WindowCapture {
     /// renderers measure their own render-time offsets against it
     /// and name the movement beyond the half-second bound.
     pub pre_offset: Option<i128>,
+    /// The sleep gap sampled in the same breath (night-frontier-Z6,
+    /// D3): the BOOTTIME-MONOTONIC divergence - the kernel's own
+    /// suspend accounting - at the instant the window opened. The
+    /// renderers sample the gap again at render time; a material
+    /// delta is the span the host spent asleep inside the window,
+    /// the proof of absence the Unaccounted block names.
+    pub pre_gap: Option<i128>,
 }
 
 /// The default shape: both truths when the chain is live, the
@@ -235,6 +242,7 @@ fn default_output(
             &capture.events,
             capture.bounds,
             capture.pre_offset,
+            capture.pre_gap,
         ),
         // The fallback keeps the phase-1 tree below the banner: the
         // snapshot itself is unchanged, the honesty line above it is
@@ -312,6 +320,11 @@ pub fn capture_window(options: &PortOptions) -> Result<WindowCapture, LaneUnavai
     // when the clocks were unreadable here (the render already
     // degrades to `unknown UTC` on its own).
     let pre_offset = crate::info::clock::wall_offset_ns();
+    // The sleep gap rides the same breath (night-frontier-Z6, D3):
+    // the kernel's own suspend accounting, sampled at the instant
+    // the window opens - the render's re-read against this is the
+    // blackout the Unaccounted block names.
+    let pre_gap = crate::info::clock::boottime_gap_ns();
     // The observed bounds: one stamp the instant the wait begins and
     // one the instant it ends - the same CLOCK_MONOTONIC domain the
     // records and the cutoff filter speak (window_events cuts at
@@ -337,6 +350,7 @@ pub fn capture_window(options: &PortOptions) -> Result<WindowCapture, LaneUnavai
         bounds,
         detached_mid_window,
         pre_offset,
+        pre_gap,
     })
 }
 
@@ -477,6 +491,7 @@ fn format_window_report(
     events: &[SockEvent],
     bounds: Option<(u64, u64)>,
     pre_offset: Option<i128>,
+    pre_gap: Option<i128>,
 ) -> String {
     let mut lines = Vec::new();
     // The Mode banner (the buyer verification honesty contract): the window
@@ -503,6 +518,7 @@ fn format_window_report(
         options.no_pid,
         bounds,
         pre_offset,
+        pre_gap,
     ));
     if udp_events_only(options) {
         lines.push(String::new());

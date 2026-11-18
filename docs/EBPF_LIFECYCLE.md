@@ -251,6 +251,25 @@ hard way:
   the map at the next detach, the same one-session comparability
   the drop census carries.
 
+- **The sleep blackout.** The record stamps ride CLOCK_MONOTONIC,
+  which does not run while the host sleeps; the kernel's
+  CLOCK_BOOTTIME does. Their divergence is the kernel's own
+  suspend accounting, so a window that spans a suspend names its
+  blackout in the Unaccounted block: the span the host spent asleep
+  inside the capture, where no event can exist (night-frontier-Z6,
+  D3 - proof of absence). A wall step cannot read as a sleep (the
+  gap is wall-independent) and a sleeping host cannot hide as a
+  wall step; a paravirt clock that moves the pairing backwards is
+  named as the anomaly instead of trusted. The sampling is
+  cross-pinned live against /proc/uptime on every kernel the suite
+  runs on. The real-suspend seat (a disposable guest with ACPI S3
+  and an RTC wakealarm: set `/sys/class/rtc/rtc0/wakealarm` N
+  seconds out, `echo mem > /sys/power/state` mid-window, resume,
+  and assert the reported span against the wall span) is the one
+  arm no current harness seat can carry - the micro-VM machine
+  types expose no ACPI power management - and the docs name that
+  absence rather than decorating a skip that can never fire.
+
 - **The pre-attach past.** The camera starts at attach. What
   crossed the kernel before the attach is unreachable by this lane,
   and the surfaces that care say so through their fallback ladder

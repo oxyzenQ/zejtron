@@ -217,3 +217,128 @@ fn material_skew_is_absent_when_a_clock_is_unreadable() {
     assert_eq!(material_skew_ns(Some(0), None), None);
     assert_eq!(material_skew_ns(None, None), None);
 }
+
+// ── night-frontier-Z6, D3: the sleep-gap law pins ────────────────────
+
+#[test]
+fn the_material_sleep_delta_names_only_material_movement() {
+    // An awake host: the gap is steady (the kernel runs both clocks
+    // together) - below the bound the absence stays absent.
+    assert_eq!(
+        material_sleep_ns(Some(90_000_000_000), Some(90_000_500_000)),
+        None,
+        "half a second of gap movement is noise, never a blackout"
+    );
+    // Exactly at the bound: the boundary fires BEYOND it, the same
+    // strictness the skew bound carries.
+    assert_eq!(
+        material_sleep_ns(Some(0), Some(SLEEP_BOUND_NS)),
+        None,
+        "at the bound is still the un-named side"
+    );
+    // The blackout arm: a positive material delta is the span the
+    // host spent asleep (the kernel's own definition: BOOTTIME -
+    // MONOTONIC == cumulative suspend time, so a growing gap IS the
+    // sleep).
+    let slept = 14 * 60 + 12; // seconds
+    let delta = slept * 1_000_000_000 + 7; // +7 ns of reading jitter
+    assert_eq!(
+        material_sleep_ns(Some(0), Some(delta)),
+        Some(delta),
+        "a material positive delta rides whole"
+    );
+    // The anomaly arm: a backwards pairing cannot measure a sleep
+    // honestly - it rides so the untrustworthiness can be named.
+    assert_eq!(
+        material_sleep_ns(Some(0), Some(-90_000_000_000)),
+        Some(-90_000_000_000),
+        "a material negative delta is the paravirt anomaly, not a blackout"
+    );
+    // Unreadable clocks: the honest absence, never a guessed zero.
+    assert_eq!(material_sleep_ns(None, Some(0)), None);
+    assert_eq!(material_sleep_ns(Some(0), None), None);
+}
+
+#[test]
+fn sleep_spans_render_whole_seconds_and_up() {
+    // Truncation, never rounding: sub-second precision is below the
+    // rows' whole-second render granularity.
+    assert_eq!(format_sleep_span(7_000_000_000), "7s");
+    assert_eq!(format_sleep_span(1_999_999_999), "1s");
+    // The minute shape (the proposal's own example): 14m 12s.
+    assert_eq!(format_sleep_span(852_000_000_000), "14m 12s");
+    // The hour shape: 2h 03m 04s.
+    assert_eq!(format_sleep_span(7_384_000_000_000), "2h 03m 04s");
+}
+
+#[test]
+fn a_wall_step_cannot_read_as_a_sleep_and_vice_versa() {
+    // The Z2/D3 companion law: the skew reads the WALL offset pair
+    // (wall - monotonic), the sleep gap reads the BOOTTIME -
+    // MONOTONIC pair. An NTP step moves the wall offset but not the
+    // gap; a suspend moves the gap but not the wall offset. Neither
+    // boundary can masquerade as the other.
+    let steady = 90_000_000_000i128;
+    let steady_gap = Some(steady);
+    // A wall step of two seconds: the skew names it...
+    let stepped = material_skew_ns(Some(1_000_000_000_000), Some(1_002_000_000_000));
+    assert!(stepped.is_some(), "the wall step is named (Z2)");
+    // ...while the gap, measured on the same host in the same
+    // breath, holds: no blackout.
+    assert_eq!(
+        material_sleep_ns(steady_gap, Some(90_000_000_001)),
+        None,
+        "the wall step is not a sleep"
+    );
+    // And the inverse: a real suspend with a whole wall clock (the
+    // kernel steps the civil time from the RTC on resume, inside the
+    // 500 ms slew the skew bound forgives) moves the gap and NOT the
+    // skew.
+    let slept = 900_000_000_000i128;
+    assert!(
+        material_skew_ns(Some(1_000_000_000_000), Some(1_000_000_000_100)).is_none(),
+        "a steady wall is no skew"
+    );
+    assert!(
+        material_sleep_ns(steady_gap, Some(steady + slept)).is_some(),
+        "the suspend is a blackout, wall-independent"
+    );
+}
+
+#[test]
+fn the_gap_reads_true_against_the_boottime_domain_file() {
+    // The two-source live cross-check: CLOCK_BOOTTIME from
+    // clock_gettime and /proc/uptime's first column are the SAME
+    // kernel counter (the boottime domain) served through two
+    // independent sources - the sampling law is proven, per push, on
+    // every kernel the suite runs on, not assumed. The tolerance is
+    // the read jitter and the file's own granularity (two reads, a
+    // context switch apart).
+    let uptime = std::fs::read_to_string("/proc/uptime").expect("/proc/uptime is linux ground");
+    let uptime_secs: f64 = uptime
+        .split_whitespace()
+        .next()
+        .expect("uptime's first column")
+        .parse()
+        .expect("uptime seconds");
+    let uptime_ns = (uptime_secs * 1_000_000_000.0) as i128;
+    let boot = clock_gettime_ns(libc::CLOCK_BOOTTIME).expect("the third clock reads") as i128;
+    let drift = (boot - uptime_ns).abs();
+    assert!(
+        drift < 2_000_000_000,
+        "clock_gettime BOOTTIME and /proc/uptime must agree within 2s: boot {boot} vs uptime {uptime_ns}"
+    );
+    // And the gap is exactly the kernel's own definition, boot -
+    // monotonic, within the two reads' jitter: the suspend span the
+    // blackout law measures.
+    let mono = clock_gettime_ns(libc::CLOCK_MONOTONIC).expect("the stamps' clock reads") as i128;
+    let gap = boottime_gap_ns().expect("the gap reads");
+    let derived = (boot - mono - gap).abs();
+    assert!(
+        derived < 2_000_000_000,
+        "the gap must be boot - monotonic within the reads' jitter: gap {gap} vs {}",
+        boot - mono
+    );
+    // A span since boot is never negative by construction.
+    assert!(gap >= 0, "the gap is a span since boot, never negative");
+}

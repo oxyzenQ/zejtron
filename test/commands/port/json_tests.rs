@@ -93,6 +93,7 @@ fn json_snapshot_shape_pins_the_two_truths() {
         None,
         None,
         None,
+        None,
     );
     // The subject pins the asked port; the mode is the honest
     // snapshot; the ports array carries the owner typed.
@@ -115,7 +116,17 @@ fn json_snapshot_without_a_port_filter_has_a_null_subject() {
     let stats = ScanStats::default();
     let mut opts = options(true);
     opts.port = None;
-    let out = super::port_report_json(&[], &HashMap::new(), &stats, &opts, None, None, None, None);
+    let out = super::port_report_json(
+        &[],
+        &HashMap::new(),
+        &stats,
+        &opts,
+        None,
+        None,
+        None,
+        None,
+        None,
+    );
     assert!(out.starts_with("{\"subject\":null"));
 }
 
@@ -137,6 +148,7 @@ fn json_live_shape_carries_the_event_kinds() {
         &stats,
         &opts,
         Some(&events),
+        None,
         None,
         None,
         None,
@@ -163,6 +175,7 @@ fn json_lane_absence_names_the_reason_not_a_fake_window() {
         &owners(),
         &stats,
         &opts,
+        None,
         None,
         None,
         None,
@@ -228,16 +241,18 @@ mod post_mortem {
             Some(exits),
             None,
             None,
+            None,
         );
         let stats = ScanStats::default();
         let opts = options(false);
-        let json = super::super::port_report_json_with_exits(
+        let json = super::port_report_json_with_exits(
             &[],
             &HashMap::new(),
             &stats,
             &opts,
             Some(events),
             Some(exits),
+            None,
             None,
             None,
             None,

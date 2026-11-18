@@ -61,3 +61,58 @@ fn the_wall_skew_entry_names_the_signed_movement_and_the_bound() {
         entry.reason
     );
 }
+
+// ── night-frontier-Z6, D3: the sleep blackout entry pins ─────────────
+
+#[test]
+fn the_sleep_blackout_entry_names_the_span_and_the_absence() {
+    // The blackout arm: the span the host spent asleep inside this
+    // capture, the mechanism (the stamps' clock does not run there),
+    // and the proof-of-absence reading - the hole carried as
+    // evidence.
+    let entry = sleep_blackout_entry(852_000_000_000 + 7);
+    assert_eq!(entry.count, 1);
+    assert_eq!(entry.category, "sleep blackout");
+    assert!(
+        entry.reason.contains("spent 14m 12s asleep"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("no event can exist in that span"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry
+            .reason
+            .contains("the rows above are the only evidence this window could have"),
+        "{}",
+        entry.reason
+    );
+}
+
+#[test]
+fn the_sleep_anomaly_entry_names_the_untrustworthy_pairing() {
+    // The paravirt arm: a pairing that moved backwards cannot measure
+    // a sleep honestly - the withheld measurement is named, never a
+    // guessed blackout.
+    let entry = sleep_blackout_entry(-300_000_000_000);
+    assert_eq!(entry.count, 1);
+    assert_eq!(entry.category, "sleep clock anomaly");
+    assert!(
+        entry.reason.contains("moved backwards by 5m 00s"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("paravirt clock resync"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("withheld rather than guessed"),
+        "{}",
+        entry.reason
+    );
+}

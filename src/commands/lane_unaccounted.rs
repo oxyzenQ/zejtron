@@ -47,6 +47,47 @@ pub(crate) fn wall_skew_entry(skew_ns: i128) -> UnaccountedEntry {
     )
 }
 
+/// The sleep blackout entry (night-frontier-Z6, D3): the proof of
+/// absence a moving BOOTTIME-MONOTONIC gap carries. A POSITIVE delta
+/// is the blackout arm - the span the host spent asleep inside this
+/// capture, where no event can exist because the stamps' clock does
+/// not run there: the hole becomes evidence instead of an unexplained
+/// gap. A NEGATIVE delta is the anomaly arm - the clock pairing
+/// itself moved backwards (a paravirt resync), so the pairing cannot
+/// measure a sleep honestly and the withheld measurement is named
+/// instead of trusted. Pure, so the wording and the two arms are
+/// pinnable without a live suspend.
+pub(crate) fn sleep_blackout_entry(sleep_delta_ns: i128) -> UnaccountedEntry {
+    if sleep_delta_ns > 0 {
+        let span = crate::info::clock::format_sleep_span(sleep_delta_ns);
+        UnaccountedEntry::new(
+            1,
+            "sleep blackout",
+            format!(
+                "the host spent {span} asleep inside this capture - \
+                 CLOCK_BOOTTIME diverged from the stamps' CLOCK_MONOTONIC \
+                 by the same span, and the stamps' clock does not run \
+                 while the host sleeps: no event can exist in that span, \
+                 and the rows above are the only evidence this window \
+                 could have"
+            ),
+        )
+    } else {
+        let span = crate::info::clock::format_sleep_span(-sleep_delta_ns);
+        UnaccountedEntry::new(
+            1,
+            "sleep clock anomaly",
+            format!(
+                "the sleep measurement moved backwards by {span} across \
+                 this capture - the BOOTTIME-MONOTONIC pairing itself is \
+                 untrustworthy here (a paravirt clock resync), so any \
+                 blackout report for this window is withheld rather \
+                 than guessed"
+            ),
+        )
+    }
+}
+
 #[cfg(test)]
 #[path = "../../test/commands/lane_unaccounted_tests.rs"]
 mod tests;

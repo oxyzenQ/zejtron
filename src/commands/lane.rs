@@ -27,13 +27,10 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, Mode, UnaccountedEntry};
-
-use crate::commands::touch::TouchInfo;
-use crate::commands::touch::audit::{try_audit_log, try_journalctl};
 
 /// The default window for holds/touch/why (the spec's lock): short
 /// enough that the live lane's collection-over-duration stays quick,
@@ -165,7 +162,7 @@ pub fn collect(
         }
     }
     crate::output::verbose::vlog!("lane", "snapshot only (eBPF not attached)");
-    Ok(collect_log(query, window))
+    Ok(crate::commands::lane_log::collect_log(query, window))
 }
 
 /// The degraded step (night-hunter-5): the snapshot/log lane's parts
@@ -174,7 +171,7 @@ pub fn collect(
 /// rides the standard entry shape ("1 event window (...)"), the mode
 /// stays whatever the log lane found.
 fn snapshot_fallback(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
-    let mut parts = collect_log(query, window);
+    let mut parts = crate::commands::lane_log::collect_log(query, window);
     parts.unaccounted.push(UnaccountedEntry::new(
         1,
         "event window",
@@ -190,7 +187,7 @@ fn collect_live(
     window: Duration,
     filter: OpFilter,
 ) -> Result<LaneParts, String> {
-    let (events, pre_offset) =
+    let (events, pre_offset, pre_gap) =
         crate::ebpf::fileprobe::capture_file_window(query.inode, query.device, window)?;
 
     // ONE render breath (night-frontier-Z2, the wall-offset skew
@@ -198,12 +195,19 @@ fn collect_live(
     // sampled here, and the capture's PRE offset measures the wall
     // clock's movement across the window - beyond the half-second
     // bound the movement is named in the Unaccounted block instead
-    // of riding the civil times silently.
+    // of riding the civil times silently. The sleep gap rides the
+    // same breath (night-frontier-Z6, D3): the PRE gap against this
+    // render-time gap is the kernel's own suspend accounting across
+    // the capture - wall-independent, so an NTP step can never read
+    // as a sleep and a sleep can never hide as a wall step.
     let render_offset = crate::info::clock::wall_offset_ns();
     let skew = crate::info::clock::material_skew_ns(pre_offset, render_offset);
+    let sleep =
+        crate::info::clock::material_sleep_ns(pre_gap, crate::info::clock::boottime_gap_ns());
     crate::output::verbose::vlog!(
         "lane",
-        "render offset sampled once; pre-render skew measured: {skew:?}"
+        "render offset sampled once; pre-render skew measured: {skew:?}; \
+         sleep delta measured: {sleep:?}"
     );
 
     // The rows keep the capture's ascending order (the renderer
@@ -374,6 +378,19 @@ fn collect_live(
     if let Some(skew) = skew {
         unaccounted.push(crate::commands::lane_unaccounted::wall_skew_entry(skew));
     }
+    // The sleep blackout boundary (night-frontier-Z6, D3): named when
+    // the BOOTTIME-MONOTONIC gap moved materially across the capture.
+    // A positive delta is the blackout arm - the span the host spent
+    // asleep inside this window, where no event can exist (the
+    // stamps' clock does not run there): proof of absence, the hole
+    // carried as evidence. A negative delta is the paravirt anomaly
+    // arm - the pairing moved backwards, and the withheld measurement
+    // is named instead of trusted.
+    if let Some(sleep) = sleep {
+        unaccounted.push(crate::commands::lane_unaccounted::sleep_blackout_entry(
+            sleep,
+        ));
+    }
     // events arrive ascending from the capture; the filter keeps the
     // order. No re-sorting here - the renderer never reorders.
     Ok(LaneParts {
@@ -422,162 +439,6 @@ fn pid_context(pid: u32, users: &HashMap<u32, String>) -> Option<(String, String
         None => "unknown".to_owned(),
     };
     Some((name, user))
-}
-
-// ── The log half (every build) ──────────────────────────────────────
-
-fn collect_log(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
-    // The log lane: audit first (real syscall records), journal
-    // second (whatever mentioned the path). Whichever record comes
-    // back is THE latest the lane has.
-    let record: Option<(TouchInfo, bool)> =
-        match try_audit_log(query.display_path, query.lookup_path, query.users) {
-            Some(info) => {
-                crate::output::verbose::vlog!("lane", "audit log record selected");
-                Some((info, true))
-            }
-            None => match try_journalctl(query.display_path, query.lookup_path, query.users) {
-                Some(info) => {
-                    crate::output::verbose::vlog!("lane", "journal fallback selected");
-                    Some((info, false))
-                }
-                None => {
-                    crate::output::verbose::vlog!("lane", "no log record - metadata snapshot only");
-                    None
-                }
-            },
-        };
-
-    let mut unaccounted = Vec::new();
-    match record {
-        Some((info, from_audit)) => {
-            // In-window check: the record's time against the window.
-            // An old record is not a lie about the window - it is a
-            // fact the window excludes, and the Unaccounted block
-            // names it with the actor the log did record.
-            let now = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
-            let record_secs = info
-                .modified
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(-1);
-            let cutoff = now.saturating_sub(window.as_secs() as i64);
-            if record_secs >= cutoff && record_secs > 0 {
-                // The action names the exact source: an audit record
-                // is a real syscall record; a journal grep hit only
-                // proves the journal mentioned the path. The kind is
-                // the typed fact; the phrase is its text form.
-                let kind = if from_audit {
-                    EvidenceKind::Modified {
-                        via: Some("audit log"),
-                    }
-                } else {
-                    EvidenceKind::JournalMention
-                };
-                let actor = log_actor(&info);
-                let mut changes = ChangesSection {
-                    rows: Vec::new(),
-                    unavailable: false,
-                };
-                changes.rows.push(EvidenceRow::new(
-                    Some(record_secs),
-                    kind,
-                    actor,
-                    Provenance::Inferred,
-                ));
-                return LaneParts {
-                    mode: Mode::SnapshotJournal,
-                    changes,
-                    unaccounted,
-                    raw: Vec::new(),
-                };
-            }
-            // Outside the window: the row is not rendered; the
-            // record (and its actor) is named in Unaccounted.
-            let actor = log_actor(&info);
-            unaccounted.push(UnaccountedEntry::new(
-                1,
-                "modification",
-                format!(
-                    "the log lane's latest record (by {actor}) is older than this window - \
-                     extend --since to widen it"
-                ),
-            ));
-            LaneParts {
-                mode: Mode::SnapshotJournal,
-                changes: ChangesSection {
-                    rows: Vec::new(),
-                    unavailable: false,
-                },
-                unaccounted,
-                raw: Vec::new(),
-            }
-        }
-        None => {
-            // No record at all. Two different truths: the lane ran
-            // and found nothing (an honest empty window), or no lane
-            // exists on this host (the named unavailability). The
-            // distinction is the mode line's to carry.
-            if log_lane_present() {
-                LaneParts {
-                    mode: Mode::SnapshotJournal,
-                    changes: ChangesSection {
-                        rows: Vec::new(),
-                        unavailable: false,
-                    },
-                    unaccounted,
-                    raw: Vec::new(),
-                }
-            } else {
-                unaccounted.push(UnaccountedEntry::new(
-                    1,
-                    "event window",
-                    "unavailable - no live chain and no log lane; see zejtron doctor [eBPF]",
-                ));
-                LaneParts {
-                    mode: Mode::SnapshotNoLane,
-                    changes: ChangesSection {
-                        rows: Vec::new(),
-                        unavailable: true,
-                    },
-                    unaccounted,
-                    raw: Vec::new(),
-                }
-            }
-        }
-    }
-}
-
-/// The log record's actor, in the holder rows' grammar: the typed
-/// actor carrying the process when the log recorded one (the pid
-/// when the record carried it) and the username it recorded either
-/// way. The row renders it through Display; the JSON lane holds it
-/// as the name/pid/user object.
-fn log_actor(info: &TouchInfo) -> EvidenceActor {
-    match &info.process {
-        Some(process) => EvidenceActor::recorded(
-            Some(process.name.clone()),
-            process.pid,
-            Some(info.actor.clone()),
-        ),
-        None => EvidenceActor::recorded(None, None, Some(info.actor.clone())),
-    }
-}
-
-/// True when the log lane exists on this host at all: a readable
-/// audit.log, or an invocable journalctl. Probed only on the
-/// no-record path, so the common case pays nothing.
-fn log_lane_present() -> bool {
-    if Path::new("/var/log/audit/audit.log").exists() {
-        return true;
-    }
-    std::process::Command::new("journalctl")
-        .arg("--version")
-        .output()
-        .is_ok()
 }
 
 #[cfg(test)]

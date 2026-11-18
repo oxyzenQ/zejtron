@@ -16,6 +16,7 @@ mod model;
 mod owners;
 mod parser;
 mod render;
+mod unaccounted;
 pub(crate) mod window;
 
 use std::error::Error;
@@ -42,8 +43,8 @@ pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
     // One scan, one capture, two renderers - the text lane below is
     // untouched.
     if print_json {
-        let (events, bounds, pre_offset, lane_down) = if options.snapshot_only {
-            (None, None, None, None)
+        let (events, bounds, pre_offset, pre_gap, lane_down) = if options.snapshot_only {
+            (None, None, None, None, None)
         } else {
             match window::capture_window(&options) {
                 // The detach story: the window ran but its lane was
@@ -54,15 +55,17 @@ pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
                     None,
                     None,
                     None,
+                    None,
                     Some(lane_state::LaneUnavailable::DetachedMidWindow),
                 ),
                 Ok(capture) => (
                     Some(capture.events),
                     capture.bounds,
                     capture.pre_offset,
+                    capture.pre_gap,
                     None,
                 ),
-                Err(lane) => (None, None, None, Some(lane)),
+                Err(lane) => (None, None, None, None, Some(lane)),
             }
         };
         println!(
@@ -75,6 +78,7 @@ pub fn run(port: Option<&str>, flags: PortFlags) -> Result<(), Box<dyn Error>> {
                 events.as_deref(),
                 bounds,
                 pre_offset,
+                pre_gap,
                 lane_down
             )
         );

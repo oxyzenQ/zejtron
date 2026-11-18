@@ -119,7 +119,8 @@ mod live {
                 TCP_CLOSE,
             ),
         ];
-        let section = format_event_section(&events, Duration::from_secs(60), false, None, None);
+        let section =
+            format_event_section(&events, Duration::from_secs(60), false, None, None, None);
 
         let lines: Vec<&str> = section.lines().collect();
         assert_eq!(lines[0], "Changes in the last 60s:");
@@ -162,7 +163,7 @@ mod live {
 
     #[test]
     fn empty_window_says_so_honestly() {
-        let section = format_event_section(&[], Duration::from_secs(300), false, None, None);
+        let section = format_event_section(&[], Duration::from_secs(300), false, None, None, None);
         assert!(section.contains("Changes in the last 5m:"));
         assert!(section.contains("(no events in the window)"));
         assert!(section.contains("Unaccounted:"));
@@ -179,7 +180,8 @@ mod live {
             TCP_CLOSE,
             TCP_LISTEN,
         )];
-        let section = format_event_section(&events, Duration::from_secs(60), true, None, None);
+        let section =
+            format_event_section(&events, Duration::from_secs(60), true, None, None, None);
         // The PID token is dropped from the ROW - the unaccounted
         // block's prose still names the concept ("no visible PID"),
         // which is the point of the block.
@@ -236,6 +238,7 @@ mod live {
             Some(&exits),
             None,
             None,
+            None,
         );
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[observed]  "), "the weaker tier: {row}");
@@ -271,6 +274,7 @@ mod live {
             Some(&exits),
             None,
             None,
+            None,
         );
         assert!(
             section
@@ -296,6 +300,7 @@ mod live {
             false,
             None,
             Some(&[]),
+            None,
             None,
             None,
         );
@@ -331,6 +336,7 @@ mod live {
             Some(&exits),
             None,
             None,
+            None,
         );
         assert!(!section.contains("[observed]"), "{section}");
         assert!(
@@ -359,6 +365,7 @@ mod live {
             Some(&exits),
             None,
             None,
+            None,
         );
         assert!(!section.contains("[observed]"), "{section}");
         assert!(section.contains("  1 events in the window"), "{section}");
@@ -382,6 +389,7 @@ mod live {
             Some(&exits),
             None,
             None,
+            None,
         );
         let row = section.lines().nth(1).unwrap();
         assert!(row.starts_with("[event]  "), "{row}");
@@ -401,7 +409,7 @@ mod live {
         // never by wall-clock value.
         let start = 30_000_123_456_789;
         let bounds = Some((start, start + 5 * 1_000_000_000 + 137_000_000));
-        let section = format_event_section(&[], Duration::from_secs(5), false, bounds, None);
+        let section = format_event_section(&[], Duration::from_secs(5), false, bounds, None, None);
         let header = section.lines().next().unwrap();
         assert!(header.contains("Changes in the last 5s ("), "{header}");
         assert!(header.ends_with("):"), "{header}");
@@ -442,7 +450,7 @@ mod live {
         // No bounds (a failed clock read, or a caller without the
         // capture's stamps): the locked range-less shapes ride
         // unchanged - the honest absence, never a guessed boundary.
-        let section = format_event_section(&[], Duration::from_secs(5), false, None, None);
+        let section = format_event_section(&[], Duration::from_secs(5), false, None, None, None);
         assert!(
             section.contains("Changes in the last 5s:\n  (no events in the window)"),
             "{section}"
@@ -495,4 +503,67 @@ fn the_sock_ring_drop_line_is_count_backed() {
         line.contains("may be missing events the same way"),
         "{line}"
     );
+}
+
+// ── night-frontier-Z6, D3: the sleep blackout line pins ──────────────
+
+#[test]
+fn a_moving_gap_renders_the_blackout_line() {
+    // The seam carries a PRE gap one hour behind the render-time gap:
+    // the delta is material and positive - the line names the span
+    // and the proof-of-absence reading. Hermetic by construction: the
+    // render-time gap is a live read, but the delta is material by a
+    // full hour, so the pin cannot flake.
+    let pre_gap = crate::info::clock::boottime_gap_ns().map(|gap| gap - 3_600_000_000_000);
+    let section = format_event_section_with_exits(
+        &[],
+        Duration::from_secs(60),
+        false,
+        None,
+        None,
+        None,
+        None,
+        pre_gap,
+    );
+    assert!(
+        section.contains("of the window was spent asleep"),
+        "{section}"
+    );
+    // The span truncates to whole seconds (the render law): one hour
+    // minus the 146 ns of reading jitter is 3599 s, not 3600.
+    assert!(section.contains("59m 59s"), "{section}");
+    assert!(
+        section.contains("no event can exist in that span"),
+        "{section}"
+    );
+}
+
+#[test]
+fn a_backwards_pairing_renders_the_anomaly_line() {
+    // The anomaly arm: a PRE gap ahead of the render-time gap moves
+    // the delta negative - the withheld measurement is named, never a
+    // guessed blackout. The expected span derives from the SAME read
+    // the fixture uses, with a one-second truncation tolerance (the
+    // render's own read carries jitter, and a whole-second edge must
+    // never decide a pin).
+    let live = crate::info::clock::boottime_gap_ns().expect("the gap reads");
+    let pre_gap = Some(live + 900_000_000_000);
+    let section = format_event_section_with_exits(
+        &[],
+        Duration::from_secs(60),
+        false,
+        None,
+        None,
+        None,
+        None,
+        pre_gap,
+    );
+    assert!(section.contains("of backwards movement"), "{section}");
+    let spans =
+        [899i128, 900, 901].map(|s| crate::info::clock::format_sleep_span(s * 1_000_000_000));
+    assert!(spans.iter().any(|span| section.contains(span)), "{section}");
+    // The render wraps at its own column edges - the meaning pin
+    // normalizes the whitespace instead of pinning a line break.
+    let flat = section.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(flat.contains("withheld rather than guessed"), "{section}");
 }

@@ -12,6 +12,7 @@
 use std::time::Duration;
 
 use super::model::PortOptions;
+use super::unaccounted::{ring_drop_line, sleep_blackout_line, wall_skew_line};
 use super::window::{capture_window, unavailability_line, window_label};
 use crate::ebpf::events::{ProcExitEvent, SockEvent};
 
@@ -25,6 +26,7 @@ pub(super) fn events_only_output(options: &PortOptions) -> String {
                 options.no_pid,
                 capture.bounds,
                 capture.pre_offset,
+                capture.pre_gap,
             );
             if udp_events_only(options) {
                 section.push('\n');
@@ -293,40 +295,17 @@ pub fn protocol_family_label(protocol: u8, family: u16) -> Option<&'static str> 
     }
 }
 
-/// The wall-clock skew line (night-frontier-Z2): one grey row for a
-/// wall clock that demonstrably moved across the capture, the signed
-/// movement named and the rows' exposure said. The count-backed zero
-/// class does not apply: the movement HAPPENED (the compare already
-/// gated it at the half-second bound), so the line always renders.
-/// Pure, pinnable without two live clock reads.
-fn wall_skew_line(skew_ns: i128) -> String {
-    format!(
-        "{}{skew_ns:+}{}",
-        crate::output::grey_out("  "),
-        crate::output::grey_out(
-            " ns of wall-clock skew measured across this capture (beyond the\n  500 ms bound) - the times above render under the post-capture offset and\n  can sit that far from the times the events happened at"
-        )
-    )
-}
+// The Unaccounted line builders (the wall-skew line, the ring-drop
+// line, the sleep blackout line) moved to super::unaccounted
+// (night-frontier-Z6: the lane_unaccounted.rs sibling precedent -
+// one module, one concern, the section grammar's additive lines
+// beside each other under the 600-LOC cap).
 
-/// The sock ring's drop-truth line (night-frontier-Z1): one grey
-/// row for the reserve failures, `None` when the count is zero (the
-/// count-backed boundary class - the boundary exists only when it
-/// fired). Pure, so the wording and the threshold are pinnable
-/// without a pinned map (the lane.rs file_ring_drop_entry
-/// precedent).
-fn ring_drop_line(drops: u64) -> Option<String> {
-    (drops > 0).then(|| {
-        format!(
-            "{}{drops}{}",
-            crate::output::grey_out("  "),
-            crate::output::grey_out(
-                " sock_events ring drops since attach (the camera saw\n  transitions the ring could not hold; the window above may be missing events the same way)"
-            )
-        )
-    })
-}
-
+/// `pre_gap` rides the capture's PRE sleep gap (night-frontier-Z6,
+/// D3): the BOOTTIME-MONOTONIC divergence sampled in the same breath
+/// as the pre offset. The seam samples the gap again at render time;
+/// a material delta is the blackout (or the paravirt anomaly) the
+/// Unaccounted block names - proof of absence, wall-independent.
 /// The full event-window section: the Changes header, one row per
 /// attributed event (ascending), and the unaccounted block that
 /// names what neither source can see. Every event whose pid has no
@@ -343,6 +322,7 @@ pub fn format_event_section(
     no_pid: bool,
     bounds: Option<(u64, u64)>,
     pre_offset: Option<i128>,
+    pre_gap: Option<i128>,
 ) -> String {
     // The ring is drained ONLY when some event needs it: a fully
     // live window never consumes the exit stream. The seam form
@@ -385,6 +365,7 @@ pub fn format_event_section(
         exits.as_deref(),
         ring_drops,
         pre_offset,
+        pre_gap,
     )
 }
 
@@ -400,6 +381,10 @@ pub fn format_event_section(
 /// (night-frontier-Z1): `None` when the census did not answer, the
 /// sock ring's cumulative reserve-failure count when it did - the
 /// line renders only when the count is nonzero.
+// Eight parameters is the seam's own shape (each one is a fixture
+// axis the tests pin independently - the json.rs seam law; the
+// sleep-gap axis night-frontier-Z6 added is the eighth).
+#[allow(clippy::too_many_arguments)]
 pub fn format_event_section_with_exits(
     events: &[SockEvent],
     window: Duration,
@@ -408,15 +393,23 @@ pub fn format_event_section_with_exits(
     exits: Option<&[ProcExitEvent]>,
     ring_drops: Option<u64>,
     pre_offset: Option<i128>,
+    pre_gap: Option<i128>,
 ) -> String {
     // ONE render breath (night-frontier-Z2, the wall-offset skew
     // law): the offset every row and the header range render under,
     // sampled once - and the skew it measures against the capture's
     // PRE sample, named in the Unaccounted block when it moves
     // beyond the half-second bound. Two rows can never disagree
-    // because a wall clock step fell between their reads.
+    // because a wall clock step fell between their reads. The sleep
+    // gap rides the same breath (night-frontier-Z6, D3): the PRE gap
+    // against this render-time gap is the kernel's own suspend
+    // accounting across the capture - wall-independent, so an NTP
+    // step can never read as a sleep and a sleep can never hide as a
+    // wall step.
     let render_offset = crate::info::clock::wall_offset_ns();
     let skew = crate::info::clock::material_skew_ns(pre_offset, render_offset);
+    let sleep =
+        crate::info::clock::material_sleep_ns(pre_gap, crate::info::clock::boottime_gap_ns());
     let range = match (bounds, render_offset) {
         (Some((start, end)), Some(offset)) => Some((
             crate::info::clock::time_of_day_with_offset(start, Some(offset)),
@@ -566,6 +559,13 @@ pub fn format_event_section_with_exits(
     // the rows' exposure said plainly.
     if let Some(skew) = skew {
         lines.push(wall_skew_line(skew));
+    }
+    // The sleep blackout boundary (night-frontier-Z6, D3): the
+    // positive arm names the span the host spent asleep inside the
+    // window (proof of absence); the negative arm names the paravirt
+    // pairing that moved backwards (the withheld measurement).
+    if let Some(sleep) = sleep {
+        lines.push(sleep_blackout_line(sleep));
     }
     // The LEFT LISTEN race notes (the night-dragon-lts-T1 residual):
     // each miss names itself instead of hiding in the count - the

@@ -44,7 +44,30 @@ render time - a wall clock that moved more than half a rendered
 second across the capture is NAMED in the Unaccounted block, the
 signed movement beside the rows' exposure, instead of riding the
 rendered times silently. The bound and the compare are pure and
-pinned by `test/info/clock_tests.rs`.
+pinned by `test/info/clock_tests.rs`. And night-frontier-Z6 (D3,
+the sleep blackout) names the dimension Z2 could only imply - WHY a
+window is empty: the record stamps ride CLOCK_MONOTONIC, which does
+not run while the host sleeps, while the kernel's CLOCK_BOOTTIME
+does; their divergence IS the kernel's own suspend accounting, so
+the delta of two gap samples across a capture names exactly the
+span the host spent asleep inside it - a wall step cannot fake it
+(the gap is the difference of two kernel clocks read in one breath,
+wall-independent) and an awake host cannot trip it (the materiality
+bound is one rendered second). The Unaccounted block renders the
+blackout as proof of ABSENCE - "the host spent 14m 12s asleep
+inside this capture; no event can exist in that span" - turning the
+anti-forensic shape (suspend, manipulate, resume) from an
+unexplained hole into named evidence; a pairing that moves
+BACKWARDS (a paravirt resync) is named as the anomaly arm instead
+of being trusted. The sampling is cross-pinned LIVE on every kernel
+the suite runs on (clock_gettime BOOTTIME against /proc/uptime, the
+boottime domain's two independent sources); the suspend-class arm's
+real-VM seat (ACPI S3 + RTC wakealarm) is named as the unavailability
+it is until such a seat exists, and the awake-host negative runs
+per push on every root CI leg
+(`scripts/netrunner/critical-sim.sh`, the sleep-gap leg). Pinned by
+`test/info/clock_tests.rs`, `test/commands/lane_unaccounted_tests.rs`,
+`test/commands/port/events_tests.rs`.
 
 **2. The Lazy Camera** (`src/ebpf/plant.rs`, `loader.rs`,
 `ringbuf.rs`, `events.rs`). The hole: forensics tools either run an
