@@ -451,13 +451,17 @@ jobs:
             echo "### the cross-dialect render rows (night-frontier-Z4)"
             echo
             echo '```'
-            grep -E '^SANDBOX-RENDER' "$LOG" || true
+            grep -E '^SANDBOX-RENDER' "$LOG" | tr -d '\r' || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           # The per-leg render rows ride an artifact for the verdict
           # job: every witness dialect's fixture digests, one file.
+          # The serial console ends every line CRLF - the trailing CR
+          # rides the relayed rows and would make the verdict's diff
+          # call identical digests different (the first full-span
+          # verdict's finding, fixed the same night).
           mkdir -p "${{ runner.temp }}/cross-dialect"
-          grep -E '^SANDBOX-(RESULT: cross-dialect|RENDER)' "$LOG" \
+          grep -E '^SANDBOX-(RESULT: cross-dialect|RENDER)' "$LOG" | tr -d '\r' \
             > "${{ runner.temp }}/cross-dialect/render-${{ matrix.suite }}.txt" || true
 
       - name: Upload the cross-dialect render rows
