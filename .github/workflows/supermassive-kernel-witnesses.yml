@@ -335,16 +335,17 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           if [[ ! -f "$KIMG" ]]; then
-            echo "note: no kernel image at $KIMG - the lane failed before packing a kernel" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "note: no kernel image at $KIMG - the lane failed before packing a kernel"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           set +e
           REPORT="$(bash scripts/ci/corpus-extract-dialect.sh "$KIMG" "$OUT" 2>&1)"
           ECHO_RC=$?
           set -e
-          printf '%s\n' "$REPORT" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          { printf '%s\n' "$REPORT"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           case "${{ matrix.suite }}" in
             focal)
               # The named absence: the refusal IS the verdict.
@@ -356,13 +357,16 @@ jobs:
               fi
               ;;
             jammy)
-              echo '5.15.0-25-generic.btf sha256=a5baeefda0d449e9070af8d9e129b075633681d7dd80036d11628bd9965e7d2d' > /tmp/frozen.txt
+              D='a5baeefda0d449e9070af8d9e129b075633681d7dd80036d11628bd9965e7d2d'
+              echo '5.15.0-25-generic.btf' "sha256=$D" > /tmp/frozen.txt
               ;;
             mainline-6.6)
-              echo '6.6.95-060695-generic.btf sha256=f5e9dd11aa2232e8066b8c1102b36cc3d956ce8818d4c6a89a54ab66d7be9a71' > /tmp/frozen.txt
+              D='f5e9dd11aa2232e8066b8c1102b36cc3d956ce8818d4c6a89a54ab66d7be9a71'
+              echo '6.6.95-060695-generic.btf' "sha256=$D" > /tmp/frozen.txt
               ;;
             noble)
-              echo '6.8.0-31-generic.btf sha256=43c0d3cfdc66818fb0a4c375f6a49b724e9f591cd70fd0237490d0e5e5d5f914' > /tmp/frozen.txt
+              D='43c0d3cfdc66818fb0a4c375f6a49b724e9f591cd70fd0237490d0e5e5d5f914'
+              echo '6.8.0-31-generic.btf' "sha256=$D" > /tmp/frozen.txt
               ;;
             *)
               # The moving dialects: digest + artifact, no equality.
@@ -379,9 +383,11 @@ jobs:
           if [[ "$GOT" == "$WANT" ]]; then
             echo "the frozen dialect's live bytes equal the corpus pin ($WANT)" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "FAIL: the frozen dialect drifted from the corpus pin" >> "$GITHUB_STEP_SUMMARY"
-            echo "  want sha256 $WANT" >> "$GITHUB_STEP_SUMMARY"
-            echo "  got  sha256 ${GOT:-none}" >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "FAIL: the frozen dialect drifted from the corpus pin"
+              echo "  want sha256 $WANT"
+              echo "  got  sha256 ${GOT:-none}"
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
 
