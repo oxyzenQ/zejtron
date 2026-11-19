@@ -398,9 +398,10 @@ pub fn splice_probe(ctx: TracePointContext) -> u32 {
             Ok(value) => value,
             Err(_) => return 0,
         };
-        // The OUT check first (the tracked file's CONTENT moving away
-        // is the exfiltration shape); both directions can record for
-        // a file that sits on both ends.
+        // Both descriptors resolve: fd_out tracked is a splice INTO
+        // the tracked file (op 7), fd_in tracked is the content
+        // moving AWAY from it (op 8, the exfiltration shape); a file
+        // on both ends records both directions.
         if let Some(file) = resolve_fd(fd_out) {
             splice_publish(file, FILE_OP_SPLICE_IN);
         }

@@ -137,24 +137,6 @@ pub(crate) fn format_unix_secs(total_secs: i64) -> String {
 /// rendered empty for events the camera had just captured. The old
 /// doc claimed the error direction over-included; that claim was the
 /// exact inversion of the arithmetic. A clock_gettime failure
-/// degrades to `None` - the honest absence, never a guess.
-/// The monotonic "now", in nanoseconds, read straight from the
-/// kernel's CLOCK_MONOTONIC through the libc pair the crate already
-/// carries (night-dragon-lts-1). CLOCK_MONOTONIC is the EXACT clock
-/// the eBPF records are stamped with (`bpf_ktime_get_ns`), so the
-/// window cutoffs built on this value compare stamps from the same
-/// domain - nanosecond resolution, no conversion.
-///
-/// The pre-fix source was /proc/uptime, which the kernel serves
-/// from CLOCK_BOOTTIME: identical to monotonic on a host that never
-/// suspended, but BOOTTIME includes suspend time while the eBPF
-/// stamps exclude it. On a host with cumulative suspend time S the
-/// computed cutoff sat S nanoseconds LATER than the true monotonic
-/// cutoff, silently dropping events from the last S nanoseconds of
-/// every window - with S >= the window, "Changes in the last 60s"
-/// rendered empty for events the camera had just captured. The old
-/// doc claimed the error direction over-included; that claim was the
-/// exact inversion of the arithmetic. A clock_gettime failure
 /// degrades to `None` - the honest absence, never a guess. The read
 /// itself lives in [`clock_gettime_ns`], shared with the sleep-gap
 /// law (night-frontier-Z6, D3).
@@ -361,11 +343,6 @@ pub(crate) fn material_sleep_ns(pre: Option<i128>, post: Option<i128>) -> Option
     (delta.abs() > SLEEP_BOUND_NS).then_some(delta)
 }
 
-/// Render a sleep span the way the entries speak it: whole seconds
-/// and up - `7s`, `14m 12s`, `2h 03m 04s`. Sub-second precision is
-/// truncated (never rounded): the rows' whole-second render
-/// granularity is the truth the ledgers serve, and a blackout that
-/// names milliseconds is noise, not evidence.
 /// The kernel's active clocksource, read from sysfs
 /// (night-frontier-Z10, D7): the regime the stamps' CLOCK_MONOTONIC
 /// precision rides ("tsc" vs "hpet"/"acpi_pm"). `None` when the file
@@ -408,6 +385,11 @@ pub(crate) fn material_watch_gap_ns(
     if gap > 1_000_000_000 { Some(gap) } else { None }
 }
 
+/// Render a sleep span the way the entries speak it: whole seconds
+/// and up - `7s`, `14m 12s`, `2h 03m 04s`. Sub-second precision is
+/// truncated (never rounded): the rows' whole-second render
+/// granularity is the truth the ledgers serve, and a blackout that
+/// names milliseconds is noise, not evidence.
 pub(crate) fn format_sleep_span(ns: i128) -> String {
     let secs = (ns / 1_000_000_000) as i64;
     let hours = secs / 3_600;

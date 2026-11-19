@@ -36,31 +36,6 @@ use super::events::FileEvent;
 use super::ringbuf;
 use super::tracked::{track_file, untrack_file};
 
-/// Capture one live window for one file. Every error propagates
-/// loudly (the caller already checked the chain was live; a failure
-/// mid-window means the chain died under the command — that is worth
-/// an error, never a silent lane switch). The untrack on the error
-/// paths is the fail protocol: no window ends with a leaked key
-/// while this code can still run.
-///
-/// The `Ok` payload carries the capture's PRE offset alongside the
-/// events (night-frontier-Z2, the wall-offset skew law): the wall
-/// offset sampled the instant the window BEGINS - the anchor the
-/// renderer measures its own render-time offset against, so a wall
-/// clock that moved under the window is named instead of serving
-/// skewed civil times silently. `None` rides when the clocks were
-/// unreadable at the start (the render already degrades to
-/// `unknown UTC` on its own).
-///
-/// The third member is the capture's PRE sleep gap (night-frontier-
-/// Z6, D3): the BOOTTIME-MONOTONIC divergence sampled in the same
-/// breath as the pre offset - the kernel's own suspend accounting.
-/// The renderer samples the gap again at render time; a material
-/// delta is the span the host spent ASLEEP inside the window, the
-/// proof of absence the Unaccounted block names (no event can exist
-/// in a span the stamps' clock did not run through). `None` rides
-/// when the clocks were unreadable at the start - the honest
-/// absence, never a guessed zero.
 /// One live file window's PRE breath (night-frontier-Z10, D7 grew
 /// the shape from the Z2 tuple): the four measurements of ONE
 /// instant - the wall offset the civil times ride, the BOOTTIME
@@ -89,6 +64,31 @@ pub struct FileWindowCapture {
     pub pre: PreBreath,
 }
 
+/// Capture one live window for one file. Every error propagates
+/// loudly (the caller already checked the chain was live; a failure
+/// mid-window means the chain died under the command — that is worth
+/// an error, never a silent lane switch). The untrack on the error
+/// paths is the fail protocol: no window ends with a leaked key
+/// while this code can still run.
+///
+/// The `Ok` payload carries the capture's PRE breath alongside the
+/// events (night-frontier-Z2, the wall-offset skew law): the wall
+/// offset sampled the instant the window BEGINS - the anchor the
+/// renderer measures its own render-time offset against, so a wall
+/// clock that moved under the window is named instead of serving
+/// skewed civil times silently. `None` rides when the clocks were
+/// unreadable at the start (the render already degrades to
+/// `unknown UTC` on its own).
+///
+/// The PRE breath's gap member is the capture's PRE sleep gap
+/// (night-frontier-Z6, D3): the BOOTTIME-MONOTONIC divergence
+/// sampled in the same breath as the pre offset - the kernel's own
+/// suspend accounting. The renderer samples the gap again at render
+/// time; a material delta is the span the host spent ASLEEP inside
+/// the window, the proof of absence the Unaccounted block names (no
+/// event can exist in a span the stamps' clock did not run through).
+/// `None` rides when the clocks were unreadable at the start - the
+/// honest absence, never a guessed zero.
 pub fn capture_file_window(
     inode: u64,
     device: u64,
