@@ -410,6 +410,20 @@ verdict-fix push carried a comment that pushed `src/ebpf/mod.rs`
 past the 600 cap - trimmed in this commit, the file back at
 exactly 600.
 
+And the session's closing board: the witnesses lane's dispatched
+rerun at this head is GREEN end to end - the noble leg's "Install
+qemu" step was a runner flake (the payload itself carried zero
+fails), and the cachyos witness's suite came back clean inside the
+VM, verdict and all. The board stands at sixteen of seventeen green,
+and the one red lane left - netrunner-night-C77 - fails on exactly
+the two honest dialect questions named above: the memory-backed
+capability plants on the runner while its record-verified row does
+not render (both store arms crossed), and the watch-truth window
+still wants its pre-attach row examined on the new dialect. Both
+ride the ledger with their evidence; both are the next era's opening
+move, from a board that went two-lanes-red-for-a-day to one lane
+holding two named questions.
+
 ### Honest scope
 
 The sweeps targeted the Z-era delta (source, kernel side, infra);
