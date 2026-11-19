@@ -227,9 +227,19 @@ pub fn all_pins_present() -> bool {
     // runs the mask-consistency verdict by name, and the reverify
     // reads it to skip the named-down slots. An orphan off-path pin
     // shows in the doctor's pins row (named), never in this verdict.
+    // The FILTER is the law's whole body: the off-path entries ride
+    // ALL_PINS for the attach boundary, the reverify, and the
+    // doctor, and this verdict must SKIP them - a verdict that ANDs
+    // a Some-classified entry into the same .all() as the core ones
+    // is false on every host that ever named a capability down (the
+    // night-zen-lts-Z CI watch caught that shape live: with the
+    // mmap-dirty anchor named down on the new runner kernel, every
+    // window fell to the snapshot lane and the whole record estate
+    // went silent for a day).
     ALL_PINS
         .iter()
-        .all(|p| offpath_pin_bit(p).is_none() && Path::new(p).exists())
+        .filter(|p| offpath_pin_bit(p).is_none())
+        .all(|p| Path::new(p).exists())
 }
 
 /// The off-path pin's capability bit, or None for a core pin - the

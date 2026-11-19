@@ -34,6 +34,41 @@ fn facts(
 }
 
 #[test]
+fn the_presence_verdict_counts_only_the_core_pins() {
+    // night-zen-lts-Z: bfae9c5's verdict ANDed the off-path entries
+    // into the same .all() as the core ones, and a Some-classified
+    // entry made the whole verdict false on every host - every live
+    // window fell to the snapshot lane the moment any capability
+    // rode named-down (the runner and the 7.3.3 witness, CI-red for
+    // a day, the whole record estate silent). The law is the SPLIT:
+    // the verdict's input set is the core pins alone; the off-path
+    // entries stay the attach boundary's bookkeeping.
+    let core: Vec<&str> = ALL_PINS
+        .iter()
+        .copied()
+        .filter(|p| offpath_pin_bit(p).is_none())
+        .collect();
+    let offpath: Vec<&str> = ALL_PINS
+        .iter()
+        .copied()
+        .filter(|p| offpath_pin_bit(p).is_some())
+        .collect();
+    // The estate's own shape: twenty-four core pins (eight links,
+    // eight progs, eight maps) and the eight off-path entries.
+    assert_eq!(core.len(), 24);
+    assert_eq!(offpath.len(), 8);
+    // The verdict's input set carries the whole core camera ...
+    assert!(core.contains(&PIN_MAP_GENERATION));
+    assert!(core.contains(&PIN_PROG));
+    assert!(core.contains(&PIN_PROG_UNLINK));
+    assert!(core.contains(&PIN_LINK_WRITEV));
+    // ... and none of the named-down-able off-path entries.
+    assert!(offpath.contains(&PIN_PROG_DIRTY));
+    assert!(offpath.contains(&PIN_LINK_MEMBACKED));
+    assert!(core.iter().all(|p| offpath_pin_bit(p).is_none()));
+}
+
+#[test]
 fn parse_kernel_version_shapes() {
     assert_eq!(parse_kernel_version("5.15.0-arch1-1"), Some((5, 15)));
     assert_eq!(parse_kernel_version("6.1.11"), Some((6, 1)));
