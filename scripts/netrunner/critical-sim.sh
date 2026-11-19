@@ -726,6 +726,29 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 				"actor rc=$op_rc: $(grep -E 'write|splice|unknown' "$SCRATCH/offpath-splice.out" | head -2 | tr '\n' ' ')"
 		fi
 
+		# The camera-age law for the young-camera legs: both the
+		# memory-backed window (night-frontier-Z9) and the watch-truth
+		# windows (night-frontier-Z10) compare against the ATTACH instant,
+		# so a runner slow enough to spend tens of seconds between the
+		# attach and these legs turns the positive watch proof into the
+		# honest no-row the negative leg demands (the camera refuses to
+		# invent a gap when the window rides wholly inside its life).
+		# The legs re-attach a fresh camera here, so the proofs ride a
+		# camera seconds old on ANY host speed, and the fresh attach
+		# re-runs the record verification the capabilities lean on. A
+		# re-attach that cannot complete is named, and the legs ride the
+		# estate as it stands.
+		if "$BIN" doctor --detach >"$SCRATCH/re-attach-detach.out" 2>&1; then
+			if "$BIN" doctor --attach >"$SCRATCH/attach.out" 2>"$SCRATCH/attach.err"; then
+				offpath_label="$(grep -oE 'off-path truth: [a-z_+-]+' "$SCRATCH/attach.out" | head -1 | cut -d' ' -f3-)"
+				note "the young-camera legs re-attached a fresh camera (off-path truth: ${offpath_label:-none named})"
+			else
+				note "the re-attach refused ($(head -c 160 "$SCRATCH/attach.err" 2>/dev/null | tr '\n' ' ')); the legs ride the detached estate and refuse by name"
+			fi
+		else
+			note "the re-attach could not detach the session camera; the legs ride it as it stands"
+		fi
+
 		# The memory-backed live window (night-frontier-Z9, D6): the
 		# actor creates a REAL memfd, publishes its /proc/self/fd path
 		# through the control file, and fires two real MAP_SHARED
@@ -765,7 +788,7 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 					pass "memory-backed live window: a real memfd store renders the memory-backed row"
 				else
 					fail "memory-backed live window: a real memfd store renders the memory-backed row" \
-						"the attach carried the capability ($(head -1 "$SCRATCH/attach.out" 2>/dev/null | cut -c1-80)...): $(grep -E 'write|unknown' "$SCRATCH/memfd-why.out" | head -2 | tr '\n' ' ')"
+						"the attach carried the capability ($(head -1 "$SCRATCH/attach.out" 2>/dev/null | cut -c1-80)...): why-out ($(head -c 220 "$SCRATCH/memfd-why.out" 2>/dev/null | tr '\n' ' ')) why-err ($(head -c 160 "$SCRATCH/memfd-why.err" 2>/dev/null | tr '\n' ' '))"
 				fi
 			else
 				fail "memory-backed live window: the actor never published its memfd path" \
@@ -785,12 +808,15 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	#       the Unaccounted block - the drop census names the kernel's
 	#       failures, the sleep blackout names the host's, and THIS
 	#       names the watcher's own. Two directions, both honest: a
-	#       window whose span predates attach MUST carry the row
-	#       (10s window opened ~2s after attach -> ~8s gap, past the
-	#       one-second materiality bound), and a window fully inside
-	#       the camera's life must render NOTHING extra (the
-	#       byte-silence negative, the determinism certificate's own
-	#       shape).
+	#       window whose span predates attach MUST carry the row (the
+	#       legs ride the re-attached camera of the young-camera law,
+	#       so the 10s window opens seconds after the attach and the
+	#       gap is real on ANY host speed - a runner slow enough to
+	#       age the camera past the window would otherwise turn the
+	#       positive proof into the honest no-row the negative leg
+	#       demands), and a window fully inside the camera's life must
+	#       render NOTHING extra (the byte-silence negative, the
+	#       determinism certificate's own shape).
 	if [ "$attach_ok" = "1" ]; then
 		watch_file="$SCRATCH/watch-proof.bin"
 		: >"$watch_file"
