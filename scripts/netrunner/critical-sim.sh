@@ -757,7 +757,7 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 				fi
 			else
 				fail "memory-backed live window: the actor never published its memfd path" \
-					"the capability is claimed but the seat could not drive it (ctl=$(cat "$ctl" 2>/dev/null | head -1))"
+					"the capability is claimed but the seat could not drive it (ctl=$(head -1 "$ctl" 2>/dev/null))"
 			fi
 		else
 			note "memory-backed live window: the capability was named down on this host - the attach summary carries the reason, and the row must not exist"

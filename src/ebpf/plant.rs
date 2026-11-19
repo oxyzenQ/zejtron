@@ -158,11 +158,9 @@ pub(super) const IOURING_TRACEPOINT_CATEGORY: &str = "io_uring";
 pub(super) const IOURING_TRACEPOINT_EVENT: &str = "io_uring_submit_sqe";
 
 /// The memory-backed probe's program name (night-frontier-Z9, D6) -
-/// the ELF symbol in ebpf/src/offpath.rs. The ATTACH symbol is not a
-/// constant: it is the memory-backed ladder's verdict
-/// (btf_offpath.rs: fault_dirty_shared_page preferred, the surviving
-/// wp_page_shared arm the verified fallback), the attach-symbol
-/// sibling of the writev law.
+/// the ELF symbol in ebpf/src/membacked.rs. The ATTACH symbol is not
+/// a constant: it is the memory-backed ladder's verdict (see above),
+/// the attach-symbol sibling of the writev law.
 pub(super) const MEMBACKED_PROGRAM: &str = "membacked_fault_probe";
 
 /// The tracked_inodes filter map name in the probe object.
@@ -186,10 +184,9 @@ pub(super) const MAP_DROP_CENSUS: &str = "drop_census";
 /// (night-frontier-Z2 - the pin estate's identity record).
 pub(super) const MAP_GENERATION: &str = "generation";
 
-/// The plant step: load all eight programs, attach each to its
-/// point, pin programs + links + maps. Any error names itself; the
-/// caller's fail() protocol cleans up everything the attempt
-/// planted - never a half-attached probe.
+/// The plant step: load every program, attach each to its point,
+/// pin programs + links + maps. Any error names itself; the caller's
+/// fail() protocol cleans up everything the attempt planted.
 pub(super) fn plant(
     bpf: &mut Ebpf,
     writev_symbol: &str,
@@ -300,8 +297,7 @@ pub(super) fn plant(
     }
     // The memory-backed rung (night-frontier-Z9, D6): the ladder's
     // verified anchor plants the one fault-funnel program; a host
-    // whose BTF carries no vouchable arm names the capability down -
-    // the additive lanes' own law, the camera stands.
+    // whose BTF carries no vouchable arm names the capability down.
     if let Some(lane) = membacked {
         plant_kprobe(
             bpf,
@@ -393,14 +389,10 @@ pub(super) fn write_offsets(
     // The write list IS the parsed array, slot = index: the contract
     // between btf.rs (the values, built in slot order) and events.rs
     // (the OFF_SLOT_* indices) is slot-alignment itself, so this loop
-    // structurally cannot lag it. The night-hunter-3 lesson lives
-    // here: night-improve-57 grew the contract by the four fd-walk
-    // slots (8..11) but this writer kept an explicit eight-pair
-    // table - the map stayed zero on the fd-walk slots, the probe
-    // read task_struct+0 as its "files" pointer, and the census
-    // blamed stage 4 on any host the probe was planted on, whatever
-    // its kernel. A value the map cannot hold fails right here, by
-    // slot, never silently.
+    // structurally cannot lag it (the night-hunter-3 lesson: a
+    // lagging writer once left the fd-walk slots zero on every host).
+    // A value the map cannot hold fails right here, by slot, never
+    // silently.
     for (slot, value) in offsets.iter().enumerate() {
         map.set(slot as u32, value, 0)
             .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
@@ -414,12 +406,9 @@ pub(super) fn write_offsets(
     map.set(OFF_SLOT_RENAMEDATA_OLD_DENTRY, &lane.old_dentry_offset, 0)
         .map_err(|e| format!("offsets[{OFF_SLOT_RENAMEDATA_OLD_DENTRY}] write failed: {e}"))?;
     // The off-path slots (night-frontier-Z7, D4), by their own
-    // constants: the dirty-descent pair (15, 16) rides whenever the
-    // parse vouched for it - the probe plants only when the anchor
-    // ladder verified, and a zero slot the probe never reads is the
-    // honest shape. The io_kiocb hop (17) rides only when the
-    // io_uring lane verified; a named-down capability leaves the
-    // slot zero, and its program is never attached.
+    // constants: the dirty pair and the io_kiocb hop ride only when
+    // their lanes verified - a named-down capability leaves the
+    // slots zero, and its program is never attached.
     if let Some(offpath) = offpath {
         let dirty_pair = [
             (OFF_SLOT_PAGE_MAPPING, offpath.page_mapping),
@@ -469,11 +458,9 @@ pub(super) fn write_offsets(
             .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
     }
     // The memory-backed walk slots (night-frontier-Z9, D6), by their
-    // own constants: the vm_fault.page hop, the superblock's s_type
-    // hop, and the filesystem-type name pointer the class gate reads
-    // through. They ride only when the ladder verified; a named-down
-    // capability leaves the slots zero, and its program is never
-    // attached (the io_uring lane's own shape).
+    // own constants. They ride only when the ladder verified; a
+    // named-down capability leaves the slots zero, and its program
+    // is never attached (the io_uring lane's own shape).
     if let Some(lane) = membacked {
         for (slot, value) in [
             (

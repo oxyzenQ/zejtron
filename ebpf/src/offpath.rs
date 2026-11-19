@@ -113,20 +113,19 @@
 //! call stubs, no shared-text growth).
 
 use aya_ebpf::{
-    helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns, bpf_probe_read_kernel_str_bytes},
+    helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns},
     macros::{kprobe, tracepoint},
     programs::{ProbeContext, TracePointContext},
 };
 
 use super::{count_ring_drop, read_ptr_at, read_u32_at, read_u64_at, tracked_inodes};
 use crate::events::{
-    DROP_SLOT_FILE, FILE_OP_IO_URING_WRITE, FILE_OP_MMAP_DIRTY, FILE_OP_MMAP_MEMBACKED,
-    FILE_OP_SPLICE_IN, FILE_OP_SPLICE_OUT, FileEvent, OFF_SLOT_ADDR_SPACE_HOST, OFF_SLOT_FDT_FD,
+    DROP_SLOT_FILE, FILE_OP_IO_URING_WRITE, FILE_OP_MMAP_DIRTY, FILE_OP_SPLICE_IN,
+    FILE_OP_SPLICE_OUT, FileEvent, OFF_SLOT_ADDR_SPACE_HOST, OFF_SLOT_FDT_FD,
     OFF_SLOT_FDT_MAX_FDS, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH, OFF_SLOT_FILES_FDT,
-    OFF_SLOT_FS_TYPE_NAME, OFF_SLOT_INODE_I_INO, OFF_SLOT_INODE_I_SB, OFF_SLOT_IO_KIOCB_FILE,
-    OFF_SLOT_PAGE_MAPPING, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV,
-    OFF_SLOT_SUPER_BLOCK_S_TYPE, OFF_SLOT_TASK_FILES, OFF_SLOT_VFSMOUNT_MNT_SB,
-    OFF_SLOT_VM_FAULT_PAGE, device_token_from_kernel, pack_filter_key,
+    OFF_SLOT_INODE_I_INO, OFF_SLOT_INODE_I_SB, OFF_SLOT_IO_KIOCB_FILE, OFF_SLOT_PAGE_MAPPING,
+    OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_TASK_FILES, OFF_SLOT_VFSMOUNT_MNT_SB,
+    device_token_from_kernel, pack_filter_key,
 };
 use crate::file_events;
 
@@ -275,138 +274,13 @@ pub fn dirty_page_probe(ctx: ProbeContext) -> u32 {
     }
 }
 
-/// The memory-backed class gate's own vocabulary: the registered
-/// filesystem names the gate serves (tmpfs covers memfd_create and
-/// /dev/shm; ramfs covers the initramfs/rootfs shapes). The list is
-/// the capability's own named coverage - a filesystem outside it
-/// stays outside the record class, named, never guessed. The string
-/// helper returns the bytes UP TO the NUL, so the names compare
-/// without it.
-const MEMBACKED_TMPFS: &[u8] = b"tmpfs";
-const MEMBACKED_RAMFS: &[u8] = b"ramfs";
-
-/// The memory-backed publish walk (night-frontier-Z9, D6): the
-/// vm_fault (arg0 of the shared-write-fault anchor) through the page
-/// to its mapping, the backing inode, the tracked_inodes gate, then
-/// the class gate - the superblock's registered filesystem name must
-/// be a memory-backed one (tmpfs/ramfs), read through
-/// bpf_probe_read_kernel_str at event time. A regular file's fault
-/// (which crosses the same funnel) fails the class gate here and is
-/// the dirty anchor's record instead: one store, one record. A
-/// failed hop or a failed reservation drops silently into the same
-/// named channels every probe in this module rides.
-#[inline(always)]
-unsafe fn membacked_publish(vmf: usize) -> u32 {
-    // SAFETY: every dereference goes through the probe-read helpers
-    // (a bad address returns None, never a fault) with offsets from
-    // the BTF-verified offsets map the host wrote at attach; the
-    // verifier re-proves the whole body at load time.
-    unsafe {
-        let Some(o) = super::read_offset_set() else {
-            return 0;
-        };
-        let Some(page) = read_ptr_at(vmf, o[OFF_SLOT_VM_FAULT_PAGE as usize]).filter(|p| *p != 0)
-        else {
-            return 0;
-        };
-        let Some(mapping) =
-            read_ptr_at(page, o[OFF_SLOT_PAGE_MAPPING as usize]).filter(|p| *p != 0)
-        else {
-            return 0;
-        };
-        if !mapping_is_page_cache(mapping) {
-            return 0;
-        }
-        let Some(inode) =
-            read_ptr_at(mapping, o[OFF_SLOT_ADDR_SPACE_HOST as usize]).filter(|p| *p != 0)
-        else {
-            return 0;
-        };
-        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else {
-            return 0;
-        };
-        let Some(sb) = read_ptr_at(inode, o[OFF_SLOT_INODE_I_SB as usize]).filter(|p| *p != 0)
-        else {
-            return 0;
-        };
-        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else {
-            return 0;
-        };
-        let device = device_token_from_kernel(s_dev);
-        let key = pack_filter_key(ino, device);
-        if tracked_inodes.get(&key).is_none() {
-            return 0;
-        }
-        // The class gate: the superblock's registered filesystem name,
-        // read through the kernel's own string helper (NUL-terminated,
-        // truncated to the buffer). "tmpfs" or "ramfs" is the
-        // memory-backed class; anything else (ext4, xfs, overlayfs,
-        // bdev) rides the writeback path and is the dirty anchor's
-        // record, never this one.
-        let Some(fst) =
-            read_ptr_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_TYPE as usize]).filter(|p| *p != 0)
-        else {
-            return 0;
-        };
-        let Some(name_ptr) =
-            read_ptr_at(fst, o[OFF_SLOT_FS_TYPE_NAME as usize]).filter(|p| *p != 0)
-        else {
-            return 0;
-        };
-        let mut name = [0u8; 8];
-        let Ok(filled) = bpf_probe_read_kernel_str_bytes(name_ptr as *const u8, &mut name) else {
-            return 0;
-        };
-        if !filled.starts_with(MEMBACKED_TMPFS) && !filled.starts_with(MEMBACKED_RAMFS) {
-            return 0;
-        }
-        // The identity block (night-frontier-Z8, D5) rides the same
-        // record: cgroup id, comm, netns inode.
-        let actor = super::identity::actor_identity(Some(&o));
-        if file_events
-            .output::<FileEvent>(
-                &FileEvent {
-                    timestamp_ns: bpf_ktime_get_ns(),
-                    op: FILE_OP_MMAP_MEMBACKED,
-                    _pad: [0; 7],
-                    inode: ino,
-                    device,
-                    pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-                    _pad2: 0,
-                    cgroup_id: actor.cgroup_id,
-                    comm: actor.comm,
-                    netns_inum: actor.netns_inum,
-                    _pad3: 0,
-                },
-                0,
-            )
-            .is_err()
-        {
-            count_ring_drop(DROP_SLOT_FILE);
-        }
-    }
-    0
-}
-
-/// The memory-backed fault probe (night-frontier-Z9, D6): the
-/// shared-write-fault anchor the ladder vouches for
-/// (fault_dirty_shared_page on the 5.15-6.8 dialects, the surviving
-/// wp_page_shared arm on the 7.x line - arg0 is the vm_fault on
-/// every dialect the corpus carries, so ONE program serves the
-/// ladder; the section name carries the primary symbol, the loader
-/// attaches the BTF-verified one - the writev probe's precedent).
-#[kprobe(function = "fault_dirty_shared_page")]
-pub fn membacked_fault_probe(ctx: ProbeContext) -> u32 {
-    // SAFETY: aya's ctx.arg is a probe-read of the kprobe context at
-    // a fixed register slot (a bad read returns None, never a fault);
-    // the walk below re-proves itself at load time.
-    unsafe {
-        let Some(vmf) = ctx.arg::<u64>(0) else {
-            return 0;
-        };
-        membacked_publish(vmf as usize)
-    }
-}
+/// The memory-backed fault probe rides its own dedicated module
+/// (ebpf/src/membacked.rs, the exits.rs/write.rs precedent at the
+/// 600-LOC no-mercy cap): night-frontier-Z9, D6 - the shared-write
+/// fault funnel anchors the tmpfs/ramfs/memfd mmap-store truth, the
+/// class gate reading the superblock's registered filesystem name at
+/// event time. The ladder, the slots, and the record-verified memfd
+/// door live with it.
 
 /// Resolve one fd through the caller's descriptor table - the
 /// write.rs walk, restated compactly (the same four BTF-verified

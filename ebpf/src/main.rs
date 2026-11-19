@@ -237,6 +237,13 @@ mod unlink;
 // ring under the same tracked_inodes gate.
 mod offpath;
 
+// The memory-backed write program (night-frontier-Z9, D6): the
+// shared-write fault funnel anchors the tmpfs/ramfs/memfd mmap-store
+// truth - the Z7 residual's closer - its own dedicated module under
+// the LOC cap, the same ring, the same gate, plus the class gate
+// (the superblock's registered filesystem name, read at event time).
+mod membacked;
+
 // The actor-identity helper (night-frontier-Z8, D5): the identity
 // fill every record constructor shares - cgroup id, comm, netns
 // inode - the dedicated-module shape again. No programs here: the

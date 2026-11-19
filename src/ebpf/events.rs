@@ -16,9 +16,8 @@
 //! the changer's cgroup id, its comm, and its network-namespace
 //! inode, so the row answers "who changed it, and from where" without
 //! a cross-lookup. The legacy head (offsets 0..32) never renumbers:
-//! the pads ride at offsets 21 and 26..27 as EXPLICIT fields (the
-//! FileEvent discipline), and the identity block rides the appended
-//! tail (offsets 32..64, one pad at 60..64). `core::mem::offset_of!`
+//! the pads ride as EXPLICIT fields (the FileEvent discipline), and
+//! the identity block rides the appended tail. `core::mem::offset_of!`
 //! pins every offset in test/ebpf/ringbuf_tests.rs so a field
 //! reorder cannot slip through silently. The 64-byte size is the
 //! ring-buffer record size both sides agree on - the kernel side's
@@ -64,11 +63,9 @@ pub const AF_INET6: u16 = 10;
 /// the legacy head never renumbers). The pads are EXPLICIT fields,
 /// the FileEvent discipline: the ring record's every byte is written
 /// by the probe constructor, because the 5.15 verifier (the
-/// documented kernel floor, proven live by the kernel-floor
-/// micro-VM lane) rejects an `output` read whose stack bytes were
-/// never initialized - "invalid indirect read from stack" - while
-/// newer verifiers tolerate the holes. A pad that rides implicit
-/// is a pad a future field reorder can silently un-write.
+/// documented kernel floor) rejects an `output` read whose stack
+/// bytes were never initialized. A pad that rides implicit is a pad
+/// a future field reorder can silently un-write.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SockEvent {
@@ -130,14 +127,8 @@ pub const SOCK_EVENT_BYTES: usize = core::mem::size_of::<SockEvent>();
 /// in-kernel bound on ring traffic) and the host tests (the pinned
 /// mirror). A busy host fires thousands of ESTABLISHED transitions
 /// per second that no `port` user cares about; only LISTEN
-/// enter/leave (TCP) and socket death (UDP) cross the ring:
-///
-/// - TCP: the transition INTO LISTEN (newstate == TCP_LISTEN) and
-///   the transition OUT OF LISTEN (oldstate == TCP_LISTEN, any
-///   other newstate);
-/// - UDP: the transition to CLOSE (newstate == TCP_CLOSE) - a UDP
-///   socket exists whenever bound, so its close is the change;
-/// - every other protocol, and every non-INET family, is dropped.
+/// enter/leave (TCP) and socket death (UDP) cross the ring - every
+/// other protocol, and every non-INET family, is dropped.
 ///
 /// This file carries ONLY what both sides share - the record and the
 /// filter. The row-rendering helpers (the transition label, the
@@ -172,17 +163,14 @@ pub const FILE_OP_OPEN: u8 = 1;
 pub const FILE_OP_WRITE: u8 = 2;
 
 /// `op` for FileEvent: a file was unlinked. DEFINED at night-improve-3
-/// but left unproduced there: the vfs_unlink kprobe was skipped - its
-/// signature churned across the floor (mnt_userns prepended in 5.12
-/// shifted dentry from arg1 to arg2, the idmap args landed in 6.x),
-/// so no single compiled offset serves the floor-to-now range. The
-/// gap stayed named in README Limitations while op=3 stayed reserved
-/// so the record contract never renumbers. night-frontier-2 produces
-/// it at last: the unlink probe's dentry argument position is derived
-/// from the host's own BTF at attach (src/ebpf/btf_unlink.rs) and
-/// rides the offsets map - the position is per-host data, not a
-/// compiled constant, and a signature move re-derives instead of
-/// misreading.
+/// but left unproduced there (the vfs_unlink signature churned across
+/// the floor, so no single compiled offset served the range; op=3
+/// stayed reserved so the record contract never renumbers).
+/// night-frontier-2 produces it at last: the unlink probe's dentry
+/// argument position is derived from the host's own BTF at attach
+/// (src/ebpf/btf_unlink.rs) and rides the offsets map - the position
+/// is per-host data, not a compiled constant, and a signature move
+/// re-derives instead of misreading.
 pub const FILE_OP_UNLINK: u8 = 3;
 
 /// `op` for FileEvent: a file was written through the vectorized
@@ -194,7 +182,7 @@ pub const FILE_OP_UNLINK: u8 = 3;
 /// and pwritev2(2) all funnel through vfs_writev, so one op covers
 /// the syscall family; the host-side label names the path ("writev")
 /// so the row tells the operator WHICH write path crossed. The op
-/// vocabulary renumbers never: 3 stays reserved for unlink.
+/// vocabulary renumbers never.
 pub const FILE_OP_WRITEV: u8 = 4;
 
 /// `op` for FileEvent: a file was renamed (night-frontier-2): the
@@ -217,11 +205,8 @@ pub const FILE_OP_RENAME: u8 = 5;
 /// anchor chosen from the host's own BTF at attach), descends the
 /// mapping to the backing inode through BTF-walked offsets, and the
 /// tracked_inodes gate keeps the cost bounded by questions, not by
-/// host activity. The record carries the dirtying process's pid (the
-/// write fault runs in the writer's context). Named residual: tmpfs/
-/// ramfs-backed files keep no clean page to dirty (their aops never
-/// call the anchors), so an mmap write to a memory-backed file stays
-/// outside this record class - named in the README, never guessed at.
+/// host activity. The memory-backed residual (tmpfs/ramfs never
+/// reach these anchors) is night-frontier-Z9's own close - op=10.
 /// op=6, the vocabulary's seventh word.
 pub const FILE_OP_MMAP_DIRTY: u8 = 6;
 
@@ -251,12 +236,11 @@ pub const FILE_OP_SPLICE_OUT: u8 = 8;
 /// host at attach; a kernel without it refuses the capability by
 /// name, never guesses), descends the submitted io_kiocb to its
 /// struct file through BTF-walked offsets, filters to the write-class
-/// opcodes (IORING_OP_WRITEV / WRITE_FIXED / WRITE - the liburing ABI
-/// numbers), and the tracked_inodes gate bounds the cost. The record
-/// fires at submission; the acting pid is the submitting task (for
-/// io-wq offload, the worker's own - the task that drove the kernel
-/// path, named as such by the row). op=9, the vocabulary's tenth
-/// word.
+/// opcodes (the liburing ABI numbers), and the tracked_inodes gate
+/// bounds the cost. The record fires at submission; the acting pid
+/// is the submitting task (for io-wq offload, the worker's own -
+/// the task that drove the kernel path, named as such by the row).
+/// op=9, the vocabulary's tenth word.
 pub const FILE_OP_IO_URING_WRITE: u8 = 9;
 
 /// `op` for FileEvent: an mmap store crossed a MEMORY-BACKED file's
@@ -264,26 +248,19 @@ pub const FILE_OP_IO_URING_WRITE: u8 = 9;
 /// off-path estate's third rung): a memory store through a MAP_SHARED
 /// mapping on a tmpfs/ramfs-backed file (memfd_create rides tmpfs's
 /// own superblock class) wrote the file WITHOUT any dirty-anchor
-/// crossing - the named residual the Z7 estate carried: "tmpfs/ramfs
-/// files keep no clean page to dirty (their aops never call either
-/// anchor), so an mmap write to a memory-backed file stays outside
-/// the record class". The kernel's own reason is now the probe's
-/// gate: the shared-write fault path is the one place the kernel
-/// touches such a store, and the superblock's registered filesystem
-/// name (i_sb->s_type->name, read at event time - "tmpfs"/"ramfs",
-/// the kernel's own registration table, never a compiled guess) is
-/// the memory-backed class the anchor serves. The anchor is the
-/// shared-write fault funnel itself (fault_dirty_shared_page on the
-/// 5.15-6.8 line, the surviving wp_page_shared arm on the 7.x line -
-/// the ladder's verdict is per-host BTF data, the writev probe's
-/// attach-symbol precedent), chosen from the host's own BTF at
-/// attach, record-verified with a real memfd store before the
-/// capability is claimed (the verify_offpath door). The named
-/// residual narrows with the capability: on the 7.x line the
-/// non-present fault arm is inlined past any vouchable symbol, so a
-/// first store through a fresh PTE stays outside the record there -
-/// named, never guessed. op=10, the vocabulary's eleventh word; the
-/// vocabulary renumbers never.
+/// crossing - the residual the Z7 estate named, closed through the
+/// shared-write fault path, the one mechanism the store cannot skip.
+/// The anchor (fault_dirty_shared_page on the 5.15-6.8 line, the
+/// surviving wp_page_shared arm on the 7.x line - per-host BTF data,
+/// the writev probe's attach-symbol precedent) gates on the
+/// superblock's registered filesystem name read at event time
+/// (i_sb->s_type->name = tmpfs/ramfs, the kernel's own registration
+/// table, never a compiled guess), record-verified with a real memfd
+/// store before the capability is claimed (the verify_offpath door).
+/// The 7.x line's non-present fault arm is inlined past any vouchable
+/// symbol - a first store through a fresh PTE stays outside the
+/// record there: named, never guessed. op=10, the vocabulary's
+/// eleventh word.
 pub const FILE_OP_MMAP_MEMBACKED: u8 = 10;
 
 /// One file action, as the kernel saw it at the moment it happened.
@@ -307,13 +284,8 @@ pub const FILE_OP_MMAP_MEMBACKED: u8 = 10;
 /// so "who did this, and from where" is answered fully in container
 /// environments ("pid 8123, comm bash, cgroup 4293, netns 4026531956")
 /// without a cross-lookup - a /proc read the actor may already have
-/// exited from. The cgroup id is the helper's own number
-/// (`bpf_get_current_cgroup_id`, UAPI-stable since 4.18); the comm is
-/// the helper's own bytes (`bpf_get_current_comm`, the ProcExitEvent
-/// precedent); the netns inode is the BTF-walked ns_common.inum, its
-/// four offsets derived per host at attach and refusal-by-name when
-/// a field is absent (src/ebpf/btf.rs). The legacy head never
-/// renumbers; the vocabulary's append-only law holds.
+/// exited from. The legacy head never renumbers; the vocabulary's
+/// append-only law holds.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FileEvent {
@@ -347,9 +319,8 @@ pub struct FileEvent {
     pub comm: [u8; 16],
     /// The acting task's network-namespace inode number: the
     /// ns_common.inum walk task_struct.nsproxy -> nsproxy.net_ns ->
-    /// net.ns, every offset derived from the host's own BTF at
-    /// attach (refusal-by-name when a field is absent). The number
-    /// /proc/<pid>/ns/net's `net:[N]` prints. Zero = the named
+    /// net.ns, derived from the host's own BTF at attach (refusal-
+    /// by-name when a field is absent). Zero = the named
     /// unavailability, never a guessed zero.
     pub netns_inum: u32,
     /// Padding to 72 bytes (pinned by test at 68..72).
@@ -375,10 +346,9 @@ pub fn device_token_from_kernel(s_dev: u32) -> u64 {
 ///
 /// Named residuals, accepted once and pinned by test:
 /// - inodes >= 2^32 alias into the low 32 bits of another inode on
-///   the same device (no filesystem in common use assigns numbers
-///   that high; the full 64-bit inode rides the record, so the host
-///   drops any event whose full identity does not match the query -
-///   an alias can waste ring space, never render a wrong row);
+///   the same device; the full 64-bit inode rides the record, so the
+///   host drops any event whose full identity does not match the
+///   query - an alias can waste ring space, never render a wrong row;
 /// - devices with major > 4095 (none in mainline use) compare on
 ///   their low 32 bits like every other device.
 pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
@@ -389,21 +359,20 @@ pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
 //
 // Every struct offset the probes read is written into the
 // `offsets` Array<u64> map at attach time, parsed from the host's
-// own /sys/kernel/btf/vmlinux (src/ebpf/btf.rs, plus the two
-// BTF-derived kprobe anchors src/ebpf/btf_unlink.rs resolves). The
-// programs read their offsets from the map; the slot indices below
-// are the contract between the host writers and the BPF readers.
-// The eight file-walk slots are frozen; night-improve-57 appended
-// the four fd-walk slots at 8..11 (the syscall-stub write probe),
-// night-frontier-2 appends the three unlink/rename slots at
-// 12..14, night-frontier-Z7 appends the three off-path slots at
-// 15..17, and night-frontier-Z8 appends the four identity-walk
-// slots at 18..21 (the netns chain every record rides), so the
-// legacy indices never renumber. The host writer
-// rides the parsed array whole (slot = index, the night-hunter-3
-// lesson), so the host crate no longer names the eight file-walk
-// constants - the readers below are BPF-side, and the allows name
-// that split.
+// own /sys/kernel/btf/vmlinux (src/ebpf/btf.rs, plus the BTF-derived
+// kprobe anchors src/ebpf/btf_unlink.rs and src/ebpf/btf_offpath.rs
+// resolve). The programs read their offsets from the map; the slot
+// indices below are the contract between the host writers and the
+// BPF readers. The eight file-walk slots are frozen; night-improve-57
+// appended the four fd-walk slots at 8..11, night-frontier-2 the
+// three unlink/rename slots at 12..14, night-frontier-Z7 the three
+// off-path slots at 15..17, night-frontier-Z8 the four identity-walk
+// slots at 18..21, and night-frontier-Z9 the three memory-backed
+// slots at 22..24 - the legacy indices never renumber. The host
+// writer rides the parsed array whole (slot = index, the
+// night-hunter-3 lesson), so the host crate no longer names the
+// eight file-walk constants - the readers below are BPF-side, and
+// the allows name that split.
 
 /// `offsets[0]`: struct dentry, member d_inode.
 #[allow(dead_code)]
@@ -483,22 +452,17 @@ pub const OFF_SLOT_ADDR_SPACE_HOST: u32 = 16;
 /// io_uring probe walks before the filter map. Derived per host; a
 /// kernel whose io_kiocb carries the member under no verifiable
 /// shape leaves the io_uring capability unplanted, named at attach.
-/// The write-class opcode filter needs NO slot: the tracepoint's own
-/// record carries the opcode at its stable ABI offset (third field
-/// since 5.5), one fewer host-shaped value to derive.
 #[allow(dead_code)]
 pub const OFF_SLOT_IO_KIOCB_FILE: u32 = 17;
 /// `offsets[18]`: struct task_struct, member nsproxy (night-frontier-
 /// Z8, D5): the identity walk's first hop - the task to its namespace
-/// proxy. The netns inode every record carries is derived from THIS
-/// host's BTF at attach; a kernel whose shapes moved re-derives, a
-/// field absent refuses by name (the parse's own law).
+/// proxy, derived from THIS host's BTF at attach; a field absent
+/// refuses by name (the parse's own law).
 #[allow(dead_code)]
 pub const OFF_SLOT_TASK_NSPROXY: u32 = 18;
 /// `offsets[19]`: struct nsproxy, member net_ns (night-frontier-Z8,
-/// D5): the proxy to the network namespace the task lives in. The
-/// member is named net_ns (NOT net - the name the textbook order
-/// would guess, and the name the corpus proves absent on every
+/// D5): the proxy to the network namespace the task lives in - named
+/// net_ns, NOT net (the corpus proves the guess absent on every
 /// committed dialect); a wrong member name refuses at attach, by
 /// name.
 #[allow(dead_code)]
@@ -509,27 +473,22 @@ pub const OFF_SLOT_NSPROXY_NET: u32 = 19;
 pub const OFF_SLOT_NET_NS: u32 = 20;
 /// `offsets[21]`: struct ns_common, member inum (night-frontier-Z8,
 /// D5): the namespace inode number - the integer readlink(2) prints
-/// in /proc/<pid>/ns/net's `net:[N]`, the identity lsns names. The
-/// probe composes the last two hops into one read: net + OFF_SLOT_
-/// NET_NS + OFF_SLOT_NS_COMMON_INUM is the inum's own address.
+/// in /proc/<pid>/ns/net's `net:[N]`, the identity lsns names.
 #[allow(dead_code)]
 pub const OFF_SLOT_NS_COMMON_INUM: u32 = 21;
 /// `offsets[22]`: struct vm_fault, member page (night-frontier-Z9,
-/// D6): the shared-write fault context's page hop - the memory-backed
-/// anchor's arg0 is the vm_fault, and this BTF-derived member offset
-/// is the walk's first hop (72 on the 5.15 dialect, 80 on every later
-/// committed one - the corpus pins both shapes).
+/// D6): the shared-write fault context's page hop - 72 on the 5.15
+/// dialect, 80 on every later committed one, the corpus pins both.
 #[allow(dead_code)]
 pub const OFF_SLOT_VM_FAULT_PAGE: u32 = 22;
 /// `offsets[23]`: struct super_block, member s_type (night-frontier-
-/// Z9, D6): the inode's superblock to its registered filesystem type
-/// - the memory-backed class gate's first hop.
+/// Z9, D6): the inode's superblock to its registered filesystem type.
 #[allow(dead_code)]
 pub const OFF_SLOT_SUPER_BLOCK_S_TYPE: u32 = 23;
 /// `offsets[24]`: struct file_system_type, member name (night-
-/// frontier-Z9, D6): the filesystem type to its registered name
-/// string - the pointer the probe reads the "tmpfs"/"ramfs" class
-/// through at event time, the kernel's own registration table.
+/// frontier-Z9, D6): the type to its registered name string - the
+/// pointer the class gate reads "tmpfs"/"ramfs" through at event
+/// time, the kernel's own registration table.
 #[allow(dead_code)]
 pub const OFF_SLOT_FS_TYPE_NAME: u32 = 24;
 
@@ -537,9 +496,7 @@ pub const OFF_SLOT_FS_TYPE_NAME: u32 = 24;
 /// max_entries on the BPF side, the write count on the host side).
 /// Twenty-five: the twenty-two the estate carried through
 /// night-frontier-Z8 plus the three memory-backed-walk slots
-/// night-frontier-Z9 appends (22..24 - the vm_fault.page hop, the
-/// superblock's s_type hop, and the filesystem-type name pointer the
-/// memory-backed class gate reads). The file slots were never
+/// night-frontier-Z9 appends (22..24). The file slots were never
 /// renumbered - the vocabulary's append-only law holds: a capability
 /// the host cannot verify leaves its slots zero, and the programs
 /// that would read them are never attached.
@@ -557,11 +514,10 @@ pub const OFF_SLOTS: u32 = 25;
 // kernel cannot remember what it did not record, but it CAN count
 // how many times it failed to record. Every failed
 // `RingBuf::output` reservation bumps one slot in the `drop_census`
-// map (Array<AtomicU64>, BPF_ATOMIC fetch_add - the phase-1 counter
-// discipline: RMW atomics, no plain shared-field access, exact and
-// race-free), and the userspace drains read the census through the
-// pin so a lane that renders kernel events can also name how many
-// the kernel saw but could not hold. The slot indices below are the
+// map (Array<AtomicU64>, BPF_ATOMIC fetch_add - exact and race-
+// free), and the userspace drains read the census through the pin
+// so a lane that renders kernel events can also name how many the
+// kernel saw but could not hold. The slot indices below are the
 // contract between the BPF writers (ebpf/src/main.rs's
 // count_ring_drop call sites and ebpf/src/exits.rs) and the host
 // readers (src/ebpf/readback.rs's DropCensus) - both sides compile
@@ -641,5 +597,4 @@ pub const PROCEXIT_EVENT_BYTES: usize = core::mem::size_of::<ProcExitEvent>();
 // from src/ebpf/mod.rs (night-datapath-1): this file is a leaf law
 // library - plain core Rust the proofs package compiles through
 // #[path] alongside the binary - so no #[cfg(test)] module may ride
-// inside it. The host-side wiring keeps the same test file in the
-// same gate lanes; nothing moved but the declaration.
+// inside it.

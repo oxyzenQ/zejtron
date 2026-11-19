@@ -111,10 +111,8 @@ pub const PIN_PROG_IOURING: &str = "/sys/fs/bpf/zejtron/iouring_probe";
 pub const PIN_LINK_IOURING: &str = "/sys/fs/bpf/zejtron/iouring_probe_link";
 
 /// Program pin - the memory-backed fault probe (night-frontier-Z9,
-/// D6): the shared-write-fault anchor the ladder vouches for
-/// (fault_dirty_shared_page on the floor dialects, the surviving
-/// wp_page_shared arm on the 7.x line), role-named like every
-/// capability pin.
+/// D6): the shared-write-fault anchor the ladder vouches for,
+/// role-named like every capability pin.
 pub const PIN_PROG_MEMBACKED: &str = "/sys/fs/bpf/zejtron/membacked_probe";
 /// Link pin - the memory-backed fault probe's attachment.
 pub const PIN_LINK_MEMBACKED: &str = "/sys/fs/bpf/zejtron/membacked_probe_link";
@@ -178,10 +176,9 @@ pub const PIN_MAP_GENERATION: &str = "/sys/fs/bpf/zejtron/generation";
 /// night-frontier-Z1: the drop census joined when the rings stopped
 /// dropping in silence, twenty-four from night-frontier-Z2: the
 /// generation stamp joined when the estate had to prove it is this
-/// boot's own camera, twenty-eight from night-frontier-Z7: the
-/// off-path trio's pairs joined when the silent paths became rows,
-/// thirty-two from night-frontier-Z9: the memory-backed fault
-/// probe's pair joined when the tmpfs residual closed.
+/// boot's own camera, twenty-eight from night-frontier-Z7 (the
+/// off-path trio), thirty-two from night-frontier-Z9 (the
+/// memory-backed fault probe, the tmpfs residual's closer).
 pub const ALL_PINS: [&str; 32] = [
     PIN_LINK,
     PIN_LINK_SOCK,
@@ -217,9 +214,8 @@ pub const ALL_PINS: [&str; 32] = [
     PIN_PROG_MEMBACKED,
 ];
 
-/// True when every pin of a complete attach exists. A partial pin set
-/// (a crashed attach, a manual rm) reads as NOT attached - `attach`
-/// cleans and replants, the doctor names the partial set.
+/// True when every pin of a complete attach exists. A partial pin
+/// set reads as NOT attached - `attach` cleans and replants.
 pub fn all_pins_present() -> bool {
     // THE CORE-CAMERA LAW (night-frontier-Z7, restored): the window
     // paths' presence verdict is the CORE pins' existence, exactly
@@ -388,9 +384,8 @@ impl KernelFacts {
     }
 }
 
-/// Parse "major.minor" out of a kernel release string ("5.15.0-xyz",
-/// "6.1.11", "5.10.134-013.15.kangaroo.al8.x86_64"). Returns None for
-/// anything that does not open with two numeric components.
+/// Parse "major.minor" out of a kernel release string. Returns None
+/// for anything that does not open with two numeric components.
 pub fn parse_kernel_version(release: &str) -> Option<(u32, u32)> {
     let mut parts = release.split('.');
     let major = parts.next()?.parse().ok()?;
@@ -399,9 +394,7 @@ pub fn parse_kernel_version(release: &str) -> Option<(u32, u32)> {
 }
 
 /// The doctor's \[eBPF\] section lane verdict, computed from the kernel
-/// facts and the pin state. Every binary carries the loader (the
-/// support is unconditional), so the verdict is a property of the
-/// HOST alone.
+/// facts and the pin state - a property of the HOST alone.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LaneVerdict {
     /// The binary carries the loader, the host allows attach, nothing
