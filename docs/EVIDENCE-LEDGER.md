@@ -276,7 +276,7 @@ Field map:
   - `runs` - `{"cmd": "..." | null, "unit": "..." | null}` (the
     enrichment halves, each present only when read).
   - `opened` - no payload (the kernel's own open record).
-  - `wrote` - `{"via": "writev" | null}` (the syscall family).
+  - `wrote` - `{"via": "writev" | "mmap (dirty page)" | "mmap (memory-backed page)" | "splice (into)" | "io_uring (async)" | null}` (the silent-write family; null = the family the camera could not name).
   - `journal-mention` - no payload (the log lane's weakest hit).
   A new kind is a specification event: the variant joins the
   code's enum, this list, and a version line - never silently.

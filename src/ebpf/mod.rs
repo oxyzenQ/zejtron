@@ -176,7 +176,7 @@ pub const PIN_MAP_GENERATION: &str = "/sys/fs/bpf/zejtron/generation";
 /// night-frontier-Z1: the drop census joined when the rings stopped
 /// dropping in silence, twenty-four from night-frontier-Z2: the
 /// generation stamp joined when the estate had to prove it is this
-/// boot's own camera, twenty-eight from night-frontier-Z7 (the
+/// boot's own camera, thirty from night-frontier-Z7 (the
 /// off-path trio), thirty-two from night-frontier-Z9 (the
 /// memory-backed fault probe, the tmpfs residual's closer).
 pub const ALL_PINS: [&str; 32] = [
