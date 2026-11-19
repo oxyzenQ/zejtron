@@ -818,8 +818,11 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	#     The fill rides the stale-key law (src/ebpf/tracked.rs: a
 	#     SIGKILL mid-window leaves the key): 16 rounds of 64 windows,
 	#     every window synced on the kernel's own post-track sleep
-	#     state (/proc/<pid>/wchan == hrtimer_nanosleep - the loss
-	#     certificate's lesson: only a /proc row cannot lie), then
+	#     state (/proc/<pid>/wchan against the symbol the seat
+	#     calibrates live - the loss certificate's lesson: only a
+	#     /proc row cannot lie, and the kernel renames the symbol
+	#     across dialects, so the seat discovers it, never compiles
+	#     it), then
 	#     killed. 1024 leaked keys fill the map exactly; then two
 	#     clean questions must refuse, naming the counts 1 and 2 -
 	#     counting exactness, one census increment per refusal. A
@@ -829,6 +832,29 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 	if [ "$attach_ok" = "1" ]; then
 		qc_dir="$SCRATCH/qc"
 		mkdir -p "$qc_dir"
+		# The sync seat's symbol is DISCOVERED, never assumed: the
+		# kernel renames its nanosleep wchan across dialects
+		# (hrtimer_nanosleep on the 5.x line, other names on newer
+		# ones - found live by the runner leg, night-zen-lts-Z), and
+		# a compiled guess would break the seat on the rename alone.
+		# One real sleep names the symbol (two equal samples - the
+		# startup transitions do not repeat across them); the fill
+		# windows must match it exactly; a calibration miss fails by
+		# name with the observed wchan as the datum.
+		sync_sym=""
+		cal_prev=""
+		sleep 3 &
+		cal_pid=$!
+		for _ in $(seq 1 20); do
+			cal_cur=$(cat "/proc/$cal_pid/wchan" 2>/dev/null || true)
+			if [ -n "$cal_cur" ] && [ "$cal_cur" != "0" ] && [ "$cal_cur" = "$cal_prev" ]; then
+				sync_sym="$cal_cur"
+				break
+			fi
+			cal_prev="$cal_cur"
+			sleep 0.2
+		done
+		wait "$cal_pid" 2>/dev/null || true
 		fill_ok=1
 		round=0
 		while [ "$fill_ok" = "1" ] && [ "$round" -lt 16 ]; do
@@ -849,7 +875,7 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 			while [ "$synced" -lt 64 ] && [ "$SECONDS" -lt "$deadline" ]; do
 				synced=0
 				for p in $pids; do
-					if grep -q "hrtimer_nanosleep" "/proc/$p/wchan" 2>/dev/null; then
+					if [ -n "$sync_sym" ] && grep -qxF -- "$sync_sym" "/proc/$p/wchan" 2>/dev/null; then
 						synced=$((synced + 1))
 					fi
 				done
@@ -860,8 +886,18 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 					kill -9 "$p" 2>/dev/null || true
 				done
 			else
+				observed=""
+				for p in $pids; do
+					w=$(cat "/proc/$p/wchan" 2>/dev/null || true)
+					if [ -n "$w" ] && [ "$w" != "0" ]; then
+						case " $observed " in
+						*" $w "*) ;;
+						*) observed="$observed $w" ;;
+						esac
+					fi
+				done
 				fail "question census: every fill window reaches its post-track sleep" \
-					"round $round synced $synced/64 within 10s - the fill cannot be trusted, the conservation arithmetic would be fiction"
+					"round $round synced $synced/64 within 10s (the seat's calibrated wchan symbol: '${sync_sym:-never-stabilized}'; the windows' observed wchan(s):${observed:- none}) - the fill cannot be trusted, the conservation arithmetic would be fiction"
 				fill_ok=0
 			fi
 			for p in $pids; do

@@ -308,6 +308,49 @@ auditor can boot - never a guessed patch from one it cannot. This
 session names the failure precisely and dates it; it does not pretend
 to fix it.
 
+### The watch duty, continued: the two reds root-caused, one seat healed
+
+The follow-up session dug the two reds to their boundary, with the
+timeline as the first witness: C77's last green is `92efb17`
+(21:01Z, Nov 18) and the witnesses' is `da90075` (19:47Z); the
+persistent red starts at `898a457` (21:26Z) - whose entire diff is
+seven added and three removed lines in ONE port test file, a change
+that cannot touch a kernel record path - and the failure signature at
+`898a457` is the same one the board carries today. The runners' host
+kernel moved between those runs. ENVIRONMENT, not code.
+
+The signature splits into two boundary items:
+
+1. The sync seat COMPILED ITS GUESS. `critical-sim.sh`'s question
+   census and `loss-certificate.sh`'s settle both hardcoded
+   `/proc/<pid>/wchan == hrtimer_nanosleep`; the new dialect renamed
+   the symbol, so zero of sixty-four sleeping windows "synced" and
+   the loss certificate never saw its post-track sleep. FIXED in this
+   session's seat-heal commit: both seats now calibrate the symbol
+   live from one real sleep (two equal samples - the startup
+   transitions do not repeat across them), match it exactly, and a
+   miss fails by name carrying the calibrated symbol and the windows'
+   observed wchans - the estate's own data-never-a-guess law applied
+   to the sim. On every dialect where `hrtimer_nanosleep` still
+   holds, the calibrated seat matches it and behaves identically.
+2. The record path itself: every file probe attaches, links, and
+   publishes NOTHING, and the drop census (read through the syscall
+   path, so the read works) stays silent - the kernel never reaches
+   the ring reserve. The discriminators gathered: the storm's
+   post-mortem shows a raw-address kprobe at `__x64_sys_write`
+   FIRING (hits=2) and ftrace seeing the writes, so the kprobe
+   mechanism and the symbols live; the device-token encoding is
+   cleared (both sides derive `(major << 20) | minor` from BTF-free
+   arithmetic - kernel-version-agnostic); the cross-dialect
+   certificate renders stay byte-identical on every dialect including
+   7.3.3. The kill sits kernel-side, in the identity walk or the
+   tracked gate, and splitting the two needs a host that boots the
+   new dialect - the next era's first experiment (a tracked-key dump
+   beside the storm post-mortem). The gate-keepers ran 21/21 after
+   the seat heal; the census and loss-certificate legs should return
+   on the next run if the rename is all that broke them, and the
+   record-path proofs will stay red until that era lands.
+
 ### Honest scope
 
 The sweeps targeted the Z-era delta (source, kernel side, infra);

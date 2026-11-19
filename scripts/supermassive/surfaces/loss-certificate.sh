@@ -107,25 +107,43 @@ surface_loss_certificate() {
 	# collect_live is exact (src/ebpf/fileprobe.rs): track_file lands
 	# FIRST, then the offset sample, then the narrated wait - the
 	# process spends the whole window blocked in the post-track sleep
-	# (clock_nanosleep, wchan hrtimer_nanosleep). So the storm starts
-	# only when /proc shows the why process holding the storm's hot
-	# path in its cmdline AND blocked in hrtimer_nanosleep - a state
-	# that exists only AFTER the track landed. No write can precede
-	# the track, so the ground truth counts exactly the in-window
-	# writes. (The first live run's own finding, fixed the same
-	# night: a fixed 1.5s sleep raced the why's startup on the floor
+	# (clock_nanosleep, the kernel's nanosleep wchan). So the storm
+	# starts only when /proc shows the why process holding the storm's
+	# hot path in its cmdline AND blocked in that sleep symbol - a
+	# state that exists only AFTER the track landed. No write can
+	# precede the track, so the ground truth counts exactly the
+	# in-window writes. (The first live run's own finding, fixed the
+	# same night: a fixed 1.5s sleep raced the why's startup on the floor
 	# VM - 1365 of 40000 writes crossed the filter before the track,
 	# and the certificate caught them as silent loss. The second
 	# draft synced on the stderr narration and CI caught THAT: the
 	# narration is TTY-gated, and a piped stderr never carries it.
-	# The kernel's own /proc row is the one signal that cannot lie.)
+	# The kernel's own /proc row is the one signal that cannot lie.
+	# And the SYMBOL itself is discovered, never assumed - the kernel
+	# renames its nanosleep wchan across dialects (found live by the
+	# runner leg, night-zen-lts-Z), so one real sleep calibrates it
+	# and the settle matches exactly.)
+	local sync_sym="" cal_prev="" cal_cur=""
+	sleep 3 &
+	local cal_pid=$!
+	for _ in $(seq 1 20); do
+		cal_cur=$(cat "/proc/$cal_pid/wchan" 2>/dev/null || true)
+		if [[ -n "$cal_cur" && "$cal_cur" != "0" && "$cal_cur" = "$cal_prev" ]]; then
+			sync_sym="$cal_cur"
+			break
+		fi
+		cal_prev="$cal_cur"
+		sleep 0.2
+	done
+	wait "$cal_pid" 2>/dev/null || true
+
 	local why_pid synced=0
 	for _ in $(seq 1 60); do
 		why_pid=""
 		for proc_dir in /proc/[0-9]*; do
 			[[ -r "$proc_dir/cmdline" && -r "$proc_dir/wchan" ]] || continue
 			tr '\0' ' ' <"$proc_dir/cmdline" 2>/dev/null | grep -qF -- "$hot" || continue
-			if grep -q "hrtimer_nanosleep" "$proc_dir/wchan" 2>/dev/null; then
+			if [[ -n "$sync_sym" ]] && grep -qxF -- "$sync_sym" "$proc_dir/wchan" 2>/dev/null; then
 				why_pid="${proc_dir##*/}"
 				break
 			fi
@@ -142,7 +160,7 @@ surface_loss_certificate() {
 		# conservation math would be fiction. Fail by name, reap the
 		# window, clean the attach by hand.
 		sm_fail "loss-certificate: the window shows its post-track sleep" \
-			"no process holding the storm's path blocked in hrtimer_nanosleep within 6s - the sync seat is broken, the storm never ran"
+			"no process holding the storm's path blocked in the calibrated nanosleep wchan '${sync_sym:-never-stabilized}' within 6s - the sync seat is broken, the storm never ran"
 		wait "$window_pid" 2>/dev/null || true
 		sm_run "$SM_SCRATCH/lc-detach.out" "$SM_SCRATCH/lc-detach.err" rc 20 -- \
 			"$SM_DEFAULT_BIN" doctor --detach

@@ -397,7 +397,8 @@ if [[ "\$1" == "why" ]]; then
 	# kernel-truth window shape: a TWIN renders the drain result the
 	# moment the storm's sidecar count lands, while the FOREGROUND
 	# execs a sleep carrying the storm's hot path in argv - blocked
-	# in hrtimer_nanosleep with the path in cmdline, exactly the
+	# in the kernel's nanosleep wchan (the symbol the surface
+	# calibrates live) with the path in cmdline, exactly the
 	# state the surface's /proc sync waits for (the real why sits
 	# there for its whole window: track, then narrated sleep).
 	if [[ "$mode" == "mute" ]]; then
