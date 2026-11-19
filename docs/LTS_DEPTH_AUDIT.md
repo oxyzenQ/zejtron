@@ -184,6 +184,114 @@ that lane's dtolnay step carries no targets input). The skipped items
 above are skipped on purpose, not missed; each is named so the next
 audit can re-judge with fresh eyes.
 
+## The night-zen-lts-Z session (2026-11-19)
+
+A fresh-eyes sweep over the delta the fortress audit never saw: the
+Z1-Z10 frontier eras (256 commits, 109 Rust files since v80.0.0) -
+the code newest enough to have escaped every prior depth pass - plus
+the standing lenses (determinism, panic census, kernel-probe safety,
+infra) re-run against it. Session note: the recycled audit container
+had lost bpf-linker, and `./scripts/dev/bootstrap-ebpf.sh` restored
+the toolchain pair in one command - the panic message's own remedy,
+working as designed. Baseline after restore: 758/758 tests (the Z9/Z10
+eras grew the suite from 709), clippy `-D warnings` clean.
+
+### 1. Stability & crash
+
+PEAK (skip, verified): the Z10 watch-truth arithmetic read end to end
+(`material_watch_gap_ns`, the boottime pairing, the `PreBreath`
+four-reading shape) - i128 throughout, saturating clock reads, the
+one-second materiality bound, the backwards-pairing anomaly arm named.
+No overflow, no underflow, no division, no panic path. The Z9 kernel
+side (`membacked.rs`, `offpath.rs`) keeps the verifier-safe discipline:
+every hop an `Option` probe-read through the three helpers, the
+anon/ksm low-bit guard, the tracked gate before ring traffic, the fd
+bounds check, zero loops. No crashes, no coredumps, nothing to fix.
+
+### 2. Code hygiene (the dragon hunt)
+
+FIXED (three micro-commits):
+
+- The generation map's FIVE-slot contract (efc295e): night-frontier-
+  Z10 grew the pinned map to `with_max_entries(5)`, but
+  `GENERATION_SLOTS` stayed 4 - pinned by a test asserting the stale
+  value - and the map's doc in `ebpf/src/main.rs` still said "four
+  slots". The count constant, the slot-lockstep pins, and the doc now
+  say five, and the lockstep test gained the fifth slot's assert
+  (`GEN_SLOT_ATTACHED_MONOTONIC`, the watch-truth datum). A wrong
+  count is a wrong contract.
+- The Z8/Z9/Z10 line-join damage in four message literals (7fa8b07):
+  the identity-walk attach refusal, the two pre-Z2 estate errors, and
+  the off-path offsets summary carried 14-18-space runs mid-sentence -
+  the same garbled-refusal class the last audit healed elsewhere in
+  the loader. Every literal prints what it means again.
+- The Z10-era doc misattachments (607e3b5): `monotonic_now_ns`'s doc
+  was doubled verbatim (eighteen lines twice); `format_sleep_span`'s
+  doc sat stranded above `current_clocksource`; and
+  `capture_file_window`'s doc had been orphaned onto the `PreBreath`
+  struct by a doc inserted without a separating blank line - rustdoc
+  concatenates adjacent blocks, so the function rode undocumented and
+  "the third member" named a tuple shape Z10 retired. Each doc rides
+  its own item now; the splice probe's inline comment names the arm
+  the code actually rides.
+
+SKIPPED (deliberate): the five `from_pin` + `Array::try_from` copies
+in `estate.rs` would fold into one helper for ~25 lines - churn on
+five proven lanes for zero behavior change (the documented-duplication
+precedent). Five files sit exactly at the 600-LOC ceiling (plant.rs,
+mod.rs, events.rs, btf.rs, port/events.rs): legal per the gate, split
+on next touch, not before.
+
+### 3. Optimization
+
+PEAK (skip, verified): the session's diffs are comment, string
+literal, and dead-constant level - codegen-neutral by construction.
+The timing sanity confirms it (release build 34.6s; proc 1-2ms,
+recent 3ms, doctor 8-9ms across double runs). No hot-path work
+invented to justify a diff.
+
+### 4. Security hardening (white hat / kernel hacker mode)
+
+PEAK (skip, verified): the Z9 memfd record-verification door rides
+`verify_write.rs`'s hardened scratch creator - the atomic-mkdir +
+ownership-check fix from the last audit is SHARED, not duplicated,
+so the whole off-path verify family inherits it. The class gate reads
+the kernel's own filesystem registry at event time (data, never a
+compiled guess). The new infra stays inside the posture:
+`codeql-triage.yml` is minimal-permission (actions: read,
+security-events: write), fixed-filter, fixed-dismissal-comment, zero
+third-party actions (nothing to SHA-pin); the workflow injection
+sweep finds only fixed-vocabulary interpolations (`event_name`,
+`default_branch`). The secret-shape sweep stays zero.
+
+### 5. LTS stability & the deterministic-output contract
+
+PEAK (skip, verified): the HashMap census across `src/` resolves to
+lookups and O(1) indexes whose render order a Vec owns
+(`touch/audit.rs` keys by msg_id with a single `get`;
+`port/render.rs` documents the index-plus-Vec shape) - no iteration
+order reaches a rendered byte. The panic census stays zero (no
+unwrap/expect/panic/todo/unimplemented in the production trees). The
+Z10 entries render only on material movement (gap past one second, a
+regime switch, a skew past the bound) - content-dependent evidence,
+not run noise; the determinism certificate still pins what can be
+pinned, and the hermetic fixtures do not consult the new surfaces.
+
+### The gates, after
+
+758/758 tests, clippy `-D warnings` clean, `check-all -q` exit 0,
+gate-keepers 21/21, and the three fix commits ride one push whose CI
+board is watched to green.
+
+### Honest scope
+
+The sweeps targeted the Z-era delta (source, kernel side, infra);
+every finding was re-verified against the source before the edit, and
+the skip list above is skipped on purpose, not missed. The estate's
+own regen lane was honored twice: the two eBPF-tree comment edits
+regenerated the prebuilt manifest, and each fix commit carries it
+(the one-writer law, in parity per commit).
+
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
