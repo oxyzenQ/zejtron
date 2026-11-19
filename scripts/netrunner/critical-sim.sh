@@ -2,6 +2,10 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: AGPL-3.0-only
 # OS: Linux only - zejtron is a Linux introspection tool.
+# LOC_EXEMPT: one sequential harness whose sections share one attach
+#             session, one SCRATCH, and the pass/fail ledger - a split
+#             would scatter that state; the named follow-up is a real
+#             section split, not this marker.
 #
 # netrunner-night-C77 (night-total-hardening-1): the critical-usage
 # simulation the owner asked for before zejtron lands on critical
