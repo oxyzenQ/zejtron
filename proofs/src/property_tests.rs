@@ -107,8 +107,10 @@ proptest! {
 fn record_sizes_are_the_shared_contract() {
     // The kernel side's output call and the host side's record-length
     // check both carry these byte counts; the constants are defined
-    // as size_of, so the law is the identity itself.
-    assert_eq!(events_core::SOCK_EVENT_BYTES, 32);
+    // as size_of, so the law is the identity itself. The sock record
+    // grew 32 -> 64 with the Z8 identity block (the legacy head never
+    // renumbers; the tail rides the appended identity).
+    assert_eq!(events_core::SOCK_EVENT_BYTES, 64);
     assert_eq!(
         events_core::SOCK_EVENT_BYTES,
         size_of::<events_core::SockEvent>()

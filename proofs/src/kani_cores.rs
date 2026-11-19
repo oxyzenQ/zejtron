@@ -38,14 +38,16 @@ fn device_token_zero_extends_for_all_inputs() {
 
 /// The shared-record byte counts are the identity the ring contract
 /// rides: each *_BYTES constant is the struct's size_of, and the
-/// socket record holds its documented 32 bytes. Static by
+/// socket record holds its documented 64 bytes (night-frontier-Z8, D5:
+/// the identity block rides the appended tail, the legacy head never
+/// renumbers). Static by
 /// construction; the harness pins it inside the model checker so a
 /// repr(C) layout change that moves a size fails the theorem lane
 /// too, not just the unit test.
 #[cfg(kani)]
 #[kani::proof]
 fn record_sizes_are_the_shared_contract_for_all_inputs() {
-    assert_eq!(events_core::SOCK_EVENT_BYTES, 32);
+    assert_eq!(events_core::SOCK_EVENT_BYTES, 64);
     assert_eq!(
         events_core::SOCK_EVENT_BYTES,
         size_of::<events_core::SockEvent>()

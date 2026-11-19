@@ -171,7 +171,7 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
     };
 
     // Publish to the ring. The size assert inside output() is the
-    // compile-time layout pin (SOCK_EVENT_BYTES == 32, align 8 — the
+    // compile-time layout pin (SOCK_EVENT_BYTES == 64, align 8 — the
     // const is imported so both sides carry the same number); a
     // failed reservation (buffer full) drops the event without
     // failing the tracepoint - a passive tracepoint never fails, and
