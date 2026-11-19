@@ -100,7 +100,11 @@ fn the_slot_contract_is_the_map_layout() {
     // night-frontier-Z7 (D4): the off-path capability mask rides the
     // fourth slot - the presence law's whole contract.
     assert_eq!(GEN_SLOT_OFFPATH, 3);
-    assert_eq!(GENERATION_SLOTS, 4);
+    // night-frontier-Z10 (D7): the watch-truth datum rides the fifth
+    // slot - the attach instant in CLOCK_MONOTONIC nanoseconds, the
+    // stamps' own domain. The map's max_entries is five beside it.
+    assert_eq!(GEN_SLOT_ATTACHED_MONOTONIC, 4);
+    assert_eq!(GENERATION_SLOTS, 5);
 }
 
 #[test]

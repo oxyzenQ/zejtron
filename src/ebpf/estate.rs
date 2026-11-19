@@ -98,7 +98,7 @@ pub const OFFPATH_BIT_MEMBACKED: u64 = 8;
 /// slots by constant and never need the count; the scoped allow is
 /// the honest count of that split.
 #[allow(dead_code)]
-pub const GENERATION_SLOTS: u32 = 4;
+pub const GENERATION_SLOTS: u32 = 5;
 
 /// FNV-1a 64-bit: the pure identity digest (see the module doc for
 /// why FNV and not blake3 here). Offset basis 0xcbf29ce484222325,

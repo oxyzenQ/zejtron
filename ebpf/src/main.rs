@@ -383,10 +383,13 @@ pub(crate) fn count_ring_drop(slot: u32) {
     }
 }
 
-/// The generation stamp map (night-frontier-Z2): Array<u64>, four
+/// The generation stamp map (night-frontier-Z2): Array<u64>, five
 /// slots the LOADER writes once at attach and the drains read back -
-/// boot identity, probe object identity, attach instant (the
-/// GEN_SLOT_* contract in src/ebpf/estate.rs). The BPF programs
+/// boot identity, probe object identity, attach instant (unix
+/// seconds), the off-path capability mask, and the watch-truth
+/// attach instant in CLOCK_MONOTONIC nanoseconds (night-frontier-Z10
+/// grew the map from four to five; the GEN_SLOT_* contract in
+/// src/ebpf/estate.rs is the whole layout). The BPF programs
 /// never touch it: it is the estate's passive identity record, the
 /// fact the camera uses to prove it is this boot's own camera,
 /// planted by this build. The map lives beside the others so the pin
