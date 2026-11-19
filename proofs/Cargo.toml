@@ -54,10 +54,10 @@ repository = "https://github.com/oxyzenQ/zejtron"
 description = "Proof harnesses for zejtron's pure cores (proptest exhaustion on stable, Kani bounded model checking under the kani toolchain)."
 
 [dependencies]
-libc = "0.2"
+libc = "=0.2.191"
 
 [dev-dependencies]
-proptest = "1"
+proptest = "=1.12.0"
 
 [lints]
 # The cfg name the kani harness module evaluates: cfg(kani) is set only

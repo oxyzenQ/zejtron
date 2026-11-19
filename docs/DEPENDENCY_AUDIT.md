@@ -72,6 +72,49 @@ path for a permanent fork. serde appearing in `ebpf/` without the
    Cargo.lock is still this repository's supply chain. The lock-reading
    gate is the arbiter - if it fails, the fix is a dependency change,
    never a gate edit.
+6. Exact pins only (the arrayref lineage, 2026-11-19): every direct
+   dependency in every manifest (root, ebpf, fuzz, proofs) is
+   written `= <the exact version its committed Cargo.lock carries>`.
+   A version move is a deliberate manifest edit, reviewed in the same
+   diff that wants it - never a silent side effect of `cargo update`.
+
+## Exact pins (the arrayref lineage)
+
+On 2026-08-20 the crates.io arrayref account was compromised and
+malicious republished releases rode it (arrayref@0.3.10 carrying a
+dependency on the malicious proc-macro1, with a typosquat cluster
+published in the same window). The class of that attack is the loose
+requirement: `"0.3"` trusts every future 0.3.x the registry serves,
+so a hijacked NEW release of an ALREADY-DEPENDED-ON crate enters the
+graph on the next resolve with no review, no diff, no decision. This
+repository had already run that experiment on itself once, harmlessly:
+the manifest asked clap for `"4.5.40"` while a `cargo update` moved
+the lockfile to 4.6.7 - a legitimate move, but one nobody had to
+approve.
+
+The defense, now law:
+
+- Every direct dependency in every manifest is pinned with `=` to the
+  exact version its committed Cargo.lock carries (verified in the same
+  commit that introduced the pins: clap =4.6.7, aya =0.16.0,
+  libc =0.2.191, aya-ebpf =0.3.0, libfuzzer-sys =0.4.13,
+  proptest =1.12.0). `cargo update` cannot move a pinned crate; a
+  fresh lockfile generation cannot drift; the only path to a new
+  version is a manifest line in a reviewed diff.
+- The committed lockfiles remain the reproducibility floor
+  (`--locked` everywhere), and RustSec advisories in `deny.toml`
+  cover the vetted versions themselves.
+- The arrayref incident family (arrayref, append-only-vec, internment,
+  proc-macro1, and the typosquat cluster) is banned by name in
+  `deny.toml`, so any future re-add through a transitive chain fails
+  the check by name. proc-macro2 stays allowed - different package.
+- `[sources]` unknown-registry / unknown-git ride `deny`, not `warn`:
+  a resolution pointed anywhere but the official index fails the
+  check outright.
+
+Upgrade procedure that replaces the old reflex: edit the `=` pin,
+review the crate's delta, run the gates, commit the manifest and the
+refreshed lockfile in the same change.
 
 <!-- ZEJTRON-DISCLAIMER -->
 <!--

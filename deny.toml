@@ -8,11 +8,11 @@
 # Local: cargo deny check all (install: cargo install cargo-deny --locked).
 
 [graph]
-# The full dependency graph is small (4 direct deps), but the policy
-# still rides all-features=true by contract: if a feature is ever
-# added, the graph it pulls is inside every advisories/licenses/bans
-# check from day one - a policy that half-sees the tree is a policy
-# that lies.
+# The full dependency graph is small (3 direct deps: clap, aya,
+# libc), but the policy still rides all-features=true by contract: if a
+# feature is ever added, the graph it pulls is inside every
+# advisories/licenses/bans check from day one - a policy that
+# half-sees the tree is a policy that lies.
 all-features = true
 
 [output]
@@ -105,7 +105,58 @@ reason = "serde's split core package; banned with its host crate"
 name = "serde_derive"
 reason = "serde's proc-macro half; banned with its host crate"
 
+# The arrayref incident tripwires (crates.io, 2026-08-20): the legitimate
+# arrayref author's credentials were compromised and malicious new
+# releases of the author's crates (arrayref@0.3.10, append-only-vec,
+# internment) were republished with a dependency on the malicious
+# proc-macro1, plus a typosquat cluster (proc-macro-en, aovine, arone,
+# aronenao, tinymember) published in the same window. None of these
+# names is in any lockfile of this repository today; they are banned
+# so that a future resolution - a re-add through a transitive chain,
+# a name-adjacent typo install - fails the check by name instead of
+# passing silently. proc-macro2, the legitimate proc-macro crate in
+# this repo's locks, is a different package and stays allowed.
+[[bans.deny]]
+name = "arrayref"
+reason = "arrayref incident 2026-08-20: malicious republish under compromised author credentials; supply-chain tripwire"
+
+[[bans.deny]]
+name = "append-only-vec"
+reason = "arrayref incident 2026-08-20: malicious release from the compromised author account; supply-chain tripwire"
+
+[[bans.deny]]
+name = "internment"
+reason = "arrayref incident 2026-08-20: malicious release from the compromised author account; supply-chain tripwire"
+
+[[bans.deny]]
+name = "proc-macro1"
+reason = "arrayref incident 2026-08-20: the malicious payload carrier; not proc-macro2, which stays allowed"
+
+[[bans.deny]]
+name = "proc-macro-en"
+reason = "arrayref incident 2026-08-20: typosquat cluster of the incident window; supply-chain tripwire"
+
+[[bans.deny]]
+name = "aovine"
+reason = "arrayref incident 2026-08-20: typosquat cluster of the incident window; supply-chain tripwire"
+
+[[bans.deny]]
+name = "arone"
+reason = "arrayref incident 2026-08-20: typosquat cluster of the incident window; supply-chain tripwire"
+
+[[bans.deny]]
+name = "aronenao"
+reason = "arrayref incident 2026-08-20: typosquat cluster of the incident window; supply-chain tripwire"
+
+[[bans.deny]]
+name = "tinymember"
+reason = "arrayref incident 2026-08-20: typosquat cluster of the incident window; supply-chain tripwire"
+
 [sources]
-unknown-registry = "warn"
-unknown-git = "warn"
+# The incident hardened both knobs from warn to deny: a dependency that
+# resolves to any registry other than the official index, or to a git
+# source nobody added deliberately, now FAILS `cargo deny check all`
+# instead of printing a warning a weekly lane might not read.
+unknown-registry = "deny"
+unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]

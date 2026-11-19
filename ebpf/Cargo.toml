@@ -36,7 +36,10 @@ repository = "https://github.com/oxyzenQ/zejtron"
 description = "Pure-Rust eBPF probes for zejtron (a sched_process_exec counter, an inet_sock_set_state socket-event stream, a sched_process_exit post-mortem exit probe, vfs_open/vfs_write/vfs_writev file probes), cross-compiled with aya-ebpf and embedded by the userspace loader."
 
 [dependencies]
-aya-ebpf = "0.3"
+# The exact-pin law (root Cargo.toml, the arrayref lineage): pinned to
+# the version ebpf/Cargo.lock carries, so a hijacked new release of an
+# existing crate cannot enter the kernel-side graph on a re-resolve.
+aya-ebpf = "=0.3.0"
 
 [[bin]]
 name = "zejtron-ebpf"
