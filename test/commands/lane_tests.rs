@@ -179,6 +179,10 @@ fn file_event_at(timestamp_ns: u64, pid: u32, op: u8) -> crate::ebpf::events::Fi
         device: 2,
         pid,
         _pad2: 0,
+        cgroup_id: 0,
+        comm: [0; 16],
+        netns_inum: 0,
+        _pad3: 0,
     }
 }
 
@@ -300,4 +304,36 @@ fn teardown_lag_refuses_what_the_strict_rule_owns() {
     // A foreign pid's death never names anything.
     let foreign = [exit_at(event_ts - 10_000_000, 7, "systemd")];
     assert!(exit_names_event_after_teardown(&foreign, 4242, event_ts).is_none());
+}
+
+// ── night-frontier-Z8, D5: the record-comm attribution pins ─────────
+
+#[test]
+fn a_populated_record_comm_names_the_actor() {
+    // The ladder's second arm: the acting task's own name rides the
+    // record - the fact that survives a /proc read the actor already
+    // outlived. A populated comm (any nonzero byte) yields the name.
+    let mut write = file_event_at(10_000_000_000, 4242, crate::ebpf::events::FILE_OP_WRITE);
+    write.comm = *b"logrotate\0\0\0\0\0\0\0";
+    assert_eq!(
+        record_actor_name(&write),
+        Some("logrotate".to_owned()),
+        "the record's own comm IS the actor's name"
+    );
+}
+
+#[test]
+fn a_zeroed_record_comm_is_the_honest_hole() {
+    // A failed helper read leaves the field zeroed - the ladder
+    // refuses to invent a name and parks the event for the exit-ring
+    // pass instead. Every-zero and NUL-first comms are the same hole.
+    let write = file_event_at(10_000_000_000, 4242, crate::ebpf::events::FILE_OP_WRITE);
+    assert!(record_actor_name(&write).is_none(), "all-zero: unnamed");
+    let mut nul_first = file_event_at(10_000_000_000, 4243, crate::ebpf::events::FILE_OP_WRITE);
+    nul_first.comm[0] = 0;
+    nul_first.comm[5] = b'x'; // garbage past the NUL is still absent
+    assert!(
+        record_actor_name(&nul_first).is_none(),
+        "NUL-first: unnamed"
+    );
 }

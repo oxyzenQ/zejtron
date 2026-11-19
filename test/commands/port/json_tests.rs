@@ -70,6 +70,10 @@ fn live_event(pid: u32, oldstate: u8, newstate: u8) -> SockEvent {
         dport: 0,
         _pad2: 0,
         pid,
+        cgroup_id: 0,
+        comm: [0; 16],
+        netns_inum: 0,
+        _pad3: 0,
     }
 }
 
@@ -562,6 +566,35 @@ mod post_mortem {
         assert!(
             !std::path::Path::new(&format!("/proc/{pid}")).exists(),
             "the fixture pid is free on this host: {pid}"
+        );
+    }
+
+    #[test]
+    fn parity_when_the_record_comm_names_the_actor() {
+        // The D5 arm in both formats at once: a dead changer whose
+        // record carries its own comm - the text row renders the
+        // [event] tier with the record's name, the JSON row types
+        // attribution "recorded". One story, two formats.
+        let event_ts = 10_000_000_000;
+        let pid = dead_pid();
+        let mut event = dead_entered_listen(pid, event_ts);
+        event.comm = *b"evilbind\0\0\0\0\0\0\0\0";
+        let (text, json) = both_formats(&[event], &[]);
+        assert!(text.contains("(evilbind)"), "the text row: {text}");
+        let row = json_row(&json, "\"kind\":\"listened\"");
+        assert_eq!(
+            json_value_token(&row, "process"),
+            Some("\"evilbind\""),
+            "the JSON row's process: {row}"
+        );
+        assert_eq!(
+            json_value_token(&row, "attribution"),
+            Some("\"recorded\""),
+            "the record-comm attribution token: {row}"
+        );
+        assert!(
+            json_value_token(&row, "lag_ms").is_none(),
+            "no lag is measured on the record arm: {row}"
         );
     }
 }

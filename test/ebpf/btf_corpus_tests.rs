@@ -44,16 +44,25 @@ use super::super::btf_unlink;
 use super::*;
 
 /// The committed dialects: name, integrity digest, the thirteen
-/// struct offsets, the unlink dentry argument position, the
-/// renamedata old_dentry member offset. One row per real kernel,
-/// frozen. The span (night-frontier-Z3): 5.15, 6.1 (Debian
-/// bookworm's current point release), 6.6 (the frozen mainline
-/// build), 6.8, and the 7.x line (cachyos's flagship at capture
-/// time) - the walk table's whole migration history, frozen.
+/// core struct offsets, the identity chain night-frontier-Z8
+/// appends (its own parse, its own four slots), the unlink dentry
+/// argument position, and the renamedata old_dentry member offset.
+/// One row per real kernel, frozen. The span (night-frontier-Z3):
+/// 5.15, 6.1 (Debian bookworm's current point release), 6.6 (the
+/// frozen mainline build), 6.8, and the 7.x line (cachyos's
+/// flagship at capture time) - the walk table's whole migration
+/// history, frozen. The identity tail (night-frontier-Z8):
+/// task_struct.nsproxy marches with the kernel's growth exactly
+/// like task_struct.files does, nsproxy.net_ns sits at 40 on every
+/// committed dialect, net.ns re-packs on the 7.x line (120 -> 128
+/// -> 192), and ns_common.inum re-packs with it (16 -> 88 on
+/// cachyos) - the identity walk is as version-shaped as every walk
+/// before it, which is the whole reason the offsets are data.
 struct Dialect {
     blob: &'static str,
     blake3: &'static str,
     offsets: [u64; 13],
+    identity: [u64; 4],
     dentry_arg: u32,
     old_dentry_offset: u64,
 }
@@ -63,6 +72,7 @@ const CORPUS: [Dialect; 5] = [
         blob: "5.15.0-25-generic.btf",
         blake3: "7e88b941af6ed12b4cdb88951f504a4a2ee2996bb887673181bd8640166e181a",
         offsets: [48, 64, 16, 32, 8, 16, 0, 8, 2928, 32, 0, 8, 40],
+        identity: [2944, 40, 120, 16],
         dentry_arg: 2,
         old_dentry_offset: 16,
     },
@@ -70,6 +80,7 @@ const CORPUS: [Dialect; 5] = [
         blob: "6.1.0-50-amd64.btf",
         blake3: "be59ef22432ab05aabdd205a0ed524db156d8d6623345aeaed0b4105897e7a26",
         offsets: [48, 64, 16, 32, 8, 16, 0, 8, 3048, 32, 0, 8, 40],
+        identity: [3064, 40, 128, 16],
         dentry_arg: 2,
         old_dentry_offset: 16,
     },
@@ -77,6 +88,7 @@ const CORPUS: [Dialect; 5] = [
         blob: "6.6.95-060695-generic.btf",
         blake3: "18e1c444e5a913a5e185b92d1cb35d15812248f6e3dfa69723e6f6a649fbd132",
         offsets: [48, 80, 152, 168, 8, 16, 0, 8, 3056, 32, 0, 8, 56],
+        identity: [3072, 40, 128, 16],
         dentry_arg: 2,
         old_dentry_offset: 16,
     },
@@ -84,6 +96,7 @@ const CORPUS: [Dialect; 5] = [
         blob: "6.8.0-31-generic.btf",
         blake3: "147f8e1e2bad64b65e858e203edd5a8984de456593a0e31db156f42a400fdb35",
         offsets: [48, 64, 152, 168, 8, 16, 0, 8, 3080, 32, 0, 8, 40],
+        identity: [3096, 40, 120, 16],
         dentry_arg: 2,
         old_dentry_offset: 16,
     },
@@ -91,6 +104,7 @@ const CORPUS: [Dialect; 5] = [
         blob: "7.3.3-1-cachyos.btf",
         blake3: "85230401b1c90a414ceed7e46df3f83c02208d753a420205d3ae692b16d936b7",
         offsets: [48, 64, 64, 32, 8, 16, 0, 8, 3552, 32, 0, 8, 40],
+        identity: [3576, 40, 192, 88],
         dentry_arg: 2,
         old_dentry_offset: 16,
     },
@@ -130,6 +144,13 @@ fn the_parser_reads_every_committed_dialect_whole() {
         let offsets =
             parse_btf_offsets(&data).unwrap_or_else(|e| panic!("{} must parse: {e}", dialect.blob));
         assert_eq!(offsets, dialect.offsets, "{} walked wrong", dialect.blob);
+        let identity = parse_identity_offsets(&data)
+            .unwrap_or_else(|e| panic!("{} identity must parse: {e}", dialect.blob));
+        assert_eq!(
+            identity, dialect.identity,
+            "{} identity walked wrong",
+            dialect.blob
+        );
         let lane = btf_unlink::verify_unlink_lane_in(&data)
             .unwrap_or_else(|e| panic!("{} anchors must resolve: {e}", dialect.blob));
         assert_eq!(lane.dentry_arg, dialect.dentry_arg, "{}", dialect.blob);

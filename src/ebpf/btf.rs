@@ -9,34 +9,32 @@
 //!
 //! Why runtime, why refused-when-unverifiable: this repo's own
 //! reference probe (kernel 5.10.134) puts struct inode's i_ino at
-//! @64 - the "textbook" order would say @16, and other
-//! versions/configs put it elsewhere again. A hardcoded offset that
-//! is wrong on some host does not fail loudly; it reads the wrong
-//! field SILENTLY, and the probe goes blind without anyone knowing.
-//! Parsing the host's BTF - the kernel's own description of its
-//! structs - is the one source that cannot drift from the kernel it
-//! describes; refusing to attach when it cannot be parsed is the
-//! honest alternative to a guess. BTF presence is already a fact the
-//! doctor's \[eBPF] section reports; a 5.15+ distro kernel ships it.
+//! @64 - the "textbook" order would say @16, and other versions
+//! again. A wrong hardcoded offset reads the wrong field SILENTLY;
+//! the host's own BTF is the one source that cannot drift from the
+//! kernel it describes, and refusing to attach when it cannot be
+//! parsed is the honest alternative to a guess. A 5.15+ distro
+//! kernel ships it.
 //!
-//! night-improve-49: the member lookups learned the anonymous union.
-//! The 6.18 kernel line (Al Viro's constification, merged as the
-//! pull-f_path tag) wraps struct file's f_path in an unnamed union
-//! carrying `const struct path f_path` beside a writable
-//! `struct path __f_path`, so the direct-member walk found nothing
-//! and every 6.18+ host refused at attach. The walk now descends
-//! anonymous struct/union members, and only those, accumulating bit
-//! offsets; a member still unfound after the descent is the named error, never a guess.
+//! night-improve-49: the member lookups learned the anonymous union
+//! (the 6.18 kernel wraps struct file's f_path in an unnamed union):
+//! the walk descends anonymous struct/union members only,
+//! accumulating bit offsets; still unfound is the named error.
 //!
 //! The parser is deliberately minimal: a BTF header check, a type
-//! walk, nine struct lookups, thirteen member lookups. Pure std, no
-//! unsafe - it reads a file, trusts nothing, returns what THE HOST
+//! walk, nine struct lookups, thirteen member lookups. Pure std,
+//! no unsafe - it reads a file, trusts nothing, returns what THE HOST
 //! says, and names every lookup failure. night-frontier-2 grows the
 //! parse by one member (inode.i_sb, the unlink/rename probes' device
 //! hop) and widens the walker's seam to pub(crate) - the btf_writev
 //! sibling's precedent - so src/ebpf/btf_unlink.rs drives the same
 //! BtfFile for the FUNC-parameter scan the unlink/rename anchors
-//! ride; one walker serves every lane.
+//! ride; one walker serves every lane. night-frontier-Z8 adds the
+//! second parse of the same walker (the btf_offpath sibling): the
+//! D5 identity chain (task_struct.nsproxy, nsproxy.net_ns, net.ns,
+//! ns_common.inum) rides
+//! [`parse_identity_offsets`], refusal-by-name when a field is
+//! absent, written to the map at its own slots.
 //!
 //! night-improve-57: the plain-write probe left vfs_write behind
 //! (the newest -O3 distro builds inline it out of the executed
@@ -47,16 +45,14 @@
 //! the walk reads: task_struct.files, files_struct.fdt,
 //! fdtable.max_fds, and fdtable.fd.
 //!
-//! The file is path-included by the fuzz harness
-//! (fuzz/fuzz_targets/btf_parser.rs) and compiled standalone there -
-//! the include law (fuzz/Cargo.toml): pure std, zero `crate::`
-//! references, so the harness always proves the same bytes the
-//! binary ships. The night-hunter-4 diagnostic trace therefore
-//! lives at the attach boundary (src/ebpf/loader.rs), not here.
+//! The file is path-included by the fuzz harness and compiled
+//! standalone there (the include law): pure std, zero `crate::`
+//! references. The night-hunter-4 diagnostic trace lives at the
+//! attach boundary (src/ebpf/loader.rs), not here.
 
 // The byte-level decode lives beside the parser (night-zen-lts-1):
 // the 600-cap split put decode_info / kind_extra_bytes / u32_at in
-// their own read-in-one-breath module.
+// their own read-in-one-breath module
 use super::btf_decode::{decode_info, kind_extra_bytes, u32_at};
 
 /// The BTF magic, as a little-endian u16 over the file's first two
@@ -67,19 +63,13 @@ const BTF_MAGIC: u16 = 0xEB9F;
 const BTF_HEADER_BYTES: usize = 24;
 
 /// The offsets the probes read, slot-aligned to the events.rs
-/// OFF_SLOT_* indices: [dentry.d_inode, inode.i_ino, file.f_path,
-/// file.f_inode, vfsmount.mnt_sb, super_block.s_dev, path.mnt,
-/// path.dentry], every value a byte offset - the eight frozen
-/// file-walk slots - plus the four fd-walk slots night-improve-57
-/// appends for the syscall-stub write probe: [task_struct.files,
-/// files_struct.fdt, fdtable.max_fds, fdtable.fd], plus the inode
-/// i_sb hop night-frontier-2 appends for the unlink/rename probes'
-/// device walk (dentry->d_inode->i_sb->s_dev). The two remaining
-/// slots the offsets map carries (the vfs_unlink dentry argument
-/// index and the renamedata old_dentry member offset) are the
-/// FUNC-walk's own values, resolved by src/ebpf/btf_unlink.rs and
-/// merged at the attach boundary (src/ebpf/loader.rs) - the struct
-/// walk and the symbol walk are two parses of one blob.
+/// OFF_SLOT_* indices: the eight frozen file-walk slots, the four
+/// fd-walk slots night-improve-57 appends, and the inode i_sb hop
+/// night-frontier-2 appends. Every appended tail the map carries
+/// rides its OWN parse at the attach boundary (btf_unlink.rs,
+/// btf_offpath.rs, and [`parse_identity_offsets`] the D5 identity
+/// chain), each written at its own OFF_SLOT_* indices, never by
+/// array position (the night-hunter-3 lesson).
 pub type ProbeOffsets = [u64; 13];
 
 /// Parse the host's own /sys/kernel/btf/vmlinux. Every error names
@@ -90,14 +80,16 @@ pub fn parse_probe_offsets() -> Result<ProbeOffsets, String> {
     parse_btf_offsets(&data)
 }
 
-/// The pure parser: given the raw BTF file bytes, return the eight
-/// offsets. Separated from [`parse_probe_offsets`] so the tests can
-/// drive it with synthetic blobs end to end. The six struct lookups
-/// cover the file walks only: the exec probe reads no context fields
-/// (its counter rides helpers alone) and the lifecycle tracepoints
-/// are gone with the lifecycle stream (night-improve-34), so no
-/// tracepoint context and no task_struct offset is verified or
-/// stored any more.
+/// The pure parser: given the raw BTF file bytes, return the
+/// seventeen struct-walk offsets. Separated from
+/// [`parse_probe_offsets`] so the tests can
+/// drive it with synthetic blobs end to end. The twelve struct
+/// lookups cover the file walks and the identity walk: the exec
+/// probe reads no context fields (its counter rides helpers alone)
+/// and the lifecycle tracepoints are gone with the lifecycle stream
+/// (night-improve-34), so no tracepoint context and no other
+/// task_struct offsets are verified or stored beyond the two the
+/// fd walk and the netns walk ride.
 pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
     let ctx = BtfFile::new(data)?;
     let inode = ctx
@@ -145,12 +137,32 @@ pub fn parse_btf_offsets(data: &[u8]) -> Result<ProbeOffsets, String> {
     ])
 }
 
-/// The total-work budget the anonymous-member walk shares across its
-/// recursion (night-zen-lts-1): a malformed blob's type graph must not
-/// turn a member search into a grind. Real structs cost a few dozen
-/// units (struct file's members + its anonymous aggregates); the
-/// budget bounds the hostile worst case at a fraction of a second,
-/// fuzz target included.
+/// The identity walk's pure parse: given the raw BTF file bytes,
+/// return the four identity offsets in OFF_SLOT_TASK_NSPROXY order.
+pub fn parse_identity_offsets(data: &[u8]) -> Result<IdentityOffsets, String> {
+    let ctx = BtfFile::new(data)?;
+    let task = ctx
+        .find_struct("task_struct")
+        .ok_or_else(|| "struct task_struct not found in BTF".to_owned())?;
+    let nsproxy = ctx
+        .find_struct("nsproxy")
+        .ok_or_else(|| "struct nsproxy not found in BTF".to_owned())?;
+    let net = ctx
+        .find_struct("net")
+        .ok_or_else(|| "struct net not found in BTF".to_owned())?;
+    let ns_common = ctx
+        .find_struct("ns_common")
+        .ok_or_else(|| "struct ns_common not found in BTF".to_owned())?;
+    Ok([
+        member_offset(&ctx, task, "task_struct", "nsproxy")?,
+        member_offset(&ctx, nsproxy, "nsproxy", "net_ns")?,
+        member_offset(&ctx, net, "net", "ns")?,
+        member_offset(&ctx, ns_common, "ns_common", "inum")?,
+    ])
+}
+
+/// The anonymous-member walk's total-work budget (night-zen-lts-1):
+/// a malformed blob's type graph is bounded, never a grind.
 const MEMBER_WALK_BUDGET: u64 = 1024;
 
 /// One member's byte offset inside a located struct, direct or
@@ -187,17 +199,15 @@ pub(crate) struct BtfFile<'a> {
     strings_len: usize,
 }
 
-/// One located STRUCT or UNION record: its member-list position
-/// and member count - the anonymous-descent walk rides the same
-/// pair for both aggregate kinds.
+/// One located STRUCT or UNION record: member-list position and
+/// member count.
 #[derive(Clone, Copy)]
 pub(crate) struct StructEntry {
     members_pos: usize,
     vlen: usize,
 }
 
-/// One located FUNC record (night-improve-42): its header position -
-/// the FUNC_PROTO type id rides in the size/type field at pos+8.
+/// One located FUNC record (night-improve-42): its header position.
 #[derive(Clone, Copy)]
 pub(crate) struct FuncEntry {
     pub(crate) pos: usize,
@@ -253,8 +263,7 @@ impl<'a> BtfFile<'a> {
         })
     }
 
-    /// The name at a string-table offset, or None when the offset is
-    /// out of the section (anonymous names use offset 0).
+    /// The name at a string-table offset (anonymous names: offset 0).
     pub(crate) fn name(&self, name_off: u32) -> Option<&'a str> {
         if name_off == 0 {
             return Some("");
@@ -266,12 +275,9 @@ impl<'a> BtfFile<'a> {
     }
 
     /// Walk the type records looking for the first STRUCT with the
-    /// given name. The walk mirrors the reference parser this pass
-    /// was designed against: 12-byte records, per-kind trailing
-    /// payloads (INT +4, ARRAY +12, STRUCT/UNION vlen*12, ENUM
-    /// vlen*8, FUNC_PROTO vlen*8, VAR +4, DATASEC vlen*12, DECL_TAG
-    /// +4, ENUM64 vlen*12) - one miscalculated kind desyncs the whole
-    /// walk, so the bounds are checked at every step.
+    /// given name: 12-byte records, per-kind trailing payloads, the
+    /// bounds checked at every step (one wrong kind desyncs the
+    /// walk).
     pub(crate) fn find_struct(&self, want: &str) -> Option<StructEntry> {
         let mut pos = self.types_base;
         let end = self.types_base + self.types_len;
@@ -330,10 +336,8 @@ impl<'a> BtfFile<'a> {
         None
     }
 
-    /// The record start position for a BTF type id. Ids are assigned
-    /// sequentially from 1 in section order (0 is the void type), so
-    /// the position is the id-th record - one bounded walk. `None`
-    /// when the id is out of the section; the caller refuses by name.
+    /// The record start position for a BTF type id (ids run from 1;
+    /// 0 is void) - one bounded walk, `None` past the section.
     pub(crate) fn record_pos(&self, want_id: u32) -> Option<usize> {
         if want_id == 0 {
             return None;
@@ -357,11 +361,9 @@ impl<'a> BtfFile<'a> {
         None
     }
 
-    /// The FUNC's first-argument shape: the struct name arg0 points
-    /// at, resolved through the pointer and any typedef/qualifier
-    /// chains. Every refusal names its stage; a pointer to a pointer
-    /// or a by-value struct is refused as loudly as an absent proto -
-    /// each is a different wrong answer at the same attach point.
+    /// The FUNC's first-argument shape: the struct arg0 points at,
+    /// through pointer + typedef/qualifier chains. Every refusal
+    /// names its stage.
     pub(crate) fn func_arg0_struct(&self, func: FuncEntry, fname: &str) -> Result<String, String> {
         let proto_id = u32_at(self.data, func.pos + 8);
         let Some(proto_pos) = self.record_pos(proto_id) else {
@@ -447,9 +449,7 @@ impl<'a> BtfFile<'a> {
     }
 
     /// The aggregate's members as (name, type id, bit offset)
-    /// triples - the type id is what the anonymous-aggregate
-    /// descent follows, and a name that reads empty is BTF's
-    /// anonymous-member marker.
+    /// triples - the anonymous-descent's fuel.
     fn members_of(&self, entry: StructEntry) -> Vec<(&'a str, u32, u32)> {
         let mut out = Vec::with_capacity(entry.vlen);
         for i in 0..entry.vlen {
@@ -466,10 +466,6 @@ impl<'a> BtfFile<'a> {
         out
     }
 
-    /// The total-work budget the anonymous-member walk shares across its
-    /// recursion (night-zen-lts-1): a malformed blob's type graph must not
-    /// turn a member search into a grind. Real structs cost a few dozen
-    /// units (struct file's members + its anonymous aggregates); the
     /// One member's bit offset anywhere in the aggregate tree rooted
     /// at `entry`, C-correct: `file->f_path` names a direct member
     /// or a member of an anonymous struct/union the aggregate embeds,
@@ -582,3 +578,23 @@ mod unlink_lane_tests;
 #[cfg(test)]
 #[path = "../../test/ebpf/btf_offpath_tests.rs"]
 mod offpath_lane_tests;
+
+/// The identity offsets one parse returns, in IDENT_SLOT_* order.
+pub type IdentityOffsets = [u64; 4];
+
+/// The identity walk's own parse (night-frontier-Z8, D5): the four
+/// offsets every record's netns identity rides, written to the map
+/// at its OFF_SLOT_ indices EXPLICITLY, never by array position.
+/// The member is net_ns, NOT net - the corpus proves the guess
+/// wrong on every committed dialect; a wrong name refuses at
+/// attach, by name. Identity is CORE: a host whose BTF cannot
+/// vouch for the chain refuses at attach. Separated so tests drive
+/// it with synthetic blobs.
+/// The identity array's own slot indices (the parse's return order,
+/// which write_offsets maps onto the OFF_SLOT_TASK_NSPROXY..OFF_SLOT_
+/// NS_COMMON_INUM map indices explicitly). Named so a caller cannot
+/// ride array positions by accident.
+pub const IDENT_SLOT_TASK_NSPROXY: usize = 0;
+pub const IDENT_SLOT_NSPROXY_NET: usize = 1;
+pub const IDENT_SLOT_NET_NS: usize = 2;
+pub const IDENT_SLOT_NS_COMMON_INUM: usize = 3;

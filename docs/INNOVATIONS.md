@@ -418,6 +418,58 @@ fails the suite until the contract is consciously re-pinned in a
 commit that says why. Pinned by `test/ebpf/cost_tests.rs`; the
 live budgets by the camera-cost surface on the witness kernels.
 
+**20. The actor identity in every record** (night-frontier-Z8, D5;
+`src/ebpf/events.rs`, `ebpf/src/identity.rs`, the parse split
+`src/ebpf/btf.rs` ([`parse_identity_offsets`]), the attribution
+ladders `src/commands/lane.rs` / `src/commands/port/events.rs` /
+`src/commands/port/json.rs`, [docs/CAMERA-COST.md](CAMERA-COST.md)).
+The hole: the records carried `pid` - a number that answers nothing
+on its own. The file rows resolved the actor's NAME through a /proc
+round-trip at render time, and a short-lived writer that finished
+and died inside the window left the row to the exit ring's mercy;
+and no record knew WHERE its actor ran: in a container estate
+(kube pods, systemd slices) the question "pid 8123 - who is that,
+and from where" had no answer the camera could give. The close: every
+`FileEvent` and every `SockEvent` now carries the actor's own
+identity block, read by the kernel at event time - the cgroup id
+(`bpf_get_current_cgroup_id`, the kernfs inode stat(2) reports for
+the cgroup's directory - the number the pod spec names; helper-stable
+under the kernel floor, no BTF walk), the comm (`bpf_get_current_comm`,
+the ProcExitEvent precedent), and the network-namespace inode (the
+ns_common.inum walk `task_struct.nsproxy` -> `nsproxy.net_ns` ->
+`net.ns`, the integer /proc's ns/net symlink prints - the identity
+lsns names, derived per host at attach and refused by name when a
+field is absent - identity is CORE, not an additive capability). The
+name the textbook order would guess (`nsproxy.net`) is proven absent
+on every real dialect the corpus carries: the member is `net_ns`, and
+the independent corpus pass is the reason the guess died before a
+host met it. The record grew 40 -> 72 / 32 -> 64 bytes - the cost
+contract re-pinned CONSCIOUSLY: the file ring doubled to 512 KiB so
+the held-record window GREW under the wider record (6553 held at the
+80-byte aya stride versus the 5461 the old contract measured; the
+sock ring stays 256 KiB, its filter bounds it to transitions too rare
+to need the memory), and the instruction table moved with the inline
+identity fill (the whole camera 2165 -> 3416). The render carries the
+depth: the raw lane names `comm=`, `cgroup=`, `netns=` per record,
+and the attribution ladders gained an arm - a dead actor whose record
+names it is attributed from the record itself (zero pid-reuse risk,
+no /proc round-trip to outlive the actor), the exit ring only for the
+failed-helper-read hole, the JSON lane typing the same story
+(`"attribution":"recorded"` - the parity law holds). The legacy head
+of both records never renumbers; the vocabulary's append-only law
+holds, and the offsets map grew by four slots (18..21) written
+EXPLICITLY, never by array position - the night-hunter-3 lesson is
+the reason the identity parse rides its own slots. Pinned by
+`test/ebpf/file_events_tests.rs` and `test/ebpf/ringbuf_tests.rs`
+(the layout pins, every offset), `test/ebpf/btf_corpus_tests.rs`
+(the identity chain per REAL dialect - nsproxy marches with the
+kernel, net.ns re-packs on the 7.x line, inum 16 -> 88 on cachyos),
+`test/ebpf/cost_tests.rs` (the conscious re-pin), and the new
+attribution pins in `test/commands/lane_tests.rs`,
+`test/commands/port/events_tests.rs`, and
+`test/commands/port/json_tests.rs` (the record-comm arm, the
+zeroed-comm hole, and the JSON parity).
+
 **19. The off-path write truth** (night-frontier-Z7, D4;
 `ebpf/src/offpath.rs`, the record-verification lane
 `src/ebpf/verify_offpath.rs`, the anchor ladder

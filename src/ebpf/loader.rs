@@ -173,6 +173,30 @@ pub fn attach() -> Result<String, String> {
         );
     }
 
+    // 1.55. The identity walk's own parse (night-frontier-Z8, D5):
+    //       the four offsets every record's netns identity rides,
+    //       from the same host BTF. Identity is CORE - a failure is
+    //       a hard attach refusal, by name, with zero pins touched:
+    //       a record whose netns silently read garbage would be the
+    //       failure class the offsets law exists to prevent (the
+    //       off-path trio below is the additive contrast: named
+    //       down, never a refusal).
+    let btf_data = std::fs::read("/sys/kernel/btf/vmlinux")
+        .map_err(|e| format!("attach refused: cannot read /sys/kernel/btf/vmlinux: {e}"))?;
+    let identity_offsets = btf::parse_identity_offsets(&btf_data).map_err(|e| {
+        format!(
+            "attach refused: cannot verify the identity walk's offsets from BTF              ({e}). Every record carries the actor's network-namespace inode,              walked through task_struct.nsproxy -> nsproxy.net_ns -> net.ns ->              ns_common.inum at offsets taken from /sys/kernel/btf/vmlinux - a              kernel whose BTF cannot vouch for the chain cannot carry verified              identity, and a guessed offset reads garbage silently.              No probe is planted"
+        )
+    })?;
+    vlog!(
+        "btf",
+        "identity walk verified from BTF: task_struct.nsproxy {}, nsproxy.net_ns {}, net.ns {}, ns_common.inum {}",
+        identity_offsets[0],
+        identity_offsets[1],
+        identity_offsets[2],
+        identity_offsets[3]
+    );
+
     // 1.6. The writev symbol verification (night-improve-42): the
     //      vectorized-write probe probes a symbol whose first argument
     //      must be a pointer to struct file. The symbol and its
@@ -233,8 +257,6 @@ pub fn attach() -> Result<String, String> {
     //       symbols, missing BTF for the core walk) do not apply to
     //       the additive set: a present-but-moved io_kiocb is a
     //       named-down, not a dead camera.
-    let btf_data = std::fs::read("/sys/kernel/btf/vmlinux")
-        .map_err(|e| format!("attach refused: cannot read /sys/kernel/btf/vmlinux: {e}"))?;
     let dirty_anchor = match super::btf_offpath::verify_dirty_anchor_in(&btf_data) {
         Ok(anchor) => {
             vlog!(
@@ -387,6 +409,7 @@ pub fn attach() -> Result<String, String> {
                 &lane,
                 offpath_offsets.as_ref(),
                 iouring_lane.as_ref().filter(|_| iouring_seated),
+                &identity_offsets,
             ) {
                 return Err(fail(e));
             }

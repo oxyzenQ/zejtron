@@ -107,7 +107,8 @@ unsafe fn identity_of(
 /// The filter-and-publish tail, shared verbatim by both probes: the
 /// tracked_inodes check happens in the kernel, before a single byte
 /// of ring traffic is spent (the open probe's price control), and a
-/// pass publishes the 40-byte record with the acting process's pid.
+/// pass publishes the 72-byte record with the acting process's pid
+/// and its identity block (night-frontier-Z8, D5).
 unsafe fn publish_if_tracked(dentry: usize, op: u8) {
     // SAFETY: the offset reads run through the probe-read helpers (a
     // bad address returns None, never a fault) at BTF-verified
@@ -128,7 +129,9 @@ unsafe fn publish_if_tracked(dentry: usize, op: u8) {
         // header deliberately skips (the write probe's anchor history
         // earned that one) is a different instrument: this counter is
         // the ring's own reserve truth, and the ring serves five
-        // probes.
+        // probes. The identity block (night-frontier-Z8, D5) rides
+        // the same record: cgroup id, comm, netns inode.
+        let actor = super::identity::actor_identity(Some(&o));
         if file_events.output::<FileEvent>(
             &FileEvent {
                 timestamp_ns: bpf_ktime_get_ns(),
@@ -138,6 +141,10 @@ unsafe fn publish_if_tracked(dentry: usize, op: u8) {
                 device,
                 pid: (bpf_get_current_pid_tgid() >> 32) as u32,
                 _pad2: 0,
+                cgroup_id: actor.cgroup_id,
+                comm: actor.comm,
+                netns_inum: actor.netns_inum,
+                _pad3: 0,
             },
             0,
         )

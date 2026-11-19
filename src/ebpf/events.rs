@@ -9,15 +9,21 @@
 //! struct, one truth, no drift between the kernel side that writes
 //! the record and the host side that reads it).
 //!
-//! The layout is `repr(C)` natural alignment, and the field order is
-//! chosen so the record holds every field in exactly 32 bytes: the
-//! two u64s first (timestamp, socket address), then the narrowing
-//! scalars, the pid last. Three pad bytes ride inside (offsets 21 and
-//! 26..27); `core::mem::offset_of!` pins every offset in
-//! test/ebpf/ringbuf_tests.rs so a field reorder cannot slip through
-//! silently. The 32-byte size is the ring-buffer record size both
-//! sides agree on - the kernel side's `output` call and the host
-//! side's record-length check both carry it.
+//! The layout is `repr(C)` natural alignment. The SockEvent holds
+//! every field in 64 bytes since night-frontier-Z8 (D5): the two u64s
+//! first (timestamp, socket address), then the narrowing scalars, the
+//! pid, and then the actor identity block the same pass appended -
+//! the changer's cgroup id, its comm, and its network-namespace
+//! inode, so the row answers "who changed it, and from where" without
+//! a cross-lookup. The legacy head (offsets 0..32) never renumbers:
+//! the pads ride at offsets 21 and 26..27 as EXPLICIT fields (the
+//! FileEvent discipline), and the identity block rides the appended
+//! tail (offsets 32..64, one pad at 60..64). `core::mem::offset_of!`
+//! pins every offset in test/ebpf/ringbuf_tests.rs so a field
+//! reorder cannot slip through silently. The 64-byte size is the
+//! ring-buffer record size both sides agree on - the kernel side's
+//! `output` call and the host side's record-length check both carry
+//! it.
 //!
 //! Everything in this module is plain `core` Rust (no_std, no aya) so
 //! the same bytes compile into the bpfel-unknown-none object and into
@@ -52,9 +58,11 @@ pub const AF_INET6: u16 = 10;
 ///
 /// Offsets (repr(C), natural alignment, pinned by test):
 /// timestamp_ns 0, skaddr 8, family 16, protocol 18, oldstate 19,
-/// newstate 20, _pad 21, sport 22, dport 24, _pad2 26..27,
-/// pid 28; total 32 bytes. The pads are EXPLICIT fields, the
-/// FileEvent discipline: the ring record's every byte is written
+/// newstate 20, _pad 21, sport 22, dport 24, _pad2 26..27, pid 28,
+/// cgroup_id 32, comm 40..56, netns_inum 56, _pad3 60..64; total 64
+/// bytes (night-frontier-Z8, D5: the identity block rides the tail,
+/// the legacy head never renumbers). The pads are EXPLICIT fields,
+/// the FileEvent discipline: the ring record's every byte is written
 /// by the probe constructor, because the 5.15 verifier (the
 /// documented kernel floor, proven live by the kernel-floor
 /// micro-VM lane) rejects an `output` read whose stack bytes were
@@ -91,6 +99,26 @@ pub struct SockEvent {
     /// tgid half of bpf_get_current_pid_tgid) - the truth the /proc
     /// snapshot cannot see: who changed it, not who holds it now.
     pub pid: u32,
+    /// The cgroup id of the changing task's default-hierarchy
+    /// cgroup (night-frontier-Z8, D5): `bpf_get_current_cgroup_id`,
+    /// the kernfs inode stat(2) reports for the cgroup's directory -
+    /// the number the pod spec names. UAPI-stable since 4.18, under
+    /// the floor: no BTF walk, no refusal class.
+    pub cgroup_id: u64,
+    /// The changer's comm (`bpf_get_current_comm`, TASK_COMM_LEN =
+    /// 16 bytes), NUL-terminated by the helper's contract and zeroed
+    /// past its end. A failed read leaves the field zeroed - the
+    /// honest absence the row renders as an unnamed actor.
+    pub comm: [u8; 16],
+    /// The changing task's network-namespace inode (D5): the
+    /// ns_common.inum walk task_struct.nsproxy -> nsproxy.net_ns ->
+    /// net.ns, every offset derived from the host's BTF at attach
+    /// (the OFF_SLOT_TASK_NSPROXY..NS_COMMON_INUM slots). The number
+    /// /proc/<pid>/ns/net's `net:[N]` prints. Zero = the named
+    /// unavailability, never a guessed namespace number.
+    pub netns_inum: u32,
+    /// Padding to 64 bytes (pinned by test at 60..64).
+    pub _pad3: u32,
 }
 
 /// The size of one ring-buffer record, in bytes - the number both the
@@ -235,7 +263,9 @@ pub const FILE_OP_IO_URING_WRITE: u8 = 9;
 ///
 /// Offsets (repr(C), natural alignment, pinned by test):
 /// timestamp_ns 0, op 8 (pad 9..16), inode 16, device 24, pid 32
-/// (pad2 36..40); total 40 bytes.
+/// (pad2 36..40), cgroup_id 40, comm 48..64, netns_inum 64,
+/// pad3 68..72; total 72 bytes (night-frontier-Z8, D5: the identity
+/// block rides the appended tail, the legacy head never renumbers).
 ///
 /// `device` is the canonical device token - the kernel's dev_t
 /// encoding (major << 20) | minor, the same integer the superblock's
@@ -244,6 +274,19 @@ pub const FILE_OP_IO_URING_WRITE: u8 = 9;
 ///
 /// `pid` is the tgid half of bpf_get_current_pid_tgid: the process
 /// whose syscall made the change - the fact no snapshot can see.
+///
+/// The identity block (night-frontier-Z8, D5) rides the same record:
+/// the actor's cgroup id, its comm, and its network-namespace inode,
+/// so "who did this, and from where" is answered fully in container
+/// environments ("pid 8123, comm bash, cgroup 4293, netns 4026531956")
+/// without a cross-lookup - a /proc read the actor may already have
+/// exited from. The cgroup id is the helper's own number
+/// (`bpf_get_current_cgroup_id`, UAPI-stable since 4.18); the comm is
+/// the helper's own bytes (`bpf_get_current_comm`, the ProcExitEvent
+/// precedent); the netns inode is the BTF-walked ns_common.inum, its
+/// four offsets derived per host at attach and refusal-by-name when
+/// a field is absent (src/ebpf/btf.rs). The legacy head never
+/// renumbers; the vocabulary's append-only law holds.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FileEvent {
@@ -262,6 +305,28 @@ pub struct FileEvent {
     pub pid: u32,
     /// Padding to 40 bytes (pinned by test at 36..40).
     pub _pad2: u32,
+    /// The acting task's default-hierarchy cgroup id
+    /// (`bpf_get_current_cgroup_id`, D5): the kernfs inode stat(2)
+    /// reports for the cgroup's directory - the container identity
+    /// the pod spec names. Helper-stable under the floor; no BTF
+    /// walk, no refusal class.
+    pub cgroup_id: u64,
+    /// The acting task's comm (`bpf_get_current_comm`, TASK_COMM_LEN
+    /// = 16 bytes), NUL-terminated by the helper's contract and
+    /// zeroed past its end - the actor's own name, riding the
+    /// record: the /proc read the ladder used to need may be dead by
+    /// render time, and the record's own comm cannot. A failed read
+    /// leaves the field zeroed, the honest absence.
+    pub comm: [u8; 16],
+    /// The acting task's network-namespace inode number: the
+    /// ns_common.inum walk task_struct.nsproxy -> nsproxy.net_ns ->
+    /// net.ns, every offset derived from the host's own BTF at
+    /// attach (refusal-by-name when a field is absent). The number
+    /// /proc/<pid>/ns/net's `net:[N]` prints. Zero = the named
+    /// unavailability, never a guessed zero.
+    pub netns_inum: u32,
+    /// Padding to 72 bytes (pinned by test at 68..72).
+    pub _pad3: u32,
 }
 
 /// The size of one file_events ring record, in bytes.
@@ -295,7 +360,7 @@ pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
 
 // ── The offsets config map slots ────────────────────────────────────
 //
-// Every struct offset the four kprobes read is written into the
+// Every struct offset the probes read is written into the
 // `offsets` Array<u64> map at attach time, parsed from the host's
 // own /sys/kernel/btf/vmlinux (src/ebpf/btf.rs, plus the two
 // BTF-derived kprobe anchors src/ebpf/btf_unlink.rs resolves). The
@@ -303,8 +368,11 @@ pub fn pack_filter_key(inode: u64, device: u64) -> u64 {
 // are the contract between the host writers and the BPF readers.
 // The eight file-walk slots are frozen; night-improve-57 appended
 // the four fd-walk slots at 8..11 (the syscall-stub write probe),
-// and night-frontier-2 appends the three unlink/rename slots at
-// 12..14, so the legacy indices never renumber. The host writer
+// night-frontier-2 appends the three unlink/rename slots at
+// 12..14, night-frontier-Z7 appends the three off-path slots at
+// 15..17, and night-frontier-Z8 appends the four identity-walk
+// slots at 18..21 (the netns chain every record rides), so the
+// legacy indices never renumber. The host writer
 // rides the parsed array whole (slot = index, the night-hunter-3
 // lesson), so the host crate no longer names the eight file-walk
 // constants - the readers below are BPF-side, and the allows name
@@ -393,13 +461,40 @@ pub const OFF_SLOT_ADDR_SPACE_HOST: u32 = 16;
 /// since 5.5), one fewer host-shaped value to derive.
 #[allow(dead_code)]
 pub const OFF_SLOT_IO_KIOCB_FILE: u32 = 17;
+/// `offsets[18]`: struct task_struct, member nsproxy (night-frontier-
+/// Z8, D5): the identity walk's first hop - the task to its namespace
+/// proxy. The netns inode every record carries is derived from THIS
+/// host's BTF at attach; a kernel whose shapes moved re-derives, a
+/// field absent refuses by name (the parse's own law).
+#[allow(dead_code)]
+pub const OFF_SLOT_TASK_NSPROXY: u32 = 18;
+/// `offsets[19]`: struct nsproxy, member net_ns (night-frontier-Z8,
+/// D5): the proxy to the network namespace the task lives in. The
+/// member is named net_ns (NOT net - the name the textbook order
+/// would guess, and the name the corpus proves absent on every
+/// committed dialect); a wrong member name refuses at attach, by
+/// name.
+#[allow(dead_code)]
+pub const OFF_SLOT_NSPROXY_NET: u32 = 19;
+/// `offsets[20]`: struct net, member ns (night-frontier-Z8, D5): the
+/// embedded ns_common the namespace's identity lives under.
+#[allow(dead_code)]
+pub const OFF_SLOT_NET_NS: u32 = 20;
+/// `offsets[21]`: struct ns_common, member inum (night-frontier-Z8,
+/// D5): the namespace inode number - the integer readlink(2) prints
+/// in /proc/<pid>/ns/net's `net:[N]`, the identity lsns names. The
+/// probe composes the last two hops into one read: net + OFF_SLOT_
+/// NET_NS + OFF_SLOT_NS_COMMON_INUM is the inum's own address.
+#[allow(dead_code)]
+pub const OFF_SLOT_NS_COMMON_INUM: u32 = 21;
 
 /// The number of slots the offsets map carries (the map's
 /// max_entries on the BPF side, the write count on the host side).
-/// Eighteen: the fifteen the ledger grammar carried through
-/// night-frontier-2 plus the three off-path slots night-frontier-Z7
-/// appends (15..17 - the page.mapping / address_space.host dirty
-/// descent and the io_kiocb file hop). The file slots were never
+/// Twenty-two: the eighteen the ledger grammar carried through
+/// night-frontier-Z7 plus the four identity-walk slots night-
+/// frontier-Z8 appends (18..21 - the task_struct.nsproxy /
+/// nsproxy.net / net.ns / ns_common.inum chain every record's
+/// netns identity rides). The file slots were never
 /// renumbered - the vocabulary's append-only law holds: a capability
 /// the host cannot verify leaves its slots zero, and the programs
 /// that would read them are never attached.
@@ -408,7 +503,7 @@ pub const OFF_SLOT_IO_KIOCB_FILE: u32 = 17;
 /// with it; the host writes the slots by OFF_SLOT_* index and never
 /// needs the count); the scoped allow names the split.
 #[allow(dead_code)]
-pub const OFF_SLOTS: u32 = 18;
+pub const OFF_SLOTS: u32 = 22;
 
 // ── The drop-census map slots ───────────────────────────────────────
 //

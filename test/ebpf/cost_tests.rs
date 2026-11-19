@@ -38,26 +38,47 @@ const PROGRAM_PINS: [(&str, usize); 11] = [
     // folio anchor 95, the page anchor 109, the splice probe's 344
     // beside the write probe's 591 in the shared section). The rows
     // stay in the walker's own (byte-sorted) section order.
-    ("kprobe/__set_page_dirty_nobuffers", 109),
-    ("kprobe/filemap_dirty_folio", 95),
-    ("kprobe/vfs_open", 109),
+    // night-frontier-Z8 (D5), the conscious re-pin: the actor
+    // identity rides EVERY record now - cgroup id (one helper call),
+    // comm (one helper call), netns inode (the four-hop walk,
+    // inline-always per the INLINE LAW, each probe carrying its own
+    // hops). The inline-only programs each grew by their own identity
+    // fill (the dirty anchor 109 -> 225, vfs_open 109 -> 225, the
+    // sys_enter section 935 -> 1323 across the write and splice
+    // probes, the sock probe 144 -> 261, io_uring 143 -> 261); the
+    // unlink/rename pair stayed at their own stub sizes because their
+    // shared publish tail lives in .text, which grew 382 -> 547 for
+    // the same identity fill. The price of "who did this, and from
+    // where" riding every record without a cross-lookup - and the
+    // rings grew with it (the file ring doubled, the conscious
+    // re-pin below).
+    ("kprobe/__set_page_dirty_nobuffers", 225),
+    ("kprobe/filemap_dirty_folio", 211),
+    ("kprobe/vfs_open", 225),
     ("kprobe/vfs_rename", 21),
     ("kprobe/vfs_unlink", 36),
-    ("kprobe/vfs_writev", 104),
-    ("tracepoint/io_uring/io_uring_submit_sqe", 143),
-    ("tracepoint/raw_syscalls/sys_enter", 935),
+    ("kprobe/vfs_writev", 219),
+    ("tracepoint/io_uring/io_uring_submit_sqe", 261),
+    ("tracepoint/raw_syscalls/sys_enter", 1323),
     ("tracepoint/sched/sched_process_exec", 12),
     ("tracepoint/sched/sched_process_exit", 75),
-    ("tracepoint/sock/inet_sock_set_state", 144),
+    ("tracepoint/sock/inet_sock_set_state", 261),
 ];
 
-const SHARED_TEXT_PIN: usize = 382;
+const SHARED_TEXT_PIN: usize = 547;
 
-/// The kernel-side ring contract: three bounded rings, the file
-/// events ring, the sock events ring, and the process exit ring,
-/// 256 KiB each.
+/// The kernel-side ring contract: three bounded rings - the file
+/// events ring at 512 KiB (night-frontier-Z8, D5's conscious re-pin:
+/// the record grew 40 -> 72 bytes carrying the actor identity, and
+/// the ring doubled so the held-record window GREW - 6553 records at
+/// the 80-byte aya stride versus the 5461 the old 256 KiB held at
+/// the 48-byte stride - the +256 KiB is the price of identity riding
+/// every record), the sock events ring at 256 KiB (kept: its filter
+/// bounds it to LISTEN/UDP-close transitions too rare to need the
+/// memory), and the process exit ring at 256 KiB (its record did not
+/// grow).
 const RING_COUNT_PIN: usize = 3;
-const RING_TOTAL_BYTES_PIN: usize = 3 * 256 * 1024;
+const RING_TOTAL_BYTES_PIN: usize = 512 * 1024 + 256 * 1024 + 256 * 1024;
 
 #[test]
 fn the_camera_instruction_cost_is_pinned_per_program() {
@@ -122,5 +143,5 @@ fn the_cost_derivation_table_renders_whole() {
     println!("=== the camera cost table (night-frontier-Z4) ===");
     println!("{table}");
     assert!(table.contains("programs total:"));
-    assert!(table.contains("kernel-side rings: 3 rings, 786432 bytes total"));
+    assert!(table.contains("kernel-side rings: 3 rings, 1048576 bytes total"));
 }

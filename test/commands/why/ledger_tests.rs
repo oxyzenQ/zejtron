@@ -247,6 +247,10 @@ fn raw_section_renders_the_records_as_drained() {
                 device: 0x800002,
                 pid: 4321,
                 _pad2: 0,
+                cgroup_id: 0,
+                comm: [0; 16],
+                netns_inum: 0,
+                _pad3: 0,
             },
             FileEvent {
                 timestamp_ns: 123_456_789_013,
@@ -256,6 +260,10 @@ fn raw_section_renders_the_records_as_drained() {
                 device: 0x800002,
                 pid: 4321,
                 _pad2: 0,
+                cgroup_id: 0,
+                comm: [0; 16],
+                netns_inum: 0,
+                _pad3: 0,
             },
         ],
     };

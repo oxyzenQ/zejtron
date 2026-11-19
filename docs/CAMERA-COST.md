@@ -25,20 +25,20 @@ instruction is 8 bytes. The derivation harness prints this table
 
 | program (its attach hook) | instructions |
 | --- | --- |
-| `kprobe/__set_page_dirty_nobuffers` (D4, the page-shape dirty anchor) | 109 |
-| `kprobe/filemap_dirty_folio` (D4, the folio-shape dirty anchor) | 95 |
-| `kprobe/vfs_open` | 109 |
+| `kprobe/__set_page_dirty_nobuffers` (D4, the page-shape dirty anchor) | 225 |
+| `kprobe/filemap_dirty_folio` (D4, the folio-shape dirty anchor) | 211 |
+| `kprobe/vfs_open` | 225 |
 | `kprobe/vfs_rename` | 21 |
 | `kprobe/vfs_unlink` | 36 |
-| `kprobe/vfs_writev` | 104 |
-| `tracepoint/io_uring/io_uring_submit_sqe` (D4) | 143 |
-| `tracepoint/raw_syscalls/sys_enter` (the write probe + the D4 splice probe) | 935 |
+| `kprobe/vfs_writev` | 219 |
+| `tracepoint/io_uring/io_uring_submit_sqe` (D4) | 261 |
+| `tracepoint/raw_syscalls/sys_enter` (the write probe + the D4 splice probe) | 1323 |
 | `tracepoint/sched/sched_process_exec` | 12 |
 | `tracepoint/sched/sched_process_exit` | 75 |
-| `tracepoint/sock/inet_sock_set_state` | 144 |
-| programs total | **1783** |
-| `.text` (shared helper text) | 382 |
-| **the whole camera** | **2165** |
+| `tracepoint/sock/inet_sock_set_state` | 261 |
+| programs total | **2869** |
+| `.text` (shared helper text) | 547 |
+| **the whole camera** | **3416** |
 
 night-frontier-Z7 (D4) re-pinned the table consciously: the off-path
 trio rides the same cost contract - the mmap-dirty truth, the splice
@@ -50,18 +50,32 @@ verifier refused the splice probe with EPERM), so every walk is
 inlined and each program carries its own hops - the estate's
 inline-only discipline, now proven by the table itself.
 
-For scale: a 2165-instruction camera is a few microseconds of work
-per event. The tool that watches your files - INCLUDING the silent
-paths no other tool sees - costs less bytecode than one screen of C.
+night-frontier-Z8 (D5) re-pinned the table consciously again: every
+record now carries the actor's identity block (cgroup id, comm,
+netns inode), and the fill rides each program (the inline-always
+helper ebpf/src/identity.rs serves all nine constructors). The
+inline-only programs each grew by their own identity walk - the
+dirty anchors doubled (109/95 -> 225/211), vfs_open 109 -> 225, the
+sys_enter section 935 -> 1323 across the write and splice probes,
+the sock probe 144 -> 261, io_uring 143 -> 261 - and the unlink/
+rename pair stayed at their own stub sizes because their shared
+publish tail lives in .text, which grew 382 -> 547 for the same
+fill. The price of "who did this, and from where" riding every
+record without a cross-lookup.
+
+For scale: a 3416-instruction camera is still a few microseconds of
+work per event. The tool that watches your files - INCLUDING the
+silent paths no other tool sees, now NAMING who acted and from
+which container - costs less bytecode than two screens of C.
 
 ## The kernel-side memory cost (source-derived, pinned)
 
 | what | where | size |
 | --- | --- | --- |
-| `file_events` ring | `ebpf/src/main.rs` | 256 KiB |
-| `sock_events` ring | `ebpf/src/sock.rs` | 256 KiB |
-| `proc_events` ring | `ebpf/src/exits.rs` | 256 KiB |
-| **total kernel-side rings** | 3 rings | **768 KiB** |
+| `file_events` ring | `ebpf/src/main.rs` | 512 KiB (D5's conscious re-pin: the record grew 40 -> 72 bytes, and the ring doubled so the held-record window GREW - 6553 records at the 80-byte aya stride versus the 5461 the old contract measured) |
+| `sock_events` ring | `ebpf/src/sock.rs` | 256 KiB (kept: the filter bounds it to LISTEN/UDP-close transitions too rare to need the memory; 3640 records at the 72-byte stride) |
+| `proc_events` ring | `ebpf/src/exits.rs` | 256 KiB (its record did not grow) |
+| **total kernel-side rings** | 3 rings | **1 MiB** |
 
 The pins read the SOURCE (not a copy): the scan walks `ebpf/src`
 for the `RingBuf::with_byte_size` sites, so a resize moves the sum

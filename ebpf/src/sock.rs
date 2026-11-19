@@ -6,9 +6,10 @@
 // cap, the exits.rs/write.rs/unlink.rs precedent: a dedicated module
 // beside the seven programs, same crate, same single-sourced record
 // contract, same license law). The probe itself is phase 2,
-// untouched: the port surface's event camera, publishing the 32-byte
-// SockEvent with the changer's pid, its kernel-side filter the
-// in-kernel bound on ring traffic.
+// untouched: the port surface's event camera, publishing the SockEvent
+// with the changer's pid and (night-frontier-Z8, D5) the changer's
+// identity block, its kernel-side filter the in-kernel bound on ring
+// traffic.
 
 use aya_ebpf::{
     helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns},
@@ -21,19 +22,25 @@ use super::count_ring_drop;
 use crate::events::{DROP_SLOT_SOCK, SockEvent, is_port_surface_event};
 
 // The compile-time layout pin on the BPF side: the sock record the
-// ring carries is exactly 32 bytes (asserted where the output() call
-// lives, the align-8 discipline).
-const _: () = assert!(SOCK_EVENT_BYTES == 32);
+// ring carries is exactly 64 bytes (night-frontier-Z8, D5: the
+// identity block rides the appended tail; the legacy head never
+// renumbers), asserted where the output() call lives (the align-8
+// discipline).
+const _: () = assert!(SOCK_EVENT_BYTES == 64);
 
 use crate::events::SOCK_EVENT_BYTES;
 
-/// The sock_events ring buffer: 256 KiB, 8192 records of 32 bytes
-/// each. The kernel-side filter is the bound — only LISTEN
-/// enter/leave and UDP close cross — so on any host short of a
-/// port-churn benchmark the ring holds minutes of history; when it
-/// does fill, the oldest records are overwritten in the kernel (a
-/// ring buffer's own rolling window) and a failed reservation drops
-/// the event without failing the tracepoint.
+/// The sock_events ring buffer: 256 KiB, kept at its size through D5
+/// (the conscious re-pin raised only the file ring - this surface's
+/// filter bounds it to LISTEN enter/leave and UDP close, transitions
+/// too rare to need the memory). The record is 64 bytes since D5, so
+/// aya's ring accounting (the 8-byte length header, the page
+/// framing) gives 3640 held records at the 72-byte stride - the
+/// rolling-window shape unchanged, minutes of port-churn history on
+/// any host short of a port-churn benchmark; when it does fill, the
+/// oldest records are overwritten in the kernel (a ring buffer's own
+/// rolling window) and a failed reservation drops the event without
+/// failing the tracepoint.
 #[allow(non_upper_case_globals)]
 #[map(name = "sock_events")]
 static sock_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
@@ -66,7 +73,8 @@ mod ctx_offsets {
 
 /// The port surface's event probe: read the socket facts at the pinned
 /// offsets, keep only the port-surface transitions, publish the
-/// 32-byte record with the changing process's pid.
+/// 64-byte record with the changing process's pid and its identity
+/// block (night-frontier-Z8, D5: cgroup id, comm, netns inode).
 ///
 /// Every aya-ebpf call inside is an `unsafe fn` (ctx reads, the
 /// ktime and pid helpers) — the one unsafe block is that API
@@ -121,6 +129,20 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
             return 0;
         }
 
+        // The identity block (night-frontier-Z8, D5): the changer's
+        // cgroup id, comm, and netns inode ride the record, so the
+        // row answers "who changed it, and from where" without a
+        // cross-lookup. The sock probe's core path reads no offsets
+        // map, so the netns walk rides whatever the map holds THIS
+        // read: None keeps cgroup+comm (helpers) and leaves the
+        // netns zero - the named unavailability, never a guessed
+        // namespace number. A zero-cost refusal class: the record's
+        // core facts (the transition) never depend on the identity
+        // aid.
+        let actor = super::identity::actor_identity(
+            super::read_offset_set().as_ref(),
+        );
+
         SockEvent {
             timestamp_ns: bpf_ktime_get_ns(),
             skaddr,
@@ -141,6 +163,10 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
             // syscall made the change — the /proc snapshot cannot
             // see this, only the record can.
             pid: (bpf_get_current_pid_tgid() >> 32) as u32,
+            cgroup_id: actor.cgroup_id,
+            comm: actor.comm,
+            netns_inum: actor.netns_inum,
+            _pad3: 0,
         }
     };
 

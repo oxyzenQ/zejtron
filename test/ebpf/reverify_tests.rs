@@ -100,6 +100,12 @@ fn the_anchor_slots_carry_their_own_names() {
     // both boundaries.
     assert_eq!(SLOT_NAMES[0], "dentry.d_inode");
     assert_eq!(SLOT_NAMES[12], "inode.i_sb");
+    // The identity chain (night-frontier-Z8, D5): the four appended
+    // struct-walk slots carry the attach trace's own names.
+    assert_eq!(SLOT_NAMES[18], "task_struct.nsproxy");
+    assert_eq!(SLOT_NAMES[19], "nsproxy.net_ns");
+    assert_eq!(SLOT_NAMES[20], "net.ns");
+    assert_eq!(SLOT_NAMES[21], "ns_common.inum");
 }
 
 #[test]
@@ -130,7 +136,9 @@ fn the_derived_table_lays_the_anchors_at_their_slots() {
     // order, never shifted.
     assert_eq!(OFF_SLOT_UNLINK_DENTRY_ARG, 13);
     assert_eq!(OFF_SLOT_RENAMEDATA_OLD_DENTRY, 14);
-    // The struct walk's table is thirteen slots wide (the two anchor
-    // slots ride past it at 13..15) - the size pin holds the shape.
+    // The struct walk's table is thirteen slots wide (the anchors,
+    // the off-path hops, and the identity chain ride past it at
+    // 13..22, each by its own parse and its own slots) - the size
+    // pin holds the shape.
     assert_eq!(std::mem::size_of::<btf::ProbeOffsets>(), 13 * 8);
 }

@@ -324,13 +324,11 @@ pub fn format_event_section(
     pre_offset: Option<i128>,
     pre_gap: Option<i128>,
 ) -> String {
-    // The ring is drained ONLY when some event needs it: a fully
-    // live window never consumes the exit stream. The seam form
-    // below carries the drained records so the tests can pin the
-    // attribution paths hermetically.
+    // The D5 drain condition (night-frontier-Z8): only a zeroed
+    // record comm parks for the exit-ring pass now.
     let needs_exit_ring = events
         .iter()
-        .any(|event| event_pid_name(event.pid).is_none());
+        .any(|event| event_pid_name(event.pid).is_none() && event.comm[0] == 0);
     let exits = if needs_exit_ring {
         match crate::ebpf::ringbuf::drain_proc_exits() {
             Ok(exits) => Some(exits),
@@ -449,8 +447,22 @@ pub fn format_event_section_with_exits(
             continue;
         };
         let Some(name) = event_pid_name(event.pid) else {
-            post_mortem.push((slots.len(), event));
-            slots.push(None);
+            // The record's own comm (D5) names the changer first -
+            // same-breath truth. Only a zeroed comm parks the slot.
+            if event.comm[0] != 0 {
+                let name = crate::commands::doctor::memory::exits::comm_string(&event.comm);
+                slots.push(Some(event_row(
+                    event,
+                    label,
+                    proto,
+                    name,
+                    no_pid,
+                    render_offset,
+                )));
+            } else {
+                post_mortem.push((slots.len(), event));
+                slots.push(None);
+            }
             continue;
         };
         slots.push(Some(event_row(
@@ -580,6 +592,9 @@ pub fn format_event_section_with_exits(
     lines.join("\n")
 }
 
+#[cfg(test)]
+#[path = "../../../test/commands/port/events_gap_tests.rs"]
+mod gap_tests;
 #[cfg(test)]
 #[path = "../../../test/commands/port/events_tests.rs"]
 mod tests;

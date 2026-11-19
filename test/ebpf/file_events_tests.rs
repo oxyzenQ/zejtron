@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! FileEvent contract pins (night-improve-3): the 40-byte layout,
-//! every offset, the filter key packing, the device-token
-//! cross-encoding proof (st_dev and s_dev are two encodings of one
-//! (major, minor) pair - both sides must land on the same canonical
-//! integer or the filter never matches), the op numbering, the
-//! offsets slot indices. Wired from src/ebpf/mod.rs (night-datapath-1
-//! moved the declaration out of the law file, so the gate lanes run
-//! the same pins against the same bytes).
+//! FileEvent contract pins (night-improve-3; grown by night-frontier-
+//! Z8, D5): the 72-byte layout, every offset, the filter key packing,
+//! the device-token cross-encoding proof (st_dev and s_dev are two
+//! encodings of one (major, minor) pair - both sides must land on the
+//! same canonical integer or the filter never matches), the op
+//! numbering, the offsets slot indices. Wired from src/ebpf/mod.rs
+//! (night-datapath-1 moved the declaration out of the law file, so
+//! the gate lanes run the same pins against the same bytes).
 
 use super::events::*;
 use crate::commands::lane::device_token_from_stat;
@@ -16,13 +16,15 @@ use core::mem::offset_of;
 use std::os::unix::fs::MetadataExt;
 
 #[test]
-fn file_event_is_exactly_40_bytes() {
-    assert_eq!(FILE_EVENT_BYTES, 40);
-    assert_eq!(core::mem::size_of::<FileEvent>(), 40);
+fn file_event_is_exactly_72_bytes() {
+    assert_eq!(FILE_EVENT_BYTES, 72);
+    assert_eq!(core::mem::size_of::<FileEvent>(), 72);
 }
 
 #[test]
 fn file_event_offsets_are_pinned_field_by_field() {
+    // The legacy head never renumbers; the identity block rides the
+    // appended tail (night-frontier-Z8, D5).
     assert_eq!(offset_of!(FileEvent, timestamp_ns), 0);
     assert_eq!(offset_of!(FileEvent, op), 8);
     assert_eq!(offset_of!(FileEvent, _pad), 9);
@@ -30,6 +32,10 @@ fn file_event_offsets_are_pinned_field_by_field() {
     assert_eq!(offset_of!(FileEvent, device), 24);
     assert_eq!(offset_of!(FileEvent, pid), 32);
     assert_eq!(offset_of!(FileEvent, _pad2), 36);
+    assert_eq!(offset_of!(FileEvent, cgroup_id), 40);
+    assert_eq!(offset_of!(FileEvent, comm), 48);
+    assert_eq!(offset_of!(FileEvent, netns_inum), 64);
+    assert_eq!(offset_of!(FileEvent, _pad3), 68);
 }
 
 #[test]
@@ -137,7 +143,14 @@ fn offsets_slots_are_frozen_then_appended() {
     assert_eq!(OFF_SLOT_PAGE_MAPPING, 15);
     assert_eq!(OFF_SLOT_ADDR_SPACE_HOST, 16);
     assert_eq!(OFF_SLOT_IO_KIOCB_FILE, 17);
-    assert_eq!(OFF_SLOTS, 18);
+    // The identity-walk slots (night-frontier-Z8, D5): the netns
+    // chain every record rides, appended at the tail - the append-
+    // only law holds.
+    assert_eq!(OFF_SLOT_TASK_NSPROXY, 18);
+    assert_eq!(OFF_SLOT_NSPROXY_NET, 19);
+    assert_eq!(OFF_SLOT_NET_NS, 20);
+    assert_eq!(OFF_SLOT_NS_COMMON_INUM, 21);
+    assert_eq!(OFF_SLOTS, 22);
 }
 
 // ── night-frontier-Z1, the drop-census slots ────────────────────────

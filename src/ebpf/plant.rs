@@ -350,6 +350,7 @@ pub(super) fn write_offsets(
     lane: &UnlinkLane,
     offpath: Option<&super::btf_offpath::OffPathOffsets>,
     iouring: Option<&super::btf_offpath::IouringLane>,
+    identity: &btf::IdentityOffsets,
 ) -> Result<(), String> {
     vlog!(
         "engine",
@@ -408,6 +409,35 @@ pub(super) fn write_offsets(
     if let Some(lane) = iouring {
         map.set(OFF_SLOT_IO_KIOCB_FILE, &lane.io_kiocb_file_offset, 0)
             .map_err(|e| format!("offsets[{OFF_SLOT_IO_KIOCB_FILE}] write failed: {e}"))?;
+    }
+    // The identity-walk slots (night-frontier-Z8, D5), by their own
+    // constants: the netns chain every record rides - written
+    // EXPLICITLY, never by array position (the same law the anchors
+    // and the off-path hops ride; the core array ride above covers
+    // slots 0..12 and must never grow into this tail). Identity is
+    // CORE: the parse already refused by name at the attach boundary,
+    // so these slots always carry verified values when the estate
+    // plants.
+    for (slot, value) in [
+        (
+            super::events::OFF_SLOT_TASK_NSPROXY,
+            identity[btf::IDENT_SLOT_TASK_NSPROXY],
+        ),
+        (
+            super::events::OFF_SLOT_NSPROXY_NET,
+            identity[btf::IDENT_SLOT_NSPROXY_NET],
+        ),
+        (
+            super::events::OFF_SLOT_NET_NS,
+            identity[btf::IDENT_SLOT_NET_NS],
+        ),
+        (
+            super::events::OFF_SLOT_NS_COMMON_INUM,
+            identity[btf::IDENT_SLOT_NS_COMMON_INUM],
+        ),
+    ] {
+        map.set(slot, &value, 0)
+            .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
     }
     Ok(())
 }

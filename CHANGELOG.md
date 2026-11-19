@@ -44,6 +44,39 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z8 D5, the actor identity in every record
+  (comm + cgroup + netns).** The records carried `pid` - a number
+  that answers nothing on its own - and the file rows resolved the
+  actor's name through a /proc round-trip that a short-lived writer
+  could already have outlived. Every `FileEvent` (40 -> 72 bytes)
+  and every `SockEvent` (32 -> 64 bytes) now carries the actor's own
+  identity block, read by the kernel at event time: the cgroup id
+  (`bpf_get_current_cgroup_id` - the kernfs inode the pod spec
+  names; helper-stable under the 5.15 floor), the comm
+  (`bpf_get_current_comm`, the exit-record precedent), and the
+  network-namespace inode (the ns_common.inum walk
+  `task_struct.nsproxy` -> `nsproxy.net_ns` -> `net.ns`, derived per
+  host at attach and refused by name when a field is absent - the
+  corpus proves the member is `net_ns`, not `net`, on every real
+  dialect, and that the chain is as version-shaped as every walk
+  before it: nsproxy marches 2944 -> 3576, net.ns re-packs
+  120 -> 192, inum 16 -> 88 on the 7.x line). Identity is CORE: a
+  kernel whose BTF cannot vouch for the chain refuses attach, by
+  name. The cost contract re-pinned consciously: the file ring
+  doubled to 512 KiB so the held-record window GREW under the wider
+  record (6553 held records versus the 5461 the old contract
+  measured; the sock ring stays 256 KiB), and the instruction table
+  moved with the inline identity fill (the whole camera
+  2165 -> 3416). The render carries the depth: the raw lane names
+  `comm=`, `cgroup=`, `netns=` per record, and the attribution
+  ladders gained an arm - a dead actor whose record names it is
+  attributed from the record itself (zero pid-reuse risk, no /proc
+  round-trip), the exit ring only for the failed-helper-read hole,
+  the JSON lane typing the same story
+  (`"attribution":"recorded"`). The legacy head of both records
+  never renumbers; the offsets map grew by four slots (18..21)
+  written explicitly, never by array position.
+
 - **night-frontier-Z7 D4, the off-path write truth (mmap / io_uring
   / splice).** The Limitations line that stood for eras is dead:
   mmap'd writes record through the kernel's own page-dirty path

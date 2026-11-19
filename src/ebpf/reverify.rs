@@ -27,8 +27,8 @@
 //! this module sits behind (src/ebpf/ringbuf.rs drain_file_events).
 //!
 //! WHAT DRIFT MEANS HERE: the planted offsets map is re-derived from
-//! the host's /sys/kernel/btf/vmlinux AS IT EXISTS NOW - all fifteen
-//! slots, the thirteen struct offsets plus the two BTF-derived
+//! the host's /sys/kernel/btf/vmlinux AS IT EXISTS NOW - all twenty-two
+//! slots, the seventeen struct offsets plus the two BTF-derived
 //! anchors (the vfs_unlink dentry argument position and the
 //! renamedata old_dentry member offset, resolved by
 //! src/ebpf/btf_unlink.rs). A mismatch is the named refusal, by
@@ -53,8 +53,9 @@ use aya::maps::{Array, Map, MapData};
 
 use super::estate;
 use super::events::{
-    OFF_SLOT_ADDR_SPACE_HOST, OFF_SLOT_IO_KIOCB_FILE, OFF_SLOT_PAGE_MAPPING,
-    OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_UNLINK_DENTRY_ARG, OFF_SLOTS,
+    OFF_SLOT_ADDR_SPACE_HOST, OFF_SLOT_IO_KIOCB_FILE, OFF_SLOT_NET_NS, OFF_SLOT_NS_COMMON_INUM,
+    OFF_SLOT_NSPROXY_NET, OFF_SLOT_PAGE_MAPPING, OFF_SLOT_RENAMEDATA_OLD_DENTRY,
+    OFF_SLOT_TASK_NSPROXY, OFF_SLOT_UNLINK_DENTRY_ARG, OFF_SLOTS,
 };
 use super::{PIN_MAP_OFFSETS, btf, btf_offpath, btf_unlink};
 
@@ -63,13 +64,15 @@ use super::{PIN_MAP_OFFSETS, btf, btf_offpath, btf_unlink};
 /// the class, never the prose.
 pub const OFFSETS_DRIFT: &str = "offsets drift at the drain boundary";
 
-/// The eighteen slots the re-derivation covers, in events.rs
-/// OFF_SLOT_* order: the thirteen struct offsets the attach trace
-/// (src/ebpf/loader.rs's OFF_TRACE) names, the two anchor slots the
-/// symbol walk resolves, and the three off-path slots
-/// night-frontier-Z7 appends. A slot's name is the refusal's own
-/// word for the slot - `struct member` for the byte offsets, the
-/// position/offset phrasing for the two anchors.
+/// The twenty-two slots the re-derivation covers, in events.rs
+/// OFF_SLOT_* order: the thirteen core struct offsets the attach
+/// trace (src/ebpf/loader.rs's OFF_TRACE) names, the two anchor
+/// slots the symbol walk resolves, the three off-path slots
+/// night-frontier-Z7 appends, and the four identity-walk slots
+/// night-frontier-Z8 appends at the tail (the append-only law: the
+/// legacy indices never renumber). A slot's name is the refusal's
+/// own word for the slot - `struct member` for the byte offsets,
+/// the position/offset phrasing for the two anchors.
 const SLOT_NAMES: [&str; OFF_SLOTS as usize] = [
     "dentry.d_inode",
     "inode.i_ino",
@@ -89,10 +92,14 @@ const SLOT_NAMES: [&str; OFF_SLOTS as usize] = [
     "page.mapping",
     "address_space.host",
     "io_kiocb.file",
+    "task_struct.nsproxy",
+    "nsproxy.net_ns",
+    "net.ns",
+    "ns_common.inum",
 ];
 
 /// The planted walk table, exactly as the pinned offsets map holds
-/// it right now: all fifteen slots, read through the pin (the same
+/// it right now: all twenty-two slots, read through the pin (the same
 /// `MapData::from_pin` lane as every readback - no capability
 /// needed). Slot = index, the night-hunter-3 lesson's own contract
 /// (the writer rides the parsed array whole, so the map's order IS
@@ -114,7 +121,7 @@ fn planted_offsets() -> Result<[u64; OFF_SLOTS as usize], String> {
 }
 
 /// The host's current walk table, re-derived from one read of the
-/// host's own BTF: the thirteen struct offsets (btf.rs's parse) plus
+/// host's own BTF: the seventeen struct offsets (btf.rs's parse) plus
 /// the two anchor slots (btf_unlink.rs's symbol walk) - the attach
 /// boundary's own two parses of one blob, re-run. Every parse
 /// failure is the named refusal too: a host whose BTF went
@@ -142,11 +149,23 @@ fn derived_offsets() -> Result<[u64; OFF_SLOTS as usize], String> {
         derived[OFF_SLOT_ADDR_SPACE_HOST as usize] = offpath.address_space_host.unwrap_or(0);
         derived[OFF_SLOT_IO_KIOCB_FILE as usize] = offpath.io_kiocb_file.unwrap_or(0);
     }
+    // The identity-walk slots (night-frontier-Z8, D5): the same blob,
+    // the identity parse - a HARD member of the derive (identity is
+    // core: the attach boundary refused without it, so an estate that
+    // plants carries it, and a host whose BTF can no longer vouch for
+    // the chain refuses the drain by name, the same law the core
+    // thirteen ride).
+    let identity =
+        btf::parse_identity_offsets(&data).map_err(|e| format!("drain-boundary verify: {e}"))?;
+    derived[OFF_SLOT_TASK_NSPROXY as usize] = identity[btf::IDENT_SLOT_TASK_NSPROXY];
+    derived[OFF_SLOT_NSPROXY_NET as usize] = identity[btf::IDENT_SLOT_NSPROXY_NET];
+    derived[OFF_SLOT_NET_NS as usize] = identity[btf::IDENT_SLOT_NET_NS];
+    derived[OFF_SLOT_NS_COMMON_INUM as usize] = identity[btf::IDENT_SLOT_NS_COMMON_INUM];
     Ok(derived)
 }
 
 /// The pure compare: the first slot where the planted table and the
-/// re-derived table disagree, `None` when they agree on all fifteen.
+/// re-derived table disagree, `None` when they agree on all twenty-two.
 /// Separated from the IO so the drift law is pinnable with synthetic
 /// tables, no host and no pins (the read side's furthest_stage
 /// precedent).
@@ -197,7 +216,7 @@ fn drift_message(slot: usize, planted: u64, derived: u64) -> String {
 
 /// Verify the planted walk table against the host's CURRENT BTF: the
 /// drain-boundary half of the offsets law. `Ok(())` is the all-
-/// fifteen-agree verdict; `Err` names the first drifting slot (or
+/// twenty-two-agree verdict; `Err` names the first drifting slot (or
 /// the unreadable BTF / map, each its own named refusal). The check
 /// is read-only end to end - two file reads (the offsets map's pin,
 /// the BTF blob) and one compare; the window it protects pays
@@ -207,7 +226,7 @@ pub fn verify_offsets_at_drain() -> Result<(), String> {
     let derived = derived_offsets()?;
     // The mask names which off-path slots carry real walks: an
     // unreadable stamp (a pre-Z2 estate) reads as zero - every
-    // off-path slot is skipped and the core fifteen still verify.
+    // off-path slot is skipped and the core twenty-two still verify.
     let mask = estate::read_offpath_mask().unwrap_or(0);
     match drift_slot(&planted, &derived, mask) {
         None => Ok(()),

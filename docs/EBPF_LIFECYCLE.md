@@ -128,7 +128,10 @@ The lane's whole life, boot to boot:
    keep the rings alive with no zejtron process anywhere on the
    host. A record carries the fact and the actor - a port, a
    transition, an inode, an action, a process exit with its pid and
-   its name, a monotonic timestamp -
+   its name, a monotonic timestamp, and (night-frontier-Z8, D5) the
+   acting task's own identity block: the cgroup id, the comm, and
+   the network-namespace inode, all read by the kernel at event time
+   -
    and nothing else: no file contents, no addresses beyond the
    socket's own identity, no payload of any kind.
 

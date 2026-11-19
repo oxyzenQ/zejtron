@@ -416,6 +416,10 @@ mod live {
             dport: 0,
             _pad2: 0,
             pid,
+            cgroup_id: 0,
+            comm: [0; 16],
+            netns_inum: 0,
+            _pad3: 0,
         }
     }
 

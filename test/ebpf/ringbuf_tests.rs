@@ -5,7 +5,8 @@
 //! tree (night-improve-18, the discipline contract) and is
 //! #[path]-wired from src/ebpf/ringbuf.rs. What is pinned here is
 //! the contract, not the host: the record layout both sides agree
-//! on (32 bytes, every offset), the rolling window's bound, and the
+//! on (64 bytes since night-frontier-Z8, every offset), the rolling
+//! window's bound, and the
 //! port-surface filter the kernel program applies - the pure mirror
 //! of the in-kernel predicate, pinned so a drift between the object
 //! and the host side cannot slip through.
@@ -30,24 +31,29 @@ fn event(timestamp_ns: u64, sport: u16, pid: u32) -> SockEvent {
         dport: 0,
         _pad2: 0,
         pid,
+        cgroup_id: 402_653_183_846,
+        comm: *b"systemd\0\0\0\0\0\0\0\0\0",
+        netns_inum: 4_026_531_956,
+        _pad3: 0,
     }
 }
 
 #[test]
-fn sock_event_is_exactly_32_bytes() {
+fn sock_event_is_exactly_64_bytes() {
     // The ring record size: the kernel side's output() call and the
     // host side's length check both carry this number. A field
     // reorder or a width change moves it - and the pinned offsets
     // below name exactly where it moved.
-    assert_eq!(SOCK_EVENT_BYTES, 32);
-    assert_eq!(std::mem::size_of::<SockEvent>(), 32);
+    assert_eq!(SOCK_EVENT_BYTES, 64);
+    assert_eq!(std::mem::size_of::<SockEvent>(), 64);
     assert_eq!(std::mem::align_of::<SockEvent>(), 8);
 }
 
 #[test]
 fn sock_event_offsets_are_pinned() {
     // repr(C) natural alignment: the two u64s first, the narrowing
-    // scalars, the pid last; the pads are EXPLICIT fields (the
+    // scalars, the pid, then the identity block (night-frontier-Z8,
+    // D5) on the appended tail; the pads are EXPLICIT fields (the
     // FileEvent discipline, the 5.15-verifier lesson: every byte of
     // the ring record is written, never left to implicit padding).
     assert_eq!(offset_of!(SockEvent, timestamp_ns), 0);
@@ -61,6 +67,10 @@ fn sock_event_offsets_are_pinned() {
     assert_eq!(offset_of!(SockEvent, dport), 24);
     assert_eq!(offset_of!(SockEvent, _pad2), 26);
     assert_eq!(offset_of!(SockEvent, pid), 28);
+    assert_eq!(offset_of!(SockEvent, cgroup_id), 32);
+    assert_eq!(offset_of!(SockEvent, comm), 40);
+    assert_eq!(offset_of!(SockEvent, netns_inum), 56);
+    assert_eq!(offset_of!(SockEvent, _pad3), 60);
 }
 
 #[test]

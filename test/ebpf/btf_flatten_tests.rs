@@ -13,7 +13,7 @@
 //! same shared table btf_tests built (pub(super)); the parser side
 //! arrives through the parent module.
 
-use super::tests::{StrTab, TypeWriter, build_btf};
+use super::tests::{StrTab, TypeWriter, build_btf, identity_walk_structs};
 use super::*;
 
 #[test]
@@ -43,9 +43,15 @@ fn the_six_point_eighteen_union_file_parses_end_to_end() {
     w.strukt(&mut s, "inode", 656, &[("i_sb", 40 * 8), ("i_ino", 64 * 8)]);
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
-    w.strukt(&mut s, "task_struct", 4096, &[("files", 16 * 8)]);
+    w.strukt(
+        &mut s,
+        "task_struct",
+        4096,
+        &[("files", 16 * 8), ("nsproxy", 32 * 8)],
+    );
     w.strukt(&mut s, "files_struct", 512, &[("fdt", 0)]);
     w.strukt(&mut s, "fdtable", 32, &[("max_fds", 0), ("fd", 8 * 8)]);
+    identity_walk_structs(&mut w, &mut s);
     let offsets = parse_btf_offsets(&build_btf(w, s)).expect("the 6.18 shape parses");
     assert_eq!(
         offsets,
@@ -64,6 +70,32 @@ fn the_six_point_eighteen_union_file_parses_end_to_end() {
             8,  // fdtable.fd
             40, // inode.i_sb (night-frontier-2, the device hop)
         ]
+    );
+}
+
+#[test]
+fn the_six_point_eighteen_identity_walk_parses() {
+    // night-frontier-Z8 (D5): the identity parse rides the same
+    // walker on the 6.18-shaped blob - the union descent is the core
+    // walk's lesson, the identity chain stays direct.
+    let mut w = TypeWriter::new();
+    let mut s = StrTab::new();
+    w.int(&mut s, "unsigned int");
+    w.strukt(&mut s, "dentry", 208, &[("d_inode", 48 * 8)]);
+    w.strukt(
+        &mut s,
+        "task_struct",
+        4096,
+        &[("files", 16 * 8), ("nsproxy", 32 * 8)],
+    );
+    w.strukt(&mut s, "nsproxy", 96, &[("net_ns", 40 * 8)]);
+    w.strukt(&mut s, "net", 4224, &[("ns", 120 * 8)]);
+    w.strukt(&mut s, "ns_common", 64, &[("inum", 16 * 8)]);
+    let offsets = parse_identity_offsets(&build_btf(w, s)).expect("the identity parse");
+    assert_eq!(
+        offsets,
+        [32, 40, 120, 16],
+        "the identity chain stays direct on the 6.18 shape"
     );
 }
 

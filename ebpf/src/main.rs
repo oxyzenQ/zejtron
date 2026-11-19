@@ -26,7 +26,9 @@
 //   2. inet_sock_set_state (phase 2, untouched): the port surface's
 //      event window, reading the socket facts at the pinned offsets,
 //      filtering to the port-surface transitions, and publishing
-//      the 32-byte SockEvent with the changer's pid.
+//      the 32-byte SockEvent with the changer's pid. night-frontier-
+//      Z8 (D5) widens the record to 64 bytes - the identity block
+//      (cgroup id, comm, netns inode) rides the appended tail.
 //
 //   3. open_probe on vfs_open (phase 3, the Evidence Ledger pass): a
 //      kprobe at the head of the syscall open path. vfs_open(const
@@ -35,7 +37,7 @@
 //      path->mnt->mnt_sb->s_dev for the device, checks the
 //      tracked_inodes filter map FIRST (the price control: vfs_open
 //      fires on every open on the host - only the queried file's
-//      events are allowed to cross), and publishes a 40-byte
+//      events are allowed to cross), and publishes a 72-byte
 //      file that anyone asked about. The probe records the binding
 //      attempt at entry; whether the open later failed is not
 //      recorded (the same residual class as the write probe at
@@ -108,10 +110,12 @@
 //   file_events     (RingBuf)          — phase 3's event stream. The
 //                                    kernel-side filter is the bound
 //                                    (only tracked inodes cross);
-//                                    256 KiB holds 6553 40-byte
-//                                    records of history.
-//   offsets         (Array<u64>, 8)    — phase 3's struct offsets, the
-//                                    eight file-walk slots, written
+//                                    512 KiB holds 6553 72-byte
+//                                    records of history (D5's own
+//                                    re-pin; see the map below).
+//   offsets         (Array<u64>, 22)   — phase 3's struct offsets, the
+//                                    file-walk slots plus every
+//                                    appended walk, written
 //                                    once at attach from the host's
 //                                    own BTF (src/ebpf/btf.rs).
 //                                    Every struct walk below reads
@@ -149,7 +153,10 @@
 // uid, no address reads (the sock record carries the port and the
 // changer; the bind address stays the snapshot's truth), no
 // file-content or file-sequence reads anywhere (a path is metadata;
-// the record carries inode + device + action + pid, nothing else).
+// the record carries inode + device + action + pid and, since
+// night-frontier-Z8 (D5), the actor's own identity block - cgroup
+// id, comm, netns inode, all read by the kernel at event time -
+// nothing else).
 // The vfs_unlink absence night-improve-3 named here is GONE as of
 // night-frontier-2: unlink.rs carries the unlink and rename probes,
 // and the signature churn that motivated the skip (mnt_userns in
@@ -186,10 +193,10 @@
 use core::sync::atomic::{AtomicU64, Ordering};
 
 use aya_ebpf::{
-    helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns, bpf_probe_read_kernel},
-    macros::{kprobe, map, tracepoint},
+    helpers::bpf_probe_read_kernel,
+    macros::{map, tracepoint},
     maps::{Array, HashMap, RingBuf},
-    programs::{ProbeContext, TracePointContext},
+    programs::TracePointContext,
 };
 
 // The record contract, single-sourced: the userspace crate owns the
@@ -230,18 +237,28 @@ mod unlink;
 // ring under the same tracked_inodes gate.
 mod offpath;
 
-use events::{
-    DROP_SLOT_FILE, DROP_SLOTS, FILE_EVENT_BYTES, FILE_OP_OPEN, FILE_OP_WRITEV, FileEvent,
-    OFF_SLOTS, OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH,
-    OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV,
-    OFF_SLOT_VFSMOUNT_MNT_SB, device_token_from_kernel, pack_filter_key,
-};
+// The actor-identity helper (night-frontier-Z8, D5): the identity
+// fill every record constructor shares - cgroup id, comm, netns
+// inode - the dedicated-module shape again. No programs here: the
+// eight file constructors and the sock constructor call its
+// inline(always) helper.
+mod identity;
+
+// The open and writev kprobes (night-improve-3 / night-improve-42),
+// in their own module under the 600-LOC no-mercy cap
+// (night-frontier-Z8, the exits.rs/write.rs precedent): the two
+// entry-side file programs, same crate, same single-sourced record
+// contract, same license law.
+mod filelane;
+
+use events::{DROP_SLOTS, FILE_EVENT_BYTES, OFF_SLOTS};
 
 // The compile-time layout pins on the BPF side: the sock record the
-// ring carries is exactly 32 bytes, the file record exactly 40,
-// asserted where the output() calls live (their internal align
+// ring carries is exactly 64 bytes, the file record exactly 72
+// (night-frontier-Z8, D5: the identity block rides the appended
+// tail), asserted where the output() calls live (their internal align
 // asserts cover the 8-byte halves).
-const _: () = assert!(FILE_EVENT_BYTES == 40);
+const _: () = assert!(FILE_EVENT_BYTES == 72);
 
 /// The stats slot contract (the userspace read side
 /// src/ebpf/readback.rs reads the same slots; keep both sides in
@@ -304,16 +321,21 @@ pub(crate) static stats: Array<AtomicU64> = Array::with_max_entries(STATS_SLOTS,
 #[map(name = "tracked_inodes")]
 pub(crate) static tracked_inodes: HashMap<u64, u8> = HashMap::with_max_entries(1024, 0);
 
-/// The file_events ring buffer (night-improve-3): 256 KiB. The
-/// record is 40 bytes, but aya's ring accounting (the 8-byte length
-/// header, the page framing) decides the real capacity - measured
-/// at 4096 held records on the floor kernel (the loss certificate's
-/// first live run); do not re-derive a count from 40 here. The
-/// filter map is the bound; a failed reservation drops the event
-/// without failing the probe.
+/// The file_events ring buffer (night-improve-3; resized
+/// night-frontier-Z8, D5 - the conscious re-pin the cost contract
+/// mandates): 512 KiB. The record is 72 bytes since D5 (the actor
+/// identity rides every record), and aya's ring accounting (the
+/// 8-byte length header, the page framing) decides the real
+/// capacity - at the D5 record shape the same arithmetic the old
+/// contract measured (5461 held records at the 48-byte stride a
+/// 40-byte record produced) gives 6553 held records at the 80-byte
+/// stride: the ring was DOUBLED precisely so the held-record window
+/// would GROW, not shrink, under the wider record. The filter map is
+/// the bound; a failed reservation drops the event without failing
+/// the probe.
 #[allow(non_upper_case_globals)]
 #[map(name = "file_events")]
-pub(crate) static file_events: RingBuf = RingBuf::with_byte_size(256 * 1024, 0);
+pub(crate) static file_events: RingBuf = RingBuf::with_byte_size(512 * 1024, 0);
 
 /// The offsets config map (night-improve-3, grown by
 /// night-improve-57): Array<u64>, the twelve slots - eight
@@ -433,8 +455,9 @@ pub(crate) unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
 /// (an unparsable or absent map) drops the event — the host wrote
 /// these at attach; an unreadable set this late is a chain that was
 /// never alive. The array length is the shared OFF_SLOTS contract
-/// (twelve since night-improve-57: eight file-walk slots plus the
-/// four fd-walk slots) - the kprobes read the same map, and a map
+/// (twenty-two since night-frontier-Z8: the file-walk set plus the
+/// appended fd-walk, unlink/rename, off-path, and identity-walk
+/// slots) - the kprobes read the same map, and a map
 /// resize cannot desync the two files.
 pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
     let mut set = [0u64; OFF_SLOTS as usize];
@@ -444,139 +467,6 @@ pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
     Some(set)
 }
 
-/// The open probe: vfs_open hands the program the path being bound to
-/// a file. The walk: path->dentry->d_inode for the inode,
-/// path->mnt->mnt_sb->s_dev for the device; the filter map decides
-/// whether the event is worth a ring slot; the record carries the
-/// acting process's pid (bpf_get_current_pid_tgid's tgid half).
-///
-/// Every aya-ebpf call inside is an `unsafe fn` (ctx arg reads, probe
-/// reads, the ktime and pid helpers) — the unsafe block is that API
-/// contract, nothing more.
-#[kprobe(function = "vfs_open")]
-pub fn open_probe(ctx: ProbeContext) -> u32 {
-    // SAFETY: the context is read through aya's ctx.arg probe-read
-    // and fixed-register volatile loads (the pinned-offset shape the
-    // unlink probe documents at length), every kernel hop goes
-    // through the probe-read helpers (a bad address returns None,
-    // never a fault), every offset comes from the BTF-verified
-    // offsets map written at attach, and the verifier re-proves the
-    // whole body at load time.
-    unsafe {
-        // arg0: const struct path * — extraction failure drops the
-        // event (never fail the probed path).
-        let Some(path) = ctx.arg::<u64>(0) else { return 0 };
-        let path = path as usize;
-        if path == 0 {
-            return 0;
-        }
-        let Some(o) = read_offset_set() else { return 0 };
-
-        let Some(dentry) = read_ptr_at(path, o[OFF_SLOT_PATH_DENTRY as usize]) else {
-            return 0;
-        };
-        let Some(inode) = read_ptr_at(dentry, o[OFF_SLOT_DENTRY_D_INODE as usize]) else {
-            return 0;
-        };
-        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else { return 0 };
-        let Some(mnt) = read_ptr_at(path, o[OFF_SLOT_PATH_MNT as usize]) else { return 0 };
-        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else { return 0 };
-        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else { return 0 };
-
-        let device = device_token_from_kernel(s_dev);
-        let key = pack_filter_key(ino, device);
-        if tracked_inodes.get(&key).is_none() {
-            // Not the file anyone asked about — this is the whole
-            // price control: the check happens in the kernel, before
-            // a single byte of ring traffic is spent.
-            return 0;
-        }
-
-        // night-frontier-Z1: a failed reservation counts in the drop
-        // census (the file-events slot - five probes share the one
-        // ring), never silent.
-        if file_events.output::<FileEvent>(
-            &FileEvent {
-                timestamp_ns: bpf_ktime_get_ns(),
-                op: FILE_OP_OPEN,
-                _pad: [0; 7],
-                inode: ino,
-                device,
-                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-                _pad2: 0,
-            },
-            0,
-        )
-        .is_err()
-        {
-            count_ring_drop(DROP_SLOT_FILE);
-        }
-    }
-    0
-}
-
-
-/// The writev probe (night-improve-42, the false-negative closer):
-/// vfs_writev hands the program the file being written through the
-/// vectorized path - the shape writev(2)/pwritev(2)/pwritev2(2) all
-/// funnel into (arg0: struct file *, the same contract as the write
-/// probe, verified from the host's own BTF at attach by the loader).
-/// The walk, the filter, and the record mirror the write probe; the op
-/// is FILE_OP_WRITEV so the ledger names the write path that
-/// crossed. The section name carries the primary symbol; the loader
-/// attaches the BTF-verified one (vfs_writev, do_iter_write
-/// fallback) - aya's kprobe attach takes its symbol as an argument,
-/// the section only types the program.
-#[kprobe(function = "vfs_writev")]
-pub fn writev_probe(ctx: ProbeContext) -> u32 {
-    // SAFETY: the same contract as the open probe: aya probe-reads
-    // and fixed-register volatile loads on the context, every kernel
-    // hop through the probe-read helpers (a bad address returns
-    // None, never a fault), BTF-verified offsets from the attach-time
-    // map, and the verifier re-proves the whole body at load time.
-    unsafe {
-        // arg0: struct file * (BTF-verified at attach).
-        let Some(file) = ctx.arg::<u64>(0) else { return 0 };
-        let file = file as usize;
-        if file == 0 {
-            return 0;
-        }
-        let Some(o) = read_offset_set() else { return 0 };
-
-        let Some(inode) = read_ptr_at(file, o[OFF_SLOT_FILE_F_INODE as usize]) else { return 0 };
-        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else { return 0 };
-        let f_path = file.wrapping_add(o[OFF_SLOT_FILE_F_PATH as usize] as usize);
-        let Some(mnt) = read_ptr_at(f_path, o[OFF_SLOT_PATH_MNT as usize]) else { return 0 };
-        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else { return 0 };
-        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else { return 0 };
-
-        let device = device_token_from_kernel(s_dev);
-        let key = pack_filter_key(ino, device);
-        if tracked_inodes.get(&key).is_none() {
-            return 0;
-        }
-
-        // night-frontier-Z1: the writev probe's reservation failure
-        // counts in the same file-events drop slot, never silent.
-        if file_events.output::<FileEvent>(
-            &FileEvent {
-                timestamp_ns: bpf_ktime_get_ns(),
-                op: FILE_OP_WRITEV,
-                _pad: [0; 7],
-                inode: ino,
-                device,
-                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-                _pad2: 0,
-            },
-            0,
-        )
-        .is_err()
-        {
-            count_ring_drop(DROP_SLOT_FILE);
-        }
-    }
-    0
-}
 
 #[cfg(not(test))]
 #[panic_handler]

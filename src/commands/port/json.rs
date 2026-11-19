@@ -52,7 +52,7 @@ pub(super) fn port_report_json(
     let needs_exit_ring = events.is_some_and(|events| {
         events
             .iter()
-            .any(|event| event_pid_name(event.pid).is_none())
+            .any(|event| event_pid_name(event.pid).is_none() && event.comm[0] == 0)
     });
     let exits = if needs_exit_ring {
         match crate::ebpf::ringbuf::drain_proc_exits() {
@@ -286,47 +286,67 @@ pub(super) fn port_report_json_with_exits(
                     continue;
                 };
                 let Some(name) = event_pid_name(event.pid) else {
-                    match super::events::post_mortem_verdict(exits, event) {
-                        PostMortemVerdict::AtOrAfter(exit) => {
-                            let comm =
-                                crate::commands::doctor::memory::exits::comm_string(&exit.comm);
-                            rows.push(event_row_json(
-                                event,
-                                kind,
-                                proto,
-                                Some(&comm),
-                                Some("post-mortem"),
-                                None,
-                                None,
-                                render_offset,
-                            ));
-                        }
-                        PostMortemVerdict::TeardownLag(exit, lag_ns) => {
-                            let comm =
-                                crate::commands::doctor::memory::exits::comm_string(&exit.comm);
-                            rows.push(event_row_json(
-                                event,
-                                kind,
-                                proto,
-                                Some(&comm),
-                                Some("post-mortem"),
-                                Some(super::events::lag_whole_ms(lag_ns)),
-                                None,
-                                render_offset,
-                            ));
-                        }
-                        PostMortemVerdict::Miss { left_listen } => {
-                            unaccounted += 1;
-                            rows.push(event_row_json(
-                                event,
-                                kind,
-                                proto,
-                                None,
-                                Some("unaccounted"),
-                                None,
-                                left_listen.then_some(super::events::LEFT_LISTEN_RACE_NOTE),
-                                render_offset,
-                            ));
+                    // The record's own comm first (night-frontier-Z8,
+                    // D5): the parity arm of the text lane's ladder -
+                    // the acting task's own name, read by the same
+                    // probe in the same breath as the transition,
+                    // typed "recorded". Only a zeroed comm (a failed
+                    // helper read) reaches the exit-ring verdict.
+                    if event.comm[0] != 0 {
+                        let comm = crate::commands::doctor::memory::exits::comm_string(&event.comm);
+                        rows.push(event_row_json(
+                            event,
+                            kind,
+                            proto,
+                            Some(&comm),
+                            Some("recorded"),
+                            None,
+                            None,
+                            render_offset,
+                        ));
+                    } else {
+                        match super::events::post_mortem_verdict(exits, event) {
+                            PostMortemVerdict::AtOrAfter(exit) => {
+                                let comm =
+                                    crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                                rows.push(event_row_json(
+                                    event,
+                                    kind,
+                                    proto,
+                                    Some(&comm),
+                                    Some("post-mortem"),
+                                    None,
+                                    None,
+                                    render_offset,
+                                ));
+                            }
+                            PostMortemVerdict::TeardownLag(exit, lag_ns) => {
+                                let comm =
+                                    crate::commands::doctor::memory::exits::comm_string(&exit.comm);
+                                rows.push(event_row_json(
+                                    event,
+                                    kind,
+                                    proto,
+                                    Some(&comm),
+                                    Some("post-mortem"),
+                                    Some(super::events::lag_whole_ms(lag_ns)),
+                                    None,
+                                    render_offset,
+                                ));
+                            }
+                            PostMortemVerdict::Miss { left_listen } => {
+                                unaccounted += 1;
+                                rows.push(event_row_json(
+                                    event,
+                                    kind,
+                                    proto,
+                                    None,
+                                    Some("unaccounted"),
+                                    None,
+                                    left_listen.then_some(super::events::LEFT_LISTEN_RACE_NOTE),
+                                    render_offset,
+                                ));
+                            }
                         }
                     }
                     continue;

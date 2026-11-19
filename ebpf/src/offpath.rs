@@ -172,6 +172,9 @@ unsafe fn dirty_publish(mapping: usize) -> u32 {
         if tracked_inodes.get(&key).is_none() {
             return 0;
         }
+        // The identity block (night-frontier-Z8, D5) rides the same
+        // record: cgroup id, comm, netns inode.
+        let actor = super::identity::actor_identity(Some(&o));
         if file_events
             .output::<FileEvent>(
                 &FileEvent {
@@ -182,6 +185,10 @@ unsafe fn dirty_publish(mapping: usize) -> u32 {
                     device,
                     pid: (bpf_get_current_pid_tgid() >> 32) as u32,
                     _pad2: 0,
+                    cgroup_id: actor.cgroup_id,
+                    comm: actor.comm,
+                    netns_inum: actor.netns_inum,
+                    _pad3: 0,
                 },
                 0,
             )
@@ -290,6 +297,9 @@ unsafe fn splice_publish(file: usize, op: u8) -> u32 {
         if tracked_inodes.get(&key).is_none() {
             return 0;
         }
+        // The identity block (night-frontier-Z8, D5) rides the same
+        // record: cgroup id, comm, netns inode.
+        let actor = super::identity::actor_identity(Some(&o));
         if file_events
             .output::<FileEvent>(
                 &FileEvent {
@@ -300,6 +310,10 @@ unsafe fn splice_publish(file: usize, op: u8) -> u32 {
                     device,
                     pid: (bpf_get_current_pid_tgid() >> 32) as u32,
                     _pad2: 0,
+                    cgroup_id: actor.cgroup_id,
+                    comm: actor.comm,
+                    netns_inum: actor.netns_inum,
+                    _pad3: 0,
                 },
                 0,
             )
@@ -411,6 +425,9 @@ pub fn iouring_probe(ctx: TracePointContext) -> u32 {
         if tracked_inodes.get(&key).is_none() {
             return 0;
         }
+        // The identity block (night-frontier-Z8, D5) rides the same
+        // record: cgroup id, comm, netns inode.
+        let actor = super::identity::actor_identity(Some(&o));
         if file_events
             .output::<FileEvent>(
                 &FileEvent {
@@ -421,6 +438,10 @@ pub fn iouring_probe(ctx: TracePointContext) -> u32 {
                     device,
                     pid: (bpf_get_current_pid_tgid() >> 32) as u32,
                     _pad2: 0,
+                    cgroup_id: actor.cgroup_id,
+                    comm: actor.comm,
+                    netns_inum: actor.netns_inum,
+                    _pad3: 0,
                 },
                 0,
             )

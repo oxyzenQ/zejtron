@@ -257,14 +257,29 @@ fn collect_live(
         // The row's actor: the /proc facts for the recorded pid,
         // resolved at render time - the same fields the snapshot's
         // holder rows carry. A pid with no visible /proc entry at
-        // render time is a post-mortem candidate (the exit-ring pass
-        // below): the common server shape is a short-lived writer -
+        // render time is a post-mortem candidate (the passes below):
+        // the common server shape is a short-lived writer -
         // a cron one-shot, a logrotate run, a shell redirect - that
-        // finished its write and died inside the window, and the
-        // probe estate has been recording every exit since attach.
+        // finished its write and died inside the window.
         let Some((name, user)) = pid_context(event.pid, query.users) else {
-            post_mortem.push((slots.len(), event));
-            slots.push(None);
+            // The record's own comm (night-frontier-Z8, D5) names the
+            // actor first: the acting task's own name, read by the
+            // same probe in the same breath as the event - zero
+            // pid-reuse risk, no /proc round-trip to outlive the
+            // actor. The name may be the acting THREAD's (a worker
+            // pool's "wr-3"), not the leader's - the honest thread-
+            // level truth, rendered in the recorded-actor shape.
+            if let Some(comm) = record_actor_name(event) {
+                slots.push(Some(EvidenceRow::new(
+                    crate::ebpf::fileprobe::event_unix_secs_with(event, render_offset),
+                    event_kind(event.op),
+                    EvidenceActor::recorded(Some(comm), Some(event.pid), None),
+                    Provenance::Observed,
+                )));
+            } else {
+                post_mortem.push((slots.len(), event));
+                slots.push(None);
+            }
             continue;
         };
         slots.push(Some(EvidenceRow::new(
@@ -276,7 +291,9 @@ fn collect_live(
     }
 
     // The exit-ring pass (night-improve-61): the post-mortem
-    // attribution. The sched/sched_process_exit probe (the
+    // attribution for the events whose record comm is absent (a
+    // failed helper read leaves the field zeroed - the D5 ladder's
+    // honest hole). The sched/sched_process_exit probe (the
     // night-improve-47 estate) records every process exit - pid and
     // comm, the same pair a /proc read would have named - into the
     // proc_events ring, and this is the consumer that answers the
@@ -441,6 +458,23 @@ fn event_kind(op: u8) -> EvidenceKind {
         },
         _ => EvidenceKind::Wrote { via: None },
     }
+}
+
+/// The record's own actor name (night-frontier-Z8, D5): the comm the
+/// acting task carried at event time, when the field is populated -
+/// the ladder's second arm, tighter than the exit ring (the same
+/// probe read it in the same breath as the event, so no pid-reuse
+/// rule is needed) and the answer that survives a /proc read the
+/// actor already outlived. `None` when the field is zeroed - a
+/// failed helper read - the honest hole the exit-ring pass still
+/// serves.
+fn record_actor_name(event: &crate::ebpf::events::FileEvent) -> Option<String> {
+    // A real comm always starts with a name byte: the helper
+    // NUL-terminates and zero-fills past the end, so a first byte of
+    // zero means either the field was never written (the failed
+    // helper read) or the bytes are malformed garbage - both are the
+    // honest absence, never a guessed "unknown".
+    (event.comm[0] != 0).then(|| crate::commands::doctor::memory::exits::comm_string(&event.comm))
 }
 
 /// The pid's Name and Uid (real) from /proc, resolved to a username.

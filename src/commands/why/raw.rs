@@ -23,7 +23,16 @@ pub(crate) fn raw_section(parts: &lane::LaneParts) -> String {
         }
         // The section header rides green; the event rows' keys ride
         // grey with their values (the timestamps, inodes, pids)
-        // unwrapped.
+        // unwrapped. The identity block (night-frontier-Z8, D5) rides
+        // its own three keys: comm (the actor's own name, the record
+        // cannot outlive it), cgroup (the default-hierarchy cgroup
+        // id, the kernfs inode stat(2) reports for the cgroup's
+        // directory - hex, the form the pod spec names), and netns
+        // (the network-namespace inode number, the integer /proc's
+        // ns/net symlink prints). Zero netns = the walk could not
+        // resolve on this host - the named unavailability, rendered
+        // as such; an empty comm renders "(unnamed)", the honest
+        // absence, never a guessed name.
         let mut lines = vec![ok_out(
             "Raw kernel events (file_events ring, as drained; CLOCK_MONOTONIC ns):",
         )];
@@ -41,8 +50,19 @@ pub(crate) fn raw_section(parts: &lane::LaneParts) -> String {
                 _ => "unknown",
             };
             let device_hex = format!("{:#x}", event.device);
+            let cgroup_hex = format!("{:#x}", event.cgroup_id);
+            let comm = if event.comm[0] != 0 {
+                crate::commands::doctor::memory::exits::comm_string(&event.comm)
+            } else {
+                "(unnamed)".to_owned()
+            };
+            let netns = if event.netns_inum == 0 {
+                "unavailable".to_owned()
+            } else {
+                event.netns_inum.to_string()
+            };
             lines.push(format!(
-                "  {} {}{} {}{} {}{} {}{}",
+                "  {} {}{} {}{} {}{} {}{} {}{} {}{} {}{}",
                 event.timestamp_ns,
                 grey_out("op="),
                 op,
@@ -51,7 +71,13 @@ pub(crate) fn raw_section(parts: &lane::LaneParts) -> String {
                 grey_out("device="),
                 device_hex,
                 grey_out("pid="),
-                event.pid
+                event.pid,
+                grey_out("comm="),
+                comm,
+                grey_out("cgroup="),
+                cgroup_hex,
+                grey_out("netns="),
+                netns
             ));
         }
         format!("\n{}", lines.join("\n"))

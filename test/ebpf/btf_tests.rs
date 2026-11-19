@@ -221,17 +221,37 @@ fn sample_blob() -> Vec<u8> {
     );
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
     fd_walk_structs(&mut w, &mut s);
+    identity_walk_structs(&mut w, &mut s);
     build_btf(w, s)
 }
 
 /// The three fd-walk structs every parse-ready blob carries since
 /// night-improve-57 - the syscall-stub write probe's lookups
 /// (task_struct.files, files_struct.fdt, fdtable.max_fds,
-/// fdtable.fd). Synthetic offsets, stable across the blobs.
-fn fd_walk_structs(w: &mut TypeWriter, s: &mut StrTab) {
-    w.strukt(s, "task_struct", 4096, &[("files", 16 * 8)]);
+/// fdtable.fd) - plus the task_struct.nsproxy member the identity
+/// chain's first hop rides (night-frontier-Z8). Synthetic offsets,
+/// stable across the blobs.
+pub(super) fn fd_walk_structs(w: &mut TypeWriter, s: &mut StrTab) {
+    w.strukt(
+        s,
+        "task_struct",
+        4096,
+        &[("files", 16 * 8), ("nsproxy", 32 * 8)],
+    );
     w.strukt(s, "files_struct", 512, &[("fdt", 0)]);
     w.strukt(s, "fdtable", 32, &[("max_fds", 0), ("fd", 8 * 8)]);
+}
+
+/// The identity-walk structs every parse-ready blob carries since
+/// night-frontier-Z8 (D5) - the netns chain every record rides
+/// (task_struct.nsproxy, nsproxy.net_ns, net.ns, ns_common.inum).
+/// The member name is net_ns (NOT net - the name the corpus proves
+/// is absent on every real dialect). Synthetic offsets, stable
+/// across the blobs; the expected parse tail is [32, 40, 120, 16].
+pub(super) fn identity_walk_structs(w: &mut TypeWriter, s: &mut StrTab) {
+    w.strukt(s, "nsproxy", 96, &[("count", 0), ("net_ns", 40 * 8)]);
+    w.strukt(s, "net", 4224, &[("list", 0), ("ns", 120 * 8)]);
+    w.strukt(s, "ns_common", 64, &[("ops", 0), ("inum", 16 * 8)]);
 }
 
 // ── The pins ────────────────────────────────────────────────────
@@ -258,6 +278,42 @@ fn the_reference_probe_offsets_parse_end_to_end() {
             40, // inode.i_sb (night-frontier-2, the device hop)
         ]
     );
+}
+
+#[test]
+fn the_identity_walk_offsets_parse_end_to_end() {
+    // night-frontier-Z8 (D5): the netns chain every record rides, its
+    // own parse of the same walker - the synthetic blob's identity
+    // structs land at [32, 40, 120, 16], slot order fixed by the
+    // IDENT_SLOT_* constants.
+    let blob = sample_blob();
+    let offsets = parse_identity_offsets(&blob).expect("the synthetic blob parses");
+    assert_eq!(offsets[IDENT_SLOT_TASK_NSPROXY], 32);
+    assert_eq!(offsets[IDENT_SLOT_NSPROXY_NET], 40);
+    assert_eq!(offsets[IDENT_SLOT_NET_NS], 120);
+    assert_eq!(offsets[IDENT_SLOT_NS_COMMON_INUM], 16);
+}
+
+#[test]
+fn the_identity_walk_refuses_the_wrong_member_name() {
+    // The corpus lesson: the member is net_ns, NOT net - the name the
+    // textbook order would guess. A blob whose nsproxy carries only
+    // `net` refuses by name, never guesses.
+    let mut w = TypeWriter::new();
+    let mut s = StrTab::new();
+    w.int(&mut s, "unsigned int"); // id 1
+    w.strukt(
+        &mut s,
+        "task_struct",
+        4096,
+        &[("files", 16 * 8), ("nsproxy", 32 * 8)],
+    );
+    w.strukt(&mut s, "nsproxy", 96, &[("net", 32 * 8)]);
+    w.strukt(&mut s, "net", 4224, &[("ns", 120 * 8)]);
+    w.strukt(&mut s, "ns_common", 64, &[("inum", 16 * 8)]);
+    let blob = build_btf(w, s);
+    let err = parse_identity_offsets(&blob).unwrap_err();
+    assert_eq!(err, "struct nsproxy has no member net_ns in BTF");
 }
 
 #[test]
@@ -437,7 +493,12 @@ fn the_fd_walk_lookups_descend_anonymous_aggregates() {
     w.strukt(&mut s, "files_struct", 512, &[("fdt", 0)]); // id 2
     let union_id = w.peek_id();
     w.union_(&mut s, 16, &[("files", files_id, 32)]); // id 3: the pointer at bit 32
-    w.strukt_typed(&mut s, "task_struct", 4096, &[("", union_id, 0)]); // id 4
+    w.strukt_typed(
+        &mut s,
+        "task_struct",
+        4096,
+        &[("", union_id, 0), ("nsproxy", 1, 32 * 8)],
+    ); // id 4: files behind the unnamed union, nsproxy named (D5)
     w.strukt(&mut s, "fdtable", 32, &[("max_fds", 0), ("fd", 8 * 8)]); // id 5
     w.strukt(&mut s, "dentry", 208, &[("d_inode", 48 * 8)]);
     w.strukt(&mut s, "inode", 656, &[("i_sb", 40 * 8), ("i_ino", 64 * 8)]);
@@ -450,9 +511,14 @@ fn the_fd_walk_lookups_descend_anonymous_aggregates() {
     w.strukt(&mut s, "vfsmount", 32, &[("mnt_sb", 8 * 8)]);
     w.strukt(&mut s, "super_block", 1536, &[("s_dev", 16 * 8)]);
     w.strukt(&mut s, "path", 16, &[("mnt", 0), ("dentry", 8 * 8)]);
+    identity_walk_structs(&mut w, &mut s);
     let blob = build_btf(w, s);
     let offsets = parse_btf_offsets(&blob).expect("the blob parses");
     assert_eq!(offsets[8], 4, "task_struct.files through the unnamed union");
+    // The identity chain rides its own parse (night-frontier-Z8, D5):
+    // the named nsproxy member stays direct at 32.
+    let ident = parse_identity_offsets(&blob).expect("the identity parse");
+    assert_eq!(ident[IDENT_SLOT_TASK_NSPROXY], 32);
     assert_eq!(offsets[9], 0, "files_struct.fdt stays direct");
     assert_eq!(offsets[10], 0, "fdtable.max_fds stays direct");
     assert_eq!(offsets[11], 8, "fdtable.fd stays direct");

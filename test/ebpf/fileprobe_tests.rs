@@ -20,6 +20,10 @@ fn file_event(ts: u64, op: u8, inode: u64, device: u64, pid: u32) -> FileEvent {
         device,
         pid,
         _pad2: 0,
+        cgroup_id: 0,
+        comm: [0; 16],
+        netns_inum: 0,
+        _pad3: 0,
     }
 }
 

@@ -42,10 +42,11 @@ use super::events::{
 };
 
 /// The rolling cap: the pump never hands back more than this many
-/// events, newest kept, oldest dropped. 8192 records is the sock
-/// ring's whole 8192-record capacity, and more than the file ring's
-/// measured take (5461 at aya's 48-byte stride over the same
-/// 256 KiB - the loss certificate's first live run measured it), so
+/// events, newest kept, oldest dropped. More than either ring's
+/// whole capacity - the sock ring holds 3640 records at the D5
+/// 72-byte stride over its 256 KiB (the loss-certificate arithmetic,
+/// re-derived for the widened record), the file ring holds 6553 at
+/// its 80-byte stride over 512 KiB (night-frontier-Z8's re-pin) - so
 /// ONE drain hands back EVERY record either ring held. The cap stays
 /// a window-shaped bound, not a log-shaped one - but a drain can
 /// never set aside records the render never saw, which is what makes
