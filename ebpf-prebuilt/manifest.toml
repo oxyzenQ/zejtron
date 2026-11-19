@@ -19,15 +19,15 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-19T12:37:51Z"
+generated = "2026-11-19T12:50:04Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "cf27d7378ca42a2acb463434e2a655d6032b19359a8b6a624345fb6959814f63"
+ebpf_tree_blake3 = "8c7d633fd59a821f80b23979458febe2465edf38aaa6c18f9b89555cdcae18f4"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "6e1a15d33648d46b508fc5f0929b4108ce1c0a77607568b66d250054bb023541"
+blake3 = "c58b80b2da7f0792b6134893770b0b3d62ccc614f4444b26326a4ec04fd4e59e"
 size = 36552
 
 [contract]

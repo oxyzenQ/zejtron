@@ -323,10 +323,29 @@ hard way:
   (memory-backed page))"; the cost contract re-pinned consciously -
   one program, 287 instructions, zero new maps, zero new rings.
 
-- **The pre-attach past.** The camera starts at attach. What
-  crossed the kernel before the attach is unreachable by this lane,
-  and the surfaces that care say so through their fallback ladder
-  (audit, journal, snapshot) instead of pretending.
+- **The pre-attach past (night-frontier-Z10, D7).** The camera
+  starts at attach. What crossed the kernel before the attach is
+  unreachable by this lane - and since Z10 the absence is no
+  longer silent: a live window whose requested span began before
+  the attach instant renders that span in the Unaccounted block as
+  proof of absence ("the camera was planted at ... (UTC); the
+  requested window began ... earlier - no event can exist in that
+  span, because the camera was not watching"), compared in the
+  stamps' own CLOCK_MONOTONIC domain (the generation map's fifth
+  slot), past the one-second materiality bound. The absence triad
+  is complete: the drop census (the kernel's failures), the sleep
+  blackout (the host's), and now the watch gap (the watcher's own)
+  - no silent absence. What a window cannot prove (the detach
+  moment) is named by the estate's own refusal: the pins are gone,
+  and the drain says so.
+
+- **The clocksource regime (night-frontier-Z10, D7).** The stamps
+  ride CLOCK_MONOTONIC, whose precision is delivered by the
+  kernel's active clocksource - and the watchdog can switch it
+  mid-capture. The window's two breaths read the regime at both
+  ends; a demonstrable switch renders as an Unaccounted row (the
+  stamps stay one domain, the precision class moved), never as a
+  histogram that reads two regimes as one.
 
 - **The probe floor.** The lane needs kernel >= 5.15, lockdown
   inactive, and `CAP_BPF` + `CAP_PERFMON` for attach - and the

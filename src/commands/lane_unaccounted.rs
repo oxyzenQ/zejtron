@@ -88,6 +88,55 @@ pub(crate) fn sleep_blackout_entry(sleep_delta_ns: i128) -> UnaccountedEntry {
     }
 }
 
+/// The watch-truth entry (night-frontier-Z10, D7): the proof of
+/// absence the camera ITSELF causes - a requested window whose span
+/// began before the camera existed. The drop census names the
+/// kernel's failures (events seen but not held), the sleep blackout
+/// names the host's (stamps the clock did not run through); the
+/// pre-attach span is the third absence, the watcher's own - no
+/// event can exist there because NOTHING was watching yet. The
+/// wording carries the attach instant (wall time, UTC) and the gap
+/// span, the Z6 language's third leg. `gap_ns` rides only past the
+/// one-second materiality bound (the caller's bound - a sub-second
+/// edge is the command's own startup cost), so a window fully
+/// inside the camera's life adds NOTHING to the render: the
+/// negative test pins the byte silence. `attach_wall` is `None`
+/// when the wall clock was unreadable at stamp time - the row then
+/// names the gap alone rather than guessing a clock.
+pub(crate) fn watch_gap_entry(gap_ns: i128, attach_wall: Option<String>) -> UnaccountedEntry {
+    let span = crate::info::clock::format_sleep_span(gap_ns);
+    let planted = attach_wall
+        .map(|t| format!("the camera was planted at {t} (UTC); "))
+        .unwrap_or_else(|| "the camera's attach instant is unreadable; ".to_owned());
+    UnaccountedEntry::new(
+        1,
+        "pre-attach watch gap",
+        format!(
+            "{planted}the requested window began {span} earlier - no event can exist in that span, because the camera was not watching: the rows above are the only evidence this window could have"
+        ),
+    )
+}
+
+/// The clocksource regime entry (night-frontier-Z10, D7): the
+/// kernel's clocksource switched ACROSS the capture - the stamps'
+/// CLOCK_MONOTONIC precision regime moved under the window (the
+/// watchdog's tsc-unstable fallback, a boot-time hpet that settled
+/// to tsc). The stamps stay ordered and comparable (one clock
+/// domain), but the precision CLASS the durations ride changed, and
+/// the row says so instead of letting a histogram read the two
+/// regimes as one. Rides only when the regime demonstrably moved
+/// (both ends readable and different) - the same materiality bound
+/// every state-backed boundary carries.
+pub(crate) fn clocksource_switch_entry(pre: &str, post: &str) -> UnaccountedEntry {
+    UnaccountedEntry::new(
+        1,
+        "clocksource regime",
+        format!(
+            "the kernel's clocksource switched across this capture ({pre} -> {post}) - the stamps stay one CLOCK_MONOTONIC domain, but the precision regime the durations ride changed under the window: the kernel watchdog or the platform moved the source mid-capture"
+        ),
+    )
+}
+
 #[cfg(test)]
 #[path = "../../test/commands/lane_unaccounted_tests.rs"]
 mod tests;

@@ -383,7 +383,7 @@ pub(crate) fn count_ring_drop(slot: u32) {
     }
 }
 
-/// The generation stamp map (night-frontier-Z2): Array<u64>, three
+/// The generation stamp map (night-frontier-Z2): Array<u64>, four
 /// slots the LOADER writes once at attach and the drains read back -
 /// boot identity, probe object identity, attach instant (the
 /// GEN_SLOT_* contract in src/ebpf/estate.rs). The BPF programs
@@ -393,7 +393,7 @@ pub(crate) fn count_ring_drop(slot: u32) {
 /// estate plants and sweeps as one atomic unit.
 #[allow(non_upper_case_globals)]
 #[map(name = "generation")]
-pub(crate) static generation: Array<u64> = Array::with_max_entries(4, 0);
+pub(crate) static generation: Array<u64> = Array::with_max_entries(5, 0);
 
 /// The probe: increment stats[STATS_EVENTS] on every process exec.
 /// The counter is the phase-1 chain proof - the doctor's readback.

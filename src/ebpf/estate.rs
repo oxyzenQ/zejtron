@@ -61,7 +61,8 @@ pub const GEN_SLOT_OBJECT: u32 = 1;
 pub const GEN_SLOT_ATTACHED: u32 = 2;
 /// `generation[3]`: the off-path capability mask (night-frontier-Z7,
 /// D4): bit 0 = the mmap-dirty probe planted, bit 1 = the splice
-/// probe planted, bit 2 = the io_uring probe planted. A capability
+/// probe planted, bit 2 = the io_uring probe planted, bit 3 = the
+/// memory-backed probe planted. A capability
 /// the host could not verify (a missing anchor rung, a missing
 /// tracepoint, a record-verify failure) is UNPLANTED and carries NO
 /// bit - the presence law reads this mask, so a named-down
@@ -71,6 +72,18 @@ pub const GEN_SLOT_ATTACHED: u32 = 2;
 /// settle (the verify failures unplant their capability first), so
 /// the stamp always describes the estate that actually exists.
 pub const GEN_SLOT_OFFPATH: u32 = 3;
+/// `generation[4]`: the attach instant in the stamps' own clock
+/// domain (night-frontier-Z10, D7): CLOCK_MONOTONIC nanoseconds
+/// (bpf_ktime_get_ns's userspace twin, the same clock the records
+/// stamp with), sampled at stamp time. The watch-truth datum: a
+/// live window whose requested span began BEFORE this instant
+/// renders the pre-attach span as proof of absence - the one
+/// absence shape the drop census (the kernel's failures) and the
+/// sleep blackout (the host's) never carried, because the watcher
+/// itself was not watching yet. Zero (an estate stamped before Z10)
+/// means the datum is absent - the compare degrades honestly, never
+/// guesses.
+pub const GEN_SLOT_ATTACHED_MONOTONIC: u32 = 4;
 /// The mask bits (the same contract the attach summary and the
 /// presence law read).
 pub const OFFPATH_BIT_DIRTY: u64 = 1;
@@ -165,6 +178,19 @@ pub fn write_generation_stamp() -> Result<(), String> {
         .set(GEN_SLOT_ATTACHED, &attached, 0)
         .map_err(|e| {
             format!("{GENERATION_IDENTITY}: generation[{GEN_SLOT_ATTACHED}] write failed: {e}")
+        })?;
+    // The watch-truth slot (night-frontier-Z10, D7): the attach
+    // instant in the stamps' own CLOCK_MONOTONIC domain, sampled in
+    // the same breath as the unix instant. An unreadable monotonic
+    // clock writes zero - the reader's own named absence, never a
+    // guessed epoch.
+    let attached_mono = crate::info::clock::monotonic_now_ns().unwrap_or(0);
+    generation
+        .set(GEN_SLOT_ATTACHED_MONOTONIC, &attached_mono, 0)
+        .map_err(|e| {
+            format!(
+                "{GENERATION_IDENTITY}: generation[{GEN_SLOT_ATTACHED_MONOTONIC}] write failed: {e}"
+            )
         })?;
     Ok(())
 }
@@ -269,6 +295,35 @@ pub fn read_offpath_mask() -> Result<u64, String> {
     generation.get(&GEN_SLOT_OFFPATH, 0).map_err(|e| {
         format!("{GENERATION_IDENTITY}: generation[{GEN_SLOT_OFFPATH}] read failed: {e}")
     })
+}
+
+/// Read the attach facts the watch truth rides (night-frontier-Z10,
+/// D7): the unix instant (the wall clock the row names) and the
+/// monotonic instant (the stamps' domain the compare rides), one pin
+/// open, two slot reads. `Err` when the estate carries no generation
+/// pin at all; a pre-Z10 estate reads monotonic zero - the caller's
+/// named absence.
+pub fn attach_facts() -> Result<(u64, u64), String> {
+    let map_data = MapData::from_pin(PIN_MAP_GENERATION).map_err(|e| {
+        format!(
+            "{GENERATION_IDENTITY}: pinned generation map {PIN_MAP_GENERATION}: {e}              (an estate planted before the generation stamp carries no identity              at all - re-attach to plant a stamped one)"
+        )
+    })?;
+    let map = Map::Array(map_data);
+    let generation: Array<_, u64> = Array::try_from(&map).map_err(|e| {
+        format!("{GENERATION_IDENTITY}: the pinned generation map is not an array: {e}")
+    })?;
+    let unix = generation.get(&GEN_SLOT_ATTACHED, 0).map_err(|e| {
+        format!("{GENERATION_IDENTITY}: generation[{GEN_SLOT_ATTACHED}] read failed: {e}")
+    })?;
+    let mono = generation
+        .get(&GEN_SLOT_ATTACHED_MONOTONIC, 0)
+        .map_err(|e| {
+            format!(
+                "{GENERATION_IDENTITY}: generation[{GEN_SLOT_ATTACHED_MONOTONIC}] read failed: {e}"
+            )
+        })?;
+    Ok((unix, mono))
 }
 
 /// The mask-consistency verdict: every off-path pin's presence must

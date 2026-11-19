@@ -61,10 +61,33 @@ use super::tracked::{track_file, untrack_file};
 /// in a span the stamps' clock did not run through). `None` rides
 /// when the clocks were unreadable at the start - the honest
 /// absence, never a guessed zero.
-/// One live file window's capture: the selected events, the PRE wall
-/// offset (night-frontier-Z2) and the PRE sleep gap (night-frontier-
-/// Z6, D3) - the two measurements the render breath re-pairs against.
-pub type FileWindowCapture = (Vec<FileEvent>, Option<i128>, Option<i128>);
+/// One live file window's PRE breath (night-frontier-Z10, D7 grew
+/// the shape from the Z2 tuple): the four measurements of ONE
+/// instant - the wall offset the civil times ride, the BOOTTIME
+/// gap the sleep truth pairs against, the CLOCK_MONOTONIC stamp the
+/// watch truth compares the attach instant against, and the active
+/// clocksource regime the stamps' precision rides. One breath, one
+/// instant, four readings - the render breath re-pairs them all.
+pub struct PreBreath {
+    /// The wall offset at the window's open (night-frontier-Z2).
+    pub offset: Option<i128>,
+    /// The BOOTTIME-MONOTONIC gap at the window's open
+    /// (night-frontier-Z6, D3).
+    pub gap: Option<i128>,
+    /// The CLOCK_MONOTONIC stamp of the window's open - the anchor
+    /// the watch-truth compare rides (night-frontier-Z10, D7).
+    pub monotonic_ns: Option<u64>,
+    /// The kernel's active clocksource regime at the window's open
+    /// (night-frontier-Z10, D7).
+    pub clocksource: Option<String>,
+}
+
+/// One live file window's capture: the selected events and the PRE
+/// breath (the four one-instant readings above).
+pub struct FileWindowCapture {
+    pub events: Vec<FileEvent>,
+    pub pre: PreBreath,
+}
 
 pub fn capture_file_window(
     inode: u64,
@@ -74,11 +97,15 @@ pub fn capture_file_window(
     track_file(inode, device)?;
     // The pre sample: after the key is in (the window is about to
     // open) and before the wait - the earliest instant the capture's
-    // own span can name. The wall offset and the sleep gap ride the
-    // same breath: two measurements of one instant, each paired with
-    // its own re-read at render time.
-    let pre_offset = crate::info::clock::wall_offset_ns();
-    let pre_gap = crate::info::clock::boottime_gap_ns();
+    // own span can name. Four readings of one instant, each paired
+    // with its own re-read at render time (the Z2/Z6 pairing shape;
+    // the monotonic stamp and the clocksource regime are Z10's).
+    let pre = PreBreath {
+        offset: crate::info::clock::wall_offset_ns(),
+        gap: crate::info::clock::boottime_gap_ns(),
+        monotonic_ns: crate::info::clock::monotonic_now_ns(),
+        clocksource: crate::info::clock::current_clocksource(),
+    };
     // The collection: the kprobes are live against the filter map
     // for exactly this long. std sleep, no reader thread — the ring
     // keeps the history and one drain takes it. The wait is
@@ -87,7 +114,10 @@ pub fn capture_file_window(
     crate::output::spinner::wait(window, "watching for events");
     untrack_file(inode, device)?;
     let drained = ringbuf::drain_file_events()?;
-    Ok((select_window(&drained, inode, device), pre_offset, pre_gap))
+    Ok(FileWindowCapture {
+        events: select_window(&drained, inode, device),
+        pre,
+    })
 }
 
 /// Keep only the events whose FULL identity (inode + device, both

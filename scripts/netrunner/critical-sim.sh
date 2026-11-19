@@ -762,8 +762,44 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 		else
 			note "memory-backed live window: the capability was named down on this host - the attach summary carries the reason, and the row must not exist"
 		fi
+
 	elif [ "$attach_ok" = "1" ]; then
 		note "off-path live windows skipped (no cc on this seat) - the attach's record verification carried the proof"
+	fi
+
+	# 7b-4. The watch-truth live windows (night-frontier-Z10, D7): the
+	#       triad's third leg. A window that began BEFORE the camera
+	#       existed carries the pre-attach span as proof of absence in
+	#       the Unaccounted block - the drop census names the kernel's
+	#       failures, the sleep blackout names the host's, and THIS
+	#       names the watcher's own. Two directions, both honest: a
+	#       window whose span predates attach MUST carry the row
+	#       (10s window opened ~2s after attach -> ~8s gap, past the
+	#       one-second materiality bound), and a window fully inside
+	#       the camera's life must render NOTHING extra (the
+	#       byte-silence negative, the determinism certificate's own
+	#       shape).
+	if [ "$attach_ok" = "1" ]; then
+		watch_file="$SCRATCH/watch-proof.bin"
+		: >"$watch_file"
+		sleep 2
+		timeout 20 "$BIN" why "$watch_file" --since 10s \
+			>"$SCRATCH/watch-gap.out" 2>"$SCRATCH/watch-gap.err"
+		if grep -q "pre-attach watch gap" "$SCRATCH/watch-gap.out" \
+			&& grep -q "the camera was not watching" "$SCRATCH/watch-gap.out"; then
+			pass "watch-truth live window: the pre-attach span renders as proof of absence"
+		else
+			fail "watch-truth live window: the pre-attach span renders as proof of absence" \
+				"the camera was planted seconds ago and the window began earlier: $(grep -E "watch gap|camera was" "$SCRATCH/watch-gap.out" | head -1)"
+		fi
+		timeout 20 "$BIN" why "$watch_file" --since 5s \
+			>"$SCRATCH/watch-clean.out" 2>"$SCRATCH/watch-clean.err"
+		if grep -q "pre-attach watch gap" "$SCRATCH/watch-clean.out"; then
+			fail "watch-truth negative: a window inside the camera's life renders no gap row" \
+				"the 5s window rides wholly after the attach instant, yet the row appeared: $(grep "watch gap" "$SCRATCH/watch-clean.out" | head -1)"
+		else
+			pass "watch-truth negative: a window inside the camera's life renders no gap row"
+		fi
 	fi
 
 	# 7c. The question-census leg (night-frontier-Z5): the camera's

@@ -366,6 +366,48 @@ pub(crate) fn material_sleep_ns(pre: Option<i128>, post: Option<i128>) -> Option
 /// truncated (never rounded): the rows' whole-second render
 /// granularity is the truth the ledgers serve, and a blackout that
 /// names milliseconds is noise, not evidence.
+/// The kernel's active clocksource, read from sysfs
+/// (night-frontier-Z10, D7): the regime the stamps' CLOCK_MONOTONIC
+/// precision rides ("tsc" vs "hpet"/"acpi_pm"). `None` when the file
+/// is absent or unreadable - a kernel without the clocksource
+/// interface, the named absence, never a guessed regime name.
+pub(crate) fn current_clocksource() -> Option<String> {
+    let raw =
+        std::fs::read_to_string("/sys/devices/system/clocksource/clocksource0/current_clocksource")
+            .ok()?;
+    let trimmed = raw.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+/// The watch-truth materiality (night-frontier-Z10, D7): the span of
+/// the requested window that began BEFORE the camera existed, in the
+/// stamps' own CLOCK_MONOTONIC domain - wall-independent, so an NTP
+/// step can never invent a gap and a wall step can never hide one.
+/// `pre_monotonic_ns` is the capture's own pre-breath stamp (the
+/// window's open instant); the requested span runs
+/// `[pre - window, pre]`, so the pre-attach span is
+/// `attach - (pre - window)` when positive. `Some(gap)` rides only
+/// past the one-second materiality bound (a sub-second edge is the
+/// command's own startup cost, noise by the Z2 bound's own order);
+/// `None` otherwise - a window fully inside the camera's life adds
+/// NOTHING to the render (the negative test pins the byte silence),
+/// and a zero/unstamped attach instant (pre-Z10 estate) degrades to
+/// `None`, never a guessed gap.
+pub(crate) fn material_watch_gap_ns(
+    pre_monotonic_ns: Option<u64>,
+    attach_monotonic_ns: u64,
+    window: std::time::Duration,
+) -> Option<i128> {
+    let pre = pre_monotonic_ns?;
+    if attach_monotonic_ns == 0 {
+        return None;
+    }
+    let window_ns = window.as_nanos() as i128;
+    let span_start = pre as i128 - window_ns;
+    let gap = attach_monotonic_ns as i128 - span_start;
+    if gap > 1_000_000_000 { Some(gap) } else { None }
+}
+
 pub(crate) fn format_sleep_span(ns: i128) -> String {
     let secs = (ns / 1_000_000_000) as i64;
     let hours = secs / 3_600;

@@ -116,3 +116,76 @@ fn the_sleep_anomaly_entry_names_the_untrustworthy_pairing() {
         entry.reason
     );
 }
+
+// ── The watch truth (night-frontier-Z10, D7) ────────────────────────
+
+#[test]
+fn the_watch_gap_entry_names_the_attach_instant_and_the_span() {
+    let entry = watch_gap_entry(1_680_000_000_000, Some("2026-11-19 09:41:00".to_owned()));
+    assert_eq!(entry.count, 1);
+    assert_eq!(entry.category, "pre-attach watch gap");
+    assert!(
+        entry
+            .reason
+            .contains("the camera was planted at 2026-11-19 09:41:00 (UTC)"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("began 28m 00s earlier"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry
+            .reason
+            .contains("no event can exist in that span, because the camera was not watching"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry
+            .reason
+            .contains("the rows above are the only evidence this window could have"),
+        "{}",
+        entry.reason
+    );
+}
+
+#[test]
+fn the_watch_gap_entry_degrades_when_the_wall_clock_is_unreadable() {
+    let entry = watch_gap_entry(60_000_000_000, None);
+    assert!(
+        entry
+            .reason
+            .contains("the camera's attach instant is unreadable"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("began 1m 00s earlier"),
+        "{}",
+        entry.reason
+    );
+}
+
+#[test]
+fn the_clocksource_switch_entry_names_both_regimes() {
+    let entry = clocksource_switch_entry("tsc", "hpet");
+    assert_eq!(entry.count, 1);
+    assert_eq!(entry.category, "clocksource regime");
+    assert!(
+        entry
+            .reason
+            .contains("the kernel's clocksource switched across this capture (tsc -> hpet)"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry
+            .reason
+            .contains("the stamps stay one CLOCK_MONOTONIC domain"),
+        "{}",
+        entry.reason
+    );
+}

@@ -348,3 +348,69 @@ fn the_gap_reads_true_against_the_boottime_domain_file() {
     // A span since boot is never negative by construction.
     assert!(gap >= 0, "the gap is a span since boot, never negative");
 }
+
+// ── The watch-truth materiality (night-frontier-Z10, D7) ────────────
+
+#[test]
+fn the_watch_gap_measures_the_pre_attach_span_in_the_stamps_domain() {
+    // The arithmetic: span_start = pre - window; gap = attach -
+    // span_start. A 30m window whose capture opened 28m after the
+    // camera was planted names a 2m gap.
+    let pre = 1_800_000_000_000u64;
+    let attach = pre - 28 * 60 * 1_000_000_000;
+    let gap = material_watch_gap_ns(Some(pre), attach, Duration::from_secs(30 * 60))
+        .expect("a two-minute pre-attach span is material");
+    assert_eq!(gap, 2 * 60 * 1_000_000_000);
+}
+
+#[test]
+fn the_watch_gap_refuses_the_sub_second_edge_and_the_covered_window() {
+    // A window fully inside the camera's life adds NOTHING (the
+    // negative test - the byte silence the determinism certificate
+    // pins one layer up).
+    let pre = 1_800_000_000_000u64;
+    let attach = pre - 60 * 1_000_000_000;
+    assert_eq!(
+        material_watch_gap_ns(Some(pre), attach, Duration::from_secs(30)),
+        None,
+        "the whole window rides after the attach instant"
+    );
+    // The sub-second edge (the command's own startup cost) is noise
+    // by the bound's own order: a one-second window opened half a
+    // second after the camera was planted - the gap is the edge
+    // itself, not a span.
+    let attach_late = pre - 500_000_000u64;
+    assert_eq!(
+        material_watch_gap_ns(Some(pre), attach_late, Duration::from_secs(1)),
+        None
+    );
+    // The pre-breath stamp unreadable: the named absence.
+    assert_eq!(
+        material_watch_gap_ns(None, attach, Duration::from_secs(30)),
+        None
+    );
+}
+
+#[test]
+fn the_watch_gap_refuses_an_unstamped_monotonic_slot() {
+    // A pre-Z10 estate reads generation[4] as zero - the compare
+    // degrades honestly, never a guessed gap from the epoch.
+    let pre = 1_800_000_000_000u64;
+    assert_eq!(
+        material_watch_gap_ns(Some(pre), 0, Duration::from_secs(30 * 60)),
+        None
+    );
+}
+
+#[test]
+fn the_clocksource_reader_names_the_active_regime() {
+    // The real sysfs file: present on every floor-plus kernel. Absent
+    // or empty is the named None, never a guessed regime.
+    if let Some(source) = current_clocksource() {
+        assert!(!source.is_empty());
+        assert!(
+            !source.contains(char::is_whitespace),
+            "the kernel's own regime token carries no whitespace: {source}"
+        );
+    }
+}

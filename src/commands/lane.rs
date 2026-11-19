@@ -187,8 +187,10 @@ fn collect_live(
     window: Duration,
     filter: OpFilter,
 ) -> Result<LaneParts, String> {
-    let (events, pre_offset, pre_gap) =
-        crate::ebpf::fileprobe::capture_file_window(query.inode, query.device, window)?;
+    let capture = crate::ebpf::fileprobe::capture_file_window(query.inode, query.device, window)?;
+    let events = capture.events;
+    let pre_offset = capture.pre.offset;
+    let pre_gap = capture.pre.gap;
 
     // ONE render breath (night-frontier-Z2, the wall-offset skew
     // law): every row of this ledger renders under the ONE offset
@@ -415,6 +417,52 @@ fn collect_live(
     if let Some(sleep) = sleep {
         unaccounted.push(crate::commands::lane_unaccounted::sleep_blackout_entry(
             sleep,
+        ));
+    }
+    // The watch-truth boundary (night-frontier-Z10, D7): the third
+    // absence - the watcher's own. The drop census names the
+    // kernel's failures and the sleep blackout names the host's;
+    // neither can name the span the requested window covers BEFORE
+    // the camera existed, because only the attach instant can. The
+    // compare rides the stamps' own CLOCK_MONOTONIC domain (the
+    // generation map's Z10 slot) - wall-independent, so an NTP step
+    // can never invent a gap - and the entry rides only past the
+    // one-second materiality bound: a window fully inside the
+    // camera's life adds NOTHING (the negative test pins the byte
+    // silence). A pre-Z10 estate (no monotonic slot) degrades to a
+    // verbose trace, never a guessed gap.
+    match crate::ebpf::estate::attach_facts() {
+        Ok((attach_unix, attach_mono)) => {
+            if let Some(gap_ns) = crate::info::clock::material_watch_gap_ns(
+                capture.pre.monotonic_ns,
+                attach_mono,
+                window,
+            ) {
+                let attach_wall = crate::info::clock::format_unix_secs(attach_unix as i64);
+                unaccounted.push(crate::commands::lane_unaccounted::watch_gap_entry(
+                    gap_ns,
+                    Some(attach_wall),
+                ));
+            }
+        }
+        Err(error) => {
+            crate::output::verbose::vlog!("lane", "attach facts unreadable: {error}");
+        }
+    }
+    // The clocksource regime boundary (night-frontier-Z10, D7): the
+    // stamps stay one CLOCK_MONOTONIC domain, but the precision
+    // REGIME the durations ride can move under the window (the
+    // watchdog's tsc-unstable fallback). Named only when the regime
+    // demonstrably moved across the capture - both ends readable and
+    // different - the state-backed materiality bound; a steady
+    // regime adds NOTHING.
+    if let Some(post_source) = crate::info::clock::current_clocksource()
+        && let Some(pre_source) = &capture.pre.clocksource
+        && pre_source != &post_source
+    {
+        unaccounted.push(crate::commands::lane_unaccounted::clocksource_switch_entry(
+            pre_source,
+            &post_source,
         ));
     }
     // events arrive ascending from the capture; the filter keeps the

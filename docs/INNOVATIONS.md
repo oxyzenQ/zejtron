@@ -570,6 +570,58 @@ in `test/ebpf/reverify_tests.rs`, the mask bit in
 (the row demanded by name where the capability proved itself, the
 named-down direction asserted where it did not).
 
+**22. The watch truth - the absence triad completes** (night-
+frontier-Z10, D7; the generation map's fifth slot
+`src/ebpf/estate.rs` ([`GEN_SLOT_ATTACHED_MONOTONIC`],
+[`attach_facts`]), the pre-breath struct `src/ebpf/fileprobe.rs`
+([`PreBreath`]), the materiality and the reader `src/info/clock.rs`
+([`material_watch_gap_ns`], [`current_clocksource`]), the builders
+`src/commands/lane_unaccounted.rs`, the drain wiring
+`src/commands/lane.rs` ([`collect_live`])). The hole the triad's
+first two legs left: the drains name the kernel's absences (the
+drop census, Z1 - events the kernel saw but could not hold) and
+the host's (the sleep blackout, Z6 - spans the stamps' clock did
+not run through), but not the WATCHER's own - `why /x --since 30m`
+on a camera planted two minutes ago read 28 minutes of silence
+with every banner honest, because the one thing that can prove
+"no event can exist there" is the attach instant, and nothing
+compared it. The close is one compare in the stamps' own domain:
+the generation map grows its fifth slot (append-only, the Z2 law)
+carrying the attach instant in CLOCK_MONOTONIC nanoseconds - the
+same clock the records stamp with, so the compare is
+wall-independent (an NTP step can never invent a gap, a wall step
+can never hide one) - and the capture's pre-breath grew from the
+Z2 tuple to the `PreBreath` struct (four readings of one instant:
+wall offset, sleep gap, monotonic stamp, clocksource regime). The
+materiality bound is the one-second order (a sub-second edge is
+the command's own startup cost), so a window fully inside the
+camera's life adds NOTHING - the negative test pins the byte
+silence - and a pre-Z10 estate (no monotonic slot) degrades to a
+verbose trace, never a guessed gap. The detach-symmetric shape is
+inherently named: a window that outlives the camera cannot drain
+(the pins are gone), and the refusal IS the name. With this leg
+the triad reads as one sentence no monitor vendor publishes:
+**drop truth + sleep truth + watch truth = no silent absence** -
+every span the render cannot account for is carried as evidence,
+never as a hole.
+
+**22b. Clocksource regime honesty** (night-frontier-Z10, D7, the
+same era; `src/info/clock.rs` [`current_clocksource`], the
+`PreBreath` struct's fourth reading, the builder
+`src/commands/lane_unaccounted.rs`
+[`clocksource_switch_entry`]). Not one byte in the tree touched
+the clocksource before this - and the stamps' precision is
+delivered by the kernel's active clocksource (`tsc` vs
+`hpet`/`acpi_pm`), which the watchdog can switch MID-CAPTURE (the
+tsc-unstable fallback). The two-breath pairing the estate already
+runs (wall offset Z2, boottime gap Z6) grew its third reading:
+the regime at the window's open, re-read at render. A
+demonstrable switch renders as an Unaccounted row ("the kernel's
+clocksource switched across this capture (tsc -> hpet) - the
+stamps stay one CLOCK_MONOTONIC domain, but the precision regime
+the durations ride changed under the window"); a steady regime
+adds nothing. Pure honesty, zero surface, one family with Z2/Z6.
+
 **18. The reproducible release chain** (night-depth-hardening-Z1,
 the cosmostrix D4 lineage; `.github/workflows/reproducible-release.yml`,
 `scripts/release/repro-build.sh`, `build.rs`,

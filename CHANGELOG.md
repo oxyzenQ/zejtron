@@ -44,6 +44,46 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z10 D7, the watch truth - the absence triad
+  completes (drop truth + sleep truth + watch truth = no silent
+  absence), and the clocksource regime honesty.** The drains named
+  two absence shapes: the drop census (Z1 - events the kernel saw
+  but could not hold) and the sleep blackout (Z6 - spans the
+  stamps' clock did not run through). Neither could name the span a
+  requested window covers BEFORE the camera existed: `why /x
+  --since 30m` on a camera planted two minutes ago read 28 minutes
+  of silence with every banner honest and nothing explaining the
+  hole. The close rides the stamps' own clock domain: the
+  generation map grows its fifth slot (append-only, the Z2 law) -
+  the attach instant in CLOCK_MONOTONIC nanoseconds, sampled at
+  stamp time - and the window's pre-breath now samples its own
+  monotonic stamp in the same breath as the wall offset and the
+  sleep gap (the capture's pre-breath grew from a Z2 tuple to the
+  `PreBreath` struct: four readings of one instant). The drain
+  compares, wall-independent (an NTP step can never invent a gap,
+  a wall step can never hide one), and a window whose span began
+  before the camera renders the pre-attach span as proof of
+  absence in the Unaccounted block, the Z6 language's third leg:
+  "the camera was planted at ... (UTC); the requested window began
+  ... earlier - no event can exist in that span, because the
+  camera was not watching". The materiality bound is the one-
+  second order (a sub-second edge is the command's own startup
+  cost): a window fully inside the camera's life adds NOTHING to
+  the render - the negative test pins the byte silence. A pre-Z10
+  estate (no monotonic slot) degrades to a verbose trace, never a
+  guessed gap. And the stamps' precision regime is now named: the
+  kernel's active clocksource is read at both ends of the window
+  (the Z2/Z6 two-breath pairing), and a regime switch mid-capture
+  (the watchdog's tsc-unstable fallback) renders as an Unaccounted
+  row instead of letting a histogram read two precision classes as
+  one. Pinned by the builder pins and the materiality pins
+  (`test/commands/lane_unaccounted_tests.rs`,
+  `test/info/clock_tests.rs` - the negative arms included), and
+  live by the C77 root leg's watch-truth windows, mask-aware in
+  both directions (the pre-attach row demanded where the gap is
+  material, the byte silence asserted where the window rides
+  wholly inside the camera's life).
+
 - **night-frontier-Z9 D6, the memory-backed write truth (the
   tmpfs/ramfs/memfd residual closes).** The Z7 estate's own named
   residual was still an attacker's map: an mmap store to a
