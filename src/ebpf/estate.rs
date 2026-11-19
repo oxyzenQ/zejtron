@@ -285,7 +285,9 @@ pub fn write_offpath_mask(mask: u64) -> Result<(), String> {
 pub fn read_offpath_mask() -> Result<u64, String> {
     let map_data = MapData::from_pin(PIN_MAP_GENERATION).map_err(|e| {
         format!(
-            "{GENERATION_IDENTITY}: pinned generation map {PIN_MAP_GENERATION}: {e}              (an estate planted before the generation stamp carries no identity              at all - re-attach to plant a stamped one)"
+            "{GENERATION_IDENTITY}: pinned generation map {PIN_MAP_GENERATION}: {e} \
+             (an estate planted before the generation stamp carries no identity \
+             at all - re-attach to plant a stamped one)"
         )
     })?;
     let map = Map::Array(map_data);
@@ -306,7 +308,9 @@ pub fn read_offpath_mask() -> Result<u64, String> {
 pub fn attach_facts() -> Result<(u64, u64), String> {
     let map_data = MapData::from_pin(PIN_MAP_GENERATION).map_err(|e| {
         format!(
-            "{GENERATION_IDENTITY}: pinned generation map {PIN_MAP_GENERATION}: {e}              (an estate planted before the generation stamp carries no identity              at all - re-attach to plant a stamped one)"
+            "{GENERATION_IDENTITY}: pinned generation map {PIN_MAP_GENERATION}: {e} \
+             (an estate planted before the generation stamp carries no identity \
+             at all - re-attach to plant a stamped one)"
         )
     })?;
     let map = Map::Array(map_data);

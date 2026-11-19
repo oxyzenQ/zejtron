@@ -185,7 +185,13 @@ pub fn attach() -> Result<String, String> {
         .map_err(|e| format!("attach refused: cannot read /sys/kernel/btf/vmlinux: {e}"))?;
     let identity_offsets = btf::parse_identity_offsets(&btf_data).map_err(|e| {
         format!(
-            "attach refused: cannot verify the identity walk's offsets from BTF              ({e}). Every record carries the actor's network-namespace inode,              walked through task_struct.nsproxy -> nsproxy.net_ns -> net.ns ->              ns_common.inum at offsets taken from /sys/kernel/btf/vmlinux - a              kernel whose BTF cannot vouch for the chain cannot carry verified              identity, and a guessed offset reads garbage silently.              No probe is planted"
+            "attach refused: cannot verify the identity walk's offsets from BTF \
+             ({e}). Every record carries the actor's network-namespace inode, \
+             walked through task_struct.nsproxy -> nsproxy.net_ns -> net.ns -> \
+             ns_common.inum at offsets taken from /sys/kernel/btf/vmlinux - a \
+             kernel whose BTF cannot vouch for the chain cannot carry verified \
+             identity, and a guessed offset reads garbage silently. No probe \
+             is planted"
         )
     })?;
     vlog!(
@@ -275,7 +281,7 @@ pub fn attach() -> Result<String, String> {
         Ok(offsets) => {
             vlog!(
                 "btf",
-                "off-path offsets verified: page.mapping {pm}, address_space.host {host},                  io_kiocb.file {file}",
+                "off-path offsets verified: page.mapping {pm}, address_space.host {host}, io_kiocb.file {file}",
                 pm = offsets.page_mapping.unwrap_or(0),
                 host = offsets.address_space_host.unwrap_or(0),
                 file = offsets.io_kiocb_file.unwrap_or(0)
