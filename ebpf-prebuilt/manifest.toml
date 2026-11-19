@@ -19,10 +19,10 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-19T12:27:35Z"
+generated = "2026-11-19T12:37:51Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "ae6454968dbf5fe1667c4a3c5718b6b82a29997419ee2e606982cfcf15a94ba4"
+ebpf_tree_blake3 = "cf27d7378ca42a2acb463434e2a655d6032b19359a8b6a624345fb6959814f63"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
