@@ -279,9 +279,27 @@ zejtron stays out of the operator's way while doing serious investigative work u
 
 ### What zejtron will NEVER be
 
-- A process killer, port closer, or service controller
-- A daemon, an agent, or a telemetry endpoint
-- A tool that guesses instead of showing evidence
+Scope is a contract, not a mood. Each wall below is a refusal by design, not a
+feature request parked for later - a proposal that crosses one is answered
+"no" in the same breath it is asked, because a tool's identity is defined
+less by what it does than by what it refuses to become.
+
+- **Control plane** — a process killer, port closer, service controller, or any writer of host state. zejtron observes; the operator acts.
+- **Resident** — a daemon, background agent, telemetry endpoint, phone-home beacon, or anything that lives between runs. Every invocation is a start, a print, an exit.
+- **Sound** — a speaker, a beep, a voice, a desktop notification, or an alerting surface. Evidence is text on a terminal; if it matters, the operator reads it.
+- **Entertainment** — a game, a demo toy, or any surface that exists to be watched instead of read. Nothing here animates for its own sake.
+- **Dashboard** — a GUI, TUI, web UI, or mouse-first face. The rendered ledger is the only presentation layer, and it pipes cleanly to `jq`, `grep`, and `diff`.
+- **Collection** — a monitoring platform, metrics store, time-series database, or long-running sampler. zejtron collects evidence and exits; the window closes with the process.
+- **Network face** — a listener, an RPC server, a control socket, or anything another machine can connect to. The one egress lane is the opt-in, root-refusing `--check-update`.
+- **Supply** — a package manager, plugin loader, auto-installer, or updater of other software. It reads systems; it does not feed them.
+- **Autonomy** — an AI agent, an auto-remediation engine, or anything that decides instead of reporting. The verdict names what the evidence shows; the judgment stays human.
+- **Genie** — a cross-platform shim or a library API. Linux, `/proc`, and `/sys` are the whole ground, and one binary is the whole product.
+- **A guesser** — a tool that fabricates what it cannot see. Where evidence ends, the `[unaccounted]` tag begins.
+
+The walls are load-bearing. Every dependency that wants in, every flag that
+wants a name, every byte the renderer prints must fit inside them - which is
+why the dependency doctrine below is a scope decision and not just a size
+decision.
 
 ### Stable API
 
