@@ -24,6 +24,7 @@
  * 7 = the memfd mmap failed. The leg greps the why window's
  * raw output for the row labels - the camera naming the silent paths.
  */
+#define _GNU_SOURCE /* splice(2) lives under __USE_GNU; newer gcc makes the implicit declaration an error, which would silently void the live legs */
 #include <fcntl.h>
 #include <string.h>
 #include <sys/mman.h>
