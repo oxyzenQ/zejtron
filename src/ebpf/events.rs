@@ -259,6 +259,33 @@ pub const FILE_OP_SPLICE_OUT: u8 = 8;
 /// word.
 pub const FILE_OP_IO_URING_WRITE: u8 = 9;
 
+/// `op` for FileEvent: an mmap store crossed a MEMORY-BACKED file's
+/// page (night-frontier-Z9, D6 - the memory-backed write truth, the
+/// off-path estate's third rung): a memory store through a MAP_SHARED
+/// mapping on a tmpfs/ramfs-backed file (memfd_create rides tmpfs's
+/// own superblock class) wrote the file WITHOUT any dirty-anchor
+/// crossing - the named residual the Z7 estate carried: "tmpfs/ramfs
+/// files keep no clean page to dirty (their aops never call either
+/// anchor), so an mmap write to a memory-backed file stays outside
+/// the record class". The kernel's own reason is now the probe's
+/// gate: the shared-write fault path is the one place the kernel
+/// touches such a store, and the superblock's registered filesystem
+/// name (i_sb->s_type->name, read at event time - "tmpfs"/"ramfs",
+/// the kernel's own registration table, never a compiled guess) is
+/// the memory-backed class the anchor serves. The anchor is the
+/// shared-write fault funnel itself (fault_dirty_shared_page on the
+/// 5.15-6.8 line, the surviving wp_page_shared arm on the 7.x line -
+/// the ladder's verdict is per-host BTF data, the writev probe's
+/// attach-symbol precedent), chosen from the host's own BTF at
+/// attach, record-verified with a real memfd store before the
+/// capability is claimed (the verify_offpath door). The named
+/// residual narrows with the capability: on the 7.x line the
+/// non-present fault arm is inlined past any vouchable symbol, so a
+/// first store through a fresh PTE stays outside the record there -
+/// named, never guessed. op=10, the vocabulary's eleventh word; the
+/// vocabulary renumbers never.
+pub const FILE_OP_MMAP_MEMBACKED: u8 = 10;
+
 /// One file action, as the kernel saw it at the moment it happened.
 ///
 /// Offsets (repr(C), natural alignment, pinned by test):
@@ -487,14 +514,32 @@ pub const OFF_SLOT_NET_NS: u32 = 20;
 /// NET_NS + OFF_SLOT_NS_COMMON_INUM is the inum's own address.
 #[allow(dead_code)]
 pub const OFF_SLOT_NS_COMMON_INUM: u32 = 21;
+/// `offsets[22]`: struct vm_fault, member page (night-frontier-Z9,
+/// D6): the shared-write fault context's page hop - the memory-backed
+/// anchor's arg0 is the vm_fault, and this BTF-derived member offset
+/// is the walk's first hop (72 on the 5.15 dialect, 80 on every later
+/// committed one - the corpus pins both shapes).
+#[allow(dead_code)]
+pub const OFF_SLOT_VM_FAULT_PAGE: u32 = 22;
+/// `offsets[23]`: struct super_block, member s_type (night-frontier-
+/// Z9, D6): the inode's superblock to its registered filesystem type
+/// - the memory-backed class gate's first hop.
+#[allow(dead_code)]
+pub const OFF_SLOT_SUPER_BLOCK_S_TYPE: u32 = 23;
+/// `offsets[24]`: struct file_system_type, member name (night-
+/// frontier-Z9, D6): the filesystem type to its registered name
+/// string - the pointer the probe reads the "tmpfs"/"ramfs" class
+/// through at event time, the kernel's own registration table.
+#[allow(dead_code)]
+pub const OFF_SLOT_FS_TYPE_NAME: u32 = 24;
 
 /// The number of slots the offsets map carries (the map's
 /// max_entries on the BPF side, the write count on the host side).
-/// Twenty-two: the eighteen the ledger grammar carried through
-/// night-frontier-Z7 plus the four identity-walk slots night-
-/// frontier-Z8 appends (18..21 - the task_struct.nsproxy /
-/// nsproxy.net / net.ns / ns_common.inum chain every record's
-/// netns identity rides). The file slots were never
+/// Twenty-five: the twenty-two the estate carried through
+/// night-frontier-Z8 plus the three memory-backed-walk slots
+/// night-frontier-Z9 appends (22..24 - the vm_fault.page hop, the
+/// superblock's s_type hop, and the filesystem-type name pointer the
+/// memory-backed class gate reads). The file slots were never
 /// renumbered - the vocabulary's append-only law holds: a capability
 /// the host cannot verify leaves its slots zero, and the programs
 /// that would read them are never attached.
@@ -503,7 +548,7 @@ pub const OFF_SLOT_NS_COMMON_INUM: u32 = 21;
 /// with it; the host writes the slots by OFF_SLOT_* index and never
 /// needs the count); the scoped allow names the split.
 #[allow(dead_code)]
-pub const OFF_SLOTS: u32 = 22;
+pub const OFF_SLOTS: u32 = 25;
 
 // ── The drop-census map slots ───────────────────────────────────────
 //

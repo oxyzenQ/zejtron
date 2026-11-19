@@ -19,21 +19,21 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-19T09:42:53Z"
+generated = "2026-11-19T12:10:55Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "06726ecbf4c3477144a3d15550241b1c468937fc67ab9ac6e07558d884ea9bff"
+ebpf_tree_blake3 = "8a9105b9f9906a216808708ab1f1ac412f098a696f8792d7cc14c7ad7bc8864b"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "61fa48d08d900cc5e924f0ddf91526998d6be611ef749ecc1ecd23cf790810ac"
-size = 33592
+blake3 = "6e1a15d33648d46b508fc5f0929b4108ce1c0a77607568b66d250054bb023541"
+size = 36552
 
 [contract]
 # The eight attach targets the loader plants (src/ebpf/loader.rs; the
 # exit probe lives in ebpf/src/exits.rs), documented for the registry
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.
-attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "raw_syscalls/sys_enter", "vfs_writev", "vfs_unlink", "vfs_rename", "sched_process_exit", "filemap_dirty_folio", "__set_page_dirty_nobuffers", "io_uring/io_uring_submit_sqe"]
+attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "raw_syscalls/sys_enter", "vfs_writev", "vfs_unlink", "vfs_rename", "sched_process_exit", "filemap_dirty_folio", "__set_page_dirty_nobuffers", "fault_dirty_shared_page", "wp_page_shared", "io_uring/io_uring_submit_sqe"]
 version = "80.4.0"

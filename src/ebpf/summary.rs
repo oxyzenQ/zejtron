@@ -104,6 +104,9 @@ pub(crate) fn offpath_caps_label(mask: u64) -> String {
     if mask & super::estate::OFFPATH_BIT_IOURING != 0 {
         caps.push("io_uring");
     }
+    if mask & super::estate::OFFPATH_BIT_MEMBACKED != 0 {
+        caps.push("memory-backed");
+    }
     if caps.is_empty() {
         "none".to_owned()
     } else {

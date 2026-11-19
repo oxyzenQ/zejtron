@@ -21,15 +21,14 @@ use aya_ebpf::{
     programs::ProbeContext,
 };
 
-use super::{
-    count_ring_drop, read_offset_set, read_ptr_at, read_u32_at, read_u64_at,
+use super::{count_ring_drop, read_offset_set, read_ptr_at, read_u32_at, read_u64_at};
+use crate::events::{
+    DROP_SLOT_FILE, FILE_OP_OPEN, FILE_OP_WRITEV, OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE,
+    OFF_SLOT_FILE_F_PATH, OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT,
+    OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_VFSMOUNT_MNT_SB, device_token_from_kernel,
+    pack_filter_key,
 };
 use crate::{events::FileEvent, file_events, identity, tracked_inodes};
-use crate::events::{
-    device_token_from_kernel, pack_filter_key, DROP_SLOT_FILE, FILE_OP_OPEN, FILE_OP_WRITEV,
-    OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_FILE_F_INODE, OFF_SLOT_FILE_F_PATH, OFF_SLOT_INODE_I_INO,
-    OFF_SLOT_PATH_DENTRY, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_VFSMOUNT_MNT_SB,
-};
 
 /// The open probe: vfs_open hands the program the path being bound to
 /// a file. The walk: path->dentry->d_inode for the inode,
@@ -52,7 +51,9 @@ pub fn open_probe(ctx: ProbeContext) -> u32 {
     unsafe {
         // arg0: const struct path * — extraction failure drops the
         // event (never fail the probed path).
-        let Some(path) = ctx.arg::<u64>(0) else { return 0 };
+        let Some(path) = ctx.arg::<u64>(0) else {
+            return 0;
+        };
         let path = path as usize;
         if path == 0 {
             return 0;
@@ -65,10 +66,18 @@ pub fn open_probe(ctx: ProbeContext) -> u32 {
         let Some(inode) = read_ptr_at(dentry, o[OFF_SLOT_DENTRY_D_INODE as usize]) else {
             return 0;
         };
-        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else { return 0 };
-        let Some(mnt) = read_ptr_at(path, o[OFF_SLOT_PATH_MNT as usize]) else { return 0 };
-        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else { return 0 };
-        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else { return 0 };
+        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else {
+            return 0;
+        };
+        let Some(mnt) = read_ptr_at(path, o[OFF_SLOT_PATH_MNT as usize]) else {
+            return 0;
+        };
+        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else {
+            return 0;
+        };
+        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else {
+            return 0;
+        };
 
         let device = device_token_from_kernel(s_dev);
         let key = pack_filter_key(ino, device);
@@ -84,30 +93,30 @@ pub fn open_probe(ctx: ProbeContext) -> u32 {
         // ring), never silent. The identity block (night-frontier-Z8,
         // D5) rides the same record: cgroup id, comm, netns inode.
         let actor = identity::actor_identity(Some(&o));
-        if file_events.output::<FileEvent>(
-            &FileEvent {
-                timestamp_ns: bpf_ktime_get_ns(),
-                op: FILE_OP_OPEN,
-                _pad: [0; 7],
-                inode: ino,
-                device,
-                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-                _pad2: 0,
-                cgroup_id: actor.cgroup_id,
-                comm: actor.comm,
-                netns_inum: actor.netns_inum,
-                _pad3: 0,
-            },
-            0,
-        )
-        .is_err()
+        if file_events
+            .output::<FileEvent>(
+                &FileEvent {
+                    timestamp_ns: bpf_ktime_get_ns(),
+                    op: FILE_OP_OPEN,
+                    _pad: [0; 7],
+                    inode: ino,
+                    device,
+                    pid: (bpf_get_current_pid_tgid() >> 32) as u32,
+                    _pad2: 0,
+                    cgroup_id: actor.cgroup_id,
+                    comm: actor.comm,
+                    netns_inum: actor.netns_inum,
+                    _pad3: 0,
+                },
+                0,
+            )
+            .is_err()
         {
             count_ring_drop(DROP_SLOT_FILE);
         }
     }
     0
 }
-
 
 /// The writev probe (night-improve-42, the false-negative closer):
 /// vfs_writev hands the program the file being written through the
@@ -129,19 +138,31 @@ pub fn writev_probe(ctx: ProbeContext) -> u32 {
     // map, and the verifier re-proves the whole body at load time.
     unsafe {
         // arg0: struct file * (BTF-verified at attach).
-        let Some(file) = ctx.arg::<u64>(0) else { return 0 };
+        let Some(file) = ctx.arg::<u64>(0) else {
+            return 0;
+        };
         let file = file as usize;
         if file == 0 {
             return 0;
         }
         let Some(o) = read_offset_set() else { return 0 };
 
-        let Some(inode) = read_ptr_at(file, o[OFF_SLOT_FILE_F_INODE as usize]) else { return 0 };
-        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else { return 0 };
+        let Some(inode) = read_ptr_at(file, o[OFF_SLOT_FILE_F_INODE as usize]) else {
+            return 0;
+        };
+        let Some(ino) = read_u64_at(inode, o[OFF_SLOT_INODE_I_INO as usize]) else {
+            return 0;
+        };
         let f_path = file.wrapping_add(o[OFF_SLOT_FILE_F_PATH as usize] as usize);
-        let Some(mnt) = read_ptr_at(f_path, o[OFF_SLOT_PATH_MNT as usize]) else { return 0 };
-        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else { return 0 };
-        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else { return 0 };
+        let Some(mnt) = read_ptr_at(f_path, o[OFF_SLOT_PATH_MNT as usize]) else {
+            return 0;
+        };
+        let Some(sb) = read_ptr_at(mnt, o[OFF_SLOT_VFSMOUNT_MNT_SB as usize]) else {
+            return 0;
+        };
+        let Some(s_dev) = read_u32_at(sb, o[OFF_SLOT_SUPER_BLOCK_S_DEV as usize]) else {
+            return 0;
+        };
 
         let device = device_token_from_kernel(s_dev);
         let key = pack_filter_key(ino, device);
@@ -154,23 +175,24 @@ pub fn writev_probe(ctx: ProbeContext) -> u32 {
         // The identity block (night-frontier-Z8, D5) rides the same
         // record: cgroup id, comm, netns inode.
         let actor = identity::actor_identity(Some(&o));
-        if file_events.output::<FileEvent>(
-            &FileEvent {
-                timestamp_ns: bpf_ktime_get_ns(),
-                op: FILE_OP_WRITEV,
-                _pad: [0; 7],
-                inode: ino,
-                device,
-                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-                _pad2: 0,
-                cgroup_id: actor.cgroup_id,
-                comm: actor.comm,
-                netns_inum: actor.netns_inum,
-                _pad3: 0,
-            },
-            0,
-        )
-        .is_err()
+        if file_events
+            .output::<FileEvent>(
+                &FileEvent {
+                    timestamp_ns: bpf_ktime_get_ns(),
+                    op: FILE_OP_WRITEV,
+                    _pad: [0; 7],
+                    inode: ino,
+                    device,
+                    pid: (bpf_get_current_pid_tgid() >> 32) as u32,
+                    _pad2: 0,
+                    cgroup_id: actor.cgroup_id,
+                    comm: actor.comm,
+                    netns_inum: actor.netns_inum,
+                    _pad3: 0,
+                },
+                0,
+            )
+            .is_err()
         {
             count_ring_drop(DROP_SLOT_FILE);
         }

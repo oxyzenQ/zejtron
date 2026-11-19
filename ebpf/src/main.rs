@@ -467,7 +467,6 @@ pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
     Some(set)
 }
 
-
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {

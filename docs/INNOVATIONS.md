@@ -512,12 +512,63 @@ text 346 -> 653 - the walks became bpf2bpf subprograms), and the
 named residuals stay named: tmpfs/ramfs pages are never clean (an
 mmap write to a memory-backed file stays outside the dirty
 record), vmsplice's direction is flags-dependent, O_PATH peeks
-never reach vfs_open. Pinned by `test/ebpf/btf_offpath_tests.rs`
+never reach vfs_open (and the tmpfs/ramfs residual the dirty-record
+sentence above names is the one night-frontier-Z9 closes - see
+entry 21). Pinned by `test/ebpf/btf_offpath_tests.rs`
 (the ladder's decision law, synthetic), `test/ebpf/btf_corpus_tests.rs`
 (the off-path chains per real dialect), `test/ebpf/estate_tests.rs`
 (the mask verdict), `test/ebpf/cost_tests.rs` (the conscious
 re-pin), and the C77 root leg's live windows (a real mmap store and
 a real splice inside real why windows, the rows demanded by name).
+
+**21. The memory-backed write truth** (night-frontier-Z9, D6;
+`ebpf/src/offpath.rs` (`membacked_fault_probe`), the ladder
+`src/ebpf/btf_offpath.rs` (`verify_membacked_lane_in`), the memfd
+record-verification door `src/ebpf/verify_offpath.rs`
+(`verify_membacked_capability`), the offsets-map slots 22..24,
+[docs/CAMERA-COST.md](CAMERA-COST.md)). The hole: the Z7 estate's
+own named residual - "tmpfs/ramfs files keep no clean page to dirty,
+so an mmap write to a memory-backed file stays outside the record
+class" - was still an attacker's map: `memfd_create` secrets,
+`/dev/shm` staging, any MAP_SHARED store to a memory-backed file
+rendered silence, because the kernel SKIPS the dirty call for
+no-writeback mappings and the two dirty anchors never fire there.
+The close is the fault path itself, the one mechanism such a store
+cannot skip: the shared-write fault funnel is the anchor
+(`fault_dirty_shared_page`, arg0 `vm_fault`, on the 5.15-6.8
+dialects; the surviving `wp_page_shared` arm on the 7.x line, where
+the funnel is inlined past any symbol - the corpus pins the ladder's
+verdict per dialect, ONE program serves both shapes), and the
+probe's gate is the kernel's own registration table read at event
+time: `inode.i_sb.s_type.name` must be `tmpfs` or `ramfs` - data,
+never a compiled guess, and the reason a regular file's fault (which
+crosses the same anchor) stays silent here while the dirty anchor
+records it: one store, one record, whichever class the kernel put
+the file in. The walk (vm_fault.page -> page.mapping ->
+mapping.host -> the tracked_inodes gate, then the class gate) rides
+the three new offsets-map slots 22..24, written explicitly like
+every appended tail; the capability is record-verified at attach
+with a REAL memfd (two store arms: the fresh-mapping store, and the
+read-then-store ride for the write-protection arm), named in the
+attach summary, and a host that cannot demonstrate its own record
+carries the capability named down - the additive lanes' law. The
+named residual narrows honestly: the 7.x line's non-present fault
+arm is inlined past any vouchable symbol, so a FIRST store through a
+fresh PTE there stays outside the record (the write-protection arm
+still sees its faults; the coverage is partial, the corpus pins it,
+and the capability plants only where the memfd door proves it).
+The vocabulary grows append-only (op 10, the row "wrote (mmap
+(memory-backed page))"), the cost contract re-pinned consciously
+(one program, 287 instructions, zero new maps, zero new rings; .text
+547 -> 583). Pinned by `test/ebpf/btf_corpus_tests.rs` (the ladder's
+verdict and the walk chain per REAL dialect), the synthetic ladder
+pins in `test/ebpf/btf_offpath_tests.rs`, the layout pins
+(`test/ebpf/file_events_tests.rs`, the drift law's slots and names
+in `test/ebpf/reverify_tests.rs`, the mask bit in
+`test/ebpf/estate_tests.rs`, the conscious re-pin in
+`test/ebpf/cost_tests.rs`), and the C77 root leg's live memfd window
+(the row demanded by name where the capability proved itself, the
+named-down direction asserted where it did not).
 
 **18. The reproducible release chain** (night-depth-hardening-Z1,
 the cosmostrix D4 lineage; `.github/workflows/reproducible-release.yml`,

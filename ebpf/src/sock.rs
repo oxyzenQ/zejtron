@@ -139,9 +139,7 @@ pub fn inet_sock_set_state(ctx: TracePointContext) -> u32 {
         // namespace number. A zero-cost refusal class: the record's
         // core facts (the transition) never depend on the identity
         // aid.
-        let actor = super::identity::actor_identity(
-            super::read_offset_set().as_ref(),
-        );
+        let actor = super::identity::actor_identity(super::read_offset_set().as_ref());
 
         SockEvent {
             timestamp_ns: bpf_ktime_get_ns(),

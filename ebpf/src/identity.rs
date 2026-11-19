@@ -48,8 +48,8 @@
 
 use super::{read_ptr_at, read_u32_at};
 use crate::events::{
-    OFF_SLOTS, OFF_SLOT_NET_NS, OFF_SLOT_NS_COMMON_INUM, OFF_SLOT_NSPROXY_NET,
-    OFF_SLOT_TASK_NSPROXY,
+    OFF_SLOT_NET_NS, OFF_SLOT_NS_COMMON_INUM, OFF_SLOT_NSPROXY_NET, OFF_SLOT_TASK_NSPROXY,
+    OFF_SLOTS,
 };
 
 /// The actor identity one record carries: the cgroup id, the
@@ -79,8 +79,8 @@ pub(crate) unsafe fn netns_inum_of(task: usize, o: &[u64; OFF_SLOTS as usize]) -
     // BTF-verified offset from the attach-time map; the verifier
     // re-proves the chain at load time.
     unsafe {
-        let Some(nsproxy) = read_ptr_at(task, o[OFF_SLOT_TASK_NSPROXY as usize])
-            .filter(|p| *p != 0)
+        let Some(nsproxy) =
+            read_ptr_at(task, o[OFF_SLOT_TASK_NSPROXY as usize]).filter(|p| *p != 0)
         else {
             return 0;
         };

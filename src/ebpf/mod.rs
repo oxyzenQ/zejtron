@@ -110,6 +110,15 @@ pub const PIN_PROG_IOURING: &str = "/sys/fs/bpf/zejtron/iouring_probe";
 /// The io_uring probe's link pin.
 pub const PIN_LINK_IOURING: &str = "/sys/fs/bpf/zejtron/iouring_probe_link";
 
+/// Program pin - the memory-backed fault probe (night-frontier-Z9,
+/// D6): the shared-write-fault anchor the ladder vouches for
+/// (fault_dirty_shared_page on the floor dialects, the surviving
+/// wp_page_shared arm on the 7.x line), role-named like every
+/// capability pin.
+pub const PIN_PROG_MEMBACKED: &str = "/sys/fs/bpf/zejtron/membacked_probe";
+/// Link pin - the memory-backed fault probe's attachment.
+pub const PIN_LINK_MEMBACKED: &str = "/sys/fs/bpf/zejtron/membacked_probe_link";
+
 /// Link pin - the rename probe's attach link.
 pub const PIN_LINK_RENAME: &str = "/sys/fs/bpf/zejtron/rename_probe_link";
 
@@ -148,13 +157,16 @@ pub const PIN_MAP_GENERATION: &str = "/sys/fs/bpf/zejtron/generation";
 
 /// Every pin the attach lane plants, in removal order (all links
 /// first - unlinking a link detaches its program; programs and maps
-/// last). Twenty-four pins: one link/program pair per probe (the exec
+/// last). Thirty-two pins: one link/program pair per probe (the exec
 /// tracepoint, the sock tracepoint, the five file kprobes - the open
 /// probe, the write probe, the writev probe, and since
 /// night-frontier-2 the unlink and rename probes - and the
-/// post-mortem exit tracepoint) and eight maps (stats, sock_events,
-/// proc_events, tracked_inodes, file_events, offsets, the drop
-/// census, and since night-frontier-Z2 the generation stamp). The exec probe reuses its
+/// post-mortem exit tracepoint, plus the four off-path probes: the
+/// dirty anchor, the splice probe, the io_uring probe, and since
+/// night-frontier-Z9 the memory-backed fault probe) and eight maps
+/// (stats, sock_events, proc_events, tracked_inodes, file_events,
+/// offsets, the drop census, and since night-frontier-Z2 the
+/// generation stamp). The exec probe reuses its
 /// existing pins (the phase-1 program carries the counter, not a new
 /// section). Thirteen through night-improve-3, eighteen from
 /// night-improve-4, thirteen again since night-improve-34, fifteen
@@ -166,8 +178,11 @@ pub const PIN_MAP_GENERATION: &str = "/sys/fs/bpf/zejtron/generation";
 /// night-frontier-Z1: the drop census joined when the rings stopped
 /// dropping in silence, twenty-four from night-frontier-Z2: the
 /// generation stamp joined when the estate had to prove it is this
-/// boot's own camera.
-pub const ALL_PINS: [&str; 30] = [
+/// boot's own camera, twenty-eight from night-frontier-Z7: the
+/// off-path trio's pairs joined when the silent paths became rows,
+/// thirty-two from night-frontier-Z9: the memory-backed fault
+/// probe's pair joined when the tmpfs residual closed.
+pub const ALL_PINS: [&str; 32] = [
     PIN_LINK,
     PIN_LINK_SOCK,
     PIN_LINK_OPEN,
@@ -195,9 +210,11 @@ pub const ALL_PINS: [&str; 30] = [
     PIN_LINK_DIRTY,
     PIN_LINK_SPLICE,
     PIN_LINK_IOURING,
+    PIN_LINK_MEMBACKED,
     PIN_PROG_DIRTY,
     PIN_PROG_SPLICE,
     PIN_PROG_IOURING,
+    PIN_PROG_MEMBACKED,
 ];
 
 /// True when every pin of a complete attach exists. A partial pin set
@@ -226,6 +243,7 @@ pub(crate) fn offpath_pin_bit(pin: &str) -> Option<u64> {
         PIN_PROG_DIRTY | PIN_LINK_DIRTY => Some(estate::OFFPATH_BIT_DIRTY),
         PIN_PROG_SPLICE | PIN_LINK_SPLICE => Some(estate::OFFPATH_BIT_SPLICE),
         PIN_PROG_IOURING | PIN_LINK_IOURING => Some(estate::OFFPATH_BIT_IOURING),
+        PIN_PROG_MEMBACKED | PIN_LINK_MEMBACKED => Some(estate::OFFPATH_BIT_MEMBACKED),
         _ => None,
     }
 }

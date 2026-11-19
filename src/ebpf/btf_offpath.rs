@@ -189,3 +189,89 @@ pub fn verify_iouring_lane_in(data: &[u8]) -> Result<Option<IouringLane>, String
         )),
     }
 }
+
+// ── The memory-backed lane (night-frontier-Z9, D6) ──────────────────
+//
+// The off-path write truth's third rung: mmap stores on memory-backed
+// files (tmpfs/ramfs; memfd_create rides tmpfs's superblock class)
+// never reach either dirty anchor - the Z7 estate's own named
+// residual, the largest forensic gap the ledger carried. The kernel's
+// own reason closes it: a shared write fault IS the event (the store
+// enters the kernel through the fault path, the one mechanism that
+// cannot be skipped), and the fault path's funnel is a vouchable
+// symbol on the floor dialects.
+
+/// The memory-backed anchor symbols, in preference order, with the
+/// struct each vouches for as arg0. The census
+/// (test/ebpf/btf_corpus_tests.rs's memory-backed pins) froze the
+/// span: fault_dirty_shared_page - the shared-write funnel, both
+/// fault arms - vouches on the 5.15-6.8 dialects; on the 7.x line it
+/// is inlined past any symbol, and the surviving wp_page_shared arm
+/// (arg0 = vm_fault, the same context shape) carries the
+/// write-protection arm - a PARTIAL coverage the attach summary and
+/// the docs name, never a guess. One program rides whichever symbol
+/// the ladder vouches (the writev probe's attach-symbol precedent:
+/// the section types the program, the attach selects the event).
+const MEMBACKED_LADDER: [(&str, &str); 2] = [
+    ("fault_dirty_shared_page", "vm_fault"),
+    ("wp_page_shared", "vm_fault"),
+];
+
+/// The verified memory-backed lane: the anchor symbol to attach and
+/// the three walk offsets the probe reads beyond the core set (the
+/// vm_fault.page hop, the superblock's s_type hop, and the
+/// filesystem-type name pointer the class gate reads through).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MemBackedLane {
+    pub anchor: &'static str,
+    /// struct vm_fault, member page.
+    pub vm_fault_page_offset: u64,
+    /// struct super_block, member s_type.
+    pub sb_type_offset: u64,
+    /// struct file_system_type, member name.
+    pub fst_name_offset: u64,
+}
+
+/// Verify the memory-backed lane from the host's own BTF (the pure
+/// verifier seam). `Ok(None)` names the capability down (no
+/// vouchable shared-write-fault symbol in this kernel's BTF - the
+/// additive lanes' law: the camera stands, the class is named);
+/// `Ok(Some(lane))` vouches for the anchor and its whole walk chain;
+/// an Err refuses the capability hard (a present anchor whose shape
+/// moved, or a present anchor whose walk chain cannot be vouched -
+/// both are the guess class).
+pub fn verify_membacked_lane_in(data: &[u8]) -> Result<Option<MemBackedLane>, String> {
+    let ctx = BtfFile::new(data)?;
+    for (symbol, want_arg0) in MEMBACKED_LADDER {
+        let Some(func) = ctx.find_func(symbol) else {
+            continue;
+        };
+        let struct_name = ctx.func_arg0_struct(func, symbol)?;
+        if struct_name != want_arg0 {
+            return Err(format!(
+                "{symbol}'s first argument is struct {struct_name}, not struct \
+                 {want_arg0} - the symbol exists but its shape moved; refusing \
+                 rather than guessing"
+            ));
+        }
+        let vm_fault = ctx
+            .find_struct("vm_fault")
+            .ok_or_else(|| "struct vm_fault not found in BTF".to_owned())?;
+        let vm_fault_page = super::btf::member_offset(&ctx, vm_fault, "vm_fault", "page")?;
+        let super_block = ctx
+            .find_struct("super_block")
+            .ok_or_else(|| "struct super_block not found in BTF".to_owned())?;
+        let sb_type = super::btf::member_offset(&ctx, super_block, "super_block", "s_type")?;
+        let fst = ctx
+            .find_struct("file_system_type")
+            .ok_or_else(|| "struct file_system_type not found in BTF".to_owned())?;
+        let fst_name = super::btf::member_offset(&ctx, fst, "file_system_type", "name")?;
+        return Ok(Some(MemBackedLane {
+            anchor: symbol,
+            vm_fault_page_offset: vm_fault_page,
+            sb_type_offset: sb_type,
+            fst_name_offset: fst_name,
+        }));
+    }
+    Ok(None)
+}

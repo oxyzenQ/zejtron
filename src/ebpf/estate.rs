@@ -76,6 +76,10 @@ pub const GEN_SLOT_OFFPATH: u32 = 3;
 pub const OFFPATH_BIT_DIRTY: u64 = 1;
 pub const OFFPATH_BIT_SPLICE: u64 = 2;
 pub const OFFPATH_BIT_IOURING: u64 = 4;
+/// The memory-backed write truth's bit (night-frontier-Z9, D6): the
+/// shared-write-fault anchor planted and record-verified - the
+/// tmpfs/ramfs/memfd mmap-store class the Z7 residual named.
+pub const OFFPATH_BIT_MEMBACKED: u64 = 8;
 /// The map's slot count (the BPF side's max_entries, hardcoded
 /// beside the map). Userspace-only by design - the readers name the
 /// slots by constant and never need the count; the scoped allow is
@@ -292,6 +296,11 @@ pub fn mask_consistency_verdict(
             OFFPATH_BIT_IOURING,
             super::PIN_PROG_IOURING,
             super::PIN_LINK_IOURING,
+        ),
+        (
+            OFFPATH_BIT_MEMBACKED,
+            super::PIN_PROG_MEMBACKED,
+            super::PIN_LINK_MEMBACKED,
         ),
     ] {
         let both_pins = pin_present(program_pin) && pin_present(link_pin);

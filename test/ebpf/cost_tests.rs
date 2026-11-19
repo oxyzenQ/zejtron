@@ -21,7 +21,7 @@ use crate::ebpf::cost;
 /// The pinned instruction table: one row per program section, the
 /// shared helper text separate. Sorted by section name (the walker's
 /// own order), frozen.
-const PROGRAM_PINS: [(&str, usize); 11] = [
+const PROGRAM_PINS: [(&str, usize); 12] = [
     // night-frontier-Z7 (D4), the conscious re-pin: the off-path
     // trio rides the same cost contract - the folio-shape dirty
     // anchor is a 4-instruction stub over the shared subprogram
@@ -52,7 +52,19 @@ const PROGRAM_PINS: [(&str, usize); 11] = [
     // where" riding every record without a cross-lookup - and the
     // rings grew with it (the file ring doubled, the conscious
     // re-pin below).
+    // night-frontier-Z9 (D6), the conscious re-pin: the memory-backed
+    // rung joins the camera - ONE new program (287 instructions,
+    // inline-always like every walk in this crate: the vm_fault.page
+    // hop, the mapping descent, the tracked gate, the class gate, and
+    // the registered-filesystem-name read through the kernel's own
+    // string helper). The shared text grew 547 -> 583 because the
+    // fs-name classification is shared by nothing - it is the probe's
+    // own tail; the .text growth rides the string helper's call
+    // framing the compiler laid down beside the identity fill. The
+    // price of closing the tmpfs/ramfs/memfd residual: one probe, 287
+    // instructions, zero new maps, zero new rings.
     ("kprobe/__set_page_dirty_nobuffers", 225),
+    ("kprobe/fault_dirty_shared_page", 287),
     ("kprobe/filemap_dirty_folio", 211),
     ("kprobe/vfs_open", 225),
     ("kprobe/vfs_rename", 21),
@@ -65,7 +77,7 @@ const PROGRAM_PINS: [(&str, usize); 11] = [
     ("tracepoint/sock/inet_sock_set_state", 261),
 ];
 
-const SHARED_TEXT_PIN: usize = 547;
+const SHARED_TEXT_PIN: usize = 583;
 
 /// The kernel-side ring contract: three bounded rings - the file
 /// events ring at 512 KiB (night-frontier-Z8, D5's conscious re-pin:

@@ -44,6 +44,7 @@ pub(crate) fn raw_section(parts: &lane::LaneParts) -> String {
                 crate::ebpf::events::FILE_OP_RENAME => "rename",
                 crate::ebpf::events::FILE_OP_WRITEV => "write (writev)",
                 crate::ebpf::events::FILE_OP_MMAP_DIRTY => "write (mmap dirty page)",
+                crate::ebpf::events::FILE_OP_MMAP_MEMBACKED => "write (mmap memory-backed page)",
                 crate::ebpf::events::FILE_OP_SPLICE_IN => "splice (into)",
                 crate::ebpf::events::FILE_OP_SPLICE_OUT => "splice (out of)",
                 crate::ebpf::events::FILE_OP_IO_URING_WRITE => "write (io_uring)",

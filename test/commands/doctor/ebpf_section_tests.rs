@@ -157,9 +157,11 @@ fn pins_row_lists_every_pin_in_planting_order() {
             "dirty_probe_link",
             "splice_probe_link",
             "iouring_probe_link",
+            "membacked_probe_link",
             "dirty_probe",
             "splice_probe",
-            "iouring_probe"
+            "iouring_probe",
+            "membacked_probe"
         ]
     );
 }

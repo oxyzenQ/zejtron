@@ -301,6 +301,36 @@ pub fn attach() -> Result<String, String> {
             None
         }
     };
+    // The memory-backed lane (night-frontier-Z9, D6): the shared-
+    // write-fault anchor ladder and its walk chain, from the same
+    // BTF blob. ADDITIVE like every off-path lane: a host whose BTF
+    // carries no vouchable arm names the capability down and plants
+    // nothing for it.
+    let membacked_lane = match super::btf_offpath::verify_membacked_lane_in(&btf_data) {
+        Ok(Some(lane)) => {
+            vlog!(
+                "btf",
+                "memory-backed anchor verified from BTF: {anchor} (vm_fault.page {page}, \
+                 super_block.s_type {sb_type}, file_system_type.name {fst_name})",
+                anchor = lane.anchor,
+                page = lane.vm_fault_page_offset,
+                sb_type = lane.sb_type_offset,
+                fst_name = lane.fst_name_offset
+            );
+            Some(lane)
+        }
+        Ok(None) => {
+            vlog!(
+                "btf",
+                "memory-backed capability named down (no vouchable shared-write-fault arm in this kernel's BTF)"
+            );
+            None
+        }
+        Err(error) => {
+            vlog!("btf", "memory-backed capability named down: {error}");
+            None
+        }
+    };
 
     // 1.8. The mount prerequisites (night-improve-61): the tracepoint
     //      attaches resolve through tracefs and the pins live on
@@ -396,6 +426,7 @@ pub fn attach() -> Result<String, String> {
         writev_symbol,
         dirty_anchor.as_ref(),
         iouring_lane.as_ref().filter(|_| iouring_seated),
+        membacked_lane.as_ref(),
     );
     match attach_result {
         Ok(()) => {
@@ -410,6 +441,7 @@ pub fn attach() -> Result<String, String> {
                 offpath_offsets.as_ref(),
                 iouring_lane.as_ref().filter(|_| iouring_seated),
                 &identity_offsets,
+                membacked_lane.as_ref(),
             ) {
                 return Err(fail(e));
             }
@@ -439,10 +471,12 @@ pub fn attach() -> Result<String, String> {
             let dirty_planted = dirty_anchor.is_some() && offpath_offsets.is_some();
             let splice_planted = true; // the sys_enter anchor is the core write probe's own
             let iouring_planted = iouring_lane.is_some() && iouring_seated;
+            let membacked_planted = membacked_lane.is_some();
             let verdict = super::verify_offpath::verify_offpath_probes(
                 dirty_planted,
                 splice_planted,
                 iouring_planted,
+                membacked_planted,
             )
             .map_err(fail)?;
             super::estate::write_offpath_mask(verdict.mask).map_err(fail)?;

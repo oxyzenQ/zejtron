@@ -28,12 +28,13 @@ use super::events::{
     OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_UNLINK_DENTRY_ARG,
 };
 use super::{
-    PIN_LINK, PIN_LINK_DIRTY, PIN_LINK_EXIT, PIN_LINK_IOURING, PIN_LINK_OPEN, PIN_LINK_RENAME,
-    PIN_LINK_SOCK, PIN_LINK_SPLICE, PIN_LINK_UNLINK, PIN_LINK_WRITE, PIN_LINK_WRITEV,
-    PIN_MAP_DROP_CENSUS, PIN_MAP_FILE_EVENTS, PIN_MAP_GENERATION, PIN_MAP_OFFSETS,
+    PIN_LINK, PIN_LINK_DIRTY, PIN_LINK_EXIT, PIN_LINK_IOURING, PIN_LINK_MEMBACKED, PIN_LINK_OPEN,
+    PIN_LINK_RENAME, PIN_LINK_SOCK, PIN_LINK_SPLICE, PIN_LINK_UNLINK, PIN_LINK_WRITE,
+    PIN_LINK_WRITEV, PIN_MAP_DROP_CENSUS, PIN_MAP_FILE_EVENTS, PIN_MAP_GENERATION, PIN_MAP_OFFSETS,
     PIN_MAP_PROC_EVENTS, PIN_MAP_SOCK_EVENTS, PIN_MAP_STATS, PIN_MAP_TRACKED_INODES, PIN_PROG,
-    PIN_PROG_DIRTY, PIN_PROG_EXIT, PIN_PROG_IOURING, PIN_PROG_OPEN, PIN_PROG_RENAME, PIN_PROG_SOCK,
-    PIN_PROG_SPLICE, PIN_PROG_UNLINK, PIN_PROG_WRITE, PIN_PROG_WRITEV,
+    PIN_PROG_DIRTY, PIN_PROG_EXIT, PIN_PROG_IOURING, PIN_PROG_MEMBACKED, PIN_PROG_OPEN,
+    PIN_PROG_RENAME, PIN_PROG_SOCK, PIN_PROG_SPLICE, PIN_PROG_UNLINK, PIN_PROG_WRITE,
+    PIN_PROG_WRITEV,
 };
 use crate::output::verbose::vlog;
 
@@ -156,6 +157,14 @@ pub(super) const IOURING_PROGRAM: &str = "iouring_probe";
 pub(super) const IOURING_TRACEPOINT_CATEGORY: &str = "io_uring";
 pub(super) const IOURING_TRACEPOINT_EVENT: &str = "io_uring_submit_sqe";
 
+/// The memory-backed probe's program name (night-frontier-Z9, D6) -
+/// the ELF symbol in ebpf/src/offpath.rs. The ATTACH symbol is not a
+/// constant: it is the memory-backed ladder's verdict
+/// (btf_offpath.rs: fault_dirty_shared_page preferred, the surviving
+/// wp_page_shared arm the verified fallback), the attach-symbol
+/// sibling of the writev law.
+pub(super) const MEMBACKED_PROGRAM: &str = "membacked_fault_probe";
+
 /// The tracked_inodes filter map name in the probe object.
 pub(super) const MAP_TRACKED_INODES: &str = "tracked_inodes";
 
@@ -186,6 +195,7 @@ pub(super) fn plant(
     writev_symbol: &str,
     dirty: Option<&super::btf_offpath::DirtyAnchor>,
     iouring: Option<&super::btf_offpath::IouringLane>,
+    membacked: Option<&super::btf_offpath::MemBackedLane>,
 ) -> Result<(), String> {
     plant_tracepoint(
         bpf,
@@ -288,6 +298,24 @@ pub(super) fn plant(
             "io_uring capability named down (no vouchable io_kiocb.file in this kernel's BTF or no tracepoint seat)"
         );
     }
+    // The memory-backed rung (night-frontier-Z9, D6): the ladder's
+    // verified anchor plants the one fault-funnel program; a host
+    // whose BTF carries no vouchable arm names the capability down -
+    // the additive lanes' own law, the camera stands.
+    if let Some(lane) = membacked {
+        plant_kprobe(
+            bpf,
+            MEMBACKED_PROGRAM,
+            lane.anchor,
+            PIN_PROG_MEMBACKED,
+            PIN_LINK_MEMBACKED,
+        )?;
+    } else {
+        vlog!(
+            "engine",
+            "memory-backed capability named down (no vouchable shared-write-fault arm in this kernel's BTF)"
+        );
+    }
     bpf.take_map(MAP_STATS)
         .ok_or_else(|| format!("the probe object carries no '{MAP_STATS}' map"))?
         .pin(PIN_MAP_STATS)
@@ -351,6 +379,7 @@ pub(super) fn write_offsets(
     offpath: Option<&super::btf_offpath::OffPathOffsets>,
     iouring: Option<&super::btf_offpath::IouringLane>,
     identity: &btf::IdentityOffsets,
+    membacked: Option<&super::btf_offpath::MemBackedLane>,
 ) -> Result<(), String> {
     vlog!(
         "engine",
@@ -439,6 +468,28 @@ pub(super) fn write_offsets(
         map.set(slot, &value, 0)
             .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
     }
+    // The memory-backed walk slots (night-frontier-Z9, D6), by their
+    // own constants: the vm_fault.page hop, the superblock's s_type
+    // hop, and the filesystem-type name pointer the class gate reads
+    // through. They ride only when the ladder verified; a named-down
+    // capability leaves the slots zero, and its program is never
+    // attached (the io_uring lane's own shape).
+    if let Some(lane) = membacked {
+        for (slot, value) in [
+            (
+                super::events::OFF_SLOT_VM_FAULT_PAGE,
+                lane.vm_fault_page_offset,
+            ),
+            (
+                super::events::OFF_SLOT_SUPER_BLOCK_S_TYPE,
+                lane.sb_type_offset,
+            ),
+            (super::events::OFF_SLOT_FS_TYPE_NAME, lane.fst_name_offset),
+        ] {
+            map.set(slot, &value, 0)
+                .map_err(|e| format!("offsets[{slot}] write failed: {e}"))?;
+        }
+    }
     Ok(())
 }
 
@@ -453,6 +504,7 @@ pub(super) fn unplant_offpath_capability(bit: u64) -> Result<usize, String> {
         super::estate::OFFPATH_BIT_DIRTY => &[PIN_PROG_DIRTY, PIN_LINK_DIRTY],
         super::estate::OFFPATH_BIT_SPLICE => &[PIN_PROG_SPLICE, PIN_LINK_SPLICE],
         super::estate::OFFPATH_BIT_IOURING => &[PIN_PROG_IOURING, PIN_LINK_IOURING],
+        super::estate::OFFPATH_BIT_MEMBACKED => &[PIN_PROG_MEMBACKED, PIN_LINK_MEMBACKED],
         _ => return Err(format!("unknown off-path capability bit {bit}")),
     };
     let mut removed = 0usize;

@@ -18,6 +18,11 @@
 //!   submitted through raw io_uring_setup/io_uring_enter (no
 //!   liburing - the syscalls are the ABI), and the drained ring must
 //!   carry op=9 back.
+//! - memory-backed (night-frontier-Z9, D6): a real memfd is tracked
+//!   and two real stores cross its MAP_SHARED mapping - the fresh-
+//!   mapping store (the non-present fault arm) and the read-then-
+//!   store ride (the write-protection arm) - and the drained ring
+//!   must carry op=10 back.
 //!
 //! THE NAMED-DOWN LAW: a verification failure does NOT refuse the
 //! attach - the core camera's five probes stand on their own, and a
@@ -42,8 +47,12 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use super::estate::{OFFPATH_BIT_DIRTY, OFFPATH_BIT_IOURING, OFFPATH_BIT_SPLICE};
-use super::events::{FILE_OP_IO_URING_WRITE, FILE_OP_MMAP_DIRTY, FILE_OP_SPLICE_IN};
+use super::estate::{
+    OFFPATH_BIT_DIRTY, OFFPATH_BIT_IOURING, OFFPATH_BIT_MEMBACKED, OFFPATH_BIT_SPLICE,
+};
+use super::events::{
+    FILE_OP_IO_URING_WRITE, FILE_OP_MMAP_DIRTY, FILE_OP_MMAP_MEMBACKED, FILE_OP_SPLICE_IN,
+};
 use super::plant::unplant_offpath_capability;
 use super::ringbuf::drain_file_events;
 use super::tracked::{track_file, untrack_file};
@@ -68,6 +77,7 @@ pub fn verify_offpath_probes(
     dirty: bool,
     splice: bool,
     iouring: bool,
+    membacked: bool,
 ) -> Result<OffPathVerdict, String> {
     let mut mask = 0u64;
     let mut named_down = Vec::new();
@@ -100,6 +110,15 @@ pub fn verify_offpath_probes(
             Err(error) => {
                 unplant_offpath_capability(OFFPATH_BIT_IOURING)?;
                 named_down.push(format!("io_uring named down: {error}"));
+            }
+        }
+    }
+    if membacked {
+        match verify_membacked_capability() {
+            Ok(()) => mask |= OFFPATH_BIT_MEMBACKED,
+            Err(error) => {
+                unplant_offpath_capability(OFFPATH_BIT_MEMBACKED)?;
+                named_down.push(format!("memory-backed named down: {error}"));
             }
         }
     }
@@ -393,5 +412,152 @@ fn verify_iouring_once(probe: &Path) -> Result<(), String> {
         }
     }
     drop(file);
+    Ok(())
+}
+
+// ── The memory-backed action (night-frontier-Z9, D6): real stores ────
+// ── through MAP_SHARED mappings of a real memfd, both fault arms ────
+
+/// One memory-backed verification door: a real memfd (tmpfs's own
+/// anonymous superblock class), tracked by its own (inode, device),
+/// two real store arms fired against it, and the drained ring must
+/// carry op=10 back. The two arms cover the ladder's dialect split:
+/// the fresh-mapping store rides the NON-PRESENT fault arm (the
+/// funnel's own arm on the 5.15-6.8 dialects), and the read-then-
+/// store ride forces a write-PROTECTION fault (the arm
+/// wp_page_shared serves on the 7.x line, where fault-around mapped
+/// the page read-only into the writable mapping). A host where
+/// neither arm produces a record cannot demonstrate the capability -
+/// the named-down shape, never a guess. Mirrors verify_capability's
+/// fail protocol: the memfd's key is untracked on every leg of every
+/// retry, the fd closed and the mapping torn down on every exit.
+fn verify_membacked_capability() -> Result<(), String> {
+    // SAFETY: memfd_create(2) through libc::syscall (the ABI's own
+    // number, 319 on x86_64 - the same constant the musl and gnu
+    // libc crates pin); the returned fd is checked and owned to the
+    // end of the door.
+    let fd = unsafe { libc::syscall(libc::SYS_memfd_create, c"zejtron-verify".as_ptr(), 0u32) };
+    if fd < 0 {
+        let err = std::io::Error::last_os_error();
+        return Err(format!("memfd_create(2) failed: {err}"));
+    }
+    let fd = fd as i32;
+    // SAFETY: ftruncate(2) sizes the memfd to one page - the mapping
+    // below cannot run past EOF (the mmap-dirty door's own law).
+    if unsafe { libc::ftruncate(fd, 4096) } != 0 {
+        let err = std::io::Error::last_os_error();
+        // SAFETY: closing the fd this door owns is the fail protocol;
+        // a memfd has no kernel-visible aliases.
+        let _ = unsafe { libc::close(fd) };
+        return Err(format!("the memfd ftruncate failed: {err}"));
+    }
+    // SAFETY: zeroed libc::stat is the syscall's own output shape -
+    // every byte the kernel does not write stays zero, no valid
+    // address is built from it.
+    let mut stat: libc::stat = unsafe { std::mem::zeroed() };
+    // SAFETY: fstat(2) reads the memfd's own (inode, device) - the
+    // identity the tracked_inodes gate and the probe's s_dev walk
+    // must agree on (device_token_from_stat is the same converter
+    // the file lanes ride).
+    if unsafe { libc::fstat(fd, &mut stat) } != 0 {
+        let err = std::io::Error::last_os_error();
+        // SAFETY: closing the fd this door owns is the fail protocol;
+        // a memfd has no kernel-visible aliases.
+        let _ = unsafe { libc::close(fd) };
+        return Err(format!("the memfd fstat failed: {err}"));
+    }
+    let inode = stat.st_ino;
+    let device = device_token_from_stat(stat.st_dev);
+    let deadline = Instant::now() + Duration::from_millis(400);
+    let result = loop {
+        track_file(inode, device)?;
+        let push = membacked_action(fd);
+        if let Err(error) = push {
+            let _ = untrack_file(inode, device);
+            break Err(format!("the memory-backed action failed: {error}"));
+        }
+        let drained = match drain_file_events() {
+            Ok(events) => events,
+            Err(error) => {
+                let _ = untrack_file(inode, device);
+                break Err(format!(
+                    "the memory-backed verification drain failed: {error}"
+                ));
+            }
+        };
+        if drained.iter().any(|event| {
+            event.inode == inode && event.device == device && event.op == FILE_OP_MMAP_MEMBACKED
+        }) {
+            let _ = untrack_file(inode, device);
+            break Ok(());
+        }
+        if Instant::now() > deadline {
+            let _ = untrack_file(inode, device);
+            break Err(format!(
+                "the probe stayed silent for its own memory-backed action \
+                 (memfd inode {inode:#x} tracked, no op={FILE_OP_MMAP_MEMBACKED} record \
+                 drained) - the capability cannot demonstrate its own record"
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    // SAFETY: closing the fd this door owns; the memfd's mappings are
+    // already torn down inside the action.
+    let _ = unsafe { libc::close(fd) };
+    result
+}
+
+/// The two real store arms, fired per attempt: the fresh-mapping
+/// store (the non-present arm) and the read-then-store ride (the
+/// write-protection arm fault-around prepared). Every mapping is
+/// torn down before the action returns; a failure names itself.
+fn membacked_action(fd: i32) -> Result<(), String> {
+    // SAFETY: two mappings of one real page-sized memfd this process
+    // owns (MAP_SHARED, the stores are plain byte writes into the
+    // mapped ranges); every return is checked, every mapping is
+    // unmapped on every path, the fd outlives both mappings. The
+    // read fault before the second store is what arms the
+    // write-protection path on fault-around kernels.
+    unsafe {
+        // Arm A: the fresh mapping's first store - the non-present
+        // fault arm the funnel serves directly.
+        let ptr_a = libc::mmap(
+            std::ptr::null_mut(),
+            4096,
+            libc::PROT_WRITE,
+            libc::MAP_SHARED,
+            fd,
+            0,
+        );
+        if ptr_a == libc::MAP_FAILED {
+            return Err("mmap(MAP_SHARED, PROT_WRITE) failed on the memfd".to_owned());
+        }
+        let bytes_a = std::slice::from_raw_parts_mut(ptr_a.cast::<u8>(), 1);
+        bytes_a[0] = 0x5a;
+        if libc::munmap(ptr_a, 4096) != 0 {
+            return Err("munmap failed on the memfd arm-A mapping".to_owned());
+        }
+        // Arm B: read fault first (fault-around may map the page
+        // read-only into this writable mapping), then the store - the
+        // write-protection arm wp_page_shared serves on the 7.x line.
+        let ptr_b = libc::mmap(
+            std::ptr::null_mut(),
+            4096,
+            libc::PROT_READ | libc::PROT_WRITE,
+            libc::MAP_SHARED,
+            fd,
+            0,
+        );
+        if ptr_b == libc::MAP_FAILED {
+            return Err("mmap(MAP_SHARED, PROT_READ|PROT_WRITE) failed on the memfd".to_owned());
+        }
+        let probe_bytes = std::slice::from_raw_parts(ptr_b.cast::<u8>(), 1);
+        let _touched = probe_bytes[0];
+        let bytes_b = std::slice::from_raw_parts_mut(ptr_b.cast::<u8>(), 1);
+        bytes_b[0] = 0xa5;
+        if libc::munmap(ptr_b, 4096) != 0 {
+            return Err("munmap failed on the memfd arm-B mapping".to_owned());
+        }
+    }
     Ok(())
 }

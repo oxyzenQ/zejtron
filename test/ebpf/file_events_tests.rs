@@ -53,6 +53,11 @@ fn op_numbering_is_open_write_unlink_writev_rename() {
     // The rename probe (night-frontier-2): the movement half of the
     // forensic pair, the old dentry's identity in the record.
     assert_eq!(FILE_OP_RENAME, 5);
+    // The memory-backed rung (night-frontier-Z9, D6): the op the
+    // shared-write-fault anchor publishes for tmpfs/ramfs/memfd mmap
+    // stores, rendered "write (mmap memory-backed page)" on the raw
+    // lane and "wrote (mmap (memory-backed page))" in the ledger row.
+    assert_eq!(FILE_OP_MMAP_MEMBACKED, 10);
 }
 
 #[test]
@@ -150,7 +155,14 @@ fn offsets_slots_are_frozen_then_appended() {
     assert_eq!(OFF_SLOT_NSPROXY_NET, 19);
     assert_eq!(OFF_SLOT_NET_NS, 20);
     assert_eq!(OFF_SLOT_NS_COMMON_INUM, 21);
-    assert_eq!(OFF_SLOTS, 22);
+    // The memory-backed walk slots (night-frontier-Z9, D6): the
+    // vm_fault.page hop, the superblock's s_type hop, and the
+    // filesystem-type name pointer the class gate reads, appended at
+    // the tail - the append-only law holds.
+    assert_eq!(OFF_SLOT_VM_FAULT_PAGE, 22);
+    assert_eq!(OFF_SLOT_SUPER_BLOCK_S_TYPE, 23);
+    assert_eq!(OFF_SLOT_FS_TYPE_NAME, 24);
+    assert_eq!(OFF_SLOTS, 25);
 }
 
 // ── night-frontier-Z1, the drop-census slots ────────────────────────

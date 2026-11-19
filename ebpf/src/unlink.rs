@@ -50,10 +50,10 @@
 // it; this one refuses instead of anchoring wrong).
 
 use aya_ebpf::{
+    EbpfContext,
     helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns},
     macros::kprobe,
     programs::ProbeContext,
-    EbpfContext,
 };
 
 // The kprobe context's argument-register offsets: struct pt_regs, the
@@ -74,12 +74,12 @@ const PT_REGS_RSI: usize = 104;
 const PT_REGS_RDI: usize = 112;
 
 use super::{read_offset_set, read_ptr_at, read_u32_at, read_u64_at};
-use crate::{file_events, tracked_inodes};
 use crate::events::{
-    device_token_from_kernel, pack_filter_key, FileEvent, FILE_OP_RENAME, FILE_OP_UNLINK,
-    OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_INODE_I_INO, OFF_SLOT_INODE_I_SB,
-    OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_UNLINK_DENTRY_ARG,
+    FILE_OP_RENAME, FILE_OP_UNLINK, FileEvent, OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_INODE_I_INO,
+    OFF_SLOT_INODE_I_SB, OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_SUPER_BLOCK_S_DEV,
+    OFF_SLOT_UNLINK_DENTRY_ARG, device_token_from_kernel, pack_filter_key,
 };
+use crate::{file_events, tracked_inodes};
 
 /// The shared identity walk: from the dentry in hand to the
 /// (inode, device) pair the filter map keys on - dentry->d_inode for
@@ -118,7 +118,9 @@ unsafe fn publish_if_tracked(dentry: usize, op: u8) {
     // verifier re-proves the whole body at load time.
     unsafe {
         let Some(o) = read_offset_set() else { return };
-        let Some((ino, device)) = identity_of(dentry, &o) else { return };
+        let Some((ino, device)) = identity_of(dentry, &o) else {
+            return;
+        };
         let key = pack_filter_key(ino, device);
         if tracked_inodes.get(&key).is_none() {
             return;
@@ -132,23 +134,24 @@ unsafe fn publish_if_tracked(dentry: usize, op: u8) {
         // probes. The identity block (night-frontier-Z8, D5) rides
         // the same record: cgroup id, comm, netns inode.
         let actor = super::identity::actor_identity(Some(&o));
-        if file_events.output::<FileEvent>(
-            &FileEvent {
-                timestamp_ns: bpf_ktime_get_ns(),
-                op,
-                _pad: [0; 7],
-                inode: ino,
-                device,
-                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-                _pad2: 0,
-                cgroup_id: actor.cgroup_id,
-                comm: actor.comm,
-                netns_inum: actor.netns_inum,
-                _pad3: 0,
-            },
-            0,
-        )
-        .is_err()
+        if file_events
+            .output::<FileEvent>(
+                &FileEvent {
+                    timestamp_ns: bpf_ktime_get_ns(),
+                    op,
+                    _pad: [0; 7],
+                    inode: ino,
+                    device,
+                    pid: (bpf_get_current_pid_tgid() >> 32) as u32,
+                    _pad2: 0,
+                    cgroup_id: actor.cgroup_id,
+                    comm: actor.comm,
+                    netns_inum: actor.netns_inum,
+                    _pad3: 0,
+                },
+                0,
+            )
+            .is_err()
         {
             super::count_ring_drop(crate::events::DROP_SLOT_FILE);
         }
@@ -253,8 +256,7 @@ pub fn rename_probe(ctx: ProbeContext) -> u32 {
         if renamedata == 0 {
             return 0;
         }
-        let Some(dentry) =
-            read_ptr_at(renamedata, o[OFF_SLOT_RENAMEDATA_OLD_DENTRY as usize])
+        let Some(dentry) = read_ptr_at(renamedata, o[OFF_SLOT_RENAMEDATA_OLD_DENTRY as usize])
         else {
             return 0;
         };

@@ -136,11 +136,12 @@ fn the_missing_stamp_reads_as_a_named_refusal() {
 
 #[test]
 fn the_mask_bits_are_distinct_and_total() {
-    // Three capabilities, three bits, no overlap - the presence
+    // Four capabilities, four bits, no overlap - the presence
     // law's whole vocabulary.
     assert_eq!(OFFPATH_BIT_DIRTY, 1);
     assert_eq!(OFFPATH_BIT_SPLICE, 2);
     assert_eq!(OFFPATH_BIT_IOURING, 4);
+    assert_eq!(OFFPATH_BIT_MEMBACKED, 8);
     assert_ne!(OFFPATH_BIT_DIRTY & OFFPATH_BIT_SPLICE, 1);
 }
 
@@ -151,7 +152,7 @@ fn the_mask_verdict_demands_pins_for_every_claimed_bit() {
     // set with no claimed bit refuses the same way (an orphan the
     // named-down unplant failed to take down).
     let absent = |pin: &str| -> bool { pin.ends_with("nothing") };
-    let mask = OFFPATH_BIT_DIRTY | OFFPATH_BIT_SPLICE | OFFPATH_BIT_IOURING;
+    let mask = OFFPATH_BIT_DIRTY | OFFPATH_BIT_SPLICE | OFFPATH_BIT_IOURING | OFFPATH_BIT_MEMBACKED;
     let error = mask_consistency_verdict(mask, &absent).expect_err("claims without pins refuse");
     assert!(error.contains("disagrees with the pins"), "{error}");
 

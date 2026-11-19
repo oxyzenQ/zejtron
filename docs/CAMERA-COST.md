@@ -26,6 +26,7 @@ instruction is 8 bytes. The derivation harness prints this table
 | program (its attach hook) | instructions |
 | --- | --- |
 | `kprobe/__set_page_dirty_nobuffers` (D4, the page-shape dirty anchor) | 225 |
+| `kprobe/fault_dirty_shared_page` (D6, the memory-backed fault anchor) | 287 |
 | `kprobe/filemap_dirty_folio` (D4, the folio-shape dirty anchor) | 211 |
 | `kprobe/vfs_open` | 225 |
 | `kprobe/vfs_rename` | 21 |
@@ -36,9 +37,9 @@ instruction is 8 bytes. The derivation harness prints this table
 | `tracepoint/sched/sched_process_exec` | 12 |
 | `tracepoint/sched/sched_process_exit` | 75 |
 | `tracepoint/sock/inet_sock_set_state` | 261 |
-| programs total | **2869** |
-| `.text` (shared helper text) | 547 |
-| **the whole camera** | **3416** |
+| programs total | **3156** |
+| `.text` (shared helper text) | 583 |
+| **the whole camera** | **3739** |
 
 night-frontier-Z7 (D4) re-pinned the table consciously: the off-path
 trio rides the same cost contract - the mmap-dirty truth, the splice
@@ -63,7 +64,19 @@ publish tail lives in .text, which grew 382 -> 547 for the same
 fill. The price of "who did this, and from where" riding every
 record without a cross-lookup.
 
-For scale: a 3416-instruction camera is still a few microseconds of
+night-frontier-Z9 (D6) re-pinned the table consciously a third time:
+the memory-backed rung joins the camera - ONE new program, 287
+instructions, zero new maps, zero new rings. The probe carries the
+whole memory-backed walk inline (the vm_fault.page hop, the mapping
+descent, the tracked_inodes gate, and the class gate: the
+superblock's registered filesystem name, read through the kernel's
+own string helper at event time - "tmpfs"/"ramfs" is the memory-
+backed class, data never a compiled guess). The shared text grew
+547 -> 583 for the string-read framing beside the identity fill.
+The price of closing the tmpfs/ramfs/memfd residual: 287
+instructions, bounded by questions like every walk before it.
+
+For scale: a 3739-instruction camera is still a few microseconds of
 work per event. The tool that watches your files - INCLUDING the
 silent paths no other tool sees, now NAMING who acted and from
 which container - costs less bytecode than two screens of C.

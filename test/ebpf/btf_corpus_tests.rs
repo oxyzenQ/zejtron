@@ -366,3 +366,105 @@ fn the_offpath_derivation_harness() {
         println!("dirty anchor: {}", anchor.symbol);
     }
 }
+
+// ── night-frontier-Z9, D6: the memory-backed chain per dialect ───────
+
+#[test]
+fn the_memory_backed_chains_derive_per_dialect() {
+    // The memory-backed write truth's own corpus lock: the anchor
+    // ladder's verdict and the three walk offsets
+    // (vm_fault.page / super_block.s_type / file_system_type.name),
+    // derived from every committed blob. The census's frozen story:
+    // the shared-write funnel fault_dirty_shared_page vouches on the
+    // 5.15-6.8 dialects (both fault arms behind one symbol); on the
+    // 7.x line it is inlined past any symbol and the surviving
+    // wp_page_shared arm carries the capability - the partial
+    // coverage the attach summary names. vm_fault.page re-packs
+    // exactly once across the span (72 -> 80, the 6.1 growth),
+    // super_block.s_type re-packs on the 7.x line (40 -> 56), and
+    // file_system_type.name stays at 0 (the type's FIRST member) in
+    // every dialect - the dentry.d_inode-at-48 stability class.
+    let pinned: [(&str, &str, u64, u64, u64); 5] = [
+        (
+            "5.15.0-25-generic.btf",
+            "fault_dirty_shared_page",
+            72,
+            40,
+            0,
+        ),
+        ("6.1.0-50-amd64.btf", "fault_dirty_shared_page", 80, 40, 0),
+        (
+            "6.6.95-060695-generic.btf",
+            "fault_dirty_shared_page",
+            80,
+            40,
+            0,
+        ),
+        ("6.8.0-31-generic.btf", "fault_dirty_shared_page", 80, 40, 0),
+        ("7.3.3-1-cachyos.btf", "wp_page_shared", 80, 56, 0),
+    ];
+    for (dialect, want) in CORPUS.iter().zip(pinned.iter()) {
+        assert_eq!(dialect.blob, want.0, "the pin table rides the corpus order");
+        let data = corpus_btf(dialect.blob);
+        let lane = crate::ebpf::btf_offpath::verify_membacked_lane_in(&data)
+            .unwrap_or_else(|e| {
+                panic!(
+                    "{} must vouch for the memory-backed lane: {e}",
+                    dialect.blob
+                )
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "{} must carry a vouchable shared-write-fault arm",
+                    dialect.blob
+                )
+            });
+        assert_eq!(lane.anchor, want.1, "{} memory-backed anchor", dialect.blob);
+        assert_eq!(
+            lane.vm_fault_page_offset, want.2,
+            "{} vm_fault.page",
+            dialect.blob
+        );
+        assert_eq!(
+            lane.sb_type_offset, want.3,
+            "{} super_block.s_type",
+            dialect.blob
+        );
+        assert_eq!(
+            lane.fst_name_offset, want.4,
+            "{} file_system_type.name",
+            dialect.blob
+        );
+    }
+    // The version story, pinned as narrative: the funnel serves the
+    // four GA/mainline dialects, the wp arm carries the 7.x line,
+    // and vm_fault.page re-packed exactly once (the 5.15 -> 6.1
+    // growth) - a parser pinned to one era misreads another.
+    assert_eq!(pinned[0].2, 72, "5.15 rides the smaller vm_fault");
+    assert_eq!(pinned[1].2, 80, "6.1 grew vm_fault");
+    assert_eq!(
+        pinned[4].1, "wp_page_shared",
+        "the 7.x line rides the wp arm"
+    );
+}
+
+#[test]
+fn the_memory_backed_derivation_harness() {
+    // The derivation harness (the corpus table's own shape): prints
+    // every number a new dialect pins. Run with --nocapture.
+    for dialect in &CORPUS {
+        let data = corpus_btf(dialect.blob);
+        let lane = crate::ebpf::btf_offpath::verify_membacked_lane_in(&data)
+            .expect("the committed dialect derives");
+        println!("=== {} ===", dialect.blob);
+        match lane {
+            Some(lane) => {
+                println!("anchor: {}", lane.anchor);
+                println!("vm_fault.page: {}", lane.vm_fault_page_offset);
+                println!("super_block.s_type: {}", lane.sb_type_offset);
+                println!("file_system_type.name: {}", lane.fst_name_offset);
+            }
+            None => println!("memory-backed capability named down (no vouchable arm)"),
+        }
+    }
+}

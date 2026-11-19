@@ -44,6 +44,51 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z9 D6, the memory-backed write truth (the
+  tmpfs/ramfs/memfd residual closes).** The Z7 estate's own named
+  residual was still an attacker's map: an mmap store to a
+  memory-backed file (`memfd_create` secrets, `/dev/shm` staging)
+  rendered silence, because the kernel skips the dirty call for
+  no-writeback mappings and neither dirty anchor ever fires there.
+  The close rides the fault path itself, the one mechanism such a
+  store cannot skip: the shared-write fault funnel is the anchor
+  (`fault_dirty_shared_page`, arg0 `vm_fault`, on the 5.15-6.8
+  dialects; the surviving `wp_page_shared` arm on the 7.x line,
+  where the funnel is inlined past any symbol - the corpus pins the
+  ladder's verdict per dialect, and ONE program serves both shapes,
+  the writev probe's attach-symbol precedent), and the probe's gate
+  is the kernel's own registration table read at event time:
+  `inode.i_sb.s_type.name` must be `tmpfs` or `ramfs` - data, never
+  a compiled guess, and the reason a regular file's fault (which
+  crosses the same anchor) stays silent here while the dirty anchor
+  records it: one store, one record, whichever class the kernel put
+  the file in. The walk (vm_fault.page -> page.mapping ->
+  mapping.host -> the tracked_inodes gate, then the class gate)
+  rides the offsets map's three appended slots (22..24:
+  vm_fault.page 72 -> 80 across the span, super_block.s_type 40 ->
+  56 on the 7.x line, file_system_type.name at 0 in every dialect -
+  the corpus pins the whole chain per REAL dialect). The capability
+  is record-verified at attach with a REAL memfd (two store arms:
+  the fresh-mapping store, the non-present fault arm; the
+  read-then-store ride, the write-protection arm), named in the
+  attach summary, and a host that cannot demonstrate its own record
+  carries the capability named down - the additive lanes' law. The
+  named residual narrows honestly: the 7.x line's non-present fault
+  arm is inlined past any vouchable symbol, so a FIRST store through
+  a fresh PTE there stays outside the record (the write-protection
+  arm still sees its faults; the coverage is partial, the corpus
+  pins it, and the capability plants only where the memfd door
+  proves it). The vocabulary grows append-only (op 10, the row
+  "wrote (mmap (memory-backed page))", the raw lane "write (mmap
+  memory-backed page)"), the capability mask gains bit 8, the pin
+  estate grows to thirty-two pins (membacked_probe +
+  membacked_probe_link), and the cost contract re-pinned
+  consciously: one program, 287 instructions, zero new maps, zero
+  new rings (.text 547 -> 583 for the string-read framing). The
+  C77 root leg carries the live memfd window, mask-aware in both
+  directions: the row demanded by name where the capability proved
+  itself, the named-down direction asserted where it did not.
+
 - **night-frontier-Z8 D5, the actor identity in every record
   (comm + cgroup + netns).** The records carried `pid` - a number
   that answers nothing on its own - and the file rows resolved the

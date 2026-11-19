@@ -217,3 +217,126 @@ fn the_offpath_parse_refuses_without_a_dirty_shape() {
         "the refusal names the missing shape: {error}"
     );
 }
+
+// ── The memory-backed lane's ladder law (night-frontier-Z9, D6) ─────
+
+use crate::ebpf::btf_offpath::verify_membacked_lane_in;
+
+/// A blob carrying the memory-backed lane's full shape: the anchor
+/// FUNC (arg0 = vm_fault when `anchor` rides, a wrong-shaped struct
+/// when `wrong_arg0` names one), and - when `with_chain` - the
+/// vm_fault.page / super_block.s_type / file_system_type.name chain
+/// the walk reads. The TypeWriter's sequential ids: int=1, then the
+/// structs in call order.
+fn membacked_blob(anchor: Option<&str>, arg0_struct: &str, with_chain: bool) -> Vec<u8> {
+    let mut w = TypeWriter::new();
+    let mut s = StrTab::new();
+    w.int(&mut s, "int"); // id 1 - the return type
+    if with_chain {
+        w.strukt(&mut s, "vm_fault", 128, &[("page", 80 * 8)]); // id 2
+        w.strukt(&mut s, "super_block", 512, &[("s_type", 40 * 8)]); // id 3
+        w.strukt(&mut s, "file_system_type", 64, &[("name", 0)]); // id 4
+        let vmf_ptr = w.ptr(2);
+        let proto = w.peek_id();
+        w.func_proto(&mut s, 1, &[("vmf", vmf_ptr), ("folio", 0)]);
+        w.func(
+            &mut s,
+            anchor.expect("an anchor rides a chained blob"),
+            proto,
+        );
+        return build_btf(w, s);
+    }
+    w.strukt(&mut s, arg0_struct, 128, &[("the_field", 8 * 8)]); // id 2
+    let arg0_ptr = w.ptr(2);
+    let proto = w.peek_id();
+    w.func_proto(&mut s, 1, &[("vmf", arg0_ptr), ("folio", 0)]);
+    w.func(&mut s, anchor.expect("an anchor rides a bare blob"), proto);
+    build_btf(w, s)
+}
+
+#[test]
+fn the_memory_backed_funnel_is_the_primary_rung() {
+    // fault_dirty_shared_page with a vouched vm_fault arg0 and the
+    // whole walk chain: the lane vouches, the funnel rides.
+    let blob = membacked_blob(Some("fault_dirty_shared_page"), "vm_fault", true);
+    let lane = verify_membacked_lane_in(&blob)
+        .expect("the chain parses")
+        .expect("the funnel rung vouches");
+    assert_eq!(lane.anchor, "fault_dirty_shared_page");
+    assert_eq!(lane.vm_fault_page_offset, 80);
+    assert_eq!(lane.sb_type_offset, 40);
+    assert_eq!(lane.fst_name_offset, 0);
+}
+
+#[test]
+fn the_memory_backed_ladder_falls_to_the_wp_arm() {
+    // No funnel symbol: the 7.x line's surviving wp_page_shared arm
+    // carries the capability (the same vm_fault context shape).
+    let mut w = TypeWriter::new();
+    let mut s = StrTab::new();
+    w.int(&mut s, "int");
+    w.strukt(&mut s, "vm_fault", 128, &[("page", 80 * 8)]);
+    w.strukt(&mut s, "super_block", 512, &[("s_type", 56 * 8)]);
+    w.strukt(&mut s, "file_system_type", 64, &[("name", 0)]);
+    let vmf_ptr = w.ptr(2);
+    let proto = w.peek_id();
+    w.func_proto(&mut s, 1, &[("vmf", vmf_ptr), ("folio", 0)]);
+    w.func(&mut s, "wp_page_shared", proto);
+    let blob = build_btf(w, s);
+    let lane = verify_membacked_lane_in(&blob)
+        .expect("the chain parses")
+        .expect("the wp arm vouches");
+    assert_eq!(lane.anchor, "wp_page_shared");
+    assert_eq!(lane.sb_type_offset, 56);
+}
+
+#[test]
+fn a_moved_memory_backed_anchor_refuses_hard() {
+    // The funnel's name exists and arg0 points at the wrong struct -
+    // the loud refusal, never a silent fallthrough to the next rung.
+    let blob = membacked_blob(Some("fault_dirty_shared_page"), "inode", false);
+    let error = verify_membacked_lane_in(&blob).expect_err("the moved shape refuses");
+    assert!(
+        error.contains("shape moved"),
+        "the refusal names the moved contract: {error}"
+    );
+}
+
+#[test]
+fn no_memory_backed_rung_names_the_capability_down() {
+    // Neither anchor under any name: Ok(None) - the named-down shape
+    // (the camera stands, the class is named, never guessed).
+    let mut w = TypeWriter::new();
+    let mut s = StrTab::new();
+    w.int(&mut s, "int");
+    w.strukt(&mut s, "page", 128, &[("mapping", 24 * 8)]);
+    let blob = build_btf(w, s);
+    assert!(
+        verify_membacked_lane_in(&blob)
+            .expect("the absent anchors are Ok")
+            .is_none()
+    );
+}
+
+#[test]
+fn a_memory_backed_chain_missing_the_class_gate_refuses_hard() {
+    // The anchor vouches but the superblock's s_type hop is gone -
+    // the walk chain cannot be vouched: the loud refusal for the
+    // capability, never a zero-offset guess.
+    let mut w = TypeWriter::new();
+    let mut s = StrTab::new();
+    w.int(&mut s, "int");
+    w.strukt(&mut s, "vm_fault", 128, &[("page", 80 * 8)]);
+    w.strukt(&mut s, "super_block", 512, &[("s_dev", 16 * 8)]);
+    w.strukt(&mut s, "file_system_type", 64, &[("name", 0)]);
+    let vmf_ptr = w.ptr(2);
+    let proto = w.peek_id();
+    w.func_proto(&mut s, 1, &[("vmf", vmf_ptr), ("folio", 0)]);
+    w.func(&mut s, "fault_dirty_shared_page", proto);
+    let blob = build_btf(w, s);
+    let error = verify_membacked_lane_in(&blob).expect_err("the missing hop refuses");
+    assert!(
+        error.contains("no member s_type"),
+        "the refusal names the missing hop: {error}"
+    );
+}

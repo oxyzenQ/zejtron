@@ -297,6 +297,32 @@ hard way:
   corpus - and the ladder's verdict: 5.15 rides the page shape,
   every folio-era dialect rides filemap_dirty_folio).
 
+- **The memory-backed write truth (night-frontier-Z9, D6).** The
+  residual the off-path truth carried - tmpfs/ramfs files keep no
+  clean page to dirty, so their mmap writes rendered silence - is
+  closed through the fault path, the one mechanism a MAP_SHARED
+  store cannot skip. The anchor is the shared-write fault funnel
+  (`fault_dirty_shared_page`, arg0 `vm_fault`, on the 5.15-6.8
+  dialects; the surviving `wp_page_shared` arm on the 7.x line,
+  where the funnel is inlined past any symbol - the corpus pins the
+  ladder's verdict per dialect and ONE program serves both shapes),
+  and the class gate reads the superblock's registered filesystem
+  name at event time (`inode.i_sb.s_type.name` must be `tmpfs` or
+  `ramfs` - the kernel's own registration table, never a compiled
+  guess; a regular file's fault crosses the same anchor and stays
+  silent here, the dirty anchor's record instead). Record-verified
+  at attach with a real memfd (the fresh-mapping store and the
+  read-then-store ride, both fault arms), named in the attach
+  summary, named down where the host cannot demonstrate its own
+  record. The narrowed residual: the 7.x line's non-present fault
+  arm is inlined past any vouchable symbol, so a FIRST store through
+  a fresh PTE there stays outside the record (the write-protection
+  arm still sees its faults; the coverage is partial, the corpus
+  pins it, and the capability plants only where the memfd door
+  proves it). The vocabulary rides op 10, the row "wrote (mmap
+  (memory-backed page))"; the cost contract re-pinned consciously -
+  one program, 287 instructions, zero new maps, zero new rings.
+
 - **The pre-attach past.** The camera starts at attach. What
   crossed the kernel before the attach is unreachable by this lane,
   and the surfaces that care say so through their fallback ladder

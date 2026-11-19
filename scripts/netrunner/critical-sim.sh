@@ -713,6 +713,55 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 			fail "off-path live window: a real splice renders the into row" \
 				"actor rc=$op_rc: $(grep -E 'write|splice|unknown' "$SCRATCH/offpath-splice.out" | head -2 | tr '\n' ' ')"
 		fi
+
+		# The memory-backed live window (night-frontier-Z9, D6): the
+		# actor creates a REAL memfd, publishes its /proc/self/fd path
+		# through the control file, and fires two real MAP_SHARED
+		# stores once the window is watching (the fresh-mapping store,
+		# the non-present fault arm; the read-then-store ride, the
+		# write-protection arm). The why window tracks the memfd's own
+		# (inode, device) through the /proc path - the same identity
+		# the probe's s_dev walk computes. MASK-AWARE, both directions
+		# honest: a host whose attach carried the memory-backed
+		# capability MUST render the row; a host where the capability
+		# was named down must NOT render one (a row without the
+		# capability would be the exact lie the estate refuses).
+		if printf '%s' "${offpath_label:-}" | grep -q "memory-backed"; then
+			ctl="$SCRATCH/memfd-ctl"
+			: >"$ctl"
+			"$SCRATCH/offpath-actor" memfd "$ctl" &
+			memfd_pid=$!
+			memfd_path=""
+			for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+				if [ -s "$ctl" ]; then
+					memfd_path="$(head -1 "$ctl" | cut -d' ' -f1)"
+					[ -n "$memfd_path" ] && break
+				fi
+				sleep 0.1
+			done
+			if [ -n "$memfd_path" ] && [ -d "/proc/$memfd_pid" ]; then
+				: >"$SCRATCH/memfd-why.out"
+				timeout 20 "$BIN" why "$memfd_path" --since 5s --raw \
+					>"$SCRATCH/memfd-why.out" 2>"$SCRATCH/memfd-why.err" &
+				memfd_why=$!
+				sleep 0.5
+				echo go >>"$ctl"
+				wait "$memfd_why" || true
+				kill -9 "$memfd_pid" 2>/dev/null || true
+				wait "$memfd_pid" 2>/dev/null || true
+				if grep -q "write (mmap memory-backed page)" "$SCRATCH/memfd-why.out"; then
+					pass "memory-backed live window: a real memfd store renders the memory-backed row"
+				else
+					fail "memory-backed live window: a real memfd store renders the memory-backed row" \
+						"the attach carried the capability ($(head -1 "$SCRATCH/attach.out" 2>/dev/null | cut -c1-80)...): $(grep -E 'write|unknown' "$SCRATCH/memfd-why.out" | head -2 | tr '\n' ' ')"
+				fi
+			else
+				fail "memory-backed live window: the actor never published its memfd path" \
+					"the capability is claimed but the seat could not drive it (ctl=$(cat "$ctl" 2>/dev/null | head -1))"
+			fi
+		else
+			note "memory-backed live window: the capability was named down on this host - the attach summary carries the reason, and the row must not exist"
+		fi
 	elif [ "$attach_ok" = "1" ]; then
 		note "off-path live windows skipped (no cc on this seat) - the attach's record verification carried the proof"
 	fi

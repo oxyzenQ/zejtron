@@ -236,6 +236,7 @@ fn collect_live(
             // the false-negative reborn one layer up - the exact
             // gap these ops exist to close.
             || event.op == crate::ebpf::events::FILE_OP_MMAP_DIRTY
+            || event.op == crate::ebpf::events::FILE_OP_MMAP_MEMBACKED
             || event.op == crate::ebpf::events::FILE_OP_SPLICE_IN
             || event.op == crate::ebpf::events::FILE_OP_IO_URING_WRITE;
         // And the forensic pair (op=3 / op=5, night-frontier-2): the
@@ -448,6 +449,9 @@ fn event_kind(op: u8) -> EvidenceKind {
         // WHICH silent path carried the bytes.
         crate::ebpf::events::FILE_OP_MMAP_DIRTY => EvidenceKind::Wrote {
             via: Some("mmap (dirty page)"),
+        },
+        crate::ebpf::events::FILE_OP_MMAP_MEMBACKED => EvidenceKind::Wrote {
+            via: Some("mmap (memory-backed page)"),
         },
         crate::ebpf::events::FILE_OP_SPLICE_IN => EvidenceKind::Wrote {
             via: Some("splice (into)"),

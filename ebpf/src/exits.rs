@@ -40,7 +40,7 @@ use aya_ebpf::{
     programs::TracePointContext,
 };
 
-use crate::events::{ProcExitEvent, PROCEXIT_EVENT_BYTES};
+use crate::events::{PROCEXIT_EVENT_BYTES, ProcExitEvent};
 
 // The compile-time layout pin on the BPF side: the exit record the
 // ring carries is exactly 32 bytes (the SockEvent size, the same
@@ -81,7 +81,9 @@ pub fn sched_process_exit(_ctx: TracePointContext) -> u32 {
     // process's leader). The helper zeroes the buffer and writes
     // the NUL-terminated name; a failed read drops the record - a
     // passive tracepoint never fails.
-    let Ok(comm) = bpf_get_current_comm() else { return 0 };
+    let Ok(comm) = bpf_get_current_comm() else {
+        return 0;
+    };
     // night-frontier-Z1: a failed reservation counts in the drop
     // census (the proc_events slot), never silent - the post-mortem
     // lane's drain names how many exits the camera saw but the ring

@@ -127,7 +127,7 @@ fn fd_walk_slots_are_the_offsets_map_contract() {
     );
     assert_eq!(
         crate::ebpf::events::OFF_SLOTS,
-        crate::ebpf::events::OFF_SLOT_NS_COMMON_INUM + 1
+        crate::ebpf::events::OFF_SLOT_FS_TYPE_NAME + 1
     );
     assert_eq!(
         std::mem::size_of::<crate::ebpf::btf::ProbeOffsets>() / std::mem::size_of::<u64>(),

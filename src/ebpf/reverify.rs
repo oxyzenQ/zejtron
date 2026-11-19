@@ -53,9 +53,10 @@ use aya::maps::{Array, Map, MapData};
 
 use super::estate;
 use super::events::{
-    OFF_SLOT_ADDR_SPACE_HOST, OFF_SLOT_IO_KIOCB_FILE, OFF_SLOT_NET_NS, OFF_SLOT_NS_COMMON_INUM,
-    OFF_SLOT_NSPROXY_NET, OFF_SLOT_PAGE_MAPPING, OFF_SLOT_RENAMEDATA_OLD_DENTRY,
-    OFF_SLOT_TASK_NSPROXY, OFF_SLOT_UNLINK_DENTRY_ARG, OFF_SLOTS,
+    OFF_SLOT_ADDR_SPACE_HOST, OFF_SLOT_FS_TYPE_NAME, OFF_SLOT_IO_KIOCB_FILE, OFF_SLOT_NET_NS,
+    OFF_SLOT_NS_COMMON_INUM, OFF_SLOT_NSPROXY_NET, OFF_SLOT_PAGE_MAPPING,
+    OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_SUPER_BLOCK_S_TYPE, OFF_SLOT_TASK_NSPROXY,
+    OFF_SLOT_UNLINK_DENTRY_ARG, OFF_SLOT_VM_FAULT_PAGE, OFF_SLOTS,
 };
 use super::{PIN_MAP_OFFSETS, btf, btf_offpath, btf_unlink};
 
@@ -64,15 +65,17 @@ use super::{PIN_MAP_OFFSETS, btf, btf_offpath, btf_unlink};
 /// the class, never the prose.
 pub const OFFSETS_DRIFT: &str = "offsets drift at the drain boundary";
 
-/// The twenty-two slots the re-derivation covers, in events.rs
+/// The twenty-five slots the re-derivation covers, in events.rs
 /// OFF_SLOT_* order: the thirteen core struct offsets the attach
 /// trace (src/ebpf/loader.rs's OFF_TRACE) names, the two anchor
 /// slots the symbol walk resolves, the three off-path slots
-/// night-frontier-Z7 appends, and the four identity-walk slots
-/// night-frontier-Z8 appends at the tail (the append-only law: the
-/// legacy indices never renumber). A slot's name is the refusal's
-/// own word for the slot - `struct member` for the byte offsets,
-/// the position/offset phrasing for the two anchors.
+/// night-frontier-Z7 appends, the four identity-walk slots
+/// night-frontier-Z8 appends at the tail, and the three
+/// memory-backed-walk slots night-frontier-Z9 appends after them
+/// (the append-only law: the legacy indices never renumber). A
+/// slot's name is the refusal's own word for the slot - `struct
+/// member` for the byte offsets, the position/offset phrasing for
+/// the two anchors.
 const SLOT_NAMES: [&str; OFF_SLOTS as usize] = [
     "dentry.d_inode",
     "inode.i_ino",
@@ -96,6 +99,9 @@ const SLOT_NAMES: [&str; OFF_SLOTS as usize] = [
     "nsproxy.net_ns",
     "net.ns",
     "ns_common.inum",
+    "vm_fault.page",
+    "super_block.s_type",
+    "file_system_type.name",
 ];
 
 /// The planted walk table, exactly as the pinned offsets map holds
@@ -149,6 +155,17 @@ fn derived_offsets() -> Result<[u64; OFF_SLOTS as usize], String> {
         derived[OFF_SLOT_ADDR_SPACE_HOST as usize] = offpath.address_space_host.unwrap_or(0);
         derived[OFF_SLOT_IO_KIOCB_FILE as usize] = offpath.io_kiocb_file.unwrap_or(0);
     }
+    // The memory-backed walk slots (night-frontier-Z9, D6): the same
+    // blob, the memory-backed lane's parse. A host whose BTF cannot
+    // vouch for an arm derives zeros - which is exactly what a
+    // named-down capability's planted slots hold, so the compare
+    // below stays honest in both directions (a planted capability
+    // whose chain MOVED still refuses by slot).
+    if let Ok(Some(lane)) = btf_offpath::verify_membacked_lane_in(&data) {
+        derived[OFF_SLOT_VM_FAULT_PAGE as usize] = lane.vm_fault_page_offset;
+        derived[OFF_SLOT_SUPER_BLOCK_S_TYPE as usize] = lane.sb_type_offset;
+        derived[OFF_SLOT_FS_TYPE_NAME as usize] = lane.fst_name_offset;
+    }
     // The identity-walk slots (night-frontier-Z8, D5): the same blob,
     // the identity parse - a HARD member of the derive (identity is
     // core: the attach boundary refused without it, so an estate that
@@ -187,6 +204,12 @@ fn drift_slot(
                 Some(estate::OFFPATH_BIT_DIRTY)
             }
             slot if slot == OFF_SLOT_IO_KIOCB_FILE as usize => Some(estate::OFFPATH_BIT_IOURING),
+            slot if slot == OFF_SLOT_VM_FAULT_PAGE as usize
+                || slot == OFF_SLOT_SUPER_BLOCK_S_TYPE as usize
+                || slot == OFF_SLOT_FS_TYPE_NAME as usize =>
+            {
+                Some(estate::OFFPATH_BIT_MEMBACKED)
+            }
             _ => None,
         };
         if let Some(bit) = bit

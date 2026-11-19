@@ -56,16 +56,16 @@ use aya_ebpf::{
 };
 
 use super::{
-    read_ptr_at, read_u32_at, read_u64_at, stats, STATS_ZJW_DROPS, STATS_ZJW_STAGE_BASE,
-    STATS_ZJW_WALKED,
+    STATS_ZJW_DROPS, STATS_ZJW_STAGE_BASE, STATS_ZJW_WALKED, read_ptr_at, read_u32_at, read_u64_at,
+    stats,
+};
+use crate::events::{
+    FILE_OP_WRITE, FileEvent, OFF_SLOT_FDT_FD, OFF_SLOT_FDT_MAX_FDS, OFF_SLOT_FILE_F_INODE,
+    OFF_SLOT_FILE_F_PATH, OFF_SLOT_FILES_FDT, OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_MNT,
+    OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_TASK_FILES, OFF_SLOT_VFSMOUNT_MNT_SB,
+    device_token_from_kernel, pack_filter_key,
 };
 use crate::{file_events, tracked_inodes};
-use crate::events::{
-    device_token_from_kernel, pack_filter_key, FileEvent, FILE_OP_WRITE, OFF_SLOT_FILE_F_INODE,
-    OFF_SLOT_FILE_F_PATH, OFF_SLOT_FDT_FD, OFF_SLOT_FDT_MAX_FDS, OFF_SLOT_FILES_FDT,
-    OFF_SLOT_INODE_I_INO, OFF_SLOT_PATH_MNT, OFF_SLOT_SUPER_BLOCK_S_DEV, OFF_SLOT_TASK_FILES,
-    OFF_SLOT_VFSMOUNT_MNT_SB,
-};
 
 // The sys_enter record layout - the trace-event ABI's own fixed
 // prefix (the sock probe's ctx_offsets class: stable since the
@@ -234,23 +234,24 @@ pub fn write_probe(ctx: TracePointContext) -> u32 {
         // ring), never silent. The identity block (night-frontier-Z8,
         // D5) rides the same record: cgroup id, comm, netns inode.
         let actor = super::identity::actor_identity(Some(&o));
-        if file_events.output::<FileEvent>(
-            &FileEvent {
-                timestamp_ns: bpf_ktime_get_ns(),
-                op: FILE_OP_WRITE,
-                _pad: [0; 7],
-                inode: ino,
-                device,
-                pid: (bpf_get_current_pid_tgid() >> 32) as u32,
-                _pad2: 0,
-                cgroup_id: actor.cgroup_id,
-                comm: actor.comm,
-                netns_inum: actor.netns_inum,
-                _pad3: 0,
-            },
-            0,
-        )
-        .is_err()
+        if file_events
+            .output::<FileEvent>(
+                &FileEvent {
+                    timestamp_ns: bpf_ktime_get_ns(),
+                    op: FILE_OP_WRITE,
+                    _pad: [0; 7],
+                    inode: ino,
+                    device,
+                    pid: (bpf_get_current_pid_tgid() >> 32) as u32,
+                    _pad2: 0,
+                    cgroup_id: actor.cgroup_id,
+                    comm: actor.comm,
+                    netns_inum: actor.netns_inum,
+                    _pad3: 0,
+                },
+                0,
+            )
+            .is_err()
         {
             super::count_ring_drop(crate::events::DROP_SLOT_FILE);
         }
