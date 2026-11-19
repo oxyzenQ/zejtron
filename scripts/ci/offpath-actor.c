@@ -10,13 +10,15 @@
  *   splice - a real pipe is filled and splice(2) moves the bytes into
  *            the file's descriptor (no write(2) crosses);
  *   memfd  - memfd_create(2), the control file carries the memfd's
- *            /proc/self/fd path, the actor waits for "go" in that
- *            file, then two real MAP_SHARED stores cross the memory-
- *            backed mapping: the fresh-mapping store (the non-present
- *            fault arm) and the read-then-store ride (the write-
- *            protection arm). The why window queries the /proc path
- *            the control file names - the tracked_inodes gate keys
- *            on the memfd's own (inode, device).
+ *            /proc/<pid>/fd path (the actor's OWN pid: the why window
+ *            runs in another process, so /proc/self would name the
+ *            reader, not the holder), the actor waits for "go" in
+ *            that file, then two real MAP_SHARED stores cross the
+ *            memory-backed mapping: the fresh-mapping store (the
+ *            non-present fault arm) and the read-then-store ride
+ *            (the write-protection arm). The why window queries the
+ *            /proc path the control file names - the tracked_inodes
+ *            gate keys on the memfd's own (inode, device).
  * Exit codes: 0 = the action ran; 2 = usage; 3 = open failed;
  * 4 = mmap failed; 5 = splice failed; 6 = memfd setup failed;
  * 7 = the memfd mmap failed. The leg greps the why window's
@@ -43,7 +45,7 @@ int main(int argc, char **argv) {
 		int cf = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (cf < 0)
 			return 6;
-		dprintf(cf, "/proc/self/fd/%d\n", mfd);
+		dprintf(cf, "/proc/%d/fd/%d\n", (int)getpid(), mfd);
 		close(cf);
 		int waited = 0;
 		while (waited < 50) {

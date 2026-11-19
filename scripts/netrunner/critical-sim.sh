@@ -754,8 +754,10 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 		fi
 
 		# The memory-backed live window (night-frontier-Z9, D6): the
-		# actor creates a REAL memfd, publishes its /proc/self/fd path
-		# through the control file, and fires two real MAP_SHARED
+		# actor creates a REAL memfd, publishes its /proc/<pid>/fd path
+		# through the control file (the actor's own pid: the why window
+		# runs in another process, so /proc/self would name the reader),
+		# and fires two real MAP_SHARED
 		# stores once the window is watching (the fresh-mapping store,
 		# the non-present fault arm; the read-then-store ride, the
 		# write-protection arm). The why window tracks the memfd's own
