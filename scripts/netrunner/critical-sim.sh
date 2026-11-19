@@ -785,8 +785,8 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 		sleep 2
 		timeout 20 "$BIN" why "$watch_file" --since 10s \
 			>"$SCRATCH/watch-gap.out" 2>"$SCRATCH/watch-gap.err"
-		if grep -q "pre-attach watch gap" "$SCRATCH/watch-gap.out" \
-			&& grep -q "the camera was not watching" "$SCRATCH/watch-gap.out"; then
+		if grep -q "pre-attach watch gap" "$SCRATCH/watch-gap.out" &&
+			grep -q "the camera was not watching" "$SCRATCH/watch-gap.out"; then
 			pass "watch-truth live window: the pre-attach span renders as proof of absence"
 		else
 			fail "watch-truth live window: the pre-attach span renders as proof of absence" \
