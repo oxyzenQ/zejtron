@@ -218,24 +218,14 @@ pub const ALL_PINS: [&str; 32] = [
 /// set reads as NOT attached - `attach` cleans and replants.
 pub fn all_pins_present() -> bool {
     // THE CORE-CAMERA LAW (night-frontier-Z7, restored): the window
-    // paths' presence verdict is the CORE pins' existence, exactly
-    // the pre-D4 semantics - a named-down or inconsistent off-path
-    // capability must NEVER flip the core camera into the log lane
-    // (the C77 root leg caught that live: a mask/pin disagreement
-    // turned every why into an empty log-lane render). The mask
-    // stays the ATTACH boundary's bookkeeping: the idempotence path
-    // runs the mask-consistency verdict by name, and the reverify
-    // reads it to skip the named-down slots. An orphan off-path pin
-    // shows in the doctor's pins row (named), never in this verdict.
-    // The FILTER is the law's whole body: the off-path entries ride
-    // ALL_PINS for the attach boundary, the reverify, and the
-    // doctor, and this verdict must SKIP them - a verdict that ANDs
-    // a Some-classified entry into the same .all() as the core ones
-    // is false on every host that ever named a capability down (the
-    // night-zen-lts-Z CI watch caught that shape live: with the
-    // mmap-dirty anchor named down on the new runner kernel, every
-    // window fell to the snapshot lane and the whole record estate
-    // went silent for a day).
+    // paths' presence verdict is the CORE pins' existence - a
+    // named-down off-path capability must NEVER flip the core camera
+    // into the log lane (the mask stays the attach boundary's
+    // bookkeeping; an orphan off-path pin shows in the doctor's row).
+    // The FILTER is the law's whole body: ANDing a Some-classified
+    // entry into this .all() made the verdict false on every host
+    // that named one capability down - every window fell to the
+    // snapshot lane (night-zen-lts-Z: the record estate silent).
     ALL_PINS
         .iter()
         .filter(|p| offpath_pin_bit(p).is_none())

@@ -692,11 +692,23 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 		"$SCRATCH/offpath-actor" mmap "$op_file"
 		op_rc=$?
 		wait "$op_why" || true
-		if [ "$op_rc" -eq 0 ] && grep -q "write (mmap dirty page)" "$SCRATCH/offpath-mmap.out"; then
-			pass "off-path live window: a real mmap store renders the dirty-page row"
-		else
+		# The mask-aware law (night-zen-lts-Z, the watch-truth
+		# precedent): a row demands the capability PLANTED, and a
+		# named-down capability demands the row's ABSENCE - one
+		# store, one record, whichever class the host serves. A
+		# planted-but-silent run stays a FAIL (the camera must see
+		# the truth it claimed); a named-down run passes by the
+		# label it printed.
+		if [ "$op_rc" -ne 0 ]; then
 			fail "off-path live window: a real mmap store renders the dirty-page row" \
 				"actor rc=$op_rc: $(grep -E 'write|splice|unknown' "$SCRATCH/offpath-mmap.out" | head -2 | tr '\n' ' ')"
+		elif grep -q "write (mmap dirty page)" "$SCRATCH/offpath-mmap.out"; then
+			pass "off-path live window: a real mmap store renders the dirty-page row"
+		elif [[ "${offpath_label:-}" == *dirty* ]]; then
+			fail "off-path live window: a real mmap store renders the dirty-page row" \
+				"the dirty capability is planted (${offpath_label}) but the store rendered no row: $(head -c 220 "$SCRATCH/offpath-mmap.out" | tr '\n' ' ')"
+		else
+			pass "off-path live window: the mmap store rides the named-down dirty capability (${offpath_label:-none named}) - the row's absence is the truth the label serves"
 		fi
 
 		: >"$op_file"

@@ -373,6 +373,43 @@ next run of either lane carries the window's own words as the fact,
 and the record-path era starts from a named mechanism instead of an
 unexplained absence.
 
+### The watch duty, round three: the root cause was one verdict, and it is fixed
+
+The round-two instrument named the mechanism in one run: the fill
+windows rendered `Mode: snapshot (window 8s, journal fallback)` - the
+LIVE LANE never engaged. The camera attached, but the window paths'
+presence verdict refused it, and every why/touch window took the
+snapshot lane: no track, no sleep, no drain, no records, no
+idempotence name - the whole failure signature from ONE gate. The
+verdict is bfae9c5's `all_pins_present()`: its closure ANDed the
+off-path entries into the same `.all()` as the core ones, and any
+Some-classified entry made the whole verdict false - on every host,
+the moment one capability rode named-down. The trigger: the new
+runner kernel names the mmap-dirty anchor down, the 7.3.3 witness
+had long done so, and the D4-era all-pins verdict (92efb17) turned
+every such host's windows into snapshot renders; the bfae9c5 repair
+meant to restore the core law and kept the verdict false forever.
+FIXED: the verdict filters to the core pins before `.all()`, the
+split is pinned by a new test
+(`the_presence_verdict_counts_only_the_core_pins`), and the sim's
+mmap-dirty window check grew the mask-aware law the watch-truth
+check already carries - a row demands the capability PLANTED, a
+named-down label demands the row's ABSENCE, and planted-but-silent
+stays a FAIL. The fix push's board confirmed it end to end: the
+unlink, rename, writev, storm, question-census, and
+loss-certificate legs all returned (90 checks, the failures down
+from fourteen to three), and the three remaining reds are the
+honest dialect questions this audit scopes to the next era: the
+memory-backed capability plants on the runner yet its row did not
+render (both store arms crossed - the non-present fault arm and
+the write-protection ride - so the planted-but-silent question is
+live and carries the render bytes now), and the watch-truth window
+still wants its pre-attach row examined on the new dialect. The
+gate-keepers red this round also caught honestly: the first
+verdict-fix push carried a comment that pushed `src/ebpf/mod.rs`
+past the 600 cap - trimmed in this commit, the file back at
+exactly 600.
+
 ### Honest scope
 
 The sweeps targeted the Z-era delta (source, kernel side, infra);
