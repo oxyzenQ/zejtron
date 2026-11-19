@@ -280,8 +280,33 @@ pinned, and the hermetic fixtures do not consult the new surfaces.
 ### The gates, after
 
 758/758 tests, clippy `-D warnings` clean, `check-all -q` exit 0,
-gate-keepers 21/21, and the three fix commits ride one push whose CI
-board is watched to green.
+gate-keepers 21/21, and the release timing sanity at noise level
+(proc 1-2ms, recent 3ms, doctor 8-9ms across double runs).
+
+### The CI watch, and the two reds it found
+
+The push's board ran to completion: 15 of 17 lanes green (CI, CodeQL
++ triage, Gate-keepers, Miri, Proofs, Reproducible Release, Security
+Audit, Supermassive, Alpine, Container E2E, E2E, Kernel Floor, Docs,
+Fuzz). Two lanes are RED - netrunner-night-C77's root leg and the
+cachyos witness - and both are PRE-EXISTING: the parent commit
+(748b3be, the Z10 landing) shows the identical failures, so this
+audit's four commits ride a board that was already red there. The
+signature is one sentence: on the two newest kernels (the runner's
+updated 24.04 line and the cachyos 7.3.3 VM), the camera ATTACHES
+verified (twelve programs, twelve links, the whole cost contract
+green) and then RECORDS NOTHING - every live window renders zero rows
+(unlink, rename, the write storm, splice, membacked, watch truth),
+the question census syncs 0/64, the drop census stays silent, and the
+attach's own idempotence readback loses its "already attached" name.
+Snapshot surfaces, JSON lanes, cost budgets, the certificate renders,
+and the 5.15 floor's full critical-sim all pass on the same push.
+That is the moving-kernel class the witness estate exists to catch,
+and it is the next era's work: re-digest the new dialects, find what
+moved in the pinned-map readback and the record path, on a host the
+auditor can boot - never a guessed patch from one it cannot. This
+session names the failure precisely and dates it; it does not pretend
+to fix it.
 
 ### Honest scope
 
