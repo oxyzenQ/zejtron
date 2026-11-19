@@ -896,8 +896,23 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 						esac
 					fi
 				done
+				# The windows' own outputs are the next fact (the
+				# improve-55 round law: name the mechanism, one
+				# round, no guessing): three fill outputs and one
+				# fill file's identity ride the failure detail - a
+				# window that exits early (a track refusal, a lane
+				# degrade) prints its reason here instead of
+				# staying an unexplained absence.
+				sample_out=""
+				for n in 1 2 3; do
+					sample_f="$qc_dir/w-$n.out"
+					if [ -r "$sample_f" ]; then
+						sample_out="$sample_out | w-$n: $(head -c 220 "$sample_f" | tr '\n' ' ')"
+					fi
+				done
+				qc_stat=$(stat -c 'ino=%i dev_hex=%D' "$qc_dir/hot-1.bin" 2>/dev/null || true)
 				fail "question census: every fill window reaches its post-track sleep" \
-					"round $round synced $synced/64 within 10s (the seat's calibrated wchan symbol: '${sync_sym:-never-stabilized}'; the windows' observed wchan(s):${observed:- none}) - the fill cannot be trusted, the conservation arithmetic would be fiction"
+					"round $round synced $synced/64 within 10s (the seat's calibrated wchan symbol: '${sync_sym:-never-stabilized}'; the windows' observed wchan(s):${observed:- none}; fill file: ${qc_stat:-unreadable}; window outputs:${sample_out:- none written}) - the fill cannot be trusted, the conservation arithmetic would be fiction"
 				fill_ok=0
 			fi
 			for p in $pids; do

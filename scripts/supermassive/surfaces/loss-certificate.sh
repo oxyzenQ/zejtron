@@ -158,9 +158,16 @@ surface_loss_certificate() {
 		# A window that never shows the post-track sleep is a broken
 		# sync seat, not a slow host - storm into it and the
 		# conservation math would be fiction. Fail by name, reap the
-		# window, clean the attach by hand.
+		# window, clean the attach by hand. The window's own rc and
+		# output ride the failure (the improve-55 round law: name
+		# the mechanism, one round, no guessing) - a window that
+		# exits early prints its reason here instead of staying an
+		# unexplained absence.
+		local why_rc="unreadable" why_out="(no output file)"
+		[[ -r "$SM_SCRATCH/lc-why.rc" ]] && why_rc=$(cat "$SM_SCRATCH/lc-why.rc" 2>/dev/null || echo unreadable)
+		[[ -r "$SM_SCRATCH/lc-why.out" ]] && why_out=$(head -c 220 "$SM_SCRATCH/lc-why.out" 2>/dev/null | tr '\n' ' ' || true)
 		sm_fail "loss-certificate: the window shows its post-track sleep" \
-			"no process holding the storm's path blocked in the calibrated nanosleep wchan '${sync_sym:-never-stabilized}' within 6s - the sync seat is broken, the storm never ran"
+			"no process holding the storm's path blocked in the calibrated nanosleep wchan '${sync_sym:-never-stabilized}' within 6s - the sync seat is broken, the storm never ran (window rc: ${why_rc}; window output: ${why_out:-empty})"
 		wait "$window_pid" 2>/dev/null || true
 		sm_run "$SM_SCRATCH/lc-detach.out" "$SM_SCRATCH/lc-detach.err" rc 20 -- \
 			"$SM_DEFAULT_BIN" doctor --detach

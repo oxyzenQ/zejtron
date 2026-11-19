@@ -351,6 +351,28 @@ The signature splits into two boundary items:
    on the next run if the rename is all that broke them, and the
    record-path proofs will stay red until that era lands.
 
+### The watch duty, round two: the seat heal worked, and named the next fact
+
+The seat-heal push's board re-ran both red lanes and the healed seat
+reported exactly as designed - and its first live report overturned
+the rename theory: the calibration SUCCEEDED on both hosts (the
+symbol is still `hrtimer_nanosleep` - the kernel did not rename it),
+yet zero of the sixty-four fill windows ever showed that sleep state
+within the deadline, and their observed wchan list came back EMPTY.
+The windows are not sleeping where the seat looks for them; the
+windows are either exiting before their window opens (a track
+refusal, a lane degrade - their exit reason has been sitting in the
+fill windows' output files all along, never printed) or blocking
+somewhere the seat does not know. Round two's instrument therefore
+rides in the same commit as this paragraph: when the census or the
+loss-certificate settle fails, the windows' OWN rc and the first
+bytes of their outputs now ride the failure detail (the improve-55
+round law - name the mechanism, one round, no guessing), plus the
+fill file's inode/device identity for the key-packing check. The
+next run of either lane carries the window's own words as the fact,
+and the record-path era starts from a named mechanism instead of an
+unexplained absence.
+
 ### Honest scope
 
 The sweeps targeted the Z-era delta (source, kernel side, infra);
