@@ -663,10 +663,11 @@ grey ladder (bright black on Color16, the theme's own grey), the
 line shares the countdown's bracket grammar and \r clear contract,
 and a piped stderr stays silent - all pinned pure (frame tables,
 style ladder, lazy slot clock) in `test/output/spinner_tests.rs`.
-Zero new dependencies: std threads, one AtomicBool, and tables of
-literals. Pinned by `test/output/spinner_tests.rs` (the
-counter-phase table, the style ladder's truth table, the lazy
-clock's 99/100/199/200 ms boundaries).
+Zero new dependencies: std threads, two AtomicBools (the stop flag
+and the drawn flag the clear rides), and tables of literals. Pinned
+by `test/output/spinner_tests.rs` (the counter-phase table, the
+style ladder's truth table, the lazy clock's 99/100/199/200 ms
+boundaries).
 
 ## How a newcomer reads this tree
 

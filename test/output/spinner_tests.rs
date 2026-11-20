@@ -264,15 +264,18 @@ fn the_inert_spinner_never_draws_and_never_spawns() {
     assert!(super::test_drawn_bytes().is_empty());
 }
 
-/// The finish clear, byte-pinned: the drawn width blanked with
-/// spaces, the cursor parked at column zero - the same clear
-/// grammar the countdown lane pins.
+/// The drawn machine's clear, byte-pinned: the drawn CELL width
+/// blanked with spaces, the cursor parked at column zero - the same
+/// clear grammar the countdown lane pins. The width is the screen
+/// footprint (the bracket prefix's bytes plus the frame's cell
+/// count), not the byte width a braille frame inflates.
 #[test]
-fn the_finish_clear_blanks_the_drawn_width() {
+fn the_drawn_machine_clears_the_cell_width() {
     super::test_clear_drawn();
-    let width = spinner_line("checking for updates", HELIX[0]).len();
+    let width = spinner_line("checking for updates", "").len() + HELIX[0].chars().count();
     let spinner = Spinner {
         stop: Arc::new(AtomicBool::new(false)),
+        drawn: Arc::new(AtomicBool::new(true)),
         handle: None,
         width,
     };
@@ -281,4 +284,39 @@ fn the_finish_clear_blanks_the_drawn_width() {
         super::test_drawn_bytes(),
         format!("\r{}\r", " ".repeat(width))
     );
+}
+
+/// The undrawn machine's silence: an operation that landed inside
+/// the lazy threshold drew nothing, so its finish writes no bytes
+/// at all - the fast path's stderr stays untouched, byte for byte,
+/// the way the countdown's inert machine is silent.
+#[test]
+fn the_undrawn_machine_finishes_without_a_byte() {
+    super::test_clear_drawn();
+    let spinner = Spinner {
+        stop: Arc::new(AtomicBool::new(false)),
+        drawn: Arc::new(AtomicBool::new(false)),
+        handle: None,
+        width: 31,
+    };
+    spinner.finish();
+    assert!(super::test_drawn_bytes().is_empty());
+}
+
+/// The width law at cell granularity: every frame in a table is the
+/// same CELL width, so the clear width is one computation - and the
+/// braille table's cell count is a third of its byte count, the
+/// three-bytes-per-cell fact the clear no longer inflates.
+#[test]
+fn the_frame_tables_are_cell_width_stable() {
+    let tables: [&[&str]; 3] = [&HELIX, &WAVE, &ASCII];
+    for table in tables {
+        let cells: Vec<usize> = table.iter().map(|frame| frame.chars().count()).collect();
+        assert!(
+            cells.iter().all(|c| *c == cells[0]),
+            "the table's cells drift"
+        );
+    }
+    assert_eq!(HELIX[0].chars().count(), 2, "two strands, two cells");
+    assert_eq!(HELIX[0].len(), 6, "braille is three bytes per cell");
 }

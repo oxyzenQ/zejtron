@@ -58,7 +58,13 @@ v11.0.0
   the paint rides the existing grammar-tier grey ladder (bright
   black on a Color16 palette - the theme's own grey, visible on dark
   and light backgrounds alike). The line uses the countdown's
-  bracket grammar, is erased before the verdict prints, and a piped
+  bracket grammar and is erased before the verdict prints - and
+  only when a frame actually landed: a fast path's stderr stays
+  byte-for-byte silent (no frame, no clear bytes), the clear blanks
+  the drawn CELL width (a braille strand is three bytes per cell,
+  and a byte-width clear would overshoot the screen footprint), and
+  the redraw thread sleeps in poll slices so the finish join never
+  adds a whole sleep leg to a fast verdict's latency. A piped
   stderr stays byte-silent. Zero new dependencies (std threads only),
   zero new CLI surface: the machine lives in `src/output/spinner.rs`
   beside the countdown lane, wired into the one indeterminate site,

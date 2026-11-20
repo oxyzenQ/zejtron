@@ -46,7 +46,9 @@
 //!   indistinguishable from a hang, so the lane arms a background
 //!   redrawing thread whose first frame lands only after the
 //!   operation has actually crossed the lazy threshold: a fast path
-//!   never draws, and a slow one shows a DNA helix - two braille
+//!   never draws and its finish erases nothing - the fast path's
+//!   stderr stays byte for byte silent - and a slow one shows a DNA
+//!   helix - two braille
 //!   strands running the same sweep in opposite directions, the two
 //!   anti-parallel streams the metaphor wants (the request out, the
 //!   answer back). The fallbacks are detection, never flags: a
@@ -264,6 +266,14 @@ const LAZY: Duration = Duration::from_millis(100);
 /// a slow fetch's redraw cost is noise.
 const FRAME_PERIOD: Duration = Duration::from_millis(100);
 
+/// The stop-flag poll slice: the redraw thread never sleeps longer
+/// than one slice, so a `finish` that lands mid-sleep joins within
+/// a slice instead of a whole sleep leg. The fast path keeps its
+/// speed (the join adds at most one slice, never the remaining
+/// pre-threshold fraction or a full frame period), and the clear
+/// never lags the verdict.
+const POLL: Duration = Duration::from_millis(25);
+
 /// The braille sweep both helix strands ride: the classic ten-frame
 /// dot walk, one cell wide, clockwise.
 const SWEEP: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -381,11 +391,18 @@ fn frame_slot(elapsed: Duration) -> Option<usize> {
 pub(crate) struct Spinner {
     /// The thread's stop flag: set by `finish`, checked every cycle.
     stop: Arc<AtomicBool>,
+    /// The thread's drawn flag: set before the first frame's write.
+    /// The clear rides this truth - an operation that landed inside
+    /// the lazy threshold drew nothing, so its finish writes no
+    /// bytes at all (the countdown's width-grows-on-draw contract,
+    /// mirrored as a flag).
+    drawn: Arc<AtomicBool>,
     /// The redraw thread, when the gate allowed one.
     handle: Option<JoinHandle<()>>,
-    /// The line width the machine drew (or would draw): the stable
-    /// clear width. Every frame in a table shares one cell width,
-    /// so the width is fixed at arm time.
+    /// The drawn line's CELL width: the bracket prefix's bytes plus
+    /// the frame's cell count (the tables are width-stable, so the
+    /// first frame names it; a braille strand is three bytes per
+    /// cell, and the clear blanks cells, not bytes).
     width: usize,
 }
 
@@ -401,17 +418,20 @@ impl Spinner {
         if !std::io::stderr().is_terminal() {
             return Spinner {
                 stop: Arc::new(AtomicBool::new(false)),
+                drawn: Arc::new(AtomicBool::new(false)),
                 handle: None,
                 width: 0,
             };
         }
         let no_color = std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty());
         let frames = frames_for(no_color, locale().as_deref(), style);
-        // The width law: the tables are width-stable, so the widest
-        // line is the first line.
-        let width = spinner_line(label, frames[0]).len();
+        // The width law: the tables are width-stable, so the first
+        // frame names the line's CELL width.
+        let width = spinner_line(label, "").len() + frames[0].chars().count();
         let stop = Arc::new(AtomicBool::new(false));
+        let drawn = Arc::new(AtomicBool::new(false));
         let flag = Arc::clone(&stop);
+        let thread_drawn = Arc::clone(&drawn);
         let handle = std::thread::spawn(move || {
             let armed = Instant::now();
             let mut drawn_slot: Option<usize> = None;
@@ -422,6 +442,7 @@ impl Spinner {
                 let elapsed = armed.elapsed();
                 if let Some(slot) = frame_slot(elapsed) {
                     if drawn_slot != Some(slot) {
+                        thread_drawn.store(true, Ordering::Relaxed);
                         write_raw(&format!(
                             "\r{}",
                             crate::output::grey_err(&render_slot(label, frames, slot))
@@ -432,31 +453,37 @@ impl Spinner {
                     // the stop flag's next check.
                     let in_slot = (elapsed - LAZY).as_millis() % FRAME_PERIOD.as_millis();
                     let rest = FRAME_PERIOD.as_millis() - in_slot;
-                    std::thread::sleep(Duration::from_millis(rest.max(1) as u64));
+                    std::thread::sleep(Duration::from_millis(rest.max(1) as u64).min(POLL));
                 } else {
-                    // Below the lazy threshold: sleep the remaining
-                    // fraction, then re-check the stop flag.
-                    std::thread::sleep((LAZY - elapsed).min(FRAME_PERIOD));
+                    // Below the lazy threshold: sleep toward it in
+                    // poll slices, so the stop flag's check keeps its
+                    // cadence and a fast operation's join never waits
+                    // out the whole remaining fraction.
+                    std::thread::sleep((LAZY - elapsed).min(POLL));
                 }
             }
         });
         Spinner {
             stop,
+            drawn,
             handle: Some(handle),
             width,
         }
     }
 
     /// Stop the redraw thread and erase the line entirely: the
-    /// drawn width blanked with spaces, the cursor back at column
-    /// zero, before any verdict prints. The join guarantees the
-    /// thread's last write lands before the clear does.
+    /// drawn CELL width blanked with spaces, the cursor back at
+    /// column zero, before any verdict prints. The join guarantees
+    /// the thread's last write lands before the clear does. The
+    /// clear rides the drawn truth: an operation that landed inside
+    /// the lazy threshold never drew, so its finish is byte-silent -
+    /// the fast path's stderr is untouched, byte for byte.
     pub(crate) fn finish(mut self) {
         self.stop.store(true, Ordering::Relaxed);
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
         }
-        if self.width > 0 {
+        if self.drawn.load(Ordering::Relaxed) && self.width > 0 {
             write_raw(&format!("\r{}\r", " ".repeat(self.width)));
         }
     }
