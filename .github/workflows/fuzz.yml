@@ -52,7 +52,7 @@
 # with cadence (7 x 180s = 1260s of fuzzing per target per week) and
 # the old weekly blob bought depth with burn (15 minutes, measured
 # 15-16 minute wall clocks, 2026-11-09) - both retired against the
-# five-minute job law; the weekly slot keeps the same 180-second
+# then-five-minute job law; the weekly slot keeps the same 180-second
 # budget, so the per-target weekly fuzz time drops from 1260s to
 # 180s and the per-push 60-second regression net (every push, every
 # PR) is what carries the depth now. The corpus cache restores the

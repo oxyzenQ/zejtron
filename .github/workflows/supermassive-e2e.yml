@@ -293,7 +293,7 @@ jobs:
     # the universal arm64 baseline - no v3 equivalent, target-cpu=
     # native is the only codegen tier), then runs the low leg
     # host-native against the aarch64 binary. The low leg's 85s wall
-    # budget keeps the job inside the estate's five-minute-per-job
+    # budget keeps the job inside the estate's ten-minute-per-job
     # law on arm64 silicon (slower than x86 but well within budget).
     # The nested eBPF build rides the same bpfel ISA on every host
     # arch (host-arch-independent), and bootstrap-ebpf.sh ships the

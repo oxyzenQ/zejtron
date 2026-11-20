@@ -73,6 +73,10 @@ jobs:
   property:
     name: Proptest exhaustion (4096 cases per law, stable, rootless)
     runs-on: ubuntu-24.04
+    # 15, the generous-lane exception (the reason named): the
+    # cold-cache proof-harness builds dwarf the runs - the measured
+    # greens are 0.4m (proptest), 1.1m (Kani), 0.2m (Loom); the cap
+    # catches a wedged nightly build, never an honest proof.
     timeout-minutes: 15
     env:
       # NIGHT-strict-3: the compile is warning-gated - registry
@@ -111,6 +115,10 @@ jobs:
   kani:
     name: Kani bounded model checking (6 totality theorems, all inputs)
     runs-on: ubuntu-24.04
+    # 15, the generous-lane exception (the reason named): the
+    # cold-cache proof-harness builds dwarf the runs - the measured
+    # greens are 0.4m (proptest), 1.1m (Kani), 0.2m (Loom); the cap
+    # catches a wedged nightly build, never an honest proof.
     timeout-minutes: 15
     env:
       # NIGHT-strict-3: the crate compilation under the kani driver is
@@ -178,6 +186,10 @@ jobs:
   loom-census:
     name: Loom concurrency census (absence guard, signed verdict)
     runs-on: ubuntu-24.04
+    # 15, the generous-lane exception (the reason named): the
+    # cold-cache proof-harness builds dwarf the runs - the measured
+    # greens are 0.4m (proptest), 1.1m (Kani), 0.2m (Loom); the cap
+    # catches a wedged nightly build, never an honest proof.
     timeout-minutes: 15
     steps:
       - name: Checkout

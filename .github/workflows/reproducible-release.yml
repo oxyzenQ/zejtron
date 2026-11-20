@@ -54,6 +54,10 @@ jobs:
   reproducible_build:
     name: Reproducible build (host ${{ matrix.host }})
     runs-on: ubuntu-24.04
+    # 20, the generous-lane exception (the reason named): a release
+    # shape builds from a cold cache (the measured greens were 1.7m
+    # and 1.6m per host) - the cap catches a wedged build, never the
+    # honest pair.
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -125,6 +129,8 @@ jobs:
     name: Reproducible verify (byte identity)
     runs-on: ubuntu-24.04
     needs: [reproducible_build]
+    # 5: the verify step is a byte-compare that lands in seconds
+    # (the measured green was 0.1m); the cap catches a wedged runner.
     timeout-minutes: 5
     steps:
       - name: Download host a artifact

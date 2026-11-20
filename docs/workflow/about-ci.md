@@ -82,7 +82,7 @@ one.
 
 The weekly scheduled session rides the same lane: every Sunday 10:00
 WIB (03:00 UTC, the estate's one clock) the three targets run for
-180 seconds each - the five-minute job law retired both the old
+180 seconds each - the then-five-minute job law retired both the old
 daily sweep and the old 15-minute deep blob (measured 15-16 minute
 wall clocks, 2026-11-09), so the per-push 60-second regression net
 carries the depth and the corpus cache grows one asset per session.
@@ -273,7 +273,7 @@ runtime battery alone, no compile, against whatever binary
 every surface, every flag, every error path, exercised against the
 REAL compiled binary through `scripts/supermassive/` (that suite's
 README is the contract's home). Two legs run the IDENTICAL check
-depth - the low-spec leg on the MSRV floor (60s wall budget) and
+depth - the low-spec leg on the MSRV floor (85s wall budget) and
 the best-spec leg on the stable frontier (300s wall budget); the
 budget buys headroom, never depth. Both legs build the binary
 through the `cargo pro-linux-amd64-v3-musl` alias - the release

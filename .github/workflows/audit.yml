@@ -35,7 +35,8 @@ jobs:
   # Two parallel lanes instead of one serial job (night-T-1): the two
   # `cargo install` compiles were the whole cost of the run, and
   # serializing them pushed the wall clock past the estate's
-  # five-minute-per-job law (measured 5.5 minutes, 2026-11-02). Each
+  # five-minute-per-job law (measured 5.5 minutes, 2026-11-02; the
+  # law itself is now the ten-minute standard, RULES.md). Each
   # lane now installs and runs one scanner; both land near three and
   # a half minutes. The observation-only posture (continue-on-error)
   # and the pinned scanners carry over unchanged.

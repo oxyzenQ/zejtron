@@ -103,8 +103,9 @@ jobs:
     # cap catches a wedged KVM boot, a stalled docker pull, or a flaky
     # apt mirror - recalibrated at night-frontier-Z4 (the suite grew
     # two proof-bearing surfaces and the mirror stalls burned honest
-    # legs at five minutes; the cap moves WITH the estate, the thirty
-    # a hung guest used to burn stay caught at ten).
+    # legs at five minutes; the cap moves WITH the estate, generous
+    # at fifteen - the thirty a hung guest used to burn are the 180s
+    # inner timeout's catch, not the job cap's).
     timeout-minutes: 15
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
@@ -189,7 +190,7 @@ jobs:
         # archive.ubuntu.com (Fastly, a different CDN) and retries with
         # generous bounds; dpkg --configure -a cleans whatever a killed
         # install left half-configured. No penalty on a healthy runner.
-        # The whole step fits inside the five-minute job cap. (The
+        # The whole step fits inside five minutes. (The
         # kernel-fetch step below already rides archive.ubuntu.com via
         # its own jammy-floor.list.)
         run: |
@@ -377,7 +378,7 @@ jobs:
           set +e
           # 180s: the KVM boot + low-leg run finishes in ~100s on a
           # healthy runner; 180s gives headroom and dies fast on a
-          # wedged guest, inside the five-minute job cap (night-T-4).
+          # wedged guest, inside the job's fifteen-minute cap (night-T-4).
           timeout 180 qemu-system-x86_64 \
             -machine q35,accel=kvm -cpu host \
             -m "$MEM" -smp "$SMP" \
