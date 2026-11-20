@@ -323,7 +323,9 @@ fn unicode_ok(locale: Option<&str>) -> bool {
 /// The locale probe: LC_ALL, then LC_CTYPE, then LANG - the
 /// standard precedence, first set value wins.
 fn locale() -> Option<String> {
-    ["LC_ALL", "LC_CTYPE", "LANG"].iter().find_map(|key| std::env::var(key).ok())
+    ["LC_ALL", "LC_CTYPE", "LANG"]
+        .iter()
+        .find_map(|key| std::env::var(key).ok())
 }
 
 /// The style ladder, pure: NO_COLOR or a non-Unicode locale lands on
@@ -397,7 +399,11 @@ impl Spinner {
         // The piped-run law: a captured stderr never sees narration,
         // no matter what the color environment promises.
         if !std::io::stderr().is_terminal() {
-            return Spinner { stop: Arc::new(AtomicBool::new(false)), handle: None, width: 0 };
+            return Spinner {
+                stop: Arc::new(AtomicBool::new(false)),
+                handle: None,
+                width: 0,
+            };
         }
         let no_color = std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty());
         let frames = frames_for(no_color, locale().as_deref(), style);
@@ -434,7 +440,11 @@ impl Spinner {
                 }
             }
         });
-        Spinner { stop, handle: Some(handle), width }
+        Spinner {
+            stop,
+            handle: Some(handle),
+            width,
+        }
     }
 
     /// Stop the redraw thread and erase the line entirely: the

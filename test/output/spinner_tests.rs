@@ -15,7 +15,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
 use super::{
-    ASCII, Countdown, HELIX, Spinner, Style, SWEEP, WAVE, ceil_secs, countdown_line, frame_slot,
+    ASCII, Countdown, HELIX, SWEEP, Spinner, Style, WAVE, ceil_secs, countdown_line, frame_slot,
     frames_for, gate, render_slot, spinner_line, unicode_ok, wait,
 };
 
@@ -189,7 +189,11 @@ fn the_style_ladder_lands_on_the_ascii_floor() {
     let utf8 = Some("en_US.UTF-8");
     for locale in [None, Some("C"), Some("POSIX"), utf8] {
         for chosen in [Style::Helix, Style::Wave] {
-            assert_eq!(frames_for(true, locale, chosen), &ASCII[..], "NO_COLOR: the dash, always");
+            assert_eq!(
+                frames_for(true, locale, chosen),
+                &ASCII[..],
+                "NO_COLOR: the dash, always"
+            );
         }
     }
     assert_eq!(frames_for(false, None, Style::Helix), &ASCII[..]);
