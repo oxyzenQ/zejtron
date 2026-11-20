@@ -418,7 +418,7 @@ fails the suite until the contract is consciously re-pinned in a
 commit that says why. Pinned by `test/ebpf/cost_tests.rs`; the
 live budgets by the camera-cost surface on the witness kernels.
 
-**20. The actor identity in every record** (night-frontier-Z8, D5;
+**18. The actor identity in every record** (night-frontier-Z8, D5;
 `src/ebpf/events.rs`, `ebpf/src/identity.rs`, the parse split
 `src/ebpf/btf.rs` ([`parse_identity_offsets`]), the attribution
 ladders `src/commands/lane.rs` / `src/commands/port/events.rs` /
@@ -514,14 +514,14 @@ mmap write to a memory-backed file stays outside the dirty
 record), vmsplice's direction is flags-dependent, O_PATH peeks
 never reach vfs_open (and the tmpfs/ramfs residual the dirty-record
 sentence above names is the one night-frontier-Z9 closes - see
-entry 21). Pinned by `test/ebpf/btf_offpath_tests.rs`
+entry 20). Pinned by `test/ebpf/btf_offpath_tests.rs`
 (the ladder's decision law, synthetic), `test/ebpf/btf_corpus_tests.rs`
 (the off-path chains per real dialect), `test/ebpf/estate_tests.rs`
 (the mask verdict), `test/ebpf/cost_tests.rs` (the conscious
 re-pin), and the C77 root leg's live windows (a real mmap store and
 a real splice inside real why windows, the rows demanded by name).
 
-**21. The memory-backed write truth** (night-frontier-Z9, D6;
+**20. The memory-backed write truth** (night-frontier-Z9, D6;
 `ebpf/src/offpath.rs` (`membacked_fault_probe`), the ladder
 `src/ebpf/btf_offpath.rs` (`verify_membacked_lane_in`), the memfd
 record-verification door `src/ebpf/verify_offpath.rs`
@@ -570,7 +570,7 @@ in `test/ebpf/reverify_tests.rs`, the mask bit in
 (the row demanded by name where the capability proved itself, the
 named-down direction asserted where it did not).
 
-**22. The watch truth - the absence triad completes** (night-
+**21. The watch truth - the absence triad completes** (night-
 frontier-Z10, D7; the generation map's fifth slot
 `src/ebpf/estate.rs` ([`GEN_SLOT_ATTACHED_MONOTONIC`],
 [`attach_facts`]), the pre-breath struct `src/ebpf/fileprobe.rs`
@@ -605,7 +605,7 @@ the triad reads as one sentence no monitor vendor publishes:
 every span the render cannot account for is carried as evidence,
 never as a hole.
 
-**22b. Clocksource regime honesty** (night-frontier-Z10, D7, the
+**22. Clocksource regime honesty** (night-frontier-Z10, D7, the
 same era; `src/info/clock.rs` [`current_clocksource`], the
 `PreBreath` struct's fourth reading, the builder
 `src/commands/lane_unaccounted.rs`
@@ -622,7 +622,7 @@ stamps stay one CLOCK_MONOTONIC domain, but the precision regime
 the durations ride changed under the window"); a steady regime
 adds nothing. Pure honesty, zero surface, one family with Z2/Z6.
 
-**18. The reproducible release chain** (night-depth-hardening-Z1,
+**23. The reproducible release chain** (night-depth-hardening-Z1,
 the cosmostrix D4 lineage; `.github/workflows/reproducible-release.yml`,
 `scripts/release/repro-build.sh`, `build.rs`,
 [VERIFY_RELEASE.md](VERIFY_RELEASE.md) section 4a). The hole: a
