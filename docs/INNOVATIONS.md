@@ -644,6 +644,30 @@ CLI surface: the knobs are build-time environment and CI; the
 parity gate's -C token law is untouched (the redaction rides
 --remap-path-prefix, not a -C token).
 
+**24. The lazy loading helix** (night-ux-orion-1;
+`src/output/spinner.rs`, wired into `src/update/mod.rs`). The hole:
+an indeterminate wait and a hang were indistinguishable - the
+update fetch blocks up to its 15 s curl ceiling with a silent
+terminal, and the Ctrl+C a frozen-looking terminal invites is a bug
+of perception. The close: a loading lane whose first frame lands
+only after the operation crosses 100 ms (a fast path never draws -
+silence stays byte-for-byte), then shows the DNA helix, two braille
+strands running the same ten-frame sweep in opposite directions -
+`HELIX[i]` pairs the sweep's `i`-th cell with its `(9-i)`-th, the
+strands never collide because `i = 9 - i` has no integer answer,
+and the two anti-parallel streams are the fetch itself: the request
+out, the answer back. The fallbacks are detection, never flags: a
+NO_COLOR terminal or a non-UTF-8 locale drops automatically to the
+rotating ASCII dash (`- \ | /`), the paint rides the grammar-tier
+grey ladder (bright black on Color16, the theme's own grey), the
+line shares the countdown's bracket grammar and \r clear contract,
+and a piped stderr stays silent - all pinned pure (frame tables,
+style ladder, lazy slot clock) in `test/output/spinner_tests.rs`.
+Zero new dependencies: std threads, one AtomicBool, and tables of
+literals. Pinned by `test/output/spinner_tests.rs` (the
+counter-phase table, the style ladder's truth table, the lazy
+clock's 99/100/199/200 ms boundaries).
+
 ## How a newcomer reads this tree
 
 This page for the shape, [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md)

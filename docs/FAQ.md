@@ -91,7 +91,13 @@ Only when you ask it to: `--check-update` is the one network call
 never runs implicitly. Everything else reads the local host —
 `/proc`, `/sys`, the audit log, optional `journalctl` — and prints
 to stdout. No daemon, no background agent, no writes to disk, no
-telemetry, no config files.
+telemetry, no config files. While that one fetch runs, the wait
+narrates itself on stderr - a grey DNA helix (two braille strands
+running the same sweep in opposite directions), degrading
+automatically to the rotating ASCII dash on a NO_COLOR or non-Unicode
+terminal, and drawing nothing at all when the answer lands inside
+100 ms: a slow fetch never looks like a hang, a fast one never
+flashes.
 
 ## Colors
 

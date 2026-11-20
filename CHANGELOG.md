@@ -44,6 +44,27 @@ v11.0.0
 
 ### Added
 
+- **night-ux-orion-1, the loading helix - the indeterminate wait
+  narrates itself.** A slow operation and a hung one were
+  indistinguishable: `--check-update` shells out to `curl` (up to a
+  15 s ceiling) and the terminal sat silent the whole time. The
+  loading lane arms a background redraw on stderr whose first frame
+  lands only after the operation crosses 100 ms - a fast path never
+  draws, a slow one shows the DNA helix: two braille strands running
+  the same ten-frame sweep in opposite directions (`⠋⠏ ⠙⠇ ⠹⠧ ...`),
+  the request out and the answer back. The fallbacks are detection,
+  never flags: a NO_COLOR terminal or one without a UTF-8 locale
+  drops automatically to the rotating ASCII dash (`- \ | /`), and
+  the paint rides the existing grammar-tier grey ladder (bright
+  black on a Color16 palette - the theme's own grey, visible on dark
+  and light backgrounds alike). The line uses the countdown's
+  bracket grammar, is erased before the verdict prints, and a piped
+  stderr stays byte-silent. Zero new dependencies (std threads only),
+  zero new CLI surface: the machine lives in `src/output/spinner.rs`
+  beside the countdown lane, wired into the one indeterminate site,
+  with the frame tables, the style ladder, the lazy slot clock, and
+  the clear contract pinned in `test/output/spinner_tests.rs`.
+
 - **night-frontier-Z10 D7, the watch truth - the absence triad
   completes (drop truth + sleep truth + watch truth = no silent
   absence), and the clocksource regime honesty.** The drains named

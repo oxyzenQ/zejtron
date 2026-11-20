@@ -24,7 +24,7 @@
 //! silent no matter what else the environment promises - `why ...
 //! > out.txt 2> err.txt` carries countdown bytes on neither stream.
 //!
-//! Two doors, one machine:
+//! Two doors for the known window, one for the unknown one:
 //!
 //! - [`wait`] is the narrated sleep: exactly `window`, deadline-
 //!   anchored. The wake slices are ONE window's chunks - the
@@ -39,26 +39,52 @@
 //!   must not sit undrained for a whole window), so it drives
 //!   `start` / `update` / `finish` around its existing slices and
 //!   keeps its drain contract byte for byte.
+//! - [`Spinner`] is the loading lane (night-ux-orion-1): the
+//!   indeterminate operations - the one network fetch behind
+//!   `--check-update` - where there is no window to count down, only
+//!   an answer that may take seconds. A silent fetch is
+//!   indistinguishable from a hang, so the lane arms a background
+//!   redrawing thread whose first frame lands only after the
+//!   operation has actually crossed the lazy threshold: a fast path
+//!   never draws, and a slow one shows a DNA helix - two braille
+//!   strands running the same sweep in opposite directions, the two
+//!   anti-parallel streams the metaphor wants (the request out, the
+//!   answer back). The fallbacks are detection, never flags: a
+//!   terminal without color or without a Unicode locale drops to the
+//!   rotating ASCII dash automatically, and the paint rides the same
+//!   grammar-tier grey ladder as the countdown - bright black on a
+//!   Color16 palette, the theme's own grey, visible by construction
+//!   on dark and light backgrounds alike.
 //!
-//! The render is deliberately boring: one line, ASCII, the grammar
-//! tier's grey - the stderr lane's first non-error seat, dimmer than
-//! every ledger byte it annotates. The overwrite and the clear ride
-//! carriage returns and spaces only (no CSI erase, no animation
-//! frames), so they degrade honestly on any terminal that honors
-//! \r. Labels are the crate's own ASCII constants; nothing external
-//! ever reaches this lane. The 300 ms verify-write poll is below the
-//! narration threshold on purpose: a verification retry is not a
-//! wait the user asked about.
+//! The countdown's render is deliberately boring: one line, ASCII,
+//! the grammar tier's grey - the stderr lane's first non-error seat,
+//! dimmer than every ledger byte it annotates. The overwrite and the
+//! clear ride carriage returns and spaces only (no CSI erase), so
+//! they degrade honestly on any terminal that honors \r; the loading
+//! lane shares that grammar and adds the one thing a countdown
+//! cannot need - animation frames - but keeps the same width law
+//! (every frame in a table is the same cell width, so the overwrite
+//! is always stable). Labels are the crate's own ASCII constants;
+//! nothing external ever reaches this lane. The 300 ms verify-write
+//! poll is below the narration threshold on purpose: a verification
+//! retry is not a wait the user asked about.
 //!
-//! One noise law: a failed narration write is swallowed, never a
-//! panic (write_raw) - the indicator is decoration, and a stderr
-//! that cannot take the line must not cost the run its ledger. The
-//! test lane swaps the sink for a thread-local buffer, so the byte
-//! contract is pinned exactly and the battery stays silent.
+//! One noise law, shared by all three machines: a failed narration
+//! write is swallowed, never a panic (write_raw) - the indicator is
+//! decoration, and a stderr that cannot take the line must not cost
+//! the run its ledger. The test lane swaps the sink for a
+//! thread-local buffer, so the byte contract is pinned exactly and
+//! the battery stays silent; the Spinner's pure half (frame tables,
+//! style selection, the lazy slot clock) is pinned directly, and its
+//! thread half stays thin glue on purpose - the bytes it writes are
+//! the pinned pure bytes.
 
 use std::io::IsTerminal;
 #[cfg(not(test))]
 use std::io::Write;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 /// The wake slice of [`wait`]'s countdown: short enough that the
@@ -222,6 +248,207 @@ impl Countdown {
             return;
         }
         write_raw(&format!("\r{}\r", " ".repeat(self.width)));
+    }
+}
+
+// ── The loading lane (night-ux-orion-1) ─────────────────────────────
+
+/// The lazy threshold: an operation that lands inside 100 ms never
+/// draws - the fast paths keep their byte-for-byte silence, and the
+/// indicator appears only when the wait is real. The owner's
+/// auto-detect law, one constant.
+const LAZY: Duration = Duration::from_millis(100);
+
+/// The frame period: ten frames per second, the braille sweep's
+/// smooth cadence - fast enough to read as motion, slow enough that
+/// a slow fetch's redraw cost is noise.
+const FRAME_PERIOD: Duration = Duration::from_millis(100);
+
+/// The braille sweep both helix strands ride: the classic ten-frame
+/// dot walk, one cell wide, clockwise.
+const SWEEP: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/// The DNA helix (night-ux-orion-1): two strands, counter-phase.
+/// `HELIX[i]` pairs `SWEEP[i]` with `SWEEP[9 - i]` - strand one runs
+/// the sweep forward while strand two runs it backward, the two
+/// anti-parallel streams the metaphor wants - and the strands never
+/// collide: the pair is distinct at every frame because `i = 9 - i`
+/// has no integer answer. Written out as literals so the table is
+/// the pin, not a computation.
+const HELIX: [&str; 10] = ["⠋⠏", "⠙⠇", "⠹⠧", "⠸⠦", "⠼⠴", "⠴⠼", "⠦⠸", "⠧⠹", "⠇⠙", "⠏⠋"];
+
+/// The wave (one strand, the linear shape): the bare sweep. Kept
+/// for the estate's next linear site - the loading lane's one
+/// current site (the update fetch) arms the helix, whose two
+/// anti-parallel strands ARE the fetch: the request out, the answer
+/// back.
+const WAVE: [&str; 10] = SWEEP;
+
+/// The ASCII floor: the rotating dash. NO_COLOR terminals and
+/// terminals without a Unicode locale land here automatically -
+/// the fallback is detection, never a flag, which is what separates
+/// a CLI that carries its aesthetics from one that forces them.
+const ASCII: [&str; 4] = ["-", "\\", "|", "/"];
+
+/// The style seat a loading site claims: the helix for the
+/// parallel-looking operations, the wave for the linear ones.
+#[derive(Clone, Copy)]
+pub(crate) enum Style {
+    /// Two counter-phase braille strands - the DNA helix.
+    Helix,
+    /// One braille strand - the linear wave.
+    #[allow(dead_code)]
+    Wave,
+}
+
+impl Style {
+    fn frames(self) -> &'static [&'static str] {
+        match self {
+            Style::Helix => &HELIX,
+            Style::Wave => &WAVE,
+        }
+    }
+}
+
+/// The Unicode probe, pure: a locale that names UTF-8 in any of its
+/// usual spellings. Best-effort by design - an exotic locale
+/// spelling degrades to the ASCII floor, never to garbage bytes.
+fn unicode_ok(locale: Option<&str>) -> bool {
+    locale.is_some_and(|l| {
+        let lower = l.to_ascii_lowercase();
+        lower.contains("utf-8") || lower.contains("utf8")
+    })
+}
+
+/// The locale probe: LC_ALL, then LC_CTYPE, then LANG - the
+/// standard precedence, first set value wins.
+fn locale() -> Option<String> {
+    ["LC_ALL", "LC_CTYPE", "LANG"].iter().find_map(|key| std::env::var(key).ok())
+}
+
+/// The style ladder, pure: NO_COLOR or a non-Unicode locale lands on
+/// the ASCII floor; otherwise the site's own seat. The loading
+/// lane's gate deliberately differs from the countdown's - the
+/// owner's night-ux-orion-1 law keeps the indicator alive on a
+/// NO_COLOR terminal (as the unpainted dash) because a hang looks
+/// like a hang with or without color.
+fn frames_for(no_color: bool, locale: Option<&str>, chosen: Style) -> &'static [&'static str] {
+    if no_color || !unicode_ok(locale) {
+        &ASCII
+    } else {
+        chosen.frames()
+    }
+}
+
+/// The loading line's shape: the countdown's bracket grammar, the
+/// frame riding where the seconds ride - one grammar, both lanes,
+/// no drift.
+fn spinner_line(label: &str, frame: &str) -> String {
+    format!("[{label}... {frame}]")
+}
+
+/// The rendered line for a slot: the table wraps, the line rides
+/// the bracket grammar. Pure - the thread's draw is exactly this
+/// string behind a carriage return, so the pins hold the bytes the
+/// terminal sees.
+fn render_slot(label: &str, frames: &[&str], slot: usize) -> String {
+    spinner_line(label, frames[slot % frames.len()])
+}
+
+/// The lazy slot clock, pure: an operation younger than the lazy
+/// threshold has no frame yet (None - nothing has ever been drawn),
+/// and an older one names the frame slot the elapsed time pins.
+/// Deterministic: the slot is a pure function of elapsed time, so a
+/// redraw that lands late repeats a frame instead of skipping the
+/// sequence.
+fn frame_slot(elapsed: Duration) -> Option<usize> {
+    if elapsed < LAZY {
+        None
+    } else {
+        Some(((elapsed - LAZY).as_millis() / FRAME_PERIOD.as_millis()) as usize)
+    }
+}
+
+/// The loading lane's machine: a background thread redraws one
+/// stderr line while the operation blocks, the caller's `finish`
+/// stops it and erases the line before any verdict prints. The
+/// thread never draws before the lazy threshold, the frames are the
+/// pure tables above, and every write failure is swallowed by the
+/// shared noise law. A non-terminal stderr arms the inert machine -
+/// a piped run pays one gate probe and nothing else, byte for byte.
+pub(crate) struct Spinner {
+    /// The thread's stop flag: set by `finish`, checked every cycle.
+    stop: Arc<AtomicBool>,
+    /// The redraw thread, when the gate allowed one.
+    handle: Option<JoinHandle<()>>,
+    /// The line width the machine drew (or would draw): the stable
+    /// clear width. Every frame in a table shares one cell width,
+    /// so the width is fixed at arm time.
+    width: usize,
+}
+
+impl Spinner {
+    /// Arm the loading lane for an indeterminate operation. The
+    /// frames come from the style ladder (the helix seat unless the
+    /// terminal drops to the ASCII floor); the first draw happens
+    /// only when the operation crosses the lazy threshold, inside
+    /// the thread.
+    pub(crate) fn arm(label: &'static str, style: Style) -> Spinner {
+        // The piped-run law: a captured stderr never sees narration,
+        // no matter what the color environment promises.
+        if !std::io::stderr().is_terminal() {
+            return Spinner { stop: Arc::new(AtomicBool::new(false)), handle: None, width: 0 };
+        }
+        let no_color = std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty());
+        let frames = frames_for(no_color, locale().as_deref(), style);
+        // The width law: the tables are width-stable, so the widest
+        // line is the first line.
+        let width = spinner_line(label, frames[0]).len();
+        let stop = Arc::new(AtomicBool::new(false));
+        let flag = Arc::clone(&stop);
+        let handle = std::thread::spawn(move || {
+            let armed = Instant::now();
+            let mut drawn_slot: Option<usize> = None;
+            loop {
+                if flag.load(Ordering::Relaxed) {
+                    break;
+                }
+                let elapsed = armed.elapsed();
+                if let Some(slot) = frame_slot(elapsed) {
+                    if drawn_slot != Some(slot) {
+                        write_raw(&format!(
+                            "\r{}",
+                            crate::output::grey_err(&render_slot(label, frames, slot))
+                        ));
+                        drawn_slot = Some(slot);
+                    }
+                    // Sleep toward the next slot boundary, never past
+                    // the stop flag's next check.
+                    let in_slot = (elapsed - LAZY).as_millis() % FRAME_PERIOD.as_millis();
+                    let rest = FRAME_PERIOD.as_millis() - in_slot;
+                    std::thread::sleep(Duration::from_millis(rest.max(1) as u64));
+                } else {
+                    // Below the lazy threshold: sleep the remaining
+                    // fraction, then re-check the stop flag.
+                    std::thread::sleep((LAZY - elapsed).min(FRAME_PERIOD));
+                }
+            }
+        });
+        Spinner { stop, handle: Some(handle), width }
+    }
+
+    /// Stop the redraw thread and erase the line entirely: the
+    /// drawn width blanked with spaces, the cursor back at column
+    /// zero, before any verdict prints. The join guarantees the
+    /// thread's last write lands before the clear does.
+    pub(crate) fn finish(mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        if self.width > 0 {
+            write_raw(&format!("\r{}\r", " ".repeat(self.width)));
+        }
     }
 }
 

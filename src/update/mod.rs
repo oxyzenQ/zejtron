@@ -3,6 +3,8 @@
 
 use std::process::Command;
 
+use crate::output::spinner::{Spinner, Style};
+
 const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenQ/zejtron/releases/latest";
 const RELEASES_URL: &str = "https://github.com/oxyzenQ/zejtron/releases/latest";
 
@@ -122,7 +124,16 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
         Some(cmd) => cmd,
         None => Command::new("curl"),
     };
-    let output = output
+    // The loading lane (night-ux-orion-1): the fetch is the one
+    // indeterminate wait on a drive-by surface, so it narrates - a
+    // helix on a capable terminal, the ASCII dash on a plain one,
+    // and nothing at all when the answer lands inside the lazy
+    // threshold. The machine finishes on every path before the
+    // verdict prints: the only slow step is the curl child below,
+    // so the arm/finish bracket wraps exactly that call and the
+    // remaining error paths are instant CPU work.
+    let indicator = Spinner::arm("checking for updates", Style::Helix);
+    let fetched = output
         .args([
             "--silent",
             "--max-time",
@@ -135,14 +146,15 @@ pub fn check_update(current_version: &str) -> Result<(), String> {
             "\n%{http_code}",
             GITHUB_API_URL,
         ])
-        .output()
-        .map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                "curl is not available on PATH".to_string()
-            } else {
-                format!("failed to run curl: {e}")
-            }
-        })?;
+        .output();
+    indicator.finish();
+    let output = fetched.map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            "curl is not available on PATH".to_string()
+        } else {
+            format!("failed to run curl: {e}")
+        }
+    })?;
 
     if !output.status.success() {
         return Err(curl_failure(output.status.code().unwrap_or(-1)).to_string());
