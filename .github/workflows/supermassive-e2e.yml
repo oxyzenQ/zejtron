@@ -8,7 +8,7 @@
 #
 # The contract: every surface, every flag, every error path,
 # exercised against the REAL compiled binary, on two legs - the
-# low-spec leg (the MSRV floor, 75s wall budget) and the best-spec
+# low-spec leg (the MSRV floor, 85s wall budget) and the best-spec
 # leg (the stable frontier, 300s wall budget). Both legs run the
 # IDENTICAL suite and the IDENTICAL check depth: the budget buys
 # headroom, never depth. The depth is owned by
@@ -91,7 +91,7 @@ jobs:
   supermassive-low:
     # Low specs = the MSRV floor (the estate's envelope vocabulary,
     # night-improve-31): the oldest toolchain zejtron promises to run
-    # on, 75s wall budget inside the leg script.
+    # on, 85s wall budget inside the leg script.
     name: supermassive e2e - low specs (MSRV)
     runs-on: ubuntu-24.04
     # The runtime budget law (docs/RULES.md): 10 is the standard
@@ -136,7 +136,7 @@ jobs:
       - name: Build the pro-v3 binary (the release amd64-v3 shape)
         run: cargo pro-linux-amd64-v3-musl --locked
 
-      - name: Run the low leg (75s wall budget, full depth)
+      - name: Run the low leg (85s wall budget, full depth)
         run: |
           ./scripts/supermassive/legs/low.sh \
             --bin target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron
@@ -292,7 +292,7 @@ jobs:
     # lane builds the pro-native-arm64-musl alias once (armv8-a IS
     # the universal arm64 baseline - no v3 equivalent, target-cpu=
     # native is the only codegen tier), then runs the low leg
-    # host-native against the aarch64 binary. The low leg's 75s wall
+    # host-native against the aarch64 binary. The low leg's 85s wall
     # budget keeps the job inside the estate's five-minute-per-job
     # law on arm64 silicon (slower than x86 but well within budget).
     # The nested eBPF build rides the same bpfel ISA on every host
@@ -348,7 +348,7 @@ jobs:
       - name: Build the pro-native-arm64-musl binary
         run: cargo pro-native-arm64-musl --locked
 
-      - name: Run the low leg host-native (75s wall budget, full depth)
+      - name: Run the low leg host-native (85s wall budget, full depth)
         run: |
           ./scripts/supermassive/legs/low.sh \
             --bin target/aarch64-unknown-linux-musl/pro-native-arm64-musl/zejtron

@@ -21,7 +21,7 @@
 #
 # Options:
 #   --leg low|best        required: which time budget the run claims
-#                         (low = 75s wall, best = 300s wall; the depth
+#                         (low = 85s wall, best = 300s wall; the depth
 #                         is identical on both legs - only the budget
 #                         differs)
 #   --bin PATH            the binary to exercise ($ZEJTRON_BIN_PATH,
@@ -103,16 +103,21 @@ done
 
 case "$LEG" in
 low)
-	# The low-spec contract: 2 vCPU / 4 GiB class host, 75s wall (the
+	# The low-spec contract: 2 vCPU / 4 GiB class host, 85s wall (the
 	# cost contract's own growth, night-frontier-Z4: the two
 	# proof-bearing surfaces the estate gained since the 60s contract
 	# - the loss certificate's overload window and the camera-cost
 	# budgets - are work the leg now owes, so the wall moved WITH the
-	# estate; the depth is identical, only the clock widened).
+	# estate; the depth is identical, only the clock widened. The
+	# second widening (75 -> 85, the C77 remediation session): the
+	# moving-latest dialect's kernel serves the same full-depth suite
+	# in 76s - three consecutive CI runs, 517 checks, zero failures -
+	# while the frozen dialects sit at or below 75s; the clock follows
+	# the measured floor, never the wish).
 	# Per-test timeout 20s: every zejtron invocation is a fast procfs
 	# read; the one slow documented flag (--check-update) carries a
 	# 15s in-binary curl ceiling, so 20s is the honest per-test floor.
-	SM_WALL_BUDGET=75
+	SM_WALL_BUDGET=85
 	SM_TEST_TIMEOUT=20
 	;;
 best)

@@ -152,7 +152,7 @@ jobs:
       # but the node ships 0660 root:kvm and the runner user is not in
       # the kvm group, so the job opens it up itself. Failing LOUDLY
       # here beats a TCG fallback: the floor lane's point is the real
-      # kernel at real speed (the low leg's 75s wall budget is a
+      # kernel at real speed (the low leg's 85s wall budget is a
       # real-hardware contract; under TCG it can breach without the
       # binary being at fault).
       - name: Verify KVM
