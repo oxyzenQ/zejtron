@@ -425,11 +425,11 @@ verification_section() {
 		echo "### GPG signature"
 		echo ""
 		echo '```bash'
-		echo "gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2"
+		echo "gpg --keyserver keyserver.ubuntu.com --recv-keys 3EE4A49C78630A16E176DB2B3C9EB25BF0407781"
 		echo "gpg --verify zejtron-${tag}-linux-amd64-v3-musl.tar.gz.asc"
 		echo '```'
 		echo ""
-		echo "Expected: \`Good signature from \"rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>\"\` (aka \`Rezky Cahya Sahputra (cosmic dragon)\`)"
+		echo "Expected: \`Good signature from \"rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>\"\` (aka \`Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>\`)"
 	else
 		echo "Every archive includes three checksum files (SHA-512, BLAKE3, SHAKE256)."
 		echo ""
@@ -516,7 +516,8 @@ self_test() {
 	# expected identity line - the primary UID answer gpg actually
 	# prints on the pinned key (night-fly-1: the stale
 	# "Rezky Cahya Sahputra (cosmic dragon)" Expected display is
-	# banned below; the aka rides beside the primary UID now).
+	# banned below; night-fly-1b: the aka carries the full noreply
+	# address the owner's verified gpg output actually prints).
 	local gpg_out
 	gpg_out="$(render_body "" "v80.0.0-nightly.2" "" "" "" 2)"
 	# The match strings below are intentional grep -F literals: they
@@ -525,7 +526,7 @@ self_test() {
 	# into double-quote escape noise would drift from the render,
 	# so the literal-string findings are silenced by directive.
 	# shellcheck disable=SC2016
-	for want in "### GPG signature" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2" "gpg --verify zejtron-v80.0.0-nightly.2-linux-amd64-v3-musl.tar.gz.asc" 'Expected: `Good signature from "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"` (aka `Rezky Cahya Sahputra (cosmic dragon)`)'; do
+	for want in "### GPG signature" "recv-keys 3EE4A49C78630A16E176DB2B3C9EB25BF0407781" "gpg --verify zejtron-v80.0.0-nightly.2-linux-amd64-v3-musl.tar.gz.asc" 'Expected: `Good signature from "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"` (aka `Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>`)'; do
 		if ! printf '%s' "$gpg_out" | grep -qF "$want"; then
 			echo "  FAIL shape: signed render is missing '$want'" >&2
 			failures=$((failures + 1))
@@ -606,7 +607,7 @@ self_test() {
 		echo "  FAIL budget: rendered body ${z11_len} bytes exceeds the ${MAX_BODY_CHARS}-byte budget" >&2
 		failures=$((failures + 1))
 	fi
-	for want in "## Verification" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2" "listing trimmed to fit the release-body cap"; do
+	for want in "## Verification" "recv-keys 3EE4A49C78630A16E176DB2B3C9EB25BF0407781" "listing trimmed to fit the release-body cap"; do
 		if ! printf '%s' "$z11_out" | grep -qF "$want"; then
 			echo "  FAIL budget: over-cap render is missing '$want'" >&2
 			failures=$((failures + 1))

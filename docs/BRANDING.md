@@ -183,7 +183,7 @@ every clone and every registry tarball, independent of the release
 page and of any keyserver's answer.
 
 - **Primary key fingerprint** (the keyserver lookup key):
-  `F5324E0967F104D58CE025F347A50AEF4B65AAC2`
+  `3EE4A49C78630A16E176DB2B3C9EB25BF0407781`
 - Owner identity: rezky_nightky (oxyzenQ); the same public key is
   served by the GitHub account's GPG endpoint
   (`https://api.github.com/users/oxyzenQ/gpg_keys`) — a second
@@ -195,8 +195,8 @@ page and of any keyserver's answer.
   the one above before trusting any signature from it.
 
 ```bash
-gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
-gpg --fingerprint F5324E0967F104D58CE025F347A50AEF4B65AAC2   # compare against the line above
+gpg --keyserver keyserver.ubuntu.com --recv-keys 3EE4A49C78630A16E176DB2B3C9EB25BF0407781
+gpg --fingerprint 3EE4A49C78630A16E176DB2B3C9EB25BF0407781   # compare against the line above
 ```
 
 The full verification procedure (checksums, signatures, expected

@@ -217,11 +217,11 @@ machine.
 # One-time: fetch the release key (the fingerprint is pinned in
 # docs/BRANDING.md, section 8 - the in-repo anchor - and on the
 # release page).
-gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
+gpg --keyserver keyserver.ubuntu.com --recv-keys 3EE4A49C78630A16E176DB2B3C9EB25BF0407781
 
 # Verify the imported primary's fingerprint equals the pin BEFORE
 # trusting any signature from it.
-gpg --fingerprint F5324E0967F104D58CE025F347A50AEF4B65AAC2
+gpg --fingerprint 3EE4A49C78630A16E176DB2B3C9EB25BF0407781
 
 # Verify the detached signature (the .asc rides the same asset list).
 gpg --verify zejtron-vX.Y.Z-linux-amd64-v3-musl.tar.gz.asc \
