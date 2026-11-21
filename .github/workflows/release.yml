@@ -533,10 +533,16 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             scripts/release
+            .github/actions/harden-dns
           persist-credentials: false
 
       - name: Harden DNS (the poisoned-resolver defense)
         uses: ./.github/actions/harden-dns
+        # night-fly-1: the action's path rides the sparse cone - a
+        # sparse checkout without it ships a release job the resolver
+        # cannot load ("Can't find 'action.yml'", the v80.5.0-night.2
+        # failure; the step was unreachable until the build lane went
+        # green and the job ran for the first time).
       - name: Download artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, SHA pin
         with:

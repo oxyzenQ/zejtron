@@ -226,11 +226,20 @@ install_bpf_linker() {
 	mkdir -p "${extracted}"
 
 	ok "downloading ${url} (~30 MB — the slow step)"
+	# night-fly-1: the fetch rides the bounded retry wrapper AND
+	# --retry-all-errors. curl's default retry ladder skips 4xx, and
+	# the GitHub release CDN answers a burst of parallel CI downloads
+	# with transient 403s (the v80.5.0-night.2 low-specs leg died on
+	# exactly that while three sibling legs fetched the same URL green
+	# in the same run). Bounded: three wrapper attempts five seconds
+	# apart, each carrying curl's own three-attempt backoff - a
+	# permanently wrong URL still fails inside a minute, and the
+	# checksum gate below stays the truth about the bytes.
 	if command -v curl >/dev/null 2>&1; then
-		curl -fsSL --retry 3 -o "${archive}" "${url}" ||
+		with_retry curl -fsSL --retry 3 --retry-all-errors -o "${archive}" "${url}" ||
 			die "download failed — check network access, or fetch ${url} by hand and extract bpf-linker into ${LOCAL_BIN}"
 	elif command -v wget >/dev/null 2>&1; then
-		wget -q -O "${archive}" "${url}" ||
+		with_retry wget -q -O "${archive}" "${url}" ||
 			die "download failed — check network access, or fetch ${url} by hand and extract bpf-linker into ${LOCAL_BIN}"
 	else
 		die "neither curl nor wget is available — fetch ${url} by hand and extract bpf-linker into ${LOCAL_BIN}"
