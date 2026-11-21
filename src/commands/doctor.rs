@@ -4,6 +4,8 @@
 use std::error::Error;
 use std::path::Path;
 
+use crate::output::spinner::{Spinner, Style};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CheckStatus {
     Ok,
@@ -83,7 +85,18 @@ pub fn run(
         );
     }
 
+    // The loading lane (night-ux-orion-2): the readiness sweep is
+    // the command's large-data load - the checks read sysfs, procfs,
+    // the version probes and the disk/cpu/network surfaces back to
+    // back, and on a loaded host the sweep crosses the lazy threshold
+    // with no window to count down (the sweep's length is not known
+    // up front, so the countdown lane has no seconds to narrate).
+    // The helix narrates the sweep; the arm/finish bracket wraps
+    // exactly the collection call, and a fast sweep never draws -
+    // the fast path's stderr stays byte for byte silent.
+    let indicator = Spinner::arm("running readiness checks", Style::Helix);
     let checks = collect_checks(git_hash);
+    indicator.finish();
     // The verb's own diagnostic lane (night-total-hardening-1): the
     // readiness pass names its check count and the effective uid it
     // ran under - stderr only, the report lane stays clean.

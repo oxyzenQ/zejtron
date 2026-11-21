@@ -39,10 +39,12 @@
 //!   must not sit undrained for a whole window), so it drives
 //!   `start` / `update` / `finish` around its existing slices and
 //!   keeps its drain contract byte for byte.
-//! - [`Spinner`] is the loading lane (night-ux-orion-1): the
-//!   indeterminate operations - the one network fetch behind
-//!   `--check-update` - where there is no window to count down, only
-//!   an answer that may take seconds. A silent fetch is
+//! - [`Spinner`] is the loading lane (night-ux-orion-1; the sites
+//!   grew in night-ux-orion-2): the indeterminate operations where
+//!   there is no window to count down, only an answer that may take
+//!   seconds - the network fetch behind `--check-update`, the proc
+//!   scan's walk of the subject's /proc entries, the doctor sweep's
+//!   back-to-back readiness reads. A silent load is
 //!   indistinguishable from a hang, so the lane arms a background
 //!   redrawing thread whose first frame lands only after the
 //!   operation has actually crossed the lazy threshold: a fast path
@@ -288,10 +290,12 @@ const SWEEP: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧
 const HELIX: [&str; 10] = ["⠋⠏", "⠙⠇", "⠹⠧", "⠸⠦", "⠼⠴", "⠴⠼", "⠦⠸", "⠧⠹", "⠇⠙", "⠏⠋"];
 
 /// The wave (one strand, the linear shape): the bare sweep. Kept
-/// for the estate's next linear site - the loading lane's one
-/// current site (the update fetch) arms the helix, whose two
-/// anti-parallel strands ARE the fetch: the request out, the answer
-/// back.
+/// for a future linear site - the estate's current sites (the update
+/// fetch, the proc scan, the doctor sweep) all claim the helix seat
+/// (night-ux-orion-2, the owner's law: the DNA helix is the
+/// estate's one loading face, the masterclass indicator every
+/// large-data load shows), whose two anti-parallel strands read as
+/// motion on every one of them.
 const WAVE: [&str; 10] = SWEEP;
 
 /// The ASCII floor: the rotating dash. NO_COLOR terminals and
@@ -300,8 +304,9 @@ const WAVE: [&str; 10] = SWEEP;
 /// a CLI that carries its aesthetics from one that forces them.
 const ASCII: [&str; 4] = ["-", "\\", "|", "/"];
 
-/// The style seat a loading site claims: the helix for the
-/// parallel-looking operations, the wave for the linear ones.
+/// The style seat a loading site claims: the helix is the estate's
+/// one loading face (night-ux-orion-2, the owner's law), the wave
+/// stays reserved for a future site that wants a single strand.
 #[derive(Clone, Copy)]
 pub(crate) enum Style {
     /// Two counter-phase braille strands - the DNA helix.

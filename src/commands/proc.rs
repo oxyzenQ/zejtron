@@ -12,6 +12,7 @@ use std::path::Path;
 mod forest;
 
 use forest::{build_forest, limit_depth, matching_process_ids, prune_for_matches};
+use crate::output::spinner::{Spinner, Style};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Process {
@@ -238,7 +239,18 @@ fn render_snapshot(
     show_pid: bool,
     view: &ViewOptions,
 ) -> Result<String, String> {
-    let report = scan_processes_for_uid(target.uid)?;
+    // The loading lane (night-ux-orion-2): the process scan is this
+    // command's large-data load - a walk of the subject's /proc
+    // entries that on a busy host (containers, a loaded CI runner)
+    // crosses the lazy threshold and used to sit silent, a frozen-
+    // looking terminal inviting the Ctrl+C that is a bug of
+    // perception. The helix narrates the walk; the arm/finish bracket
+    // wraps exactly the scan call, and a fast scan never draws - the
+    // fast path's stderr stays byte for byte silent.
+    let indicator = Spinner::arm("scanning processes", Style::Helix);
+    let scanned = scan_processes_for_uid(target.uid);
+    indicator.finish();
+    let report = scanned?;
     Ok(render_report(target, report, show_pid, view))
 }
 
@@ -250,7 +262,13 @@ fn render_snapshot(
 /// order, and the BTreeMap's). --depth stays the render limiter it
 /// is: the flat list is the data, not the drawing.
 fn snapshot_json(target: &TargetUser, view: &ViewOptions) -> Result<String, String> {
-    let report = scan_processes_for_uid(target.uid)?;
+    // The loading lane (night-ux-orion-2): the JSON lane rides the
+    // same scan and the same narration bracket as the text lane -
+    // one loading face, both renders.
+    let indicator = Spinner::arm("scanning processes", Style::Helix);
+    let scanned = scan_processes_for_uid(target.uid);
+    indicator.finish();
+    let report = scanned?;
     let mut selected: Vec<Process> = report.processes;
     if let Some(pattern) = &view.find {
         let forest = build_forest(std::mem::take(&mut selected));
