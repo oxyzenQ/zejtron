@@ -31,7 +31,7 @@
 # cargo-fuzz spawns. Each target runs for a bounded 60 seconds per
 # push: the lane's job is the regression net (a crash fails CI with
 # the input in the log), not exhaustive coverage - depth comes from
-# the corpus that accumulates between runs via the cache. A found
+# the committed seed anchors below. A found
 # crash is a parser bug: fix the parser to return the named error,
 # never the panic.
 #
@@ -45,20 +45,17 @@
 # (fuzz/.gitignore); the seeds are the lane's definition, the same
 # law as the targets and the manifests.
 #
-# The weekly sweep (night-consistent-1): the scheduled session runs
-# every Sunday at 10:00 WIB (03:00 UTC) with a 180-second budget per
-# target - one clock for every scheduled workflow in the estate, the
-# owner's calendar law. The old daily sweep (night-T-1) bought depth
-# with cadence (7 x 180s = 1260s of fuzzing per target per week) and
-# the old weekly blob bought depth with burn (15 minutes, measured
-# 15-16 minute wall clocks, 2026-11-09) - both retired against the
-# then-five-minute job law; the weekly slot keeps the same 180-second
-# budget, so the per-target weekly fuzz time drops from 1260s to
-# 180s and the per-push 60-second regression net (every push, every
-# PR) is what carries the depth now. The corpus cache restores the
-# accumulated corpus under the same restore-keys, so every session
-# grows one asset; a scheduled run and a push on the same ref share
-# the concurrency group, the newer run wins (the estate shape).
+# The schedule is retired (the owner's commit-driven CI law,
+# night-fly-1): a test lane runs when a commit lands, never from a
+# calendar slot. The old daily sweep (night-T-1), the 15-minute deep
+# blob (measured 15-16 minute wall clocks, 2026-11-09), and the
+# weekly 180-second slot all bowed to that law; the per-push
+# 60-second regression net (every push, every PR) carries the depth
+# now. The run-id-keyed corpus cache retired with the sweep: the
+# cache either minted three orphaning entries per push
+# (night-zen-lts-2's churn) or grew once a week, and without a
+# schedule there is no writer left - the committed seed anchors are
+# the corpus, by definition and by construction.
 
 ---
 name: zejtron - Fuzz
@@ -66,10 +63,6 @@ name: zejtron - Fuzz
 "on":
   push:
   pull_request:
-  schedule:
-    # night-consistent-1: every Sunday 03:00 UTC (10:00 WIB) - the
-    # estate's one clock, shared by every scheduled workflow.
-    - cron: "0 3 * * 0"
 
 permissions:
   contents: read
@@ -85,8 +78,8 @@ env:
 
 jobs:
   fuzz:
-    # The budget rides the event (the Fuzz step's table): 60s on
-    # push and PR, 180s on the weekly sweep (night-consistent-1).
+    # The budget is flat: 60s per target, every event (the Fuzz
+    # step's table).
     name: cargo fuzz ${{ matrix.target }}
     runs-on: ubuntu-24.04
     # The five-minute law, sized as a fail-fast line: a warm run
@@ -133,28 +126,12 @@ jobs:
           # here at all.
           workspaces: fuzz
 
-      - name: Restore the fuzz corpus cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6 restore, SHA pin
-        with:
-          path: fuzz/corpus/${{ matrix.target }}
-          # Restore-only on push: the corpus accumulated by the last
-          # run feeds this one, and nothing new is saved until the
-          # weekly sweep. The run-id-keyed per-push save minted three
-          # brand-new cache entries per push (one per target), each
-          # orphaning the previous generation - the per-push churn that
-          # evicts the cold-but-needed release-* entries under the
-          # shared 10 GB budget the estate already hit once
-          # (night-zen-lts-2). The corpus now grows once a week, three
-          # entries per week, bounded.
-          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
-          restore-keys: |
-            fuzz-corpus-${{ matrix.target }}-
-
       # The committed anchors (night-improve-50): copied into the
-      # corpus AFTER the cache restore, so the seeds ride every
-      # session - push or weekly - and land in the cache the run
-      # saves. A target without a seeds directory is named honestly;
-      # the corpus cache still applies.
+      # working corpus before every run, so the fuzzer starts from
+      # the lane's committed definition - the seeds ARE the corpus
+      # now that the schedule and its cache are gone. A target
+      # without a seeds directory is named honestly; the run still
+      # proceeds.
       - name: Seed the corpus from the committed anchors
         run: |
           if [ -d "fuzz/seeds/${{ matrix.target }}" ]; then
@@ -180,26 +157,11 @@ jobs:
 
       - name: Fuzz
         run: |
-          # The budget table: 60s on every push and pull request (the
-          # regression net), 180s on the weekly sweep (the corpus
-          # grows once a week; the estate law keeps each job's wall
-          # clock under five minutes).
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            BUDGET=180
-          else
-            BUDGET=60
-          fi
+          # The budget is flat: 60s per target on every push and pull
+          # request - the regression net (a crash fails CI with the
+          # input in the log), sized so each job's wall clock stays
+          # under five minutes.
+          BUDGET=60
           echo "fuzz budget: ${BUDGET}s (event: ${{ github.event_name }})"
           cargo fuzz run ${{ matrix.target }} \
             -- -max_total_time="${BUDGET}" -rss_limit_mb=4096 -timeout=25
-
-      - name: Save the fuzz corpus cache (weekly sweep only)
-        # The save half of the split cache: only the scheduled sweep
-        # writes back, so the corpus grows at a bounded rate instead of
-        # minting three orphaning entries per push (the churn note on
-        # the restore step).
-        if: github.event_name == 'schedule'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6 save, SHA pin
-        with:
-          path: fuzz/corpus/${{ matrix.target }}
-          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}

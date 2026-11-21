@@ -96,11 +96,14 @@ maintenance workflow may use `contents: write`
 only to commit a validated dependency refresh directly to the default branch.
 
 Every job in every workflow declares `timeout-minutes`; no lane runs
-unbounded, and **10 minutes is the standard budget** - the minimum a job
-declares unless a stronger fact tightens or loosens it: a tighter cap is a
-measured wedge-detector (its comment names the latest measured green), and
-a larger budget is a deliberate generous lane (its comment names the
-reason - a wedged leg fails the leg, not the lane).
+unbounded, and **15 minutes is the hard ceiling** (the owner's
+commit-driven CI law, night-fly-1) with **10 minutes the standard
+budget** - a tighter cap is a measured wedge-detector (its comment
+names the latest measured green); the generous-lane class that once
+loosened a budget past the ceiling is retired whole, and every test
+lane triggers from a commit on the default branch, never from a
+calendar slot (the only scheduled lanes left are the maintenance,
+advisory-watch, and CodeQL lanes).
 
 ## Supply-Chain Surface
 

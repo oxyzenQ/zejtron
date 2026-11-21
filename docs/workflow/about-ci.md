@@ -70,26 +70,28 @@ The lane's corpus starts from committed seed anchors
 (night-improve-50, `fuzz/seeds/`): hand-built BTF blobs - the
 kernel 6.18 unnamed-union shape, a two-level anonymous nest, and
 the direct-member layout carrying a verifiable `vfs_writev` - that
-the workflow copies into the working corpus after every cache
-restore. A coverage-guided fuzzer starting from an empty corpus
+the workflow copies into the working corpus before every run. A
+coverage-guided fuzzer starting from an empty corpus
 must first rediscover a valid BTF header byte by byte before it
 can touch the anonymous-descent paths night-improve-49 added; the
 seeds put the first input inside those paths from run one, so the
 60-second budget buys depth where the parser actually walks
 today. The seeds are the lane's definition and travel with the
-repo (the same law as the targets and the manifests); the corpus
-the fuzzer grows between runs stays out of git (the `fuzz/`
-gitignore), reproduced from the CI artifact when a crash needs
-one.
+repo (the same law as the targets and the manifests); the grown
+corpus stays out of git (the `fuzz/` gitignore) - each run seeds
+from the committed anchors, and a crash reproduces from the crashing
+input in the log.
 
-The weekly scheduled session rides the same lane: every Sunday 10:00
-WIB (03:00 UTC, the estate's one clock) the three targets run for
-180 seconds each - the then-five-minute job law retired both the old
-daily sweep and the old 15-minute deep blob (measured 15-16 minute
-wall clocks, 2026-11-09), so the per-push 60-second regression net
-carries the depth and the corpus cache grows one asset per session.
+There is no scheduled session: the owner's commit-driven CI law
+(night-fly-1) retired the weekly slot and its calendar kin - a test
+lane runs when a commit lands, never from a schedule. The
+then-five-minute job law had already retired both the old daily
+sweep and the old 15-minute deep blob (measured 15-16 minute wall
+clocks, 2026-11-09); the per-push 60-second regression net carries
+the depth now, and the run-id-keyed corpus cache retired with the
+sweep (the committed seed anchors are the corpus).
 
-The lane rides nightly Rust - the fuzzer's standard toolchain - with the main crate's stable pin untouched: the override is env-scoped to the fuzz lane's cargo invocations, the other lanes never see it. The corpus is cached between runs, so the fuzzer keeps growing where the last one stopped; a crash fails CI with the crashing input in the log, and the fix is a parser that returns the named error. The eBPF kernel-side code is deliberately not fuzzed: it runs behind the kernel verifier, not in userspace.
+The lane rides nightly Rust - the fuzzer's standard toolchain - with the main crate's stable pin untouched: the override is env-scoped to the fuzz lane's cargo invocations, the other lanes never see it. Each run seeds its working corpus from the committed anchors (the grown corpus stays out of git and out of any cache - the churn-prone run-id-keyed cache retired with the schedule); a crash fails CI with the crashing input in the log, and the fix is a parser that returns the named error. The eBPF kernel-side code is deliberately not fuzzed: it runs behind the kernel verifier, not in userspace.
 
 ## Dependency Maintenance
 
@@ -432,10 +434,9 @@ inside the floor micro-VM (the jammy GA 5.15.0-25 kernel, the
 itself is ONE script (`scripts/netrunner/critical-sim.sh`),
 uid-adaptive, its last line the verdict
 (`NETRUNNER-C77: PASS|FAIL (n checks)`) and its exit code the
-gate; the workflow only makes the legs run. Triggers: every push,
-a weekly slot (Sunday 03:00 UTC / 10:00 WIB, the estate's one
-clock), and
-`workflow_dispatch`.
+gate; the workflow only makes the legs run. Triggers: every push and
+`workflow_dispatch` (the weekly slot retired with the owner's
+commit-driven CI law, night-fly-1).
 
 <!-- ZEJTRON-DISCLAIMER -->
 <!--

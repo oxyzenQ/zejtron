@@ -31,21 +31,17 @@
 # trustworthy. This file only makes the legs run.
 #
 # Trigger discipline: the estate's unfiltered-push posture (every
-# push burns the lane, no path filter), plus a nightly slot (the
-# name's own word) and the manual dispatch. The jobs fail on any
-# FAIL; the script's exit code is the verdict.
+# push burns the lane, no path filter) plus the manual dispatch. The
+# nightly slot retired with the owner's commit-driven CI law
+# (night-fly-1) - a test lane runs when a commit lands, never from a
+# calendar slot; the name's "night" is history, not a schedule. The
+# jobs fail on any FAIL; the script's exit code is the verdict.
 
 name: netrunner-night-C77
 
 "on":
   workflow_dispatch:
   push:
-  schedule:
-    # night-consistent-1: every Sunday 03:00 UTC (10:00 WIB) - the
-    # estate's one clock, shared by every scheduled workflow (the old
-    # nightly 01:37 slot ran the same simulation six times a week
-    # against an unchanged script).
-    - cron: "0 3 * * 0"
 
 permissions:
   contents: read
@@ -173,11 +169,12 @@ jobs:
     # through the SANDBOX-VERDICT sentinel line).
     name: netrunner-C77 - micro-VM floor (root, kernel 5.15.0)
     runs-on: ubuntu-24.04
-    # The one deliberate generous lane (docs/RULES.md): a cold KVM
-    # boot on a hosted runner has wedged to 17.9m once, and the cap
-    # exists to fail that guest - 30 names the boundary the hang
-    # actually needed, everything else lands near three minutes.
-    timeout-minutes: 30
+    # The generous-lane era is closed (the owner's 15-minute CI law,
+    # night-fly-1): a cold KVM boot on a hosted runner has wedged to
+    # 17.9m once, and that wedge now dies loudly at the cap instead
+    # of burning half an hour - everything else lands near three
+    # minutes, so 15 still gives ~5x for the honest boot.
+    timeout-minutes: 15
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
@@ -260,8 +257,11 @@ jobs:
         # the payload command line, so --timeout must come BEFORE it
         # (the trailing order this step shipped with packed
         # "--timeout 1200" into the payload and the simulation died
-        # on the unknown flag, exit 2).
+        # on the unknown flag, exit 2). The payload timeout (720s)
+        # fires before the job's 15-minute cap, so a wedged payload
+        # gets the sandbox's own FAIL verdict relayed, not an
+        # Actions-level kill mid-boot.
         run: |
           ./scripts/sandbox/zejtron-sandbox.sh \
-            --timeout 1200 \
+            --timeout 720 \
             --run 'bash scripts/netrunner/critical-sim.sh --bin /opt/zejtron/zejtron'
