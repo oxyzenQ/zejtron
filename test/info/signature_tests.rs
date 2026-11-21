@@ -38,15 +38,18 @@ const DEPTH_ANCHOR_HEX_ORACLE: &str =
 fn manifest_layer_materializes_to_the_oracle() {
     let view = provenance::provenance_view();
     assert_eq!(view.manifest, MANIFEST_ORACLE);
-    assert_eq!(view.identity, "rezky_nightky (oxyzenQ) 2026");
+    assert_eq!(view.identity, "rezky_nightky (oxyzenQ)");
     assert!(view.identity_shape_ok);
 }
 
-/// The authors layer materializes to its oracle.
+/// The authors layer materializes to its oracle, and the contact
+/// fact rides out of it: the address after the identity core, the
+/// bracket form stripped (night-remake-2).
 #[test]
 fn authors_layer_materializes_to_the_oracle() {
     let view = provenance::provenance_view();
     assert_eq!(view.authors, AUTHORS_ORACLE);
+    assert_eq!(view.contact, "oxyzenQ@proton.me");
 }
 
 /// The at-rest invisibility contract, pinned mechanically:
@@ -212,10 +215,13 @@ fn depth_line_shape_is_stable() {
 /// authors layer.
 #[test]
 fn identity_core_extraction_law() {
-    // The pristine view: the core binds the authors prefix.
+    // The pristine view: the core is the display, the year suffix is
+    // stripped (night-remake-2), and the core binds the authors
+    // prefix.
     let view = provenance::provenance_view();
-    assert_eq!(view.identity, "rezky_nightky (oxyzenQ) 2026");
+    assert_eq!(view.identity, "rezky_nightky (oxyzenQ)");
     assert!(AUTHORS_ORACLE.starts_with("rezky_nightky (oxyzenQ)"));
+    assert_eq!(view.contact, "oxyzenQ@proton.me");
     // The rebrand arm lives in the provenance module's private
     // extraction; the observable contract is the D1 row's direction,
     // pinned through collect() below and the view's binding flag.
@@ -244,7 +250,8 @@ fn collect_verifies_the_running_test_binary_authentic() {
         matrix.verdict_text(),
         "SIGNATURE: AUTHENTIC (5/5 depths verified)"
     );
-    assert_eq!(matrix.identity, "rezky_nightky (oxyzenQ) 2026");
+    assert_eq!(matrix.identity, "rezky_nightky (oxyzenQ)");
+    assert_eq!(matrix.contact, "oxyzenQ@proton.me");
     assert_eq!(matrix.authors, AUTHORS_ORACLE);
     assert_eq!(matrix.fingerprint, MANIFEST_FINGERPRINT_ORACLE);
     assert_eq!(matrix.anchor, DEPTH_ANCHOR_HEX_ORACLE);
@@ -317,7 +324,7 @@ fn verdict_text_names_the_unavailable_depths() {
                 id: "D0",
                 name: "runtime-identity",
                 status: DepthStatus::Pass,
-                detail: "rezky_nightky (oxyzenQ) 2026".to_owned(),
+                detail: "rezky_nightky (oxyzenQ)".to_owned(),
             },
             DepthRow {
                 id: "D1",
@@ -338,7 +345,8 @@ fn verdict_text_names_the_unavailable_depths() {
                 detail: "the running image could not be read".to_owned(),
             },
         ],
-        identity: "rezky_nightky (oxyzenQ) 2026".to_owned(),
+        identity: "rezky_nightky (oxyzenQ)".to_owned(),
+        contact: "oxyzenQ@proton.me".to_owned(),
         authors: AUTHORS_ORACLE.to_owned(),
         fingerprint: MANIFEST_FINGERPRINT_ORACLE,
         commit: "127c6ed".to_owned(),
@@ -367,7 +375,7 @@ fn verdict_text_names_the_refused_depth() {
                 id: "D0",
                 name: "runtime-identity",
                 status: DepthStatus::Pass,
-                detail: "rezky_nightky (oxyzenQ) 2026".to_owned(),
+                detail: "rezky_nightky (oxyzenQ)".to_owned(),
             },
             DepthRow {
                 id: "D1",
@@ -389,7 +397,8 @@ fn verdict_text_names_the_refused_depth() {
                 detail: "b3:9f8e7d6c".to_owned(),
             },
         ],
-        identity: "rezky_nightky (oxyzenQ) 2026".to_owned(),
+        identity: "rezky_nightky (oxyzenQ)".to_owned(),
+        contact: "oxyzenQ@proton.me".to_owned(),
         authors: AUTHORS_ORACLE.to_owned(),
         fingerprint: MANIFEST_FINGERPRINT_ORACLE,
         commit: "127c6ed".to_owned(),
@@ -437,7 +446,7 @@ fn matrix_report_shape_is_pinned() {
         assert_eq!(count, 1, "row label must appear exactly once: {label}");
     }
     assert!(!report.contains('\x1b'), "the mono render is plain bytes");
-    assert!(report.contains("identity    rezky_nightky (oxyzenQ) 2026"));
+    assert!(report.contains("identity    rezky_nightky (oxyzenQ)\ncontact     oxyzenQ@proton.me"));
     assert!(report.contains(&format!(
         "fingerprint fp={:016x} (fnv1a64, dual-layer)",
         MANIFEST_FINGERPRINT_ORACLE
@@ -463,7 +472,8 @@ fn matrix_json_is_one_line_with_the_documented_keys() {
     let json = matrix_json(&matrix);
     assert!(!json.contains('\n'), "one line, jq-ready: {json}");
     for key in [
-        "\"identity\":\"rezky_nightky (oxyzenQ) 2026\"",
+        "\"identity\":\"rezky_nightky (oxyzenQ)\"",
+        "\"contact\":\"oxyzenQ@proton.me\"",
         "\"authors\":\"rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>\"",
         "\"commit\":",
         "\"build_time\":",
@@ -493,7 +503,8 @@ fn matrix_json_absence_and_refusal_arms() {
             status: DepthStatus::Unavailable,
             detail: "non-linux host".to_owned(),
         }],
-        identity: "rezky_nightky (oxyzenQ) 2026".to_owned(),
+        identity: "rezky_nightky (oxyzenQ)".to_owned(),
+        contact: String::new(),
         authors: AUTHORS_ORACLE.to_owned(),
         fingerprint: MANIFEST_FINGERPRINT_ORACLE,
         commit: "127c6ed".to_owned(),
@@ -506,6 +517,7 @@ fn matrix_json_absence_and_refusal_arms() {
     };
     let json = matrix_json(&matrix);
     assert!(json.contains("\"binary_self_hash\":null"));
+    assert!(json.contains("\"contact\":null"));
     matrix.refused = Some(("D2", "mismatch".to_owned()));
     assert!(matrix_json(&matrix).contains("\"verdict\":\"REFUSED\""));
 }

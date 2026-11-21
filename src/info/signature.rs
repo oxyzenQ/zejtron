@@ -9,8 +9,11 @@
 //! the binary itself and by anyone holding the artifact:
 //!
 //! - **D0 runtime identity** - the masked manifest materializes to
-//!   the owner's claim, `rezky_nightky (oxyzenQ) 2026` (see
-//!   [`super::provenance`]); at rest the claim exists only as opaque
+//!   the owner's claim, `Official Build by rezky_nightky (oxyzenQ)
+//!   2026` (see [`super::provenance`]); the row renders the identity
+//!   core and the facts block adds the contact line the authors
+//!   layer carries (night-remake-2, `rezky_nightky (oxyzenQ)` /
+//!   `oxyzenQ@proton.me`). At rest the claim exists only as opaque
 //!   masked words, so a grep over the artifact finds nothing.
 //! - **D1 embedded marker** - the masked authors layer materializes
 //!   and binds to the manifest identity (the coherent-pair check):
@@ -82,6 +85,10 @@ pub(crate) struct SigMatrix {
     pub rows: Vec<DepthRow>,
     /// The owner's claim as the manifest materializes it.
     pub identity: String,
+    /// The contact the authors layer carries, the bracket form
+    /// stripped (night-remake-2). Empty when the layers do not bind -
+    /// an absent fact renders absent, never guessed.
+    pub contact: String,
     /// The authors string as the masked layer materializes it.
     pub authors: String,
     /// The embedded manifest fingerprint (the `fp=` value).
@@ -222,6 +229,7 @@ pub(crate) fn collect() -> SigMatrix {
     SigMatrix {
         rows,
         identity: view.identity,
+        contact: view.contact,
         authors: view.authors,
         fingerprint: provenance::manifest_fingerprint(),
         commit: commit.to_owned(),
@@ -330,6 +338,11 @@ pub(crate) fn matrix_report(matrix: &SigMatrix) -> String {
     }
     out.push('\n');
     out.push_str(&format!("{:<12}{}\n", "identity", matrix.identity));
+    // The contact line rides only when the layers bound (night-
+    // remake-2): an absent fact renders absent, never an empty row.
+    if !matrix.contact.is_empty() {
+        out.push_str(&format!("{:<12}{}\n", "contact", matrix.contact));
+    }
     out.push_str(&format!(
         "{:<12}fp={:016x} (fnv1a64, dual-layer)\n",
         "fingerprint", matrix.fingerprint
@@ -355,6 +368,14 @@ pub(crate) fn matrix_json(matrix: &SigMatrix) -> String {
     let mut out = String::with_capacity(1024);
     out.push_str("{\"identity\":");
     write_string(&mut out, &matrix.identity);
+    // The absence law: a fact that could not materialize rides null,
+    // never an empty string (night-remake-2, the contact seat).
+    out.push_str(",\"contact\":");
+    if matrix.contact.is_empty() {
+        out.push_str("null");
+    } else {
+        write_string(&mut out, &matrix.contact);
+    }
     out.push_str(",\"authors\":");
     write_string(&mut out, &matrix.authors);
     out.push_str(",\"commit\":");

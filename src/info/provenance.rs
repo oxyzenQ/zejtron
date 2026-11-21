@@ -370,11 +370,18 @@ pub(crate) struct ProvenanceView {
     pub manifest: String,
     /// Authors text for the `Copyright:` line.
     pub authors: String,
-    /// The D0 identity display: everything after the marker in the
-    /// manifest, year included - the owner's claim as the report
-    /// renders it ("rezky_nightky (oxyzenQ) 2026"). Empty when the
-    /// manifest lost the marker shape (a tampering signal).
+    /// The D0 identity display: the identity core - everything after
+    /// the marker, the trailing year suffix stripped (night-remake-2,
+    /// the clean identity render: "rezky_nightky (oxyzenQ)" - the
+    /// report names the owner, the contact line names the address).
+    /// Empty when the manifest lost the marker/year shape (a
+    /// tampering signal).
     pub identity: String,
+    /// The contact the authors layer carries after the identity core,
+    /// the "<...>" bracket form stripped ("oxyzenQ@proton.me",
+    /// night-remake-2). Empty when the binding fails - an absent fact
+    /// renders absent, never guessed.
+    pub contact: String,
     /// `Depth-matrix:` line body (fingerprint + status + anchor + layers).
     pub depth_line: String,
     /// The runtime-recomputed anchor digest, lowercase hex (no `b3:`
@@ -439,17 +446,30 @@ pub(crate) fn provenance_view() -> ProvenanceView {
     let manifest = String::from_utf8_lossy(&manifest_bytes).into_owned();
     let authors = String::from_utf8_lossy(&authors_bytes).into_owned();
 
-    // The D0 display: everything after the marker, year included -
-    // the owner's claim exactly as the report renders it. The binding
-    // core below strips the year; the two derivations differ on
-    // purpose (display vs coherence check).
-    let identity = manifest
-        .split_once(MANIFEST_IDENTITY_MARKER)
-        .map(|(_, tail)| tail)
-        .unwrap_or("")
-        .to_owned();
+    // The D0 display: the identity core - everything after the
+    // marker, the trailing year suffix stripped (night-remake-2, the
+    // clean identity render: the report names the owner, the contact
+    // line names the address). The same extraction drives the
+    // binding check, so display and coherence read one core, and a
+    // manifest that lost the marker/year shape leaves the core
+    // empty - the tampering signal the D0 row refuses by name.
+    let identity = identity_core(&manifest).unwrap_or("").to_owned();
     let identity_shape_ok = !identity.is_empty();
-    let binding_ok = identity_core(&manifest).is_some_and(|core| authors.starts_with(core));
+    let binding_ok = identity_shape_ok && authors.starts_with(identity.as_str());
+    // The contact fact: the address the authors layer carries after
+    // the identity core, the "<...>" bracket form stripped. Derived
+    // from the SAME materialized bytes (the single-pass invariant) -
+    // an unbound pair leaves it empty, an absent fact renders absent.
+    let contact = if binding_ok {
+        authors[identity.len()..]
+            .trim()
+            .strip_prefix('<')
+            .and_then(|rest| rest.strip_suffix('>'))
+            .unwrap_or("")
+            .to_owned()
+    } else {
+        String::new()
+    };
 
     // D3 anchor: the SAME bytes just materialized feed the blake3
     // recompute (single-pass invariant - no second unmask, no separate
@@ -468,6 +488,7 @@ pub(crate) fn provenance_view() -> ProvenanceView {
         manifest,
         authors,
         identity,
+        contact,
         depth_line,
         anchor_hex: hex32(&runtime_anchor),
         fingerprints_ok,

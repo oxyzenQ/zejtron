@@ -94,6 +94,29 @@ v11.0.0
   a slow host through the draw arm, both green wherever the suite
   runs.
 
+- **night-remake-2, the sig report names the owner and the contact -
+  the clean identity render.** The depth matrix's D0 row and the
+  identity fact rendered the manifest's full claim tail, years
+  included (`rezky_nightky (oxyzenQ) 2026`), and the report named no
+  address at all: an auditor reading `zejtron sig` got a claim with
+  the year glued to the holder and had to hunt NOTICE for the
+  contact. The close is render-only - the masked payload does not
+  rotate, the FNV-64 fingerprints and the BLAKE3 anchor keep their
+  embedded values byte for byte: the D0 display now renders the
+  identity core the binding check already extracts (everything after
+  the marker, the trailing year suffix stripped - one extraction
+  drives display and coherence), and a new contact fact derives from
+  the SAME materialized authors bytes (night-remake-1's 43-byte
+  proton claim): `identity rezky_nightky (oxyzenQ)` then
+  `contact oxyzenQ@proton.me` in the text lane, `"contact":"..."`
+  beside `"identity"` in the JSON lane with the null absence law
+  (an unbound pair rides `null`, never an empty string). Zero new
+  dependencies, zero payload rotation, zero oracle drift - the
+  generator's truths, seeds, words, fingerprints, and anchor are
+  untouched; the pins follow the render (the identity core, the
+  identity/contact adjacency, the JSON null arm), and
+  VERIFY_RELEASE.md names the render and the 5/5 verdict shape.
+
 - **night-frontier-Z10 D7, the watch truth - the absence triad
   completes (drop truth + sleep truth + watch truth = no silent
   absence), and the clocksource regime honesty.** The drains named

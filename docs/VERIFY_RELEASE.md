@@ -48,7 +48,7 @@ to plaintext only at runtime. Five depths, each checkable on its own:
 
 | Depth | What it proves | How to check |
 |---|---|---|
-| D0 runtime identity | The masked manifest materializes to the owner's claim `rezky_nightky (oxyzenQ) 2026` | `zejtron sig` (the D0 row) |
+| D0 runtime identity | The masked manifest materializes to the owner's claim `Official Build by rezky_nightky (oxyzenQ) 2026`; the D0 row renders the identity core `rezky_nightky (oxyzenQ)` and the facts block carries the contact line `oxyzenQ@proton.me` (night-remake-2) | `zejtron sig` (the D0 row) |
 | D1 embedded marker | The masked authors layer binds to the manifest identity (two independent encodings of one identity) | `zejtron sig` (the D1 row) |
 | D2 anchor integrity | The BLAKE3 anchor over the framed masked payload recomputes, and both FNV-64 fingerprints agree with the compile-time digests | `zejtron sig` (the D2 row) |
 | D3 binary self-hash | The BLAKE3 of the exact bytes the process runs from | `zejtron sig` (compare against `b3sum <binary>` or the pinned release hash) |
@@ -60,8 +60,10 @@ honest artifact - the release lane's Verify step asserts this absence
 on every matrix artifact, and a plaintext identity hit in an artifact
 is itself evidence the mask was stripped.
 
-`zejtron sig` (alias `zejtron signature`) renders the whole matrix
-and closes with `verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)`
+`zejtron sig` (alias `zejtron signature`) renders the whole matrix -
+the facts block names the identity core (`rezky_nightky (oxyzenQ)`)
+and the contact line (`oxyzenQ@proton.me`, night-remake-2) - and
+closes with `verdict: SIGNATURE: AUTHENTIC (5/5 depths verified)`
 on an intact build. A tampered, hand-patched, or foreign-rebuilt
 binary gets `SIGNATURE: REFUSED (...)` naming the contradicting
 depth, exit 1; `--print-json` speaks the same matrix as one jq-ready
