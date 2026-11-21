@@ -13,10 +13,30 @@ use super::*;
 /// (LICENSE_LINE) - the release lane greps exactly those bytes
 /// out of `strings` on shipped artifacts. The literal is pinned
 /// verbatim here so a drifted line fails in the unit run, not on
-/// a release day.
+/// a release day. The dual-license OR expression (night-ux-orion-2)
+/// rides the same contiguous-bytes law: both doors named in one
+/// greppable line.
 #[test]
 fn license_line_is_the_contiguous_bytes_the_release_probe_greps() {
-    assert_eq!(LICENSE_LINE, "License: AGPL-3.0-only");
+    assert_eq!(LICENSE_LINE, "License: AGPL-3.0-only OR Commercial");
+}
+
+/// The copyright line is the owner's masterclass form
+/// (night-ux-orion-2): ONE contiguous literal, no colon after the
+/// Copyright word (the Linux kernel / Rust compiler convention), the
+/// year range 2025-2026, the holder the manifest names. Pinned
+/// verbatim so a drift (a reintroduced colon, a year drop, a split
+/// format! capture) fails in the unit run.
+#[test]
+fn copyright_line_is_the_masterclass_form() {
+    assert_eq!(
+        COPYRIGHT_LINE,
+        "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)"
+    );
+    assert!(
+        !COPYRIGHT_LINE.starts_with("Copyright:"),
+        "the masterclass form carries no colon after the Copyright word"
+    );
 }
 
 /// The version report carries the Build-time line between Build
@@ -27,8 +47,8 @@ fn version_report_carries_build_time_line() {
     let body = version_body();
     for line in [
         "Build-time: ",
-        "Copyright: (c) 2026 rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>",
-        "License: AGPL-3.0-only",
+        "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)",
+        "License: AGPL-3.0-only OR Commercial",
         "Source: https://github.com/oxyzenQ/zejtron",
     ] {
         let count = body.lines().filter(|l| l.contains(line)).count();

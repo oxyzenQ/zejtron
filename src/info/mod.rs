@@ -11,8 +11,23 @@
 /// pipeline greps must never ride a format! inline capture - the
 /// template would keep the prefix and the bare id would land
 /// elsewhere in rodata. This const IS the whole line, so the bytes
-/// stay contiguous by construction.
-const LICENSE_LINE: &str = "License: AGPL-3.0-only";
+/// stay contiguous by construction. The dual-license SPDX OR
+/// expression (night-ux-orion-2, the masterclass disclosure) names
+/// both doors in the same bytes: AGPL-3.0-only, or the Commercial
+/// License for closed-source use - the exact string the manifest's
+/// license field and every file header carry.
+const LICENSE_LINE: &str = "License: AGPL-3.0-only OR Commercial";
+
+/// The `Copyright` line as ONE contiguous literal (night-ux-orion-2,
+/// the owner's masterclass form): no colon after the Copyright word
+/// (the Linux kernel and Rust compiler convention - the universal
+/// shape every auditor recognizes), the year range naming the first
+/// and the current year of the holder's claim, and the holder the
+/// manifest names. One place to update: the trailing year moves when
+/// a release lands in a new calendar year (2025-2027 for a 2027
+/// release) and freezes the day the claim changes hands - the range
+/// never loses its first year.
+const COPYRIGHT_LINE: &str = "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)";
 
 /// The `Signature:` line for the version report as ONE contiguous
 /// literal (night-dragon-maintenance-T1, the zelynic NIGHT-dinner-4
@@ -196,7 +211,7 @@ fn version_body() -> String {
         format!("Build-time: {}", build_time()),
         signature_line(&view.manifest),
         view.depth_line,
-        format!("Copyright: (c) 2026 {}", view.authors),
+        COPYRIGHT_LINE.to_owned(),
         LICENSE_LINE.to_owned(),
         "Source: https://github.com/oxyzenQ/zejtron".to_owned(),
     ]
@@ -240,8 +255,8 @@ pub mod clock;
 /// Build-time: 2026-10-17 09:15Z
 /// Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026
 /// Depth-matrix: fp=<16 lowercase hex> status=verified anchor=b3:<64 lowercase hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
-/// Copyright: (c) 2026 rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>
-/// License: AGPL-3.0-only
+/// Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)
+/// License: AGPL-3.0-only OR Commercial
 /// Source: `<https://github.com/oxyzenQ/zejtron>`
 /// ```
 ///
