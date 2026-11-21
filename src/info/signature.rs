@@ -121,9 +121,10 @@ fn read_self_image() -> Result<Vec<u8>, &'static str> {
     std::fs::read("/proc/self/exe").map_err(|_| "the running image could not be read")
 }
 
-/// Collect the four depths from this running binary. One unmask pass
+/// Collect the five depths from this running binary. One unmask pass
 /// (inside the provenance view) feeds D0, D1, and D2; one image read
-/// feeds D3.
+/// feeds D3; the build-time camera stamp and the embedded probe
+/// object feed D4.
 pub(crate) fn collect() -> SigMatrix {
     let view = provenance::provenance_view();
     let commit = super::build_hash();

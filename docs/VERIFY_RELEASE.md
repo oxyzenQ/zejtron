@@ -116,7 +116,10 @@ b3sum <binary>
 ```
 
 An executed check closes the loop on an executable host: `zejtron
-sig` must answer 4/4 AUTHENTIC, and `-V`'s Depth-matrix line must carry
+sig` must answer 5/5 AUTHENTIC on a release artifact (a depth that
+genuinely cannot run on the host - an out-of-tree build without the
+camera stamp, an unreadable self-image - is named `unavailable` in
+the verdict, never guessed), and `-V`'s Depth-matrix line must carry
 `status=verified` - a rebuilt or patched artifact refuses by name.
 
 ### What AUTHENTIC proves, and what it does not
