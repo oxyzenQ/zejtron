@@ -337,7 +337,7 @@ dependencies = [
 
 [[package]]
 name = "zejtron"
-version = "80.5.0-night.1"
+version = "80.5.0-night.2"
 dependencies = [
  "aya",
  "clap",

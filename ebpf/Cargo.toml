@@ -28,7 +28,7 @@
 
 [package]
 name = "zejtron-ebpf"
-version = "80.5.0-night.1"
+version = "80.5.0-night.2"
 edition = "2024"
 publish = false
 license = "AGPL-3.0-only OR Commercial"
