@@ -15,6 +15,16 @@ name: zejtron - Dependency Maintenance
     # waiting when the week starts, not drifting across workdays.
     - cron: "0 3 * * 0"
   workflow_dispatch:
+    # night-supply-1: the scan-only dispatch runs the whole verdict
+    # (pre-scan, sweep probe, post-scan) but skips the ship lane - no
+    # rider, no checks, no commit. The owner's red button: any day of
+    # the week, the advisory state of every workspace, one dispatch.
+    inputs:
+      scan_only:
+        description: "Verdict only - scan and sweep-probe, ship nothing"
+        type: boolean
+        default: false
+        required: false
 
 permissions:
   contents: read
@@ -32,8 +42,9 @@ jobs:
     runs-on: ubuntu-24.04
     # The runtime budget law (docs/RULES.md): 15 is the deliberate
     # generous budget here - toolchain install, the eBPF bootstrap,
-    # the rider's possible object rebuild, and the wholesale check
-    # suite land in this one job.
+    # the rider's possible object rebuild, the wholesale check
+    # suite, and (night-supply-1) the supply-chain scanner install
+    # with its two verdict passes land in this one job.
     timeout-minutes: 15
     permissions:
       contents: read
@@ -69,7 +80,11 @@ jobs:
       # build source-builds the kernel object, so the prerequisites
       # ride the same bootstrap the fast lane uses (the zylaxion CI
       # precedent).
+      # The scan-only dispatch skips the ship lane below: no eBPF
+      # bootstrap, no rider, no checks - the verdict rides the
+      # committed tree and probes the sweep with plain cargo only.
       - name: Restore the eBPF build prerequisites cache
+        if: inputs.scan_only != true
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, SHA pin
         with:
           path: |
@@ -79,6 +94,7 @@ jobs:
             ebpf-build-${{ runner.os }}-
 
       - name: Install the eBPF build prerequisites
+        if: inputs.scan_only != true
         run: |
           ./scripts/dev/bootstrap-ebpf.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -86,7 +102,15 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2, SHA pin
 
+      # night-supply-1: the verdict's scanner, pinned exactly like the
+      # audit lane's (0.22.2, --locked) so the rust-cache carries the
+      # same binary after the first Sunday run - red means a new
+      # advisory, never a new scanner release.
+      - name: Install the supply-chain scanner (cargo-audit)
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
       - name: Install codespell
+        if: inputs.scan_only != true
         run: python3 -m pip install --user codespell==2.4.3
 
       # night-zen-1, moved into its own file by night-consistent-2:
@@ -99,9 +123,27 @@ jobs:
       # can never join the walk. The walk, the exclusions, and the
       # deterministic order now live in
       # scripts/ci/refresh-cargo-deps.sh and stay one command here.
+      # night-supply-1, pre-pass: what the as-committed lane carries
+      # BEFORE the refresh touches it. The post-pass diffs against
+      # this snapshot to tell the owner's two scenarios apart: a
+      # finding the sweep cleared (fixable) and a finding the sweep
+      # left behind (unfixable).
+      - name: Scan the committed lane (the pre-sweep findings)
+        run: ./scripts/ci/supplychain-verdict.sh --pre
+
       - name: Refresh Cargo dependencies
         shell: bash
         run: ./scripts/ci/refresh-cargo-deps.sh
+
+      # night-supply-1, the verdict: it speaks on the swept lane.
+      # Scenario A (fixable) - a loud notice, the job stays green and
+      # the validated lane below ships the fix. Scenario B
+      # (unfixable) - the job fails hard (CALL OWNER) and the commit
+      # job never runs: nothing ships while a dangerous dep has no
+      # automatic update path. The verdict runs before the heavy
+      # checks so a red Sunday lands fast, inside the same budget.
+      - name: The supply-chain verdict (the swept lane)
+        run: ./scripts/ci/supplychain-verdict.sh --post
 
       # night-zen-2: the parity rider (the zelynic sweep fix, ported).
       # A sweep that moves ebpf/Cargo.lock changes the ebpf/ tree hash,
@@ -114,6 +156,7 @@ jobs:
       # a writer failure fails the job - a sweep never ships a lane it
       # cannot prove.
       - name: Carry the prebuilt lane (parity rider)
+        if: inputs.scan_only != true
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -129,6 +172,7 @@ jobs:
       # the parity rider just proved - so the staging wall keeps its
       # shape.
       - name: Enforce dependency-only diff
+        if: inputs.scan_only != true
         id: changes
         shell: bash
         run: |
@@ -172,7 +216,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: validate
-    if: needs.validate.outputs.changed == 'true'
+    # night-supply-1: the scan-only dispatch ships nothing - and the
+    # unset `changed` output of a skipped diff step would block this
+    # job anyway; the explicit guard keeps the law stated, not
+    # implied.
+    if: needs.validate.outputs.changed == 'true' && inputs.scan_only != true
     permissions:
       contents: write
 
