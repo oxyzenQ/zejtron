@@ -71,6 +71,29 @@ v11.0.0
   with the frame tables, the style ladder, the lazy slot clock, and
   the clear contract pinned in `test/output/spinner_tests.rs`.
 
+- **night-ux-orion-2, the loading helix grows its estate - the
+  large-data loads narrate themselves.** The proc scan's walk of the
+  subject's /proc entries and the doctor sweep's back-to-back
+  readiness reads were silent loads: on a busy host (containers, a
+  loaded CI runner) both cross the 100 ms lazy threshold and the
+  terminal sat frozen-looking - the same perception bug orion-1
+  closed for the update fetch, still open on the two local surfaces.
+  The close rides the SAME machine, byte for byte: the same Spinner,
+  the same HELIX table, the same lazy threshold, the same style
+  ladder and clear contract - the helix seat on both sites
+  (`scanning processes`, `running readiness checks`), the text and
+  the JSON lanes of proc alike, a fast path never drawing (byte for
+  byte silent stderr, piped and pty alike), the arm/finish bracket
+  wrapping exactly the scan call. Zero new dependencies, zero new
+  CLI surface, zero new machinery. Pinned by the supermassive
+  suite's new loading surface: the piped and pty fast-path silence
+  laws (proc and doctor, in the UTF-8, C-locale and NO_COLOR
+  ladders), the draw arm's frame legality against the tree's own
+  spinner.rs tables, the full-width clear contract, and the honest
+  {0,1} network exit contract - a fast host passes through silence,
+  a slow host through the draw arm, both green wherever the suite
+  runs.
+
 - **night-frontier-Z10 D7, the watch truth - the absence triad
   completes (drop truth + sleep truth + watch truth = no silent
   absence), and the clocksource regime honesty.** The drains named

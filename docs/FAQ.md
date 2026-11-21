@@ -99,7 +99,10 @@ running the same sweep in opposite directions), degrading
 automatically to the rotating ASCII dash on a NO_COLOR or non-Unicode
 terminal, and drawing nothing at all when the answer lands inside
 100 ms: a slow fetch never looks like a hang, a fast one never
-flashes.
+flashes. The same helix narrates the large-data local loads - the
+`proc` scan's walk of the process table and the `doctor` sweep's
+readiness reads - under the same threshold and the same fallbacks
+(night-ux-orion-2).
 
 ## Colors
 

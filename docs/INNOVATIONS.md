@@ -671,6 +671,27 @@ by `test/output/spinner_tests.rs` (the counter-phase table, the
 style ladder's truth table, the lazy clock's 99/100/199/200 ms
 boundaries).
 
+**25. The loading helix's estate** (night-ux-orion-2;
+`src/commands/proc.rs`, `src/commands/doctor.rs`, wired from the
+`src/output/spinner.rs` loading lane). The hole orion-1 closed for
+the one network fetch stayed open on the two local surfaces a
+loaded host actually punishes: the proc scan's walk of the
+subject's /proc entries (containers, a busy CI runner) and the
+doctor sweep's back-to-back readiness reads crossed the 100 ms lazy
+threshold with a frozen-looking terminal - the same perception bug,
+the Ctrl+C it invites still a bug of perception. The close is the
+anti-overengineering move: ZERO new machinery - both sites arm the
+same Spinner with the same HELIX table (byte for byte the orion-1
+frames), the same lazy threshold, the same style ladder, the same
+clear contract; the arm/finish bracket wraps exactly the scan call
+in the text and the JSON lane alike, and a fast scan never draws
+(the fast path's stderr stays byte for byte silent, a pipe and a
+pty alike). The estate's loading face is now ONE shape everywhere a
+large-data load happens. Pinned by the supermassive loading surface
+(the piped and pty silence laws in three environment ladders, the
+draw arm's frame legality against the tree's own tables, the clear
+contract, the honest network exit set) beside the unit battery.
+
 ## How a newcomer reads this tree
 
 This page for the shape, [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md)
