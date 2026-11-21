@@ -52,7 +52,9 @@
 # calendar slot. The per-change burn already carries the whole signal
 # - every run installs the runner's moving `nightly` tag, so the
 # drift case the Sunday slot once watched (new UB from a moving
-# nightly against an unchanged tree) is exercised on every push. The `--no-install` flag is the CI contract: this workflow
+# nightly against an unchanged tree) is exercised on every push.
+#
+# The `--no-install` flag is the CI contract: this workflow
 # installs its own pinned toolchain below, so a missing component
 # must fail loudly rather than silently download a moving nightly.
 
