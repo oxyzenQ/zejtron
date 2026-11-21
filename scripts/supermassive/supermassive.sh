@@ -213,8 +213,8 @@ fi
 # ---------------------------------------------------------------------------
 
 ALL_SURFACES=(path recent port proc holds touch why net doctor doctor-ram
-	doctor-cpu doctor-disk doctor-network doctor-gpu help version storm
-	loss-certificate camera-cost simulation)
+	doctor-cpu doctor-disk doctor-network doctor-gpu help version loading
+	storm loss-certificate camera-cost simulation)
 
 # The documented-flag manifest. Every documented flag of every
 # surface; the runner reports any flag no surface exercised as
@@ -292,6 +292,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor-network.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/doctor-gpu.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/help.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/version.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/loading.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/storm.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/loss-certificate.sh"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/surfaces/camera-cost.sh"
