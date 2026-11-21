@@ -46,7 +46,7 @@ Usage:
 
 # The provenance truths. Byte-level truth: UTF-8 (every layer below
 # operates on bytes, not chars).
-MANIFEST = "Official Build by rezky_nightky (oxyzenQ) 2026"
+MANIFEST = "Official Build by rezky_nightky (oxyzenQ)"
 AUTHORS = "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"
 
 # Per-layer seeds. Decoys with no external meaning; rotating them is a

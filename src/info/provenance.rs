@@ -14,7 +14,9 @@
 //! 64-bit integers:
 //!
 //! - **D0 `MASKED_MANIFEST_WORDS`** - the identity manifest
-//!   ("Official Build by rezky_nightky (oxyzenQ) 2026"), chunked into
+//!   ("Official Build by rezky_nightky (oxyzenQ)", the orion-3 claim:
+//!   the year left the claim bytes - the rendered surfaces carry the
+//!   front-positioned years of the Copyright line only), chunked into
 //!   little-endian u64 words and XOR-masked with a splitmix64 stream
 //!   keyed by [`MANIFEST_SEED`]. At rest: opaque integers in source
 //!   and in `.rodata` - no printable run of four or more bytes exists
@@ -69,11 +71,14 @@
 //!
 //! # Identity binding between the layers
 //!
-//! The manifest carries "Official Build by <identity> <year>"; the
-//! authors string starts with the same identity. The runtime extracts
-//! the identity core from the materialized manifest (everything after
-//! the marker, minus the year suffix) and requires the authors string
-//! to start with it. Patching one layer alone breaks the binding;
+//! The manifest carries "Official Build by <identity>"; the authors
+//! string starts with the same identity. The runtime extracts the
+//! identity core from the materialized manifest (everything after the
+//! marker) and requires the authors string to start with it. The
+//! manifest's year tail left the claim in night-ux-orion-3 (the
+//! owner's year-format law: years render at the front, in the
+//! Copyright line's range, never glued behind the holder). Patching
+//! one layer alone breaks the binding;
 //! patching both consistently requires regenerating the masked words
 //! AND the fingerprints - at which point the attacker has fully
 //! understood the system (see the honest limits).
@@ -142,14 +147,14 @@ const fn mask_for(seed: u64, index: usize) -> u64 {
 // chunked little-endian, XOR-masked word-by-word.
 
 pub(crate) const MANIFEST_SEED: u64 = 0x6B294D2F8A57C1E3;
-pub(crate) const MANIFEST_BYTE_LEN: usize = 46; // 6 words
+pub(crate) const MANIFEST_BYTE_LEN: usize = 41; // 6 words
 const MASKED_MANIFEST_WORDS: [u64; 6] = [
     0xE59B1C1BDA3108F2,
     0xC90A33081BCF84E1,
     0x13A79DF58DB876EE,
     0xFF6CFBC5F57230BE,
     0xF58451DB56EACEF4,
-    0xD07E55D1CC351D34,
+    0xD07E63E3FC073D34,
 ];
 
 /// D2 digest over the clear manifest bytes, evaluated by the compiler.
@@ -161,11 +166,12 @@ const MASKED_MANIFEST_WORDS: [u64; 6] = [
 /// Scope note (night-pro-1 fingerprint audit): the digest runs over the
 /// CLEAR manifest bytes only, so `fp=` pins the identity CLAIM, not the
 /// artifact. The exact byte stream hashed is this estate's identity
-/// manifest, "Official Build by rezky_nightky (oxyzenQ) 2026" (46 UTF-8
-/// bytes); the "Pure eBPF builtin" family voice is a separate claim
-/// const, rendered ahead of the manifest on the Signature line but
-/// never hashed. That framing is why zejtron's `fp=` (9174e0ce08feccba)
-/// differs from its siblings: zylaxion and zelynic embed the full
+/// manifest, "Official Build by rezky_nightky (oxyzenQ)" (41 UTF-8
+/// bytes, night-ux-orion-3: the year tail left the claim and the
+/// fingerprint rotates with it); the "Pure eBPF builtin" family voice
+/// is a separate claim const, rendered ahead of the manifest on the
+/// Signature line but never hashed. That framing is why zejtron's
+/// `fp=` (7e9ff677aac06508) differs from its siblings: zylaxion and zelynic embed the full
 /// Signature line including the voice (68 bytes) and share `fp=`
 /// a60dfb6a39745f34, and cosmostrix (the "Cosmic Dragon" voice, 64
 /// bytes) reports fe0d7239f86e7c1b - differently framed claims hash
@@ -215,10 +221,12 @@ const AUTHORS_FINGERPRINT: u64 =
 /// and must be done together with a generator re-run.
 pub(crate) const ANCHOR_DOMAIN: &[u8] = b"zejtron/depth-matrix/v1";
 
-/// The embedded anchor (generator output, night-signature-advanced-1).
+/// The embedded anchor (generator output, night-signature-advanced-1;
+/// rotated with the orion-3 claim - the manifest's year tail left the
+/// framed payload, so the anchor recomputes to new bytes).
 pub(crate) const DEPTH_ANCHOR: [u8; 32] = [
-    0x04, 0xAC, 0xD9, 0x54, 0xCD, 0xFD, 0x0E, 0x02, 0x74, 0x25, 0xA0, 0x79, 0x39, 0xFF, 0xAA, 0x13,
-    0xDE, 0xE6, 0xCB, 0x06, 0x0D, 0xD2, 0x87, 0x06, 0x64, 0x37, 0x0D, 0x9C, 0xED, 0xD3, 0x26, 0xF3,
+    0x23, 0x9E, 0xA1, 0x0B, 0xFF, 0x2D, 0x93, 0x38, 0x41, 0x77, 0x92, 0x42, 0x55, 0xD6, 0xFB, 0x46,
+    0x42, 0x70, 0x78, 0x73, 0xC9, 0xDA, 0x6A, 0x4A, 0x05, 0xF7, 0xE5, 0xBF, 0xF8, 0xA2, 0xB1, 0xA5,
 ];
 
 // --- Compile-time fold ------------------------------------------------
@@ -337,20 +345,18 @@ pub(crate) fn authors_fingerprint() -> u64 {
 /// bytes are inside the manifest, hence bound by `MANIFEST_FINGERPRINT`.
 const MANIFEST_IDENTITY_MARKER: &str = "Official Build by ";
 
-/// Year suffix the manifest carries after the identity. Generic text,
-/// same binding rationale as the marker.
-const MANIFEST_IDENTITY_YEAR: &str = " 2026";
-
 /// Extract the owner identity core from a materialized manifest:
-/// everything after the marker, minus the trailing year.
+/// everything after the marker. The claim carries no year tail
+/// (night-ux-orion-3 removed it from the claim bytes - years render
+/// at the front, in the Copyright line's range, never behind the
+/// holder), so the core is the display and the binding prefix in one.
 ///
-/// `None` means the manifest no longer carries the marker/year shape -
-/// a tampering signal, not a panic path.
+/// `None` means the manifest no longer carries the marker shape - a
+/// tampering signal, not a panic path.
 fn identity_core(manifest: &str) -> Option<&str> {
     manifest
         .split_once(MANIFEST_IDENTITY_MARKER)
         .map(|(_, tail)| tail)
-        .and_then(|tail| tail.strip_suffix(MANIFEST_IDENTITY_YEAR))
 }
 
 // --- Version-report surface -------------------------------------------
@@ -371,11 +377,11 @@ pub(crate) struct ProvenanceView {
     /// Authors text for the `Copyright:` line.
     pub authors: String,
     /// The D0 identity display: the identity core - everything after
-    /// the marker, the trailing year suffix stripped (night-remake-2,
-    /// the clean identity render: "rezky_nightky (oxyzenQ)" - the
-    /// report names the owner, the contact line names the address).
-    /// Empty when the manifest lost the marker/year shape (a
-    /// tampering signal).
+    /// the marker (night-remake-2 unified display and coherence on
+    /// one extraction; the orion-3 claim carries no year tail, so
+    /// nothing is stripped: "rezky_nightky (oxyzenQ)" - the report
+    /// names the owner, the contact line names the address). Empty
+    /// when the manifest lost the marker shape (a tampering signal).
     pub identity: String,
     /// The contact the authors layer carries after the identity core,
     /// the "<...>" bracket form stripped ("oxyzenQ@proton.me",
@@ -391,7 +397,7 @@ pub(crate) struct ProvenanceView {
     /// The compile-time-vs-runtime fingerprint fold agreed for BOTH
     /// layers.
     pub fingerprints_ok: bool,
-    /// The manifest still carries the marker/year shape (the D0
+    /// The manifest still carries the marker shape (the D0
     /// precondition).
     pub identity_shape_ok: bool,
     /// The identity core extracted from the manifest is a prefix of
@@ -447,12 +453,13 @@ pub(crate) fn provenance_view() -> ProvenanceView {
     let authors = String::from_utf8_lossy(&authors_bytes).into_owned();
 
     // The D0 display: the identity core - everything after the
-    // marker, the trailing year suffix stripped (night-remake-2, the
-    // clean identity render: the report names the owner, the contact
-    // line names the address). The same extraction drives the
-    // binding check, so display and coherence read one core, and a
-    // manifest that lost the marker/year shape leaves the core
-    // empty - the tampering signal the D0 row refuses by name.
+    // marker (night-remake-2 unified display and coherence on one
+    // extraction; orion-3 removed the year tail from the claim bytes,
+    // so the core strips nothing: the report names the owner, the
+    // contact line names the address). The same extraction drives
+    // the binding check, and a manifest that lost the marker shape
+    // leaves the core empty - the tampering signal the D0 row
+    // refuses by name.
     let identity = identity_core(&manifest).unwrap_or("").to_owned();
     let identity_shape_ok = !identity.is_empty();
     let binding_ok = identity_shape_ok && authors.starts_with(identity.as_str());

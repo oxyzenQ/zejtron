@@ -9,8 +9,10 @@
 //! the binary itself and by anyone holding the artifact:
 //!
 //! - **D0 runtime identity** - the masked manifest materializes to
-//!   the owner's claim, `Official Build by rezky_nightky (oxyzenQ)
-//!   2026` (see [`super::provenance`]); the row renders the identity
+//!   the owner's claim, `Official Build by rezky_nightky (oxyzenQ)`
+//!   (night-ux-orion-3: the claim carries no year tail - years render
+//!   at the front, in the Copyright line's range; see
+//!   [`super::provenance`]); the row renders the identity
 //!   core and the facts block adds the contact line the authors
 //!   layer carries (night-remake-2, `rezky_nightky (oxyzenQ)` /
 //!   `oxyzenQ@proton.me`). At rest the claim exists only as opaque

@@ -117,6 +117,38 @@ v11.0.0
   identity/contact adjacency, the JSON null arm), and
   VERIFY_RELEASE.md names the render and the 5/5 verdict shape.
 
+- **night-ux-orion-3, the year leaves the claim - the owner's
+  year-format law holds at every rendered byte.** night-remake-2
+  cleaned the sig report's render, but the -V Signature line still
+  rendered the full manifest claim, years included
+  (`Signature: Pure eBPF builtin — Official Build by rezky_nightky
+  (oxyzenQ) 2026`), and the year tail stayed in the claim bytes
+  themselves - two shapes of the same wrong-format year (years
+  belong at the front, in the Copyright line's range, never glued
+  behind the holder). The close is the source-level fix: the
+  manifest truth rotates to `Official Build by rezky_nightky
+  (oxyzenQ)` (41 UTF-8 bytes) in the generator, one paste of the
+  emitted block - the masked words re-mask the new claim (only the
+  sixth word moves, the seeds are untouched), the FNV-64 manifest
+  fingerprint recomputes to `7e9ff677aac06508`, and the BLAKE3
+  depth anchor re-frames to the shorter payload (the framing drops
+  128 to 123 bytes, anchor
+  b3:239ea10bff2d93384177924255d6fb4642707873c9da6a4a05f7e5bff8a2b1a5).
+  The extraction law simplifies with it: identity_core drops the
+  year-strip arm entirely (the claim carries no year, so there is
+  nothing to strip), identity_shape_ok proves the marker shape, and
+  the -V Signature line now renders
+  `Signature: Pure eBPF builtin — Official Build by rezky_nightky
+  (oxyzenQ)` with no year anywhere behind the holder - the D0 row,
+  the identity block, the contact line, and the JSON lane already
+  carried the clean shape from night-remake-2. The authors layer is
+  untouched (43 bytes, fingerprint 66771e5f273b9cae). The owner's
+  law is now a test, not a habit:
+  year_tail_never_renders_behind_the_holder pins the `) 2026`
+  absence across the -V body, the sig text report, and the sig JSON
+  line. Zero new dependencies; VERIFY_RELEASE.md carries the new
+  claim byte count, fingerprint, and framing.
+
 - **night-frontier-Z10 D7, the watch truth - the absence triad
   completes (drop truth + sleep truth + watch truth = no silent
   absence), and the clocksource regime honesty.** The drains named

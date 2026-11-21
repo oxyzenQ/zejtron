@@ -48,7 +48,7 @@ to plaintext only at runtime. Five depths, each checkable on its own:
 
 | Depth | What it proves | How to check |
 |---|---|---|
-| D0 runtime identity | The masked manifest materializes to the owner's claim `Official Build by rezky_nightky (oxyzenQ) 2026`; the D0 row renders the identity core `rezky_nightky (oxyzenQ)` and the facts block carries the contact line `oxyzenQ@proton.me` (night-remake-2) | `zejtron sig` (the D0 row) |
+| D0 runtime identity | The masked manifest materializes to the owner's claim `Official Build by rezky_nightky (oxyzenQ)` (night-ux-orion-3: the claim carries no year tail - years render at the front, in the Copyright line's range); the D0 row renders the identity core `rezky_nightky (oxyzenQ)` and the facts block carries the contact line `oxyzenQ@proton.me` (night-remake-2) | `zejtron sig` (the D0 row) |
 | D1 embedded marker | The masked authors layer binds to the manifest identity (two independent encodings of one identity) | `zejtron sig` (the D1 row) |
 | D2 anchor integrity | The BLAKE3 anchor over the framed masked payload recomputes, and both FNV-64 fingerprints agree with the compile-time digests | `zejtron sig` (the D2 row) |
 | D3 binary self-hash | The BLAKE3 of the exact bytes the process runs from | `zejtron sig` (compare against `b3sum <binary>` or the pinned release hash) |
@@ -82,10 +82,11 @@ BLAKE3 mirror against pinned official vectors before it emits.
 CLEAR manifest bytes only - the identity claim text, never the
 artifact bytes (artifact identity is D3's seat). zejtron's masked
 manifest is the identity clause alone: `Official Build by
-rezky_nightky (oxyzenQ) 2026` (46 UTF-8 bytes - the "Pure eBPF
-builtin" voice is a separate claim const, rendered ahead of the
-manifest on the Signature line but never hashed), digest
-`9174e0ce08feccba`. That framing is why zejtron's `fp=` differs from
+rezky_nightky (oxyzenQ)` (41 UTF-8 bytes - night-ux-orion-3 removed
+the year tail from the claim, and the fingerprint rotates with it;
+the "Pure eBPF builtin" voice is a separate claim const, rendered
+ahead of the manifest on the Signature line but never hashed),
+digest `7e9ff677aac06508`. That framing is why zejtron's `fp=` differs from
 its siblings: zylaxion and zelynic embed the full Signature line
 including the voice (68 bytes) and share `fp=` `a60dfb6a39745f34`,
 and cosmostrix (the "Cosmic Dragon" voice, 64 bytes) reports

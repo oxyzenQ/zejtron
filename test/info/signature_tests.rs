@@ -18,20 +18,21 @@
 use super::*;
 use crate::info::provenance;
 
-/// The manifest layer's plaintext truth (the generator's MANIFEST).
-const MANIFEST_ORACLE: &str = "Official Build by rezky_nightky (oxyzenQ) 2026";
+/// The manifest layer's plaintext truth (the generator's MANIFEST,
+/// night-ux-orion-3: the year tail left the claim - 41 bytes).
+const MANIFEST_ORACLE: &str = "Official Build by rezky_nightky (oxyzenQ)";
 /// The authors layer's plaintext truth (the generator's AUTHORS).
 const AUTHORS_ORACLE: &str = "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>";
 /// Generator cross-check values (scripts/release/
 /// generate-provenance-words.py prints them). If these diverge from
 /// the const eval, the generator and the Rust mirror have drifted.
-const MANIFEST_FINGERPRINT_ORACLE: u64 = 0x9174_E0CE_08FE_CCBA;
+const MANIFEST_FINGERPRINT_ORACLE: u64 = 0x7E9F_F677_AAC0_6508;
 const AUTHORS_FINGERPRINT_ORACLE: u64 = 0x6677_1E5F_273B_9CAE;
 /// The generator's printed anchor cross-check (blake3 over the framed
 /// payload). The Python mirror and the estate's std-only BLAKE3 were
 /// proven byte-identical on this value at integration time.
 const DEPTH_ANCHOR_HEX_ORACLE: &str =
-    "04acd954cdfd0e027425a07939ffaa13dee6cb060dd2870664370d9cedd326f3";
+    "239ea10bff2d93384177924255d6fb4642707873c9da6a4a05f7e5bff8a2b1a5";
 
 /// The manifest layer materializes to its oracle.
 #[test]
@@ -64,7 +65,7 @@ fn masked_words_are_strings_invisible() {
         0x13A79DF58DB876EE,
         0xFF6CFBC5F57230BE,
         0xF58451DB56EACEF4,
-        0xD07E55D1CC351D34,
+        0xD07E63E3FC073D34,
     ];
     let authors_words = [
         0x2A7EFE86C8EAB911u64,
@@ -133,7 +134,7 @@ fn depth_anchor_matches_runtime_blake3() {
 
 /// The anchor payload framing is exact: domain tag, then
 /// length-prefixed layers. Pinned against the real layer lengths
-/// (46 manifest + 43 authors).
+/// (41 manifest + 43 authors, night-ux-orion-3's year-free claim).
 #[test]
 fn anchor_payload_framing_shape_is_exact() {
     // The framing is private to the provenance module; the view's
@@ -151,7 +152,7 @@ fn anchor_payload_framing_shape_is_exact() {
         + provenance::MANIFEST_BYTE_LEN
         + 8
         + provenance::AUTHORS_BYTE_LEN;
-    assert_eq!(expected_len, 128);
+    assert_eq!(expected_len, 123);
 }
 
 /// Post-compile patching simulation at the verification level: the
@@ -210,14 +211,15 @@ fn depth_line_shape_is_stable() {
 }
 
 /// The identity binding's extraction law: the core is everything
-/// after the marker minus the year; a manifest that lost either is a
-/// tampering signal, and a rebranded manifest no longer binds the
-/// authors layer.
+/// after the marker; a manifest that lost the marker is a tampering
+/// signal, and a rebranded manifest no longer binds the authors
+/// layer. Since night-ux-orion-3 the claim carries no year tail, so
+/// the extraction strips nothing.
 #[test]
 fn identity_core_extraction_law() {
-    // The pristine view: the core is the display, the year suffix is
-    // stripped (night-remake-2), and the core binds the authors
-    // prefix.
+    // The pristine view: the core IS the display (night-remake-2
+    // unified display and coherence; orion-3 removed the year tail
+    // from the claim bytes), and the core binds the authors prefix.
     let view = provenance::provenance_view();
     assert_eq!(view.identity, "rezky_nightky (oxyzenQ)");
     assert!(AUTHORS_ORACLE.starts_with("rezky_nightky (oxyzenQ)"));
@@ -226,6 +228,31 @@ fn identity_core_extraction_law() {
     // extraction; the observable contract is the D1 row's direction,
     // pinned through collect() below and the view's binding flag.
     assert!(view.binding_ok);
+}
+
+/// night-ux-orion-3, the owner's year-format law pinned at every
+/// rendered surface: years ride at the front (the Copyright line's
+/// range), never glued behind the holder. The -V body, the sig text
+/// report, and the sig JSON line must carry no ") 2026" tail
+/// anywhere.
+#[test]
+fn year_tail_never_renders_behind_the_holder() {
+    let body = crate::info::version_body();
+    assert!(
+        !body.contains(") 2026"),
+        "-V must not render a year behind the holder"
+    );
+    let matrix = collect();
+    let report = matrix_report(&matrix);
+    assert!(
+        !report.contains(") 2026"),
+        "the sig report must not render a year behind the holder"
+    );
+    let json = matrix_json(&matrix);
+    assert!(
+        !json.contains(") 2026"),
+        "the sig JSON line must not render a year behind the holder"
+    );
 }
 
 /// The collected matrix on a linux host: all five depths pass, the
@@ -478,7 +505,7 @@ fn matrix_json_is_one_line_with_the_documented_keys() {
         "\"commit\":",
         "\"build_time\":",
         "\"payload_tag\":\"zejtron/depth-matrix/v1\"",
-        "\"fingerprint\":\"9174e0ce08feccba\"",
+        "\"fingerprint\":\"7e9ff677aac06508\"",
         "\"anchor\":\"",
         "\"binary_self_hash\":\"",
         "\"depths\":[",
