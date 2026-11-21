@@ -81,12 +81,12 @@ surface_loading() {
 		# every host, and an empty table keeps the skip-with-the-gap
 		# contract (grep finds nothing on a drifted source: the pipeline
 		# rides || true under pipefail, the file lands empty).
-		sed -n '/^const HELIX: /,/^];/p' "$spinner" \
-			| grep -o '"[^"]*"' | tr -d '"' \
+		sed -n '/^const HELIX: /,/^];/p' "$spinner" |
+			grep -o '"[^"]*"' | tr -d '"' \
 			>"$SM_SCRATCH/helix.frames" || true
 		mapfile -t HELIX_FRAMES <"$SM_SCRATCH/helix.frames"
-		sed -n '/^const ASCII: /,/^];/p' "$spinner" \
-			| grep -o '"[^"]*"' | tr -d '"' \
+		sed -n '/^const ASCII: /,/^];/p' "$spinner" |
+			grep -o '"[^"]*"' | tr -d '"' \
 			>"$SM_SCRATCH/ascii.frames" || true
 		mapfile -t ASCII_FRAMES <"$SM_SCRATCH/ascii.frames"
 	fi
