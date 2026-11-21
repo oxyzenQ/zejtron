@@ -429,7 +429,7 @@ verification_section() {
 		echo "gpg --verify zejtron-${tag}-linux-amd64-v3-musl.tar.gz.asc"
 		echo '```'
 		echo ""
-		echo "Expected: \`Good signature from \"Rezky Cahya Sahputra (cosmic dragon)\"\`"
+		echo "Expected: \`Good signature from \"rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>\"\` (aka \`Rezky Cahya Sahputra (cosmic dragon)\`)"
 	else
 		echo "Every archive includes three checksum files (SHA-512, BLAKE3, SHAKE256)."
 		echo ""
@@ -512,13 +512,22 @@ self_test() {
 	done
 
 	# The signed shape (--gpg-sigs > 0) pins the family verification
-	# block: the keyserver fetch and the .asc verify command - the
-	# mature sibling's release-page parity.
+	# block: the keyserver fetch, the .asc verify command, and the
+	# expected identity line - the primary UID answer gpg actually
+	# prints on the pinned key (night-fly-1: the stale
+	# "Rezky Cahya Sahputra (cosmic dragon)" Expected display is
+	# banned below; the aka rides beside the primary UID now).
 	local gpg_out
 	gpg_out="$(render_body "" "v80.0.0-nightly.2" "" "" "" 2)"
-	for want in "### GPG signature" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2" "gpg --verify zejtron-v80.0.0-nightly.2-linux-amd64-v3-musl.tar.gz.asc"; do
+	for want in "### GPG signature" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2" "gpg --verify zejtron-v80.0.0-nightly.2-linux-amd64-v3-musl.tar.gz.asc" 'Expected: `Good signature from "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"` (aka `Rezky Cahya Sahputra (cosmic dragon)`)'; do
 		if ! printf '%s' "$gpg_out" | grep -qF "$want"; then
 			echo "  FAIL shape: signed render is missing '$want'" >&2
+			failures=$((failures + 1))
+		fi
+	done
+	for banned in 'Good signature from "Rezky Cahya Sahputra (cosmic dragon)"'; do
+		if printf '%s' "$gpg_out" | grep -qF "$banned"; then
+			echo "  FAIL shape: signed render must not carry the stale '$banned'" >&2
 			failures=$((failures + 1))
 		fi
 	done

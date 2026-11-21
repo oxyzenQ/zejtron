@@ -3270,6 +3270,26 @@ v11.0.0
   semver grep above the case keeps the shapes bounded); `make_latest`
   follows the same output, so a prerelease tag can never claim the
   Latest badge.
+- The release page's expected-signature line went stale the day the
+  key's primary UID display changed (night-fly-1, found by verifying
+  a live sibling artifact): `generate-release-notes.sh` told
+  verifiers to expect `Good signature from "Rezky Cahya Sahputra
+  (cosmic dragon)"`, while gpg (the primary UID order on the pinned
+  key) now answers `Good signature from "rezky_nightky (oxyzenQ)
+  <oxyzenQ@proton.me>"` with the cosmic-dragon UID as the aka. The
+  Expected line renders the real primary-UID answer plus the aka
+  (night-fly-1); the fingerprint instruction itself was verified
+  live against the keyserver (the pinned primary imports and the
+  signing EDDSA key resolves as its subkey, so the pin stands). The
+  signed-shape self-test pins the corrected line and bans the stale
+  one, and VERIFY_RELEASE.md's GPG section carries the concrete
+  fingerprint, the pre-trust `--fingerprint` check, and the same
+  expected-output story (the reported EDDSA key is a signing subkey
+  of the pinned primary; subkeys rotate, the primary is the anchor)
+  - no `<KEY_FINGERPRINT>` placeholder left for a verifier to guess.
+  Docs-plus-release-script change: a generator string, its self-test
+  pin, and the verify docs; no Rust source, build, or runtime
+  surface touched, so no A/B benchmark per house rule.
 
 ### Removed
 

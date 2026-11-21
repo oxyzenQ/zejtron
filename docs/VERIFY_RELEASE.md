@@ -211,18 +211,29 @@ machine.
 ## GPG signature (when the release ships .asc files)
 
 ```bash
-# One-time: fetch the release key (the key id is on the release page
-# and pinned in docs/BRANDING.md, section 8 - the in-repo anchor).
-gpg --keyserver keyserver.ubuntu.com --recv-keys <KEY_FINGERPRINT>
+# One-time: fetch the release key (the fingerprint is pinned in
+# docs/BRANDING.md, section 8 - the in-repo anchor - and on the
+# release page).
+gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
+
+# Verify the imported primary's fingerprint equals the pin BEFORE
+# trusting any signature from it.
+gpg --fingerprint F5324E0967F104D58CE025F347A50AEF4B65AAC2
 
 # Verify the detached signature (the .asc rides the same asset list).
 gpg --verify zejtron-vX.Y.Z-linux-amd64-v3-musl.tar.gz.asc \
            zejtron-vX.Y.Z-linux-amd64-v3-musl.tar.gz
 ```
 
-`Good signature` from the release key means the archive bytes are the
-ones the release pipeline signed - pair it with one checksum check
-for a complete verification.
+`Good signature` means the archive bytes are the ones the release
+pipeline signed. The identity line reads `Good signature from
+"rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"` with
+`Rezky Cahya Sahputra (cosmic dragon)
+<130107241+oxyzenQ@users.noreply.github.com>` listed as an aka. The
+`using EDDSA key` line gpg prints names a signing subkey, not the
+primary - subkeys sign and rotate; the pinned primary fingerprint
+above is the anchor to compare. Pair the signature with one checksum
+check for a complete verification.
 
 ## Why three algorithms
 
