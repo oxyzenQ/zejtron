@@ -36,12 +36,12 @@ set -Eeuo pipefail
 
 mode="${1:-}"
 case "$mode" in
-	--pre) ;;
-	--post) ;;
-	*)
-		echo "usage: $0 --pre | --post" >&2
-		exit 2
-		;;
+--pre) ;;
+--post) ;;
+*)
+	echo "usage: $0 --pre | --post" >&2
+	exit 2
+	;;
 esac
 
 for tool in cargo jq awk; do
@@ -89,11 +89,11 @@ findings_for() {
 	# still written and is the truth, so 0 and 1 both parse. Any
 	# other exit is a scanner failure: fail-closed.
 	case "$rc" in
-		0 | 1) ;;
-		*)
-			echo "::error::supply-chain verdict: cargo audit failed (exit $rc) on $workspace ($lock) - a scanner that cannot run fails the lane, never passes it" >&2
-			exit 1
-			;;
+	0 | 1) ;;
+	*)
+		echo "::error::supply-chain verdict: cargo audit failed (exit $rc) on $workspace ($lock) - a scanner that cannot run fails the lane, never passes it" >&2
+		exit 1
+		;;
 	esac
 	# A zero-document report (an empty or truncated file) is also a
 	# scanner failure: type == "object" demands exactly the report
@@ -237,8 +237,8 @@ if [[ "$bad_count" -gt 0 ]]; then
 	echo "  CALL THE OWNER - the commit lane is gated on this verdict,"
 	echo "  nothing ships while the advisory survives the sweep."
 	echo "=================================================================="
-echo "still present: $bad_count hard finding(s), $info_count informational, $cleared_count cleared by the sweep"
-exit 1
+	echo "still present: $bad_count hard finding(s), $info_count informational, $cleared_count cleared by the sweep"
+	exit 1
 fi
 
 if [[ "$info_count" -gt 0 ]]; then
