@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
 // zejtron eBPF probe, the pure-Rust BPF source (night-improve-1, the
 // zelynic/zylaxion lineage precedent: there is no C twin, the

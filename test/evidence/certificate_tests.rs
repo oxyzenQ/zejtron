@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
 //! The determinism certificate's fixtures (night-frontier-Z2, E1):
 //! the law "two conformant runs diff to empty" rendered as a living

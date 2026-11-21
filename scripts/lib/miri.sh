@@ -1,6 +1,6 @@
 # shellcheck shell=bash
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # OS: Linux only — zejtron is a Linux introspection tool.
 #
 # ZEJTRON BUILD MODULE: miri (the sibling's NIGHT-improve-75 lineage)

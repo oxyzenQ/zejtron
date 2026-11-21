@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! The unlink/rename-lane anchor verification (night-frontier-2,
 //! split from btf.rs along the btf_writev seam precedent): the two

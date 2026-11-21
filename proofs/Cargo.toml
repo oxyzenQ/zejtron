@@ -1,5 +1,5 @@
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 # night-datapath-1 (the proven datapath, the zelynic night-frontier-Z6
 # port): the proof-harness package. A detached nested package - the
@@ -49,7 +49,7 @@ name = "zejtron-proofs"
 version = "0.1.0"
 edition = "2024"
 publish = false
-license = "AGPL-3.0-only"
+license = "AGPL-3.0-only OR Commercial"
 repository = "https://github.com/oxyzenQ/zejtron"
 description = "Proof harnesses for zejtron's pure cores (proptest exhaustion on stable, Kani bounded model checking under the kani toolchain)."
 

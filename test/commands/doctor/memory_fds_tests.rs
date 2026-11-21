@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
 //! The fd walk's identity laws (night-dragon-lts-4): the memfd
 //! classifier, the per-(pid, file) row dedupe, and the deleted view's

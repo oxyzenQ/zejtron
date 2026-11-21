@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 // NON_LATIN_FIXTURE: the multibyte rejection pins deliberately
 // exercise CJK units and a four-byte CJK Extension B ideograph -
 // the exact inputs the pre-fix parser panicked on.

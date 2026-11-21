@@ -1,5 +1,5 @@
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 # The pure-Rust eBPF crate (night-improve-1, the zelynic/zylaxion
 # lineage discipline): ONE binary, the no-op probe.
@@ -31,7 +31,7 @@ name = "zejtron-ebpf"
 version = "80.4.0"
 edition = "2024"
 publish = false
-license = "AGPL-3.0-only"
+license = "AGPL-3.0-only OR Commercial"
 repository = "https://github.com/oxyzenQ/zejtron"
 description = "Pure-Rust eBPF probes for zejtron (a sched_process_exec counter, an inet_sock_set_state socket-event stream, a sched_process_exit post-mortem exit probe, vfs_open/vfs_write/vfs_writev file probes), cross-compiled with aya-ebpf and embedded by the userspace loader."
 

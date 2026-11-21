@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # OS: Linux only — zejtron is a Linux introspection tool.
-# Copyright (C) 2026 rezky_nightky (oxyzenQ)
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 #
 # scripts/setup.sh — the lazy one-command pipeline (the sibling's
 # NIGHT-improve-18 lineage, adapted to zejtron's lanes).

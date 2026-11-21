@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # The runner's variables are a contract with the sourced engine and
 # the leg scripts: they are assigned here and read elsewhere, a shape
 # the per-file unused-variable rule cannot see.

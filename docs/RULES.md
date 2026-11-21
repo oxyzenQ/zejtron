@@ -1,5 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # zejtron Project Maintenance Rules
 
@@ -121,8 +123,8 @@ when validation succeeds.
 All Rust source files must carry the SPDX license header:
 
 ```rust
-// SPDX-FileCopyrightText: 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 ```
 
 Headers must not be duplicated.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # OS: Linux only — zejtron is a Linux introspection tool.
-# Copyright (C) 2026 rezky_nightky (oxyzenQ)
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 #
 # INSTALL-ON-MY-MACHINE (night-improve-27): the one-command fast
 # setup for the owner's own box. Detects the CPU's x86-64 microarch

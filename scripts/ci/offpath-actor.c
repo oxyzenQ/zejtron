@@ -1,5 +1,5 @@
-/* SPDX-FileCopyrightText: 2026 rezky_nightky
- * SPDX-License-Identifier: AGPL-3.0-only
+/* SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+ * SPDX-License-Identifier: AGPL-3.0-only OR Commercial
  *
  * The off-path action helper (night-frontier-Z7, D4; the memfd mode
  * is night-frontier-Z9, D6): the C77 root leg's actor for the live

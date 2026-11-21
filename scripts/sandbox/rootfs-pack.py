@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # LOC_EXEMPT: the kernel-floor provisioner rides the 1000-line cap
 # (it sat at exactly 1000 before the night-dragon-maintenance-T1
 # bytecode guard added its lines, and the night-runner-3 LTS

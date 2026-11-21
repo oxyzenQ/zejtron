@@ -1,5 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 
 # Contributing to zejtron
 
@@ -90,14 +92,14 @@ docs/            — the docs tree (BRANDING, RULES, VERIFY_RELEASE, ...)
 3. **Copyright + SPDX**: every source, config, and doc file must have:
 
    ```
-   Copyright (C) 2026 rezky_nightky
-   SPDX-License-Identifier: AGPL-3.0-only
+   SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+   SPDX-License-Identifier: AGPL-3.0-only OR Commercial
    ```
 
    (comments prefixed per language; `.md` uses HTML comments.
    Enforced by `scripts/gates/check-headers.sh`; `.sh` files
    additionally carry the `# OS: Linux only` line.)
-4. **License**: AGPL-3.0-only
+4. **License**: AGPL-3.0-only OR Commercial
 5. **Rust toolchain**: pinned to a concrete X.Y.Z in
    `rust-toolchain.toml` (never `stable` — dormant-mode policy). Sync
    across rust-toolchain.toml / Cargo.toml MSRV / CI pins is enforced
