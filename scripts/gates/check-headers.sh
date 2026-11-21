@@ -62,57 +62,57 @@ EXPECTED_COPYRIGHT="2025-2026 rezky_nightky (oxyzenQ)"
 EXPECTED_LICENSE_NAME="AGPL-3.0-only OR Commercial"
 
 while IFS= read -r -d '' file; do
-        CHECKED=$((CHECKED + 1))
+	CHECKED=$((CHECKED + 1))
 
-        # Check if the file has any SPDX-License-Identifier at all
-        if ! head -10 "$file" | grep -q "SPDX-License-Identifier"; then
-                echo -e "${RED}MISSING SPDX header: ${file}${NC}"
-                MISSING=$((MISSING + 1))
-                continue
-        fi
+	# Check if the file has any SPDX-License-Identifier at all
+	if ! head -10 "$file" | grep -q "SPDX-License-Identifier"; then
+		echo -e "${RED}MISSING SPDX header: ${file}${NC}"
+		MISSING=$((MISSING + 1))
+		continue
+	fi
 
-        # Check for a non-AGPL license identifier
-        if ! head -10 "$file" | grep -q "SPDX-License-Identifier: ${EXPECTED_LICENSE_NAME}"; then
-                echo -e "${RED}WRONG LICENSE (expected ${EXPECTED_LICENSE_NAME}): ${file}${NC}"
-                WRONG=$((WRONG + 1))
-                continue
-        fi
+	# Check for a non-AGPL license identifier
+	if ! head -10 "$file" | grep -q "SPDX-License-Identifier: ${EXPECTED_LICENSE_NAME}"; then
+		echo -e "${RED}WRONG LICENSE (expected ${EXPECTED_LICENSE_NAME}): ${file}${NC}"
+		WRONG=$((WRONG + 1))
+		continue
+	fi
 
-        # Check for the copyright line (either house form - both name
-        # the year and the author; a header that dropped the attribution
-        # fails here)
-        if ! head -10 "$file" | grep -q "${EXPECTED_COPYRIGHT}"; then
-                echo -e "${RED}MISSING copyright line: ${file}${NC}"
-                MISSING=$((MISSING + 1))
-        fi
+	# Check for the copyright line (either house form - both name
+	# the year and the author; a header that dropped the attribution
+	# fails here)
+	if ! head -10 "$file" | grep -q "${EXPECTED_COPYRIGHT}"; then
+		echo -e "${RED}MISSING copyright line: ${file}${NC}"
+		MISSING=$((MISSING + 1))
+	fi
 
-        # dinner-28: the OS line is a *.sh-only requirement — the
-        # owner's header rule. A .sh without it fails here, never a
-        # warning (all CI warnings are failures; none are ignored).
-        if [[ "$file" == *.sh ]]; then
-                if ! head -10 "$file" | grep -q '^# OS: Linux only'; then
-                        echo -e "${RED}MISSING OS line (os linux only): ${file}${NC}"
-                        MISSING=$((MISSING + 1))
-                fi
-        fi
+	# dinner-28: the OS line is a *.sh-only requirement — the
+	# owner's header rule. A .sh without it fails here, never a
+	# warning (all CI warnings are failures; none are ignored).
+	if [[ "$file" == *.sh ]]; then
+		if ! head -10 "$file" | grep -q '^# OS: Linux only'; then
+			echo -e "${RED}MISSING OS line (os linux only): ${file}${NC}"
+			MISSING=$((MISSING + 1))
+		fi
+	fi
 done < <(
-        # Only check git-tracked files plus untracked-but-present files —
-        # the pre-commit proxy parity scan (a new file fails BEFORE the
-        # commit, not after CI picks it up).
-        git ls-files --cached --others --exclude-standard 2>/dev/null |
-                grep -E '\.(rs|c|h|py|sh|toml|yml|yaml|md)$' |
-                grep -v -E '^(CHANGELOG\.md|docs/archive/CHANGELOG-V10\.0\.0-ERA\.md)$' |
-                while IFS= read -r line; do
-                        printf '%s\0' "${REPO_ROOT}/${line}"
-                done
+	# Only check git-tracked files plus untracked-but-present files —
+	# the pre-commit proxy parity scan (a new file fails BEFORE the
+	# commit, not after CI picks it up).
+	git ls-files --cached --others --exclude-standard 2>/dev/null |
+		grep -E '\.(rs|c|h|py|sh|toml|yml|yaml|md)$' |
+		grep -v -E '^(CHANGELOG\.md|docs/archive/CHANGELOG-V10\.0\.0-ERA\.md)$' |
+		while IFS= read -r line; do
+			printf '%s\0' "${REPO_ROOT}/${line}"
+		done
 )
 
 TOTAL_FAIL=$((MISSING + WRONG))
 
 if [[ "$TOTAL_FAIL" -eq 0 ]]; then
-        echo "OK: $CHECKED files checked, all carry the license header"
-        exit 0
+	echo "OK: $CHECKED files checked, all carry the license header"
+	exit 0
 else
-        echo -e "${RED}FAIL: $MISSING missing, $WRONG wrong license (of $CHECKED checked)${NC}"
-        exit 1
+	echo -e "${RED}FAIL: $MISSING missing, $WRONG wrong license (of $CHECKED checked)${NC}"
+	exit 1
 fi
