@@ -72,12 +72,23 @@ surface_loading() {
 
 	if [[ -f "${SUITE_CARGO_TOML%/*}/src/output/spinner.rs" ]]; then
 		spinner="${SUITE_CARGO_TOML%/*}/src/output/spinner.rs"
-		mapfile -t HELIX_FRAMES < <(
-			sed -n '/^const HELIX: /,/^];/p' "$spinner" | grep -o '"[^"]*"' | tr -d '"'
-		)
-		mapfile -t ASCII_FRAMES < <(
-			sed -n '/^const ASCII: /,/^];/p' "$spinner" | grep -o '"[^"]*"' | tr -d '"'
-		)
+		# The frame tables are lifted through scratch files, never
+		# process substitution: bash resolves <(...) through /dev/fd/N,
+		# and a micro-VM init mounts devtmpfs without the /dev/fd
+		# symlink - the witness kernels died with "No such file or
+		# directory" at this mapfile (night-ux-orion-2). A plain pipe
+		# into $SM_SCRATCH parses the same bytes with the same tools on
+		# every host, and an empty table keeps the skip-with-the-gap
+		# contract (grep finds nothing on a drifted source: the pipeline
+		# rides || true under pipefail, the file lands empty).
+		sed -n '/^const HELIX: /,/^];/p' "$spinner" \
+			| grep -o '"[^"]*"' | tr -d '"' \
+			>"$SM_SCRATCH/helix.frames" || true
+		mapfile -t HELIX_FRAMES <"$SM_SCRATCH/helix.frames"
+		sed -n '/^const ASCII: /,/^];/p' "$spinner" \
+			| grep -o '"[^"]*"' | tr -d '"' \
+			>"$SM_SCRATCH/ascii.frames" || true
+		mapfile -t ASCII_FRAMES <"$SM_SCRATCH/ascii.frames"
 	fi
 
 	# The fast-scan pty law: proc --me and doctor under a REAL
@@ -160,7 +171,11 @@ sm_loading_pty_contract() {
 		table=("${ASCII_FRAMES[@]}")
 	fi
 
-	mapfile -t lines < <(tr '\r' '\n' <"$capture" | grep -E '^\[[a-z ]+\.\.\. [^]]+\]$' || true)
+	# Same /dev/fd law as the table lift above: the drawn-line
+	# extraction rides a scratch file, not process substitution.
+	tr '\r' '\n' <"$capture" | grep -E '^\[[a-z ]+\.\.\. [^]]+\]$' \
+		>"$SM_SCRATCH/drawn.lines" || true
+	mapfile -t lines <"$SM_SCRATCH/drawn.lines"
 	drawn=${#lines[@]}
 
 	if [[ $drawn -eq 0 ]]; then
