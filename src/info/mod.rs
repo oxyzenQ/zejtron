@@ -18,17 +18,6 @@
 /// license field and every file header carry.
 const LICENSE_LINE: &str = "License: AGPL-3.0-only OR Commercial";
 
-/// The `Copyright` line as ONE contiguous literal (night-ux-orion-2,
-/// the owner's masterclass form): no colon after the Copyright word
-/// (the Linux kernel and Rust compiler convention - the universal
-/// shape every auditor recognizes), the year range naming the first
-/// and the current year of the holder's claim, and the holder the
-/// manifest names. One place to update: the trailing year moves when
-/// a release lands in a new calendar year (2025-2027 for a 2027
-/// release) and freezes the day the claim changes hands - the range
-/// never loses its first year.
-const COPYRIGHT_LINE: &str = "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)";
-
 /// The `Signature:` line for the version report as ONE contiguous
 /// literal (night-dragon-maintenance-T1, the zelynic NIGHT-dinner-4
 /// discipline ported with the estate build-label contract): the
@@ -206,12 +195,34 @@ fn build_hash() -> &'static str {
 /// single-pass invariant in [`provenance`]).
 fn version_body() -> String {
     let view = provenance::provenance_view();
+    // The Copyright line renders the holder from the masked provenance
+    // layers at runtime (night-fly-1, the anti-grep contract the
+    // release lane's identity probe enforces on BOTH musl legs): the
+    // at-rest bytes carry the prefix and the year range only - the
+    // holder exists in the artifact as masked words, never contiguous
+    // rodata a grep-and-strip rebrand can find. The holder is the D0
+    // identity core (the manifest's tail), the masterclass form: no
+    // colon after the Copyright word (the Linux kernel and Rust
+    // compiler convention - the universal shape every auditor
+    // recognizes), no email (the contact rides the sig facts block).
+    // The D1 authors layer independently re-encodes the same identity
+    // and the binding check refuses a mismatched pair. The trailing
+    // year moves when a release lands in a new calendar year
+    // (2025-2027 for a 2027 release) and freezes the day the claim
+    // changes hands - the range never loses its first year. An empty
+    // core (the manifest lost the marker shape - tampering) renders
+    // the holder absent: the fact is never guessed.
+    let copyright = if view.identity.is_empty() {
+        "Copyright (c) 2025-2026".to_owned()
+    } else {
+        format!("Copyright (c) 2025-2026 {}", view.identity)
+    };
     [
         format!("Build: {} ({})", build_label(), build_hash()),
         format!("Build-time: {}", build_time()),
         signature_line(&view.manifest),
         view.depth_line,
-        COPYRIGHT_LINE.to_owned(),
+        copyright,
         LICENSE_LINE.to_owned(),
         "Source: https://github.com/oxyzenQ/zejtron".to_owned(),
     ]

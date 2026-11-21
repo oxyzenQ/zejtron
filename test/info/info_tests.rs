@@ -21,20 +21,35 @@ fn license_line_is_the_contiguous_bytes_the_release_probe_greps() {
     assert_eq!(LICENSE_LINE, "License: AGPL-3.0-only OR Commercial");
 }
 
-/// The copyright line is the owner's masterclass form
-/// (night-ux-orion-2): ONE contiguous literal, no colon after the
-/// Copyright word (the Linux kernel / Rust compiler convention), the
-/// year range 2025-2026, the holder the manifest names. Pinned
-/// verbatim so a drift (a reintroduced colon, a year drop, a split
-/// format! capture) fails in the unit run.
+/// The Copyright line renders the holder from the masked provenance
+/// layers (night-fly-1, the anti-grep contract the release lane's
+/// identity probe enforces on both musl legs): a pristine build
+/// materializes the D0 identity core and the body renders the
+/// masterclass form - no colon after the Copyright word (the Linux
+/// kernel / Rust compiler convention), the year range 2025-2026, the
+/// holder the manifest names. Pinned on the RENDERED bytes so a drift
+/// (a reintroduced colon, a year drop, a split format! capture, or
+/// the plaintext-const regression the v80.5.0-night.1 v4 probe caught)
+/// fails in the unit run, not on a release day.
 #[test]
 fn copyright_line_is_the_masterclass_form() {
+    let view = provenance::provenance_view();
     assert_eq!(
-        COPYRIGHT_LINE,
-        "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)"
+        view.identity, "rezky_nightky (oxyzenQ)",
+        "a pristine build materializes the owner's identity core"
+    );
+    let body = version_body();
+    let rendered = body
+        .lines()
+        .find(|l| l.starts_with("Copyright"))
+        .expect("the Copyright line present");
+    assert_eq!(
+        rendered,
+        format!("Copyright (c) 2025-2026 {}", view.identity),
+        "the holder materializes at render time, never rides a const"
     );
     assert!(
-        !COPYRIGHT_LINE.starts_with("Copyright:"),
+        !rendered.starts_with("Copyright:"),
         "the masterclass form carries no colon after the Copyright word"
     );
 }

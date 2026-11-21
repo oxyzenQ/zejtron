@@ -325,6 +325,15 @@ jobs:
                 || { echo "::error::Expected 'Build: ${LABEL}' in -V"; exit 1; }
               "${BIN}" -V | grep -F "zejtron: v${VERSION}" \
                 || { echo "::error::Expected 'zejtron: v${VERSION}' in -V (Cargo.toml/tag drift)"; exit 1; }
+              # night-fly-1: the identity probe rides BOTH musl legs -
+              # the anti-grep contract is byte-level, not behavior-level:
+              # a v3 binary carrying the plaintext holder is the same
+              # contract break the v4 probe refuses (the v80.5.0-night.1
+              # lesson: the v3 leg shipped the leak the v4 leg caught).
+              if grep -aq "rezky_nightky" "${BIN}"; then
+                echo "::error::Plaintext identity found in the artifact (the masked provenance contract broke)"
+                exit 1
+              fi
               ;;
           esac
           # Static proof: ldd must deny dynamic dependencies - it
