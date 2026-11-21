@@ -28,6 +28,11 @@ ignore = []
 [licenses]
 allow = [
     "AGPL-3.0-only",
+    # The workspace crate's commercial seat, in the ISO SPDX LicenseRef-
+    # form (bare "Commercial" is not a valid SPDX term - the parse
+    # failure made cargo-deny fall back to the LICENSE-file expression,
+    # which then missed the allow list, night-ux-orion-2's audit row).
+    "LicenseRef-Commercial",
     "MIT",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
