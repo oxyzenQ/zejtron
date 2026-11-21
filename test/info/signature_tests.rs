@@ -26,12 +26,12 @@ const AUTHORS_ORACLE: &str = "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>";
 /// generate-provenance-words.py prints them). If these diverge from
 /// the const eval, the generator and the Rust mirror have drifted.
 const MANIFEST_FINGERPRINT_ORACLE: u64 = 0x9174_E0CE_08FE_CCBA;
-const AUTHORS_FINGERPRINT_ORACLE: u64 = 0xC97B_13F8_1603_5D55;
+const AUTHORS_FINGERPRINT_ORACLE: u64 = 0x6677_1E5F_273B_9CAE;
 /// The generator's printed anchor cross-check (blake3 over the framed
 /// payload). The Python mirror and the estate's std-only BLAKE3 were
 /// proven byte-identical on this value at integration time.
 const DEPTH_ANCHOR_HEX_ORACLE: &str =
-    "90fff98b633109403c168ed558b0521fac20ff974326057bf55534e56a9baf1f";
+    "04acd954cdfd0e027425a07939ffaa13dee6cb060dd2870664370d9cedd326f3";
 
 /// The manifest layer materializes to its oracle.
 #[test]
@@ -67,11 +67,9 @@ fn masked_words_are_strings_invisible() {
         0x2A7EFE86C8EAB911u64,
         0x86FB41B2039A978D,
         0xC993BBE0C57ED58B,
-        0x94E1A520ECB01E55,
-        0x42ACC70D48073BC7,
-        0xA15FC699FE366AD9,
-        0xBC946A1C16D06085,
-        0x6BD1D7B2FAC551C9,
+        0xAAEBE032E1A10655u64,
+        0x4CBBC30342076BF3,
+        0xCD36A7F499287BD5,
     ];
     // The words above are the generator's committed output; the pin
     // walks their little-endian bytes exactly as the artifact's
@@ -132,7 +130,7 @@ fn depth_anchor_matches_runtime_blake3() {
 
 /// The anchor payload framing is exact: domain tag, then
 /// length-prefixed layers. Pinned against the real layer lengths
-/// (46 manifest + 57 authors).
+/// (46 manifest + 43 authors).
 #[test]
 fn anchor_payload_framing_shape_is_exact() {
     // The framing is private to the provenance module; the view's
@@ -150,7 +148,7 @@ fn anchor_payload_framing_shape_is_exact() {
         + provenance::MANIFEST_BYTE_LEN
         + 8
         + provenance::AUTHORS_BYTE_LEN;
-    assert_eq!(expected_len, 142);
+    assert_eq!(expected_len, 128);
 }
 
 /// Post-compile patching simulation at the verification level: the

@@ -88,10 +88,13 @@ its siblings: zylaxion and zelynic embed the full Signature line
 including the voice (68 bytes) and share `fp=` `a60dfb6a39745f34`,
 and cosmostrix (the "Cosmic Dragon" voice, 64 bytes) reports
 `fe0d7239f86e7c1b`. Differently framed claims hash differently by
-design; identical claim bytes share a fingerprint. The authors layer,
-by contrast, is byte-identical estate-wide (57 bytes), so its
-fingerprint (`c97b13f816035d55`) is one shared value on every `sig`
-report. A fingerprint mismatch between tools with the same claim
+design; identical claim bytes share a fingerprint. The authors layer
+was byte-identical estate-wide (57 bytes, fingerprint `c97b13f816035d55`)
+until the night-remake-1 contact rekey: zejtron's authors claim now
+carries `rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>` (43 bytes) and
+reports the zejtron-specific fingerprint (`66771e5f273b9cae`) on every
+`sig` report, pending the estate-wide sweep that rekeys the sibling
+tools. A fingerprint mismatch between tools with the same claim
 framing would be a tampering signal; a difference between different
 framings is the design working.
 

@@ -169,10 +169,13 @@ const MASKED_MANIFEST_WORDS: [u64; 6] = [
 /// Signature line including the voice (68 bytes) and share `fp=`
 /// a60dfb6a39745f34, and cosmostrix (the "Cosmic Dragon" voice, 64
 /// bytes) reports fe0d7239f86e7c1b - differently framed claims hash
-/// differently BY DESIGN, not a derivation bug. The authors layer, by
-/// contrast, is byte-identical estate-wide (57 bytes), so its
-/// fingerprint (c97b13f816035d55) is one shared value on every `sig`
-/// report. Artifact identity stays the D3 anchor's job (and the `sig`
+/// differently BY DESIGN, not a derivation bug. The authors layer was
+/// byte-identical estate-wide (57 bytes, fingerprint c97b13f816035d55)
+/// until the night-remake-1 contact rekey: zejtron's authors claim now
+/// carries the proton contact (43 bytes) and reports the zejtron-specific
+/// fingerprint (66771e5f273b9cae) on every `sig` report, pending the
+/// estate-wide sweep that rekeys the sibling tools. Artifact identity
+/// stays the D3 anchor's job (and the `sig`
 /// report's binary self-hash pins the bytes on disk).
 const MANIFEST_FINGERPRINT: u64 =
     layer_fingerprint(&MASKED_MANIFEST_WORDS, MANIFEST_SEED, MANIFEST_BYTE_LEN);
@@ -185,16 +188,14 @@ const MANIFEST_FINGERPRINT: u64 =
 // inside the same artifact.
 
 pub(crate) const AUTHORS_SEED: u64 = 0xF38B2FFC80A4DF5A;
-pub(crate) const AUTHORS_BYTE_LEN: usize = 57; // 8 words
-const MASKED_AUTHORS_WORDS: [u64; 8] = [
+pub(crate) const AUTHORS_BYTE_LEN: usize = 43; // 6 words
+const MASKED_AUTHORS_WORDS: [u64; 6] = [
     0x2A7EFE86C8EAB911,
     0x86FB41B2039A978D,
     0xC993BBE0C57ED58B,
-    0x94E1A520ECB01E55,
-    0x42ACC70D48073BC7,
-    0xA15FC699FE366AD9,
-    0xBC946A1C16D06085,
-    0x6BD1D7B2FAC551C9,
+    0xAAEBE032E1A10655,
+    0x4CBBC30342076BF3,
+    0xCD36A7F499287BD5,
 ];
 
 /// D2 digest over the clear authors bytes (same law as D0).
@@ -216,8 +217,8 @@ pub(crate) const ANCHOR_DOMAIN: &[u8] = b"zejtron/depth-matrix/v1";
 
 /// The embedded anchor (generator output, night-signature-advanced-1).
 pub(crate) const DEPTH_ANCHOR: [u8; 32] = [
-    0x90, 0xFF, 0xF9, 0x8B, 0x63, 0x31, 0x09, 0x40, 0x3C, 0x16, 0x8E, 0xD5, 0x58, 0xB0, 0x52, 0x1F,
-    0xAC, 0x20, 0xFF, 0x97, 0x43, 0x26, 0x05, 0x7B, 0xF5, 0x55, 0x34, 0xE5, 0x6A, 0x9B, 0xAF, 0x1F,
+    0x04, 0xAC, 0xD9, 0x54, 0xCD, 0xFD, 0x0E, 0x02, 0x74, 0x25, 0xA0, 0x79, 0x39, 0xFF, 0xAA, 0x13,
+    0xDE, 0xE6, 0xCB, 0x06, 0x0D, 0xD2, 0x87, 0x06, 0x64, 0x37, 0x0D, 0x9C, 0xED, 0xD3, 0x26, 0xF3,
 ];
 
 // --- Compile-time fold ------------------------------------------------
