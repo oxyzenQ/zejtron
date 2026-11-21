@@ -11,8 +11,8 @@ use std::path::Path;
 
 mod forest;
 
-use forest::{build_forest, limit_depth, matching_process_ids, prune_for_matches};
 use crate::output::spinner::{Spinner, Style};
+use forest::{build_forest, limit_depth, matching_process_ids, prune_for_matches};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Process {
