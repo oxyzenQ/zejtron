@@ -26,6 +26,11 @@
 # Fail-closed law: a scanner that cannot run or cannot be parsed is a
 # verdict failure, never a silent pass.
 #
+# Identity (night-solid-defense-1): the verdict speaks under the
+# owner's sentinel name - AXP1-ZnQ. The banners, the annotations,
+# and the step summary all sign as AXP1-ZnQ, so a red Sunday names
+# its watcher and the run list reads like a sentinel on watch.
+#
 # Modes:
 #   --pre   scan the as-committed lockfiles, store findings for the
 #           post-pass diff
@@ -46,7 +51,7 @@ esac
 
 for tool in cargo jq awk; do
 	if ! command -v "$tool" >/dev/null 2>&1; then
-		echo "error: $tool is missing - the verdict cannot scan (fail-closed)" >&2
+		echo "error: $tool is missing - AXP1-ZnQ cannot scan (fail-closed)" >&2
 		exit 1
 	fi
 done
@@ -70,7 +75,7 @@ summary_file="${GITHUB_STEP_SUMMARY:-/dev/null}"
 # the same tree, the same order).
 lockfiles="$(find . -name Cargo.lock -not -path '*/target/*' | sort)"
 if [[ -z "$lockfiles" ]]; then
-	echo "error: no Cargo.lock found under $repo_root" >&2
+	echo "error: no Cargo.lock found under $repo_root - AXP1-ZnQ cannot scan (fail-closed)" >&2
 	exit 1
 fi
 
@@ -91,7 +96,7 @@ findings_for() {
 	case "$rc" in
 	0 | 1) ;;
 	*)
-		echo "::error::supply-chain verdict: cargo audit failed (exit $rc) on $workspace ($lock) - a scanner that cannot run fails the lane, never passes it" >&2
+		echo "::error::AXP1-ZnQ: cargo audit failed (exit $rc) on $workspace ($lock) - a scanner that cannot run fails the lane, never passes it" >&2
 		exit 1
 		;;
 	esac
@@ -99,7 +104,7 @@ findings_for() {
 	# scanner failure: type == "object" demands exactly the report
 	# shape, jq -e exits 4 when it never produced a result.
 	if ! jq -e 'type == "object"' "$json" >/dev/null 2>&1; then
-		echo "::error::supply-chain verdict: cargo audit output is not valid JSON for $workspace ($lock)" >&2
+		echo "::error::AXP1-ZnQ: cargo audit output is not valid JSON for $workspace ($lock)" >&2
 		exit 1
 	fi
 	jq -r '
@@ -128,7 +133,7 @@ if [[ "$mode" == "--pre" ]]; then
 		findings_for "$lock" "$dir" "$pre_dir/$dir" "$pre_tsv"
 	done <<<"$lockfiles"
 	pre_count="$(grep -c . "$pre_tsv" || true)"
-	echo "pre-sweep findings stored: ${pre_count:-0} across $(printf '%s\n' "$lockfiles" | wc -l) workspace(s)"
+	echo "AXP1-ZnQ pre-pass: ${pre_count:-0} finding(s) stored across $(printf '%s\n' "$lockfiles" | wc -l) workspace(s)"
 	exit 0
 fi
 
@@ -178,7 +183,7 @@ summarize() {
 	local title="$1" rows="$2" verdict="$3"
 	{
 		echo ""
-		echo "### Supply-chain verdict: $title"
+		echo "### AXP1-ZnQ verdict: $title"
 		echo ""
 		echo "| workspace | kind | id | package | version | severity | patched | verdict |"
 		echo "| --- | --- | --- | --- | --- | --- | --- | --- |"
@@ -194,7 +199,7 @@ printf '%s\n' "$still_info" >"$state_dir/still-info.tsv"
 
 if [[ "$summary_file" != "/dev/null" ]] && [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
 	{
-		echo "### Supply-chain verdict (night-supply-1)"
+		echo "### AXP1-ZnQ supply-chain verdict (night-solid-defense-1)"
 		echo ""
 		echo "workspaces scanned: $ws_count | pre-sweep findings: $(grep -c . "$pre_tsv" 2>/dev/null || true) | cleared by the sweep: $cleared_count | still present (hard): $bad_count | informational: $info_count"
 	} >>"$GITHUB_STEP_SUMMARY"
@@ -205,21 +210,21 @@ fi
 
 if [[ "$cleared_count" -gt 0 ]]; then
 	echo "=================================================================="
-	echo "  SECURITY NOTICE: vulnerable dependency cleared by this run"
+	echo "  AXP1-ZnQ: vulnerable dependency cleared by this run"
 	echo "=================================================================="
 	while IFS="$tab" read -r ws kind id pkg ver sev patched; do
 		[[ -n "$ws" ]] || continue
 		echo "  - $ws | $kind $id | $pkg $ver | severity $sev | now patched: ${patched:-yes}"
 		echo "    the Sunday sweep took the fix; without this lane the tree"
 		echo "    would have carried the advisory for a week"
-		echo "::warning title=Supply-chain notice::$ws $kind $id ($pkg $ver) was present and the sweep cleared it - the fix ships in this run; without the weekly lane the tree would have carried it"
+		echo "::warning title=AXP1-ZnQ notice::$ws $kind $id ($pkg $ver) was present and the sweep cleared it - the fix ships in this run; without the weekly lane the tree would have carried it"
 	done <"$cleared_tsv"
 	echo "=================================================================="
 fi
 
 if [[ "$bad_count" -gt 0 ]]; then
 	echo "=================================================================="
-	echo "  SUPPLY-CHAIN VERDICT: FAIL - CALL OWNER"
+	echo "  AXP1-ZnQ SUPPLY-CHAIN VERDICT: FAIL - CALL OWNER"
 	echo "=================================================================="
 	while IFS="$tab" read -r ws kind id pkg ver sev patched; do
 		[[ -n "$ws" ]] || continue
@@ -230,12 +235,13 @@ if [[ "$bad_count" -gt 0 ]]; then
 		fi
 		echo "  - $ws | $kind $id | $pkg $ver | severity $sev"
 		echo "    $fix"
-		echo "::error::supply-chain verdict: $ws $kind $id ($pkg $ver, severity $sev) survives the sweep ($fix) - dangerous dep, cannot be auto-updated; CALL OWNER"
+		echo "::error::AXP1-ZnQ: $ws $kind $id ($pkg $ver, severity $sev) survives the sweep ($fix) - dangerous dep, cannot be auto-updated; CALL OWNER"
 	done <<<"$still_bad"
 	echo "=================================================================="
-	echo "  THE DEPS ABOVE ARE DANGEROUS AND CANNOT BE AUTO-UPDATED."
-	echo "  CALL THE OWNER - the commit lane is gated on this verdict,"
-	echo "  nothing ships while the advisory survives the sweep."
+	echo "  AXP1-ZNQ HOLDS THE LANE: the deps above are dangerous and"
+	echo "  cannot be auto-updated. CALL THE OWNER - the commit lane is"
+	echo "  gated on this verdict, nothing ships while the advisory"
+	echo "  survives the sweep."
 	echo "=================================================================="
 	echo "still present: $bad_count hard finding(s), $info_count informational, $cleared_count cleared by the sweep"
 	exit 1
@@ -245,5 +251,5 @@ if [[ "$info_count" -gt 0 ]]; then
 	awk -F "$tab" '{ printf "  notice: %s | %s | %s %s (informational)\n", $1, $3, $4, $5 }' "$state_dir/still-info.tsv"
 fi
 
-echo "supply-chain verdict: PASS - $ws_count workspace(s) scanned, $bad_count hard finding(s), $cleared_count cleared by the sweep, $info_count informational"
+echo "AXP1-ZnQ verdict: PASS - $ws_count workspace(s) scanned, $bad_count hard finding(s), $cleared_count cleared by the sweep, $info_count informational"
 exit 0

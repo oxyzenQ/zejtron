@@ -106,7 +106,7 @@ jobs:
       # audit lane's (0.22.2, --locked) so the rust-cache carries the
       # same binary after the first Sunday run - red means a new
       # advisory, never a new scanner release.
-      - name: Install the supply-chain scanner (cargo-audit)
+      - name: Install the AXP1-ZnQ scanner (cargo-audit)
         run: cargo install cargo-audit --version 0.22.2 --locked
 
       - name: Install codespell
@@ -128,7 +128,7 @@ jobs:
       # this snapshot to tell the owner's two scenarios apart: a
       # finding the sweep cleared (fixable) and a finding the sweep
       # left behind (unfixable).
-      - name: Scan the committed lane (the pre-sweep findings)
+      - name: AXP1-ZnQ pre-pass (scan the committed lane)
         run: ./scripts/ci/supplychain-verdict.sh --pre
 
       - name: Refresh Cargo dependencies
@@ -142,7 +142,10 @@ jobs:
       # job never runs: nothing ships while a dangerous dep has no
       # automatic update path. The verdict runs before the heavy
       # checks so a red Sunday lands fast, inside the same budget.
-      - name: The supply-chain verdict (the swept lane)
+      # night-solid-defense-1: the verdict speaks under the owner's
+      # sentinel name - every banner, annotation, and summary signs
+      # as AXP1-ZnQ, so the Sunday morning report names its watcher.
+      - name: The AXP1-ZnQ verdict (the swept lane)
         run: ./scripts/ci/supplychain-verdict.sh --post
 
       # night-zen-2: the parity rider (the zelynic sweep fix, ported).
