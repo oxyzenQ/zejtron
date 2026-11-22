@@ -95,7 +95,7 @@ PATH="${HOME}/.cargo/bin:${PATH}"
 
 SECONDS=0
 
-# The musl rust-std target both --musl and the phase 4 musl legs need;
+# The musl rust-std target the phase 3 release legs need;
 # installed once, idempotently (the aliases link through rust-lld, so
 # the target is the only prerequisite - see .cargo/config.toml).
 ensure_musl_target() {

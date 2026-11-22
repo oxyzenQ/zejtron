@@ -552,7 +552,7 @@ jobs:
 
       # TRIPWIRE: assert the dist/ inventory BEFORE the publish step.
       # The build matrix is two legs (v3/v4, fully static musl -
-      # night-badass-1 retired the gnu pair); each Prepare
+      # night-badass-1 retired the gnu pair); each Package
       # step emits one tarball plus three checksum files, and the build
       # job's signature-coverage tripwire makes GPG signing
       # all-or-nothing - so the legal shapes here are exactly: 2

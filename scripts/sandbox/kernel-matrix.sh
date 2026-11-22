@@ -11,7 +11,7 @@
 #
 # WHY THIS EXISTS: the ladder ALREADY runs in CI per push
 # (.github/workflows/supermassive-kernel-witnesses.yml: focal 5.4.0
-# below the floor, jammy 5.15.0 at it, noble 6.8.0 above it, cachyos
+# below the floor, jammy 5.15.0 at it, noble 6.8.0 above it, bookworm and mainline-6.6 as the LTS witnesses, cachyos
 # as the moving-latest witness - the line that caught the 6.18
 # anonymous union wrapping struct file's f_path live). What the
 # estate lacked is the LOCAL seat: the CI lane boots only on a push,
@@ -26,7 +26,7 @@
 #
 # LOCAL ONLY, BY DESIGN (the owner's gate: local first, CI later):
 # no CI workflow joins this commit - the witnesses lane already
-# burns the ladder per push inside its 5-minute budgets, and a
+# burns the ladder per push inside its 15-minute budgets, and a
 # duplicate lane would double the burn for the same verdict. The
 # harness earns new CI only if it catches a drift the CI ladder's
 # shapes miss (a new witness preset, a new envelope); any future
@@ -72,7 +72,7 @@ MATRIX_CACHE="${ZEJTRON_MATRIX_CACHE:-${HOME}/.cache/zejtron-sandbox/matrix}"
 # The CI ladder's six (supermassive-kernel-witnesses.yml): the local
 # seat cannot reproduce a Debian-6.1 or mainline-6.6 refusal unless its
 # default list matches what CI proves (night-zen-lts-2 back-port).
-DEFAULT_SUITES="focal jammy bookworm mainline noble cachyos"
+DEFAULT_SUITES="focal jammy bookworm mainline-6.6 noble cachyos"
 
 SUITES=""
 BINARY=""

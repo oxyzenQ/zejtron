@@ -22,7 +22,7 @@
 # Single-file policy (night-improve-14, the sibling's src/ root law,
 # now ENFORCED - the grandfather clause is lifted): src/ root carries
 # ONLY main.rs. Every other module lives in a directory group (cli/,
-# commands/, info/, output/, system/, update/), the zelynic shape.
+# commands/, ebpf/, evidence/, info/, output/, system/, update/), the zelynic shape.
 # The gate below fails the build the day a stray *.rs file joins
 # src/ root again.
 #
@@ -63,7 +63,7 @@ if [ -n "$STRAY_ROOT" ]; then
 	echo "FAIL: src/ root single-file policy (night-improve-14):"
 	printf '%s\n' "$STRAY_ROOT" | sed 's/^/  stray: /'
 	echo "  Only src/main.rs may live at src/ root; move the file into"
-	echo "  its directory group (cli/, commands/, info/, output/, system/,"
+	echo "  its directory group (cli/, commands/, ebpf/, evidence/, info/, output/, system/,"
 	echo "  update/) and wire the hub mod.rs."
 	exit 1
 fi

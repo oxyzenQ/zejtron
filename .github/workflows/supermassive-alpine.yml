@@ -16,7 +16,7 @@
 # --symptom ram, why), the honest-error path, and a standing panic
 # sweep across every captured stream.
 #
-# Scope law (the same directive): this is NOT a 502-probe
+# Scope law (the same directive): this is NOT a full-battery
 # supermassive re-run. The binary is static - the kernel-facing
 # behavior (/proc, sockets, eBPF) is identical to the host legs the
 # supermassive lanes already burn, so re-running the full battery

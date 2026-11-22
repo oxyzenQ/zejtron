@@ -23,7 +23,7 @@
 #        not resolve archive.ubuntu.com). Restart the daemon so it
 #        re-captures the hardened file. The docker run calls pin
 #        --dns explicitly too — that half rides
-#        scripts/supermassive/supermassive-test-v3.py.
+#        the supermassive suites' docker run steps.
 #   L3 — the archive probes already ride the LIVE archive.ubuntu.com
 #        (Fastly) with curl --retry and apt Acquire::Retries; with L1
 #        in front, those retries resolve through the clean path too.

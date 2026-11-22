@@ -6,16 +6,15 @@
 # ZEJTRON RELEASE PARITY CHECK (the sibling's NIGHT-lts-9 lineage)
 #
 # The release pipeline builds the two arch-baseline packages from
-# .github/workflows/release.yml's matrix rustflags; the README tells
-# owners a local `cargo pro-linux-amd64-<platform>` reproduces the
-# release artifact's optimization tier BIT-FOR-BIT. Until now nothing
+# .github/workflows/release.yml's matrix rustflags; owners build a local `cargo pro-linux-amd64-<platform>`
+# to reproduce the release tier; this gate pins the contract. Until now nothing
 # compared the two flag sets: the aliases live in .cargo/config.toml,
 # the matrix lives in release.yml, and a one-file edit would silently
 # break the documented parity (a locally built "release shape" that is
 # not the release shape — exactly the drift class a critical-infra
 # release pipeline should not carry).
 #
-# This gate walks the four platforms and asserts, per platform, that
+# This gate walks the two platforms and asserts, per platform, that
 # the -C codegen tokens of the alias's rustflags equal the -C tokens
 # of the release matrix's rustflags. The -D warnings lint token is
 # deliberately OUT of scope for the EQUALITY assertion: NIGHT-strict-3

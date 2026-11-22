@@ -13,7 +13,7 @@
 # docs-only change now burns this lane too; the whole estate rides the
 # same blind posture, and gate-keepers.yml polices the workflow lint
 # this file's old workflow_quality job duplicated (gate-keepers.sh
-# sections 2-4: yamllint, actionlint, codespell).
+# sections 2, 3 and 5: yamllint, actionlint, codespell).
 #
 # The one deliberate exception lives outside this lane: the publish
 # lanes (release.yml, crates-io.yml) are not blind - they keep their

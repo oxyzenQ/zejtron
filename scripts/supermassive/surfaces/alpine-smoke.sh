@@ -11,7 +11,7 @@
 # before the v80.0.0 LTS tag - "one binary, statically linked in the
 # musl shape" and honest degradation where systemd is absent (alpine
 # runs OpenRC, so systemctl and journalctl do not exist there). The
-# proof is TEN targeted probes, not the 502-probe battery: the binary
+# proof is TEN targeted probes, not the 517-check battery: the binary
 # is static, so the kernel-facing behavior (/proc, sockets, eBPF) is
 # identical to the host legs the supermassive lanes already burn -
 # re-running the full battery here would test the same kernel twice.

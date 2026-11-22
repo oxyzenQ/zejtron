@@ -75,7 +75,7 @@ BUILT_OBJECT="ebpf/target/bpfel-unknown-none/release/${OBJECT_NAME}"
 # first half, read live from ebpf/rust-toolchain.toml). Kept in
 # lockstep with build/ebpf.rs's BPF_LINKER_VERSION constant.
 BPF_LINKER_VERSION="0.11.1"
-# The eleven attach targets the loader plants (src/ebpf/loader.rs; the
+# The thirteen attach targets the loader plants (src/ebpf/loader.rs; the
 # exit probe lives in ebpf/src/exits.rs, the unlink/rename pair in
 # ebpf/src/unlink.rs, and night-frontier-Z7's off-path trio in
 # ebpf/src/offpath.rs - the dirty ladder plants ONE of its two shapes
@@ -288,7 +288,7 @@ blake3 = "${OBJ_SHA}"
 size = ${OBJ_SIZE}
 
 [contract]
-# The eight attach targets the loader plants (src/ebpf/loader.rs; the
+# The thirteen attach targets the loader plants (src/ebpf/loader.rs; the
 # exit probe lives in ebpf/src/exits.rs), documented for the registry
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.

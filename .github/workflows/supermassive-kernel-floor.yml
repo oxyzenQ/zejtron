@@ -94,7 +94,7 @@ jobs:
     # The low-specs leg's envelope vocabulary, on the REAL floor
     # kernel: the MSRV-pinned toolchain builds the payload (the
     # lane's variable is the KERNEL, not the toolchain - the e2e
-    # lane owns the toolchain span), and the 60s low-leg budget runs
+    # lane owns the toolchain span), and the 85s low-leg budget runs
     # inside the VM against the quarter-core/eighth-RAM slice.
     name: supermassive kernel floor (jammy GA 5.15.0, KVM micro-VM)
     runs-on: ubuntu-24.04
@@ -364,7 +364,7 @@ jobs:
 
       # Boot the micro-VM: the dynamic low envelope (the low leg's
       # math), KVM host-passthrough, the outer budget generous over
-      # the leg's 60s (a first boot spends it on the kernel's own
+      # the leg's 85s (a first boot spends it on the kernel's own
       # bring-up; the suite itself runs in single-digit seconds).
       - name: Boot the kernel-floor micro-VM and run the supermassive low leg
         run: |

@@ -31,7 +31,7 @@ blake3 = "9fac72bfd926e5c4688453de84e9771c48303ce8b1c268420b33c771fb0030b1"
 size = 36552
 
 [contract]
-# The eight attach targets the loader plants (src/ebpf/loader.rs; the
+# The thirteen attach targets the loader plants (src/ebpf/loader.rs; the
 # exit probe lives in ebpf/src/exits.rs), documented for the registry
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.

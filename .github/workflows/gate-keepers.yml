@@ -10,7 +10,7 @@
 # police it.
 #
 # Checks performed by gate-keepers.sh (21 sections: the pre-commit
-# self-install seat plus 17 numbered gates):
+# self-install seat, the shell quad, plus 19 numbered gates):
 #    0. Pre-commit hook self-install
 #    1. Shell quad (bash -n, shellcheck, shfmt, source resolution)
 #    2. yamllint       3. actionlint      4. TOML syntax
@@ -18,9 +18,12 @@
 #    8. emoji sweep    9. .rs LOC cap   10. toolchain pin sync
 #   11. language      12. scripts LOC   13. version anti-patterns
 #   14. release parity (alias == matrix rustflags)
-#   15. family name case (zylaxion lowercase law)
+#   15. family name case (zylaxion + zejtron lowercase law)
 #   16. prebuilt pin parity (the --check verdict, fail-closed)
-#   17. actions-pin freshness (the --strict sweep, fail-closed on
+#   17. actions-pin freshness
+#   18. fuzz include law
+#   19. documentation disclaimer
+#   20. dependency bans (the --strict sweep, fail-closed on
 #       a KNOWN-stale tag pin; every skip reason stays a skip)
 #
 # Every tool below is installed and pinned - a check that silently

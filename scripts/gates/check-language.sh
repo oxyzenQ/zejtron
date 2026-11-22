@@ -46,7 +46,7 @@
 # checked), *.lock, the CHANGELOG
 # root files (frozen historical records — archive content is
 # never rewritten, the same exclusion policy as every other gate;
-# the v20-era root file joined the class in NIGHT-improve-43),
+# the v10-era archive file joined the class in NIGHT-improve-43),
 # and this script itself (the word set below would match its own
 # detector definition). Commit messages follow the same English-only
 # rule but are not tree content at gate time — CI and review own

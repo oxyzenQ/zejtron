@@ -107,7 +107,7 @@
 #
 # Requirements: qemu-system-x86_64, python3, git. /dev/kvm is
 # OPTIONAL: without it the VM boots under TCG software emulation
-# (-cpu max) with a loud warning — slower, and the low leg's 60s
+# (-cpu max) with a loud warning — slower, and the low leg's 85s
 # wall budget may breach under emulation (the budget is a real-
 # hardware contract; CI's KVM leg holds it), but every check still
 # runs and reports. The binary probe prefers a static musl build
