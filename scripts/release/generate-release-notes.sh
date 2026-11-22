@@ -504,6 +504,27 @@ self_test() {
 			failures=$((failures + 1))
 		fi
 	done
+
+	# The disconnected-boundary shape (night-chasm-1): a NAMED previous
+	# tag with an empty compare is the exhausted-walk state (the two
+	# refs share no common history on the server) - the body must
+	# render the honest no-comparable-ancestor line naming the
+	# boundary, and must never claim "Initial release." on a page the
+	# repo's own tag list contradicts.
+	local chasm_out
+	chasm_out="$(render_body "" "v0.0.0-chasm" "v0.0.0-old-era" "" "" "")"
+	for want in "No comparable ancestor" "v0.0.0-old-era" "v0.0.0-chasm" "## Verification"; do
+		if ! printf '%s' "$chasm_out" | grep -qF "$want"; then
+			echo "  FAIL shape: disconnected-boundary render is missing '$want'" >&2
+			failures=$((failures + 1))
+		fi
+	done
+	for banned in "Initial release." "compare view"; do
+		if printf '%s' "$chasm_out" | grep -qF "$banned"; then
+			echo "  FAIL shape: disconnected-boundary render must not carry '$banned'" >&2
+			failures=$((failures + 1))
+		fi
+	done
 	for banned in ".asc" "recv-keys" "### GPG signature"; do
 		if printf '%s' "$out" | grep -qF "$banned"; then
 			echo "  FAIL shape: checksums-only render must not advertise '$banned'" >&2
@@ -695,8 +716,21 @@ render_body() {
 	emit ""
 
 	if [ -z "$commits" ]; then
-		emit "Initial release."
-		emit ""
+		if [ -n "$prev_tag" ]; then
+			# The disconnected-boundary line (night-chasm-1): a
+			# previous tag was named, but the compare carries no
+			# commit listing - the two refs share no common
+			# history on the server (a history re-plant orphaned
+			# the older era). "Initial release." here would be a
+			# false statement about the host - the exact class
+			# the ledger never ships. The two tags are the
+			# record; the page says so and moves on.
+			emit "No comparable ancestor: \`${prev_tag}\` and \`${tag}\` share no common history on the server - the boundary commit listing cannot be rendered, and the two tags are the record."
+			emit ""
+		else
+			emit "Initial release."
+			emit ""
+		fi
 	fi
 
 	# Range summary line (single or dual, the cosmostrix convention).

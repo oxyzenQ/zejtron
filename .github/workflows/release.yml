@@ -638,20 +638,65 @@ jobs:
           # future vX.Y.Z-example.1 stable against stable).
           TAGS=$(gh_api --paginate "repos/${GITHUB_REPOSITORY}/tags" --jq '.[].name')
           if [ "${IS_PRERELEASE}" = "true" ]; then
-            PREV_TAG=$(printf '%s\n' "${TAGS}" \
+            CANDIDATES=$(printf '%s\n' "${TAGS}" \
               | awk -v cur="${TAG}" '$0 != cur' \
-              | sort -V | tail -1)
+              | sort -Vr)
           else
-            PREV_TAG=$(printf '%s\n' "${TAGS}" \
+            CANDIDATES=$(printf '%s\n' "${TAGS}" \
               | awk -v cur="${TAG}" \
                 '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-/' \
-              | sort -V | tail -1)
+              | sort -Vr)
           fi
+          printf '%s\n' "${CANDIDATES}" > candidates.txt
 
+          # The ancestor walk (night-chasm-1): a candidate is only a
+          # CANDIDATE until the server answers its compare. A history
+          # re-plant can orphan a whole tag era, and the single-candidate
+          # logic above it died on exactly that: the first stable cut of
+          # the re-planted line (v80.5.0) had its newest older stable
+          # boundary (v80.2.2) across the chasm - "No common ancestor
+          # between v80.2.2 and v80.5.0 (HTTP 404)", three retries, a red
+          # pipeline, no release. The walk tries the candidates newest
+          # first; a 404 is the server's definitive answer (it will not
+          # change, so it takes no retries), any other failure retries
+          # like the transient lane and then falls to the next older
+          # candidate. The newest older tag is remembered either way:
+          # a successful compare makes it the rendered boundary, an
+          # exhausted walk makes it the named boundary on the generator's
+          # honest no-comparable-ancestor line - never "Initial release."
+          # on a page the repo's own tag list contradicts.
+          NOMINAL_PREV=$(head -n 1 candidates.txt)
           COMPARE_JSON=""
-          if [ -n "${PREV_TAG}" ]; then
-            gh_api "repos/${GITHUB_REPOSITORY}/compare/${PREV_TAG}...${TAG}" > compare.json
-            COMPARE_JSON=compare.json
+          PREV_TAG=""
+          while IFS= read -r CANDIDATE; do
+            [ -z "${CANDIDATE}" ] && continue
+            attempt=1
+            while :; do
+              if OUT=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${CANDIDATE}...${TAG}" 2>compare.err); then
+                printf '%s\n' "${OUT}" > compare.json
+                PREV_TAG="${CANDIDATE}"
+                COMPARE_JSON="compare.json"
+                break 2
+              fi
+              CODE=$(sed -n 's/.*HTTP \([0-9][0-9][0-9]\)).*/\1/p' compare.err | tail -1)
+              if [ "${CODE}" = "404" ]; then
+                echo "note: ${CANDIDATE} shares no common ancestor with ${TAG}" \
+                  "(a disconnected tag era) - the walk falls to the next older tag" >&2
+                break
+              fi
+              if [ "${attempt}" -ge 3 ]; then
+                echo "note: ${CANDIDATE} compare failed after ${attempt} attempts" \
+                  "(HTTP ${CODE:-unknown}) - the walk falls to the next older tag" >&2
+                break
+              fi
+              echo "gh api attempt ${attempt} failed - retrying in 5s" >&2
+              attempt=$((attempt + 1))
+              sleep 5
+            done
+          done < candidates.txt
+          rm -f compare.err candidates.txt
+          if [ -z "${PREV_TAG}" ]; then
+            PREV_TAG="${NOMINAL_PREV}"
           fi
 
           # The family release-page style, one implementation in the
