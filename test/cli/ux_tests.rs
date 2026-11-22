@@ -88,6 +88,47 @@ fn help_muscle_memory_lands_on_the_reference() {
 }
 
 #[test]
+fn near_miss_vocabulary_names_both_status_surfaces() {
+    // night-nearmiss-1: `stat` scores below every suggestion engine's
+    // confidence (clap's Jaro and the CI fallback both stay silent),
+    // yet the status muscle memory has real successors. The near-miss
+    // table names both in one tip - sig and doctor - and the CI
+    // fallback stays out of the way.
+    let mut e = parse_err(&["stat"]);
+    assert_eq!(e.kind(), ErrorKind::InvalidSubcommand);
+    assert!(e.get(ContextKind::SuggestedSubcommand).is_none());
+    enrich_near_miss_subcommand_hint(&mut e, &Cli::command());
+    let Some(ContextValue::StyledStrs(tips)) = e.get(ContextKind::Suggested) else {
+        panic!("the near-miss table must inject a Suggested tip");
+    };
+    assert_eq!(tips.len(), 1);
+    assert!(tips[0].to_string().contains("sig"));
+    assert!(tips[0].to_string().contains("(signature)"));
+    assert!(tips[0].to_string().contains("doctor"));
+    assert!(tips[0].to_string().contains("(status)"));
+}
+
+#[test]
+fn status_spelling_rides_the_same_near_miss_tip() {
+    // The longer form of the same muscle memory lands on the same
+    // pair - the vocabulary the owner adjudicated, exact-match rows.
+    let mut e = parse_err(&["status"]);
+    enrich_near_miss_subcommand_hint(&mut e, &Cli::command());
+    assert!(e.get(ContextKind::Suggested).is_some());
+}
+
+#[test]
+fn near_miss_table_never_fires_on_unmapped_typos() {
+    // Exact-match only: a typo outside the table passes through
+    // untouched - clap's engine and the CI fallback keep their own
+    // lanes (here the CI fallback scores `whohods` against `whoholds`
+    // above the threshold and names the redirect target itself).
+    let mut e = parse_err(&["whohods"]);
+    enrich_near_miss_subcommand_hint(&mut e, &Cli::command());
+    assert!(e.get(ContextKind::Suggested).is_none());
+}
+
+#[test]
 fn case_variant_subcommand_gets_the_ci_fallback() {
     // clap's engine is case-sensitive: a case-variant verb spelling
     // renders tip-less, and the fallback names the real verb.

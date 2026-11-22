@@ -53,6 +53,24 @@ const REMOVED_SUBCOMMAND_REDIRECTS: &[(&str, &str)] = &[
 /// natural spelling in the vocabulary.
 const SUBCOMMAND_FLAG_REDIRECTS: &[(&str, &str)] = &[("help", "zejtron --help")];
 
+/// The near-miss vocabulary (night-nearmiss-1): subcommand spellings
+/// with NO close candidate in the verb pool - clap's Jaro engine and
+/// the case-insensitive fallback both stay silent below the 0.7
+/// confidence (`stat` scores ~0.53 against `sig`, ~0.30 against
+/// `doctor`), yet real successors exist: `stat` and `status` are the
+/// muscle memory of the status vocabulary, and zejtron's status
+/// surfaces are `sig` (the build identity matrix) and `doctor` (the
+/// host readiness report). Exact-match only, like the redirect
+/// tables - a typed name either IS the near miss or it is not - and
+/// the one-tip contract holds: both successors ride one tip, the way
+/// a human would name them. Each row carries its two labeled
+/// successors; the renderer styles each through the command's
+/// `valid` slot.
+const NEAR_MISS_SUBCOMMAND_HINTS: &[(&str, [&str; 2])] = &[
+    ("stat", ["sig (signature)", "doctor (status)"]),
+    ("status", ["sig (signature)", "doctor (status)"]),
+];
+
 /// Long flags that parse at the TOP LEVEL only. A subcommand-scoped
 /// typo of one of these gets the top-level spelling named - the
 /// generic candidate pool at a subcommand never contains them, so
@@ -351,6 +369,36 @@ fn enrich_subcommand_flag_redirect(e: &mut Error, cmd: &Command) {
     e.insert(ContextKind::Suggested, ContextValue::StyledStrs(vec![tip]));
 }
 
+/// Inject the near-miss hint for a vocabulary typo as a canonical
+/// `tip:` line. The plain `Suggested` context is the render slot the
+/// flag redirect rides (night-nearmiss-1); the subcommand names ride
+/// the command's `valid` style - the same highlighted-command look
+/// every other tip carries. No-op for every error kind except
+/// InvalidSubcommand and every typed name outside the table.
+fn enrich_near_miss_subcommand_hint(e: &mut Error, cmd: &Command) {
+    if e.kind() != ErrorKind::InvalidSubcommand {
+        return;
+    }
+    let Some(ContextValue::String(typed)) = e.get(ContextKind::InvalidSubcommand) else {
+        return;
+    };
+    let Some(&(_, [first, second])) = NEAR_MISS_SUBCOMMAND_HINTS
+        .iter()
+        .find(|(name, _)| name == typed)
+    else {
+        return;
+    };
+    e.remove(ContextKind::SuggestedSubcommand);
+    e.remove(ContextKind::Suggested);
+    let valid = cmd.get_styles().get_valid();
+    let mut tip = clap::builder::StyledStr::new();
+    let _ = write!(
+        tip,
+        "did you mean '{valid}{first}{valid:#}' or '{valid}{second}{valid:#}'?"
+    );
+    e.insert(ContextKind::Suggested, ContextValue::StyledStrs(vec![tip]));
+}
+
 /// Render a clap parse error in the canonical zejtron shape and exit.
 ///
 /// Help/version requests exit 0 on stdout through clap's own path;
@@ -379,6 +427,11 @@ pub(crate) fn exit_clap_error(e: Error) -> ! {
     enrich_unknown_arg_suggestion(&mut e, &cmd, &argv);
     enrich_removed_subcommand_redirect(&mut e);
     enrich_subcommand_flag_redirect(&mut e, &cmd);
+    // The near-miss table runs before the CI fallback: it names the
+    // successors the verb pool cannot score (stat/status), and the
+    // CI fallback then stays silent the one-tip contract demands
+    // (it only ever fires where no Suggested context exists).
+    enrich_near_miss_subcommand_hint(&mut e, &cmd);
     // The CI subcommand fallback runs LAST: it only ever fires where
     // clap was silent and neither redirect table landed a tip.
     enrich_subcommand_ci_fallback(&mut e, &cmd, &argv);
