@@ -182,9 +182,13 @@ fn scan_without_uid_keeps_every_users_processes() {
 
     let report = scan_processes_at(proc_root.path(), None).unwrap();
 
+    // The scan's own ascending-pid law holds for the whole table:
+    // both uids kept, pid order preserved.
     assert_eq!(report.processes.len(), 2);
-    assert_eq!(report.processes[0].uid, 0);
-    assert_eq!(report.processes[1].uid, 1000);
+    assert_eq!(report.processes[0].pid, 1234);
+    assert_eq!(report.processes[0].uid, 1000);
+    assert_eq!(report.processes[1].pid, 1235);
+    assert_eq!(report.processes[1].uid, 0);
 }
 
 #[test]

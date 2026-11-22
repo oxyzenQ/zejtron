@@ -120,12 +120,21 @@ fn status_spelling_rides_the_same_near_miss_tip() {
 #[test]
 fn near_miss_table_never_fires_on_unmapped_typos() {
     // Exact-match only: a typo outside the table passes through
-    // untouched - clap's engine and the CI fallback keep their own
-    // lanes (here the CI fallback scores `whohods` against `whoholds`
-    // above the threshold and names the redirect target itself).
+    // untouched. clap may still speak for itself (its own engine
+    // scores whohods against whoholds, and its escape-hatch tip
+    // rides the Suggested slot) - the near-miss pair must not join
+    // either lane.
     let mut e = parse_err(&["whohods"]);
     enrich_near_miss_subcommand_hint(&mut e, &Cli::command());
-    assert!(e.get(ContextKind::Suggested).is_none());
+    if let Some(ContextValue::StyledStrs(tips)) = e.get(ContextKind::Suggested) {
+        for tip in tips {
+            assert!(!tip.to_string().contains("sig (signature)"));
+        }
+    }
+    if let Some(ContextValue::String(named)) = e.get(ContextKind::SuggestedSubcommand) {
+        assert_ne!(named, "sig");
+        assert_ne!(named, "doctor");
+    }
 }
 
 #[test]
