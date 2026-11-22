@@ -203,7 +203,16 @@ pub enum Commands {
         #[arg(
             long,
             value_name = "DURATION",
-            help = "Only show files modified since this duration"
+            // The unbounded window is recent's own semantics
+            // (night-recent-window-note-1): the event-window verbs
+            // (port, holds, touch, why) clamp into [1s, 1h] because
+            // their lane is a bounded kernel buffer, but recent is a
+            // filesystem age filter - the ask rides as-is, the same
+            // law parse_duration's own comment carries. The help now
+            // says so: `recent --since 100h` accepting where
+            // `port --since 100h` clamps is a documented difference,
+            // not a silent inconsistency.
+            help = "Only show files modified since this duration (s/m/h/d, no window clamp)"
         )]
         since: Option<String>,
         #[arg(
