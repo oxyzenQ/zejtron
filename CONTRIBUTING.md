@@ -36,7 +36,7 @@ do not open public issues for security problems.
 
 The build commands (plain release, the pro-native host aliases, and
 the arch-baseline release aliases) live once in the README —
-[Install from source](README.md#install-from-source) — the same
+[eBPF & The Lazy Camera](README.md#ebpf--the-lazy-camera) — the same
 commands apply for contributors. zejtron is feature-free by design:
 one `cargo build --release --locked` builds everything, and the
 default `cargo test --all-targets --all-features --locked` runs the
@@ -55,7 +55,8 @@ src/
   cli/           — CLI definition (clap derive) + clap brand styling
                    + the UX bridge (typo rescue, migration redirects)
   commands/      — the read-only command surfaces (path, recent, port/,
-                   proc/, holds/, touch/, why, net, doctor/)
+                   proc/, holds/, touch/, why, net, doctor, sig)
+  ebpf/          — the eBPF userspace lane (loader, rings, BTF)
   info/          — the -V version report + the std-only civil clock
                    (Hinnant civil_from_days)
   output/        — runtime color tier (capability ladder, error lane)

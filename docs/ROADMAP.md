@@ -5,7 +5,7 @@
 
 # zejtron Future Roadmap
 
-> **Status:** v10.0.0 released. This document is for future development.
+> **Status:** v10.0.0 released. This document is the v10-era roadmap, kept for history; the live roadmap is docs/ROADMAP-current.md.
 > **Last updated:** 2026-07-01
 > **Maintainer:** rezky_nightky (oxyzenQ)
 
@@ -16,7 +16,7 @@
 | Principle | Detail |
 |-----------|--------|
 | **Linux first** | amd64 Linux binaries (musl, fully static) |
-| **Minimal deps** | Keep dependency count low (currently 4 - the count's one home: [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)) |
+| **Minimal deps** | Keep dependency count low (currently 3 - the count's one home: [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)) |
 | **Fast** | Introspection must be instant |
 | **No daemon** | CLI tool, not a service |
 

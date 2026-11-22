@@ -32,7 +32,7 @@ that silently skips behind a missing tool is a check that does not
 exist. The pins ride the release CDN directly - no api.github.com
 resolve sits in the install path, so the unauthenticated rate-limit
 failure class (a busy shared egress pool outliving any retry window)
-has no seat in the install steps. The 19 sections cover the shell quad, the workflow linters, TOML
+has no seat in the install steps. The 21 sections cover the shell quad, the workflow linters, TOML
 syntax, the repo-discipline gates (headers, permissions, emoji,
 language, the LOC caps), the pin-sync guards, the fuzz include law
 (section 18), and the documentation disclaimer's placement (section
@@ -153,8 +153,7 @@ for the owner's tag.
 ```
 
 The script rewrites every version surface in one pass: `Cargo.toml` and
-`Cargo.lock` (the complete cargo surface - zejtron is a single-crate
-repo, there is no second manifest to ride along), the release
+`Cargo.lock` (the complete cargo surface - zejtron is the root workspace plus the detached `ebpf/` probe workspace pair, and the prebuilt manifest's version mirror rides along), the release
 examples in `README.md` and this document, and the `CHANGELOG.md`
 ledger - the bumped version is recorded as a bare line under
 `## [Released]`, newest first, above `## [Unreleased]`. The ledger

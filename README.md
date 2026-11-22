@@ -53,7 +53,7 @@ zejtron's output complies with the [Evidence Ledger Specification v4](docs/EVIDE
 
 An investigation fragments across five tools: `which` for the binary, `ss` for the port, `lsof` for the holder, `ps` for the tree, and `journalctl` for the evidence — each with its own output dialect, none of it deterministic.
 
-zejtron is one binary that answers the incident questions in one dialect. The output is deterministic, the timestamps are UTC with an explicit marker, and the tool never writes. night-frontier-Z2 proves the determinism claim every push: the certificate leg renders canonical fixtures in two independent invocations and issues a certificate only when the byte diff is empty - and the parser dialect corpus (real GA kernel BTF bytes under `corpus/`) locks the parsers to real kernels from 5.10 to 6.8.
+zejtron is one binary that answers the incident questions in one dialect. The output is deterministic, the timestamps are UTC with an explicit marker, and the tool never writes. night-frontier-Z2 proves the determinism claim every push: the certificate leg renders canonical fixtures in two independent invocations and issues a certificate only when the byte diff is empty - and the parser dialect corpus (real GA kernel BTF bytes under `corpus/`) locks the parsers to real kernels from 5.10 (the below-floor dialect bundle) through 7.3.3 (BTF).
 
 ### What makes zejtron sharp
 
@@ -184,13 +184,13 @@ The eBPF event lane ships in every binary. No program loads until you attach.
 ./scripts/dev/bootstrap-ebpf.sh   # once per machine, for source builds
 cargo pro-linux-amd64-v3-musl     # source-builds and embeds the object
 ```
-The build cross-compiles `ebpf/` (pure Rust, aya-ebpf) into eight programs: `sched_process_exec`, `inet_sock_set_state`, `vfs_open`, `vfs_write`, `vfs_writev`, `vfs_unlink`, `vfs_rename`, and `sched_process_exit`. The nightly toolchain and bpf-linker are build-time prerequisites only. Runtime requires kernel 5.15+, lockdown inactive, and `CAP_BPF` + `CAP_PERFMON` for attach. Attach verifies every struct offset against the host's vmlinux BTF, refuses on missing members, and knows the anonymous unions modern kernels use (6.18's `struct file` carries `f_path` inside one). The fd-walk offsets are parsed from BTF at attach and written whole into the offsets map. The unlink probe's `vfs_unlink` dentry argument position is scanned out of the same BTF - the signature moved its dentry across the floor, so the position is per-host data, never a compiled guess - and the rename probe walks `renamedata.old_dentry` at its BTF-derived offset. If the write probe's self-verification fails, the refusal echoes the planted offsets beside the drop census. night-frontier-Z1 closes the verification loop around the recording boundary: the file ring's drain re-derives the planted walk table from the kernel's current BTF and refuses by slot on drift, before one record is trusted. night-frontier-Z2 adds the estate's identity: the camera stamps its boot identity, its probe object identity, and the attach instant into a pinned `generation` map at attach, and every drain re-derives the live facts before one record is trusted - a camera planted by another boot or another build refuses by name, with the remedy.
+The build cross-compiles `ebpf/` (pure Rust, aya-ebpf) into twelve programs (the eight core probes plus the capability-gated off-path set): `sched_process_exec`, `inet_sock_set_state`, `vfs_open`, `vfs_write`, `vfs_writev`, `vfs_unlink`, `vfs_rename`, and `sched_process_exit`. The nightly toolchain and bpf-linker are build-time prerequisites only. Runtime requires kernel 5.15+, lockdown inactive, and `CAP_BPF` + `CAP_PERFMON` for attach. Attach verifies every struct offset against the host's vmlinux BTF, refuses on missing members, and knows the anonymous unions modern kernels use (6.18's `struct file` carries `f_path` inside one). The fd-walk offsets are parsed from BTF at attach and written whole into the offsets map. The unlink probe's `vfs_unlink` dentry argument position is scanned out of the same BTF - the signature moved its dentry across the floor, so the position is per-host data, never a compiled guess - and the rename probe walks `renamedata.old_dentry` at its BTF-derived offset. If the write probe's self-verification fails, the refusal echoes the planted offsets beside the drop census. night-frontier-Z1 closes the verification loop around the recording boundary: the file ring's drain re-derives the planted walk table from the kernel's current BTF and refuses by slot on drift, before one record is trusted. night-frontier-Z2 adds the estate's identity: the camera stamps its boot identity, its probe object identity, and the attach instant into a pinned `generation` map at attach, and every drain re-derives the live facts before one record is trusted - a camera planted by another boot or another build refuses by name, with the remedy.
 
 ```sh
 sudo zejtron doctor --attach   # plant the probes
 sudo zejtron doctor --detach   # the sledgehammer: unpin everything, idempotent
 ```
-After `--attach`, the process may exit. The pinned links keep programs attached; the pinned maps keep data. `--detach` sweeps the whole pin estate (legacy pins, foreign entries) — no manual `rm` is ever needed. Both verbs are quiet by default: the attach answers with one line — `eBPF probes attached successfully (8 programs, 8 links, 6 maps). Lazy Camera is now recording.` — and the detach with `eBPF probes detached (22 pins removed).`; run either with `-v` when you want the full report instead (every probe by name, the BTF verification claims, the whole pin list). The Lazy Camera architecture is exactly this: the kernel records into bounded rings, nothing streams to userspace, and the CLI wakes only to drain the window it was asked for, then exits. The doctor's `[eBPF]` section carries the camera's posture: `Mode: Lazy Camera (Kernel: recording | CLI: asleep)`.
+After `--attach`, the process may exit. The pinned links keep programs attached; the pinned maps keep data. `--detach` sweeps the whole pin estate (legacy pins, foreign entries) — no manual `rm` is ever needed. Both verbs are quiet by default: the attach answers with one line — `eBPF probes attached successfully (12 programs, 12 links, 8 maps). Lazy Camera is now recording.` — and the detach with `eBPF probes detached (32 pins removed).`; run either with `-v` when you want the full report instead (every probe by name, the BTF verification claims, the whole pin list). The Lazy Camera architecture is exactly this: the kernel records into bounded rings, nothing streams to userspace, and the CLI wakes only to drain the window it was asked for, then exits. The doctor's `[eBPF]` section carries the camera's posture: `Mode: Lazy Camera (Kernel: recording | CLI: asleep)`.
 
 ### Usage
 
@@ -255,13 +255,14 @@ src/
   cli/           — clap derive definition, brand styling, the UX bridge
   commands/      — the ten surfaces (+ lane/, the fallback ladder)
   evidence/      — the Evidence Ledger format (rows, tiers, render)
+  ebpf/          — the eBPF userspace lane (loader, rings, BTF)
   info/          — the -V report + the std-only civil clock
   output/        — the runtime color tier (capability ladder, error lane)
   system/        — /proc readers, the pacman reader, path guardrails
   update/        — --check-update (refuses root, fail-closed)
 ```
 
-Every `.rs` file rides under 600 lines, every test file lives under `test/`, and every gate runs in CI. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full map.
+Every `.rs` file rides at or under the 600-line cap, every test file lives under `test/`, and every gate runs in CI. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full map.
 
 ### The Evidence Ledger
 

@@ -53,7 +53,7 @@ to disk. No zejtron process exists between commands to receive
 anything, because there is nothing to receive: the events sit in
 the rings, inside the kernel, until a command drains them.
 
-The rings are rolling windows with hard bounds - 256 KiB each,
+The rings are rolling windows with hard bounds - 256 KiB each (the file ring rides 512 KiB, the D5 re-pin),
 where the oldest records are overwritten when a ring fills, and a
 failed reservation drops an event without failing the probed
 kernel path. Each ring is also filtered at the source, in the
@@ -89,7 +89,7 @@ says same boot, same build.
 This shape is the answer to the question every eBPF tool gets
 asked: "so it runs in the background?" No. The BACKGROUND is the
 kernel itself, doing what the kernel already does - executing
-processes, opening files, changing socket states - with six small
+processes, opening files, changing socket states - with eight core
 programs riding those paths and writing compact records into three
 bounded rings (the socket ring, the file ring, and the post-mortem
 exit ring night-improve-47 added). The userspace half of zejtron is
@@ -117,7 +117,7 @@ The lane's whole life, boot to boot:
    attaches each program,
    and pins programs, links, and maps under `/sys/fs/bpf/zejtron`.
    The attach prints one quiet success line (`eBPF probes attached
-   successfully (8 programs, 8 links, 6 maps). Lazy Camera is now
+   successfully (12 programs, 12 links, 8 maps). Lazy Camera is now
    recording.`) and exits; `-v` swaps the line for the full report -
    every probe by name, the BTF verification claims, the whole pin
    list. Because bpffs is a
@@ -166,7 +166,7 @@ The lane's whole life, boot to boot:
    everything (links first, so an interrupted cleanup leaves a
    detached probe, never a half-attached one) and removes the pin
    directory. The detach answers with one quiet line
-   (`eBPF probes detached (22 pins removed).`); `-v` names the pin
+   (`eBPF probes detached (32 pins removed).`); `-v` names the pin
    directory it removed. The kernel footprint is exactly zero again - the
    same state a host that never attached has.
 
@@ -194,7 +194,7 @@ stops:
   telemetry endpoint.
 
 - **Zero footprint when not invoked.** Between commands the lane's
-  entire presence is six small kernel programs writing fixed-size
+  entire presence is eight core kernel programs writing fixed-size
   records into three bounded rings - kernel memory the attach
   already paid for, zero CPU on quiet paths (the filters
   run before the records), zero userspace memory, zero wakeups.

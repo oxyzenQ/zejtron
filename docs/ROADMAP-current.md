@@ -10,7 +10,7 @@ future zejtron releases. Nothing here is implemented. This is a design-only
 reference to guide deliberate, disciplined development when the project exits
 stabilization mode.
 
-See [docs/v5.md](archive/v5.md) for the full v5.0.0 design specification.
+See [docs/archive/v5.md](archive/v5.md) for the full v5.0.0 design specification.
 
 ## Project Identity
 
@@ -37,7 +37,7 @@ The following identity constraints are non-negotiable:
 
 Goal: Lock the v5.0.0 design before any implementation begins.
 
-- Publish ROADMAP.md and docs/v5.md.
+- Publish ROADMAP.md and docs/archive/v5.md.
 - Define all proposed namespaces, their scope, and their boundaries.
 - Define release gates, architecture rules, and testing requirements.
 - Collect feedback (if applicable) and refine.
@@ -66,7 +66,7 @@ between stages.
 
 Each namespace follows the same delivery cycle:
 
-1. Design review against docs/v5.md.
+1. Design review against docs/archive/v5.md.
 2. Implementation with full test coverage.
 3. LOC compliance (no source file exceeds 1000 LOC).
 4. ./scripts/build.sh passes.
@@ -77,9 +77,9 @@ Proposed namespace order:
 
 | Order | Namespace | Scope | Status |
 |-------|-----------|-------|--------|
-| 1 | `zejtron shell` | Shell process and environment introspection | Implemented in v3.0.0 |
-| 2 | `zejtron net`   | Network interface and routing inspection | Implemented in v5.0.0 |
-| 3 | `zejtron git`   | Git repository state inspection | Implemented in v5.0.0 |
+| 1 | `zejtron shell` | Shell process and environment introspection | Implemented in v3.0.0 (removed in the v80 surface reduction) |
+| 2 | `zejtron net`   | Network interface and routing inspection | Implemented in v5.0.0, still a live verb |
+| 3 | `zejtron git`   | Git repository state inspection | Implemented in v5.0.0 (removed in the v80 surface reduction) |
 
 This order is deliberate. `shell` builds on existing process and environment
 infrastructure. `net` extends the port inspection model. `git` is the most

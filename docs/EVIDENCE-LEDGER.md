@@ -33,10 +33,10 @@ newer of the two is wrong and the fix is one commit.
 ## Scope and conformance
 
 A tool conforms to this specification when every report it prints
-follows all three of: the provenance tier vocabulary (section 2),
-the output grammar (section 3), and the four laws (section 4). A
+follows all three of: the provenance tier vocabulary (section 1),
+the output grammar (section 2), and the four laws (section 3). A
 tool that cannot reach the kernel's event lanes has a defined
-compliance path - the escape hatch (section 5) - and it does not
+compliance path - the escape hatch (section 4) - and it does not
 reduce that tool's conformance.
 
 The format is pure text. It has no dependency on a terminal, a

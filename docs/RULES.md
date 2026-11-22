@@ -52,7 +52,7 @@ business logic.
   (`scripts/gates/check-loc.sh` checks the root layout before it
   counts a single line).
 - **Subsystem directories** each own a `mod.rs` that carries the
-  module declarations and re-exports: `cli/`, `commands/`, `info/`,
+  module declarations and re-exports: `cli/`, `commands/`, `ebpf/`, `evidence/`, `info/`,
   `output/`, `system/`, `update/`.
 - **Nested command modules** ride the `command.rs` + `command/`
   group idiom: the `.rs` file owns the command's entry surface, the

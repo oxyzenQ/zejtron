@@ -6,7 +6,7 @@
 # zejtron 80.0.0 - publish checklist
 
 The v80.0.0 LTS freeze is in effect (see
-[docs/FREEZE.md](docs/FREEZE.md)): the tree says `80.0.0` everywhere
+[docs/FREEZE.md](docs/FREEZE.md)): the tree says `<VERSION>` everywhere
 the mirror law demands, the prebuilt lane is in sync, and every gate
 is green. This checklist is the owner's manual publish lane - the
 agent does NOT publish; crates.io is the owner's hand, always.
@@ -15,7 +15,7 @@ agent does NOT publish; crates.io is the owner's hand, always.
 
 - The version mirrors across all active files: root `Cargo.toml`,
   `Cargo.lock`, `ebpf/Cargo.toml`, `ebpf/Cargo.lock`, and the
-  prebuilt manifest's `[contract]` version all read `80.0.0`
+  prebuilt manifest's `[contract]` version all read `<VERSION>`
   (verified by `scripts/dev/regenerate-ebpf-prebuilt.sh --check`).
 - The registry install builds with eBPF enabled and no toolchain on
   the target: the crate embeds the manifest-verified prebuilt kernel

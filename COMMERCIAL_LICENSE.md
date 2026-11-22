@@ -114,9 +114,9 @@ grandfathered at $99 for the term they bought.
 The $1,899 anchor is calibrated against the market for
 professional forensic CLI tools — Security Ronin Katana, the
 closest analog, is commonly cited in the $1,188–1,788/seat range.
-zejtron sits at the top of that band because it ships nine
+zejtron sits at the top of that band because it ships ten
 read-only surfaces (not a single triage pipeline), the Lazy Camera
-eBPF architecture, the Evidence Ledger v3 format, and a frozen
+eBPF architecture, the Evidence Ledger v4 format, and a frozen
 LTS contract.
 
 A buyer who needs the forensic capability without a commercial

@@ -247,7 +247,7 @@ crates - `clap`, `aya`, `libc` - with `serde` banned outright,
 `chrono` replaced by Howard Hinnant's `civil_from_days` on
 `std::time` only (no timezone database, no local guesses in
 containers), and no regex crate at any size (the pattern filter is
-std-only substring matching). And the nine surfaces read `/proc`
+std-only substring matching). And the ten surfaces read `/proc`
 and `/sys` directly - delete `ss`, `lsof`, and `ps` from the system
 and zejtron still answers byte for byte; the external-binary census
 is short (`curl`, `journalctl`, `dpkg`/`rpm`/`apk`, `uname`), every
@@ -278,8 +278,8 @@ become the incident.
 **12. The kernel matrix, two seats** (night-frontier-4;
 `scripts/sandbox/kernel-matrix.sh`, `.github/workflows/supermassive-kernel-witnesses.yml`).
 The hole: kernel-shape drift is discovered by a user's bug report.
-Four witnesses burn per push - focal 5.4.0 below the floor, jammy
-5.15.0 at it, noble 6.8.0 above it, cachyos as the moving-latest
+Six witnesses burn per push - focal 5.4.0 below the floor, jammy
+5.15.0 at it, noble 6.8.0 above it, bookworm and mainline-6.6 as the LTS witnesses, cachyos as the moving-latest
 witness (the line that caught the 6.18 anonymous union live) - and
 the same ladder runs on the operator's own box through the same
 sandbox code path, one command, one verdict table. One
@@ -409,8 +409,8 @@ the certificate pins are `test/evidence/certificate_tests.rs` and
 a word every tool prints and none can prove. The cost contract
 publishes arithmetic instead: the eBPF instruction count per program
 (walked from the committed prebuilt object - a pure std ELF64 section
-walk, 8 programs at 1092 instructions plus 346 shared, 1438 total),
-the kernel-side ring bytes (3 x 256 KiB, scanned from the BPF
+walk, 12 program sections at 3156 instructions plus 583 shared, 3739 total),
+the kernel-side ring bytes (1 MiB of rings - 512 KiB + 2 x 256 KiB, scanned from the BPF
 SOURCE so a resize moves the sum), and the runtime budgets (attach
 <= 2000 ms, userland address space <= 64 MiB enforced with
 `ulimit -v`, shipped binary <= 16 MiB) asserted live per push on

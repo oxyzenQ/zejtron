@@ -13,10 +13,10 @@ What the freeze means, exactly:
 
 - The CLI surface is frozen. No breaking changes to commands, flags,
   or output format from v80.0.0 on - the same contract the README's
-  Stable API section states, now effective. The nine surfaces
+  Stable API section states, now effective. The ten surfaces
   (`path`, `recent`, `port`, `proc`, `holds`, `touch`, `why`, `net`,
-  `doctor`) keep their spellings, flags, and output bytes.
-- The Evidence Ledger Specification v3 is frozen with it
+  `doctor`, `sig`) keep their spellings, flags, and output bytes.
+- The Evidence Ledger Specification v4 is frozen with it
   ([docs/EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md)), including the
   JSON surface (`--print-json`) and its field map - automation
   written against it keeps working. v3 flattened the JSON row and
@@ -29,8 +29,7 @@ What the freeze means, exactly:
 - The release matrix is the two fully static musl shapes
   (`linux-amd64-v3-musl`, `linux-amd64-v4-musl`); the GNU builds are
   retired (night-badass-1) and do not return.
-- The dependency law holds: exactly four runtime crates (`clap`,
-  `regex-lite`, `aya`, `libc` - the SIGPIPE reset's one raw call,
+- The dependency law holds: exactly three runtime crates (`clap`, `aya`, `libc` - the SIGPIPE reset's one raw call,
   night-dragon-6), `chrono` banned, no `serde`, no `tokio`, no
   `libbpf` - new surfaces cost zero crates, as the hand-written JSON
   serializer proves.

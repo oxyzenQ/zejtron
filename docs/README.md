@@ -18,6 +18,8 @@ carries the disclaimer and yields to it.
 | [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md) | The Evidence Ledger Specification (current: v4): the citable output format - the four provenance tiers, the block grammar, the UTC/deterministic/zero-escape laws, the flat typed JSON rows with the typed actor (`--print-json`), and the non-eBPF compliance path. v1, v2, and the frozen v3 remain archived inside. |
 | [USAGE.md](USAGE.md) | The usage playbook: the real-world investigation scenarios (find a RAM leak, catch a config-file writer, track a missing port, trace a deleted file still consuming disk), the exact commands, and how to read the Evidence Ledger. |
 | [EBPF_LIFECYCLE.md](EBPF_LIFECYCLE.md) | The Lazy Camera Doctrine: how the eBPF lane lives - the two modes (snapshot vs live), the kernel-side bounded rings, the attach/record/drain lifecycle, and why none of it is monitoring. |
+| [CAMERA-COST.md](CAMERA-COST.md) | The probe cost contract: the program census, the instruction budget, the ring bytes, the wake cost - the numbers the camera may not exceed. |
+| [LTS_DEPTH_AUDIT.md](LTS_DEPTH_AUDIT.md) | The LTS depth audit record: the kernel-span evidence, the witness estate, the audit verdicts per lane. |
 | [BRANDING.md](BRANDING.md) | The brand: naming, the purple palette (#A855F7), the color system ladder, the civil-clock UTC markers, third-party usage rules. |
 | [VERIFY_RELEASE.md](VERIFY_RELEASE.md) | How to verify a release: checksums (SHA-512 / BLAKE3 / SHAKE256), GPG signatures, the exact commands. |
 | [RULES.md](RULES.md) | The project law: the gates, the caps, the conventions a change must land under. |

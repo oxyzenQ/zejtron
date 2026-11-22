@@ -78,7 +78,7 @@ the verification recipe in `docs/VERIFY_RELEASE.md`.
 
 Every data surface speaks typed JSON through `--print-json` — one
 line, byte-deterministic, jq-ready
-(`zejtron port --tcp --print-json | jq '.[] | select(.state=="LISTEN")'`).
+(`zejtron port --tcp --print-json | jq '.ports[] | select(.state=="LISTEN")'`).
 The serializer is hand-written and std-only (no serde in the graph,
 by the dependency law — see `docs/DEPENDENCY_AUDIT.md`); absent
 facts serialize as JSON null, never empty strings, and the
