@@ -373,7 +373,10 @@ pub(crate) fn append_note(lines: &mut Vec<String>, stats: &ScanStats) {
 /// (the spec's grouping). `--group` collapses repeated rows with the
 /// same ×N suffix the tree uses; `--no-pid` drops the PID token; an
 /// ownerless row names `owner unknown` exactly as the tree's owner
-/// lines do.
+/// lines do. An empty selection renders one grey note naming it
+/// (night-port-empty-note-1) - a window header over a blank section
+/// reads as a broken tool, and the tree lane's own empty lines are
+/// the honesty class the flat lane rides too.
 pub(crate) fn snapshot_rows(
     sockets: &[SocketEntry],
     owners: &OwnerMap,
@@ -412,25 +415,42 @@ pub(crate) fn snapshot_rows(
                 ));
             }
         }
-        return rows;
+    } else {
+        for protocol in [Protocol::Tcp, Protocol::Udp] {
+            let mut block: Vec<_> = sockets
+                .iter()
+                .filter(|socket| socket.protocol == protocol)
+                .collect();
+            block.sort_by(|left, right| by_phase_sort(left, right));
+            for socket in block {
+                let socket_owners = owners.get(&socket.inode).cloned().unwrap_or_default();
+                rows.push(snapshot_row(
+                    protocol,
+                    socket,
+                    &socket_owners,
+                    options,
+                    None,
+                ));
+            }
+        }
     }
 
-    for protocol in [Protocol::Tcp, Protocol::Udp] {
-        let mut block: Vec<_> = sockets
-            .iter()
-            .filter(|socket| socket.protocol == protocol)
-            .collect();
-        block.sort_by(|left, right| by_phase_sort(left, right));
-        for socket in block {
-            let socket_owners = owners.get(&socket.inode).cloned().unwrap_or_default();
-            rows.push(snapshot_row(
-                protocol,
-                socket,
-                &socket_owners,
-                options,
-                None,
-            ));
-        }
+    // The empty-snapshot note (night-port-empty-note-1): a window
+    // header over a blank section reads as a broken tool - the
+    // selection (a port probe on a host that holds none, a --tcp ask
+    // with no TCP socket) gets the same grey honesty the event
+    // section's "(no events in the window)" line carries, with the
+    // filter named when one rode. The parenthesised form is the
+    // no-facts class's shape: it is not a row, it is the absence of
+    // rows, stated.
+    if rows.is_empty() {
+        let filter = options
+            .port
+            .map(|port| format!("matching '{port}' "))
+            .unwrap_or_default();
+        rows.push(crate::output::grey_out(&format!(
+            "(no sockets found {filter}in the current snapshot)"
+        )));
     }
     rows
 }

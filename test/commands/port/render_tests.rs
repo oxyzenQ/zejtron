@@ -408,3 +408,23 @@ fn snapshot_rows_are_flat_provenance_tcp_first() {
     );
     assert_eq!(rows[1], "[snapshot]  UDP  0.0.0.0:5353  owner unknown");
 }
+
+#[test]
+fn snapshot_rows_empty_render_the_named_absence() {
+    // night-port-empty-note-1: a window header over a blank section
+    // reads as a broken tool. The empty selection gets the grey
+    // honesty the event section carries - the filter named when one
+    // rode, the plain absence when none did.
+    let mut filtered = options();
+    filtered.port = Some(22);
+    let rows = snapshot_rows(&[], &HashMap::new(), &filtered);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(
+        rows[0],
+        "(no sockets found matching '22' in the current snapshot)"
+    );
+
+    let rows = snapshot_rows(&[], &HashMap::new(), &options());
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0], "(no sockets found in the current snapshot)");
+}
