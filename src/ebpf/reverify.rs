@@ -27,8 +27,8 @@
 //! this module sits behind (src/ebpf/ringbuf.rs drain_file_events).
 //!
 //! WHAT DRIFT MEANS HERE: the planted offsets map is re-derived from
-//! the host's /sys/kernel/btf/vmlinux AS IT EXISTS NOW - all twenty-two
-//! slots, the seventeen struct offsets plus the two BTF-derived
+//! the host's /sys/kernel/btf/vmlinux AS IT EXISTS NOW - all twenty-five
+//! slots, the thirteen struct offsets plus the two BTF-derived
 //! anchors (the vfs_unlink dentry argument position and the
 //! renamedata old_dentry member offset, resolved by
 //! src/ebpf/btf_unlink.rs). A mismatch is the named refusal, by
@@ -105,7 +105,7 @@ const SLOT_NAMES: [&str; OFF_SLOTS as usize] = [
 ];
 
 /// The planted walk table, exactly as the pinned offsets map holds
-/// it right now: all twenty-two slots, read through the pin (the same
+/// it right now: all twenty-five slots, read through the pin (the same
 /// `MapData::from_pin` lane as every readback - no capability
 /// needed). Slot = index, the night-hunter-3 lesson's own contract
 /// (the writer rides the parsed array whole, so the map's order IS
@@ -182,7 +182,7 @@ fn derived_offsets() -> Result<[u64; OFF_SLOTS as usize], String> {
 }
 
 /// The pure compare: the first slot where the planted table and the
-/// re-derived table disagree, `None` when they agree on all twenty-two.
+/// re-derived table disagree, `None` when they agree on all twenty-five.
 /// Separated from the IO so the drift law is pinnable with synthetic
 /// tables, no host and no pins (the read side's furthest_stage
 /// precedent).

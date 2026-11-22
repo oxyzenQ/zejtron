@@ -24,7 +24,7 @@
 //! drain sees the events accumulated since the previous drain (or
 //! since attach, for the first). No daemon means no persistent
 //! reader — that is the honest shape of a command-lifetime pump, and
-//! each ring's own 256 KiB bounds what can accumulate between drains.
+//! each ring's own capacity bounds what can accumulate between drains.
 //!
 //! The record length is checked before every parse (a short record
 //! is skipped, never failed — the zylaxion bridge discipline), and

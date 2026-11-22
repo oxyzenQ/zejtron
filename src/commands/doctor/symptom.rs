@@ -5,8 +5,8 @@
 //! night-improve-48; the umbrella composed by night-dragon-lts-2):
 //! the answer surface. The readiness report tells the operator
 //! what zejtron can see; a symptom tells the operator what they
-//! came for. One flag on the doctor - no new verb, the surface
-//! count stays nine - and six implemented symptoms this version:
+//! came for. One flag on the doctor - no new verb (the surface
+//! count stayed nine through night-improve-48; sig arrived later) - and six implemented symptoms this version:
 //! the four delta/snapshot lanes `cpu`, `disk`, `network`, and
 //! `gpu`, the snapshot lane `ram`, and `slow` - the umbrella that
 //! composes the cpu, disk, memory, and network lanes over ONE

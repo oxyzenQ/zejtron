@@ -81,7 +81,7 @@ pub fn parse_probe_offsets() -> Result<ProbeOffsets, String> {
 }
 
 /// The pure parser: given the raw BTF file bytes, return the
-/// seventeen struct-walk offsets. Separated from
+/// thirteen struct-walk offsets. Separated from
 /// [`parse_probe_offsets`] so the tests can
 /// drive it with synthetic blobs end to end. The twelve struct
 /// lookups cover the file walks and the identity walk: the exec

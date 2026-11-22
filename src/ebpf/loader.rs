@@ -18,7 +18,7 @@
 //! proc_events ring, the drain the doctor's ram symptom reads).
 //!
 //! This is the privileged one-shot. `doctor --attach` loads the
-//! embedded probe object, loads ALL EIGHT programs (phase 1's
+//! embedded probe object, loads the core eight programs (phase 1's
 //! sched/sched_process_exec counter, phase 2's
 //! sock/inet_sock_set_state socket-event probe, phase 3's
 //! vfs_open/vfs_write file probes, night-improve-42's vfs_writev

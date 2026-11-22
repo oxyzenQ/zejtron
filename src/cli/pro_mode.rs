@@ -5,7 +5,7 @@
 //! sibling's zelynic shape): every flag of every verb, complete, on
 //! the one reference surface - grouped by the verb that owns each
 //! flag. The top-level Options block only ever shows the globals;
-//! the per-verb flags lived scattered across thirteen per-verb help
+//! the per-verb flags lived scattered across the per-verb help renders
 //! renders, so the one surface a user reads end-to-end showed none
 //! of them. Pro mode owns the whole estate: each spelling mirrors
 //! the verb's own help string verbatim (one wording authority - the

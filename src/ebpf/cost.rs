@@ -11,7 +11,7 @@
 //! let drift.
 //!
 //! The instruction counts walk the COMMITTED prebuilt eBPF object
-//! (`ebpf-prebuilt/zejtron-ebpf.o`, 16 KB) - a pure std ELF64 section
+//! (`ebpf-prebuilt/zejtron-ebpf.o`, 36 KB) - a pure std ELF64 section
 //! walk, no external tool, no nightly, no bpf-linker needed to audit
 //! it. The commit gate keeps that object in parity with `ebpf/`
 //! source (the manifest's tree digest, enforced at commit time), so

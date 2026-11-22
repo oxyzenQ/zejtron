@@ -12,7 +12,7 @@
 //! haunted /proc parsing stops mattering: the window already
 //! recorded who made the change, at the moment it happened.
 //!
-//! The provenance ledger is minimal by design (phase 3 formalizes
+//! The provenance ledger is minimal by design (phase 3 formalized
 //! the full Evidence Ledger): every row carries exactly one prefix -
 //! `[snapshot]` for the state at the instant of the query, `[event]`
 //! for a recorded transition - and the unaccounted block names what
