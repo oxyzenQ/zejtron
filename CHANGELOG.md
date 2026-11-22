@@ -47,6 +47,61 @@ v11.0.0
 
 ### Added
 
+- **night-open-target-1, the process scan opens its target - the
+  pipeline runs without naming a user.** The pipeline ask -
+  `zejtron proc --print-json | jq`, `zejtron proc --find ssh` -
+  names no user by design, and the required `proc_target` group
+  answered every one of those invocations with a usage error
+  (exit 2) instead of data: the jq-ready promise broke on the very
+  shape a pipeline rides. The group is no longer required. A bare
+  `proc`, a `--find` probe, and a `--print-json` run now parse, and
+  the missing target resolves to the whole-table subject - the
+  ps(1) shape, every uid, header `all users`, JSON subject
+  `all users`. `--me` and a named user keep their subjects, and
+  the both-given conflict stays the refusal it always was. The
+  scan filter widens to an optional uid with a `None` arm that
+  keeps every row, the verbose diagnostic names the target it ran
+  for, and the CLI and unit pins move with the contract (the
+  missing target resolves, the uid-less scan keeps the rows the
+  filter would have dropped).
+
+- **night-recent-window-note-1, the recent window grammar is named
+  where the operator reads it.** `zejtron port --since 100h` rides
+  the named clamp note while `zejtron recent --since 100h` accepts
+  silently - the same flag spelling, two behaviors, no visible
+  difference. The split is recent's own semantics, not a bug: the
+  event-window verbs clamp because their lane is a bounded kernel
+  buffer, while recent is a filesystem age filter and the ask
+  rides as-is. The silence was the defect; the help row now states
+  the contract (`s/m/h/d, no window clamp`), so reading port's
+  help and recent's help yields two named contracts instead of one
+  surprise. No behavior change.
+
+- **night-port-empty-note-1, the empty snapshot says so.** The
+  owner's battery caught it on `zejtron port 22`: a host with no
+  listener on the probed port rendered the live window header and
+  then a blank section - the tree lane has always named the empty
+  selection, but the window lane's snapshot rows rendered the same
+  fact as silence, which reads as a broken tool. The selection now
+  renders one grey note when it yields nothing, the no-facts
+  class's parenthesised shape, with the filter named when one rode
+  (`(no sockets found matching '22' in the current snapshot)`) and
+  the plain absence when none did. Non-empty selections render
+  byte-identical.
+
+- **night-nearmiss-1, the status muscle memory lands on the status
+  surfaces.** `zejtron stat` died tip-less while `zejtron netw`
+  got the rescue: clap's Jaro engine scores `stat` 0.53 against
+  `sig` and 0.30 against `doctor`, both far under the 0.7
+  confidence, so every suggestion lane stayed silent. The
+  near-miss table closes the gap the engine cannot: exact-match
+  rows for `stat` and `status`, both naming the two status
+  surfaces the tool actually carries - `sig` (the build identity
+  matrix) and `doctor` (the host readiness report) - in one tip
+  through clap's own Suggested slot and the command's valid style.
+  The one-tip contract holds, the CI fallback stays last, and the
+  pins carry the tip, the longer spelling, and the no-fire lane.
+
 - **night-ux-orion-1, the loading helix - the indeterminate wait
   narrates itself.** A slow operation and a hung one were
   indistinguishable: `--check-update` shells out to `curl` (up to a

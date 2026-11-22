@@ -201,12 +201,14 @@ Every command once — flags live in `--help` (Pro mode owns the complete estate
 zejtron path sh
 zejtron port --tcp --group
 zejtron proc --me --depth 1
+zejtron proc --find ssh --depth 2
 zejtron holds /etc/resolv.conf
 zejtron touch /etc/resolv.conf
 zejtron why /etc/resolv.conf --since 30s --trace --raw
 
 # Typed JSON for automation (Spec v4)
 zejtron why /etc/passwd --print-json | jq '.measured[] | select(.kind=="size") | .bytes'
+zejtron proc --print-json | jq '.processes[] | select(.comm=="sshd") | .pid'
 zejtron holds 53 --print-json | jq '.verdict.supports'
 zejtron doctor --print-json | jq '.os, .kernel, .ebpf_lane'
 

@@ -249,6 +249,8 @@ zejtron touch /path                 # when did this path last change (modifies n
 zejtron recent /etc --limit 20      # what changed here lately
 zejtron port --all --numeric        # every socket, no name resolution
 zejtron proc --me --depth 2         # the process tree, mine, shallow
+zejtron proc --find sshd            # process families matching a name, every user
+zejtron proc --print-json | jq '.processes | length'   # the whole table, typed
 zejtron net                         # interfaces and routes
 zejtron sig                         # the depth-matrix build signature self-check
 zejtron -v <any command>            # stderr lane trace, stdout stays ledger-clean
