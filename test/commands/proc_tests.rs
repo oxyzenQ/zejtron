@@ -7,6 +7,8 @@
 //! src/commands/proc.rs, so `super::` reaches the module exactly like the
 //! inline tests did.
 
+use super::forest::limit_depth;
+use super::render::{render_forest, render_summary};
 use super::*;
 use crate::test_tempdir::TempDir;
 use std::collections::BTreeSet;
