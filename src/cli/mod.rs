@@ -252,14 +252,21 @@ pub enum Commands {
     },
     #[command(
         about = "What is running, and under whom?",
-        // The required group leads: a target is either a user or --me.
-        override_usage = "zejtron proc <user or --me> or [options] e.g zejtron proc --me",
+        // The target group leads: a target is either a user or --me,
+        // never both. The group is not required (night-open-target-1):
+        // the pipeline ask - `zejtron proc --print-json | jq`,
+        // `zejtron proc --find ssh` - names no user by design, and the
+        // required group answered every one of those invocations with
+        // a usage error instead of data. With no target the scan runs
+        // the whole process table (the ps(1) shape); the runtime
+        // grammar lives in commands::proc::resolve_subject.
+        override_usage = "zejtron proc [user or --me] or [options] e.g zejtron proc --me",
     )]
-    #[command(group = clap::ArgGroup::new("proc_target").required(true).multiple(false).args(["user_or_uid", "me"]))]
+    #[command(group = clap::ArgGroup::new("proc_target").multiple(false).args(["user_or_uid", "me"]))]
     Proc {
         #[arg(
             value_name = "USER_OR_UID",
-            help = "Username or numeric UID to inspect"
+            help = "Username or numeric UID to inspect (omit to scan all users)"
         )]
         user_or_uid: Option<String>,
         #[arg(long, help = "Show processes owned by the current user")]

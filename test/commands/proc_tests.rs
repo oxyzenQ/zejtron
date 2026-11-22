@@ -18,6 +18,10 @@ fn target() -> TargetUser {
     }
 }
 
+fn subject() -> Subject {
+    Subject::User(target())
+}
+
 fn process(name: &str, pid: u32, ppid: u32) -> Process {
     Process {
         name: name.to_owned(),
@@ -64,22 +68,24 @@ fn resolves_numeric_uid_target() {
 
 #[test]
 fn resolves_me_to_current_user() {
-    let user = resolve_target(true, None).unwrap();
+    let Subject::User(user) = resolve_subject(true, None).unwrap() else {
+        panic!("--me must resolve to a user subject");
+    };
     assert_eq!(user.uid, current_uid().unwrap());
 }
 
 #[test]
-fn rejects_missing_target() {
-    assert_eq!(
-        resolve_target(false, None),
-        Err("expected USER_OR_UID or --me".to_owned())
-    );
+fn resolves_missing_target_to_the_whole_table() {
+    // night-open-target-1: the pipeline ask (`proc --print-json | jq`,
+    // `proc --find ssh`) names no user by design - the missing target
+    // is the whole-table subject, not a usage error.
+    assert_eq!(resolve_subject(false, None).unwrap(), Subject::All);
 }
 
 #[test]
 fn rejects_me_with_explicit_target() {
     assert_eq!(
-        resolve_target(true, Some("root")),
+        resolve_subject(true, Some("root")),
         Err("use either --me or USER_OR_UID, not both".to_owned())
     );
 }
@@ -152,10 +158,33 @@ fn tracks_unreadable_statuses_without_real_proc() {
     )
     .unwrap();
 
-    let report = scan_processes_for_uid_at(proc_root.path(), 1000).unwrap();
+    let report = scan_processes_at(proc_root.path(), Some(1000)).unwrap();
 
     assert_eq!(report.processes.len(), 1);
     assert_eq!(report.unreadable_statuses, 1);
+}
+
+#[test]
+fn scan_without_uid_keeps_every_users_processes() {
+    // night-open-target-1: the whole-table ask keeps the rows the
+    // uid filter would have dropped - the None arm is the ps(1)
+    // shape the target-less invocation rides.
+    let proc_root = TempDir::new().unwrap();
+    for (pid, uid) in [(1234, 1000), (1235, 0)] {
+        let dir = proc_root.path().join(pid.to_string());
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("status"),
+            format!("Name:\tproc{pid}\nPid:\t{pid}\nPPid:\t1\nUid:\t{uid}\t{uid}\t{uid}\t{uid}\n"),
+        )
+        .unwrap();
+    }
+
+    let report = scan_processes_at(proc_root.path(), None).unwrap();
+
+    assert_eq!(report.processes.len(), 2);
+    assert_eq!(report.processes[0].uid, 0);
+    assert_eq!(report.processes[1].uid, 1000);
 }
 
 #[test]
@@ -234,7 +263,7 @@ fn limits_depth_two_to_roots_and_direct_children() {
 #[test]
 fn renders_tree_with_pid() {
     let output = render_forest(
-        &target(),
+        &subject(),
         &build_forest(vec![
             process("bash", 20, 1),
             process("python3", 30, 20),
@@ -252,7 +281,7 @@ fn renders_tree_with_pid() {
 #[test]
 fn renders_tree_without_pid() {
     let output = render_forest(
-        &target(),
+        &subject(),
         &build_forest(vec![process("bash", 20, 1), process("python3", 30, 20)]),
         false,
     );
@@ -275,14 +304,14 @@ fn renders_stable_summary() {
 
 #[test]
 fn depth_zero_renders_header_and_summary_only() {
-    let output = render_report(&target(), report(), true, &view(Some(0), None));
+    let output = render_report(&subject(), report(), true, &view(Some(0), None));
 
     assert_eq!(output, "rezky uid=1000\n\n0 roots · 0 processes\n");
 }
 
 #[test]
 fn depth_combines_with_no_pid() {
-    let output = render_report(&target(), report(), false, &view(Some(2), None));
+    let output = render_report(&subject(), report(), false, &view(Some(2), None));
 
     // state=? always shown
     assert_eq!(
@@ -294,7 +323,7 @@ fn depth_combines_with_no_pid() {
 
 #[test]
 fn find_no_match_returns_clean_message() {
-    let output = render_report(&target(), report(), true, &view(None, Some("missing")));
+    let output = render_report(&subject(), report(), true, &view(None, Some("missing")));
 
     assert_eq!(output, "No processes matched 'missing'.\n");
 }
@@ -305,7 +334,7 @@ fn find_no_match_returns_clean_message() {
 fn json_processes_carry_the_typed_rows() {
     let mut report = report();
     report.processes[0].cmdline = Some("bash -l".to_owned());
-    let out = super::processes_json(&target(), &report.processes, 2);
+    let out = super::processes_json(&subject(), &report.processes, 2);
     // The subject's own label, the typed rows in pid order, the fresh
     // cmdline, and the unreadable count the text note renders.
     assert!(out.starts_with("{\"subject\":\"rezky uid=1000\""));
@@ -321,12 +350,20 @@ fn json_processes_carry_the_typed_rows() {
 
 #[test]
 fn json_processes_empty_scan_is_an_empty_array() {
-    let out = super::processes_json(&target(), &[], 0);
+    let out = super::processes_json(&subject(), &[], 0);
     // The honest empty: the scan ran and saw nothing for this uid.
     assert_eq!(
         out,
         "{\"subject\":\"rezky uid=1000\",\"processes\":[],\"unreadable_statuses\":0}"
     );
+}
+
+#[test]
+fn json_whole_table_subject_carries_the_all_users_label() {
+    // night-open-target-1: the target-less invocation's JSON subject
+    // names the whole-table scan the header line renders.
+    let out = super::processes_json(&Subject::All, &[], 0);
+    assert!(out.starts_with("{\"subject\":\"all users\""));
 }
 
 #[test]
@@ -342,7 +379,7 @@ fn json_find_selection_flattens_the_matched_family() {
     let selected: Vec<_> = pruned.processes.into_values().collect();
     // The same family the tree prunes with: the match and its
     // ancestor stay, the sibling branch drops.
-    let out = super::processes_json(&target(), &selected, 0);
+    let out = super::processes_json(&subject(), &selected, 0);
     assert!(out.contains("\"comm\":\"bash\""));
     assert!(out.contains("\"comm\":\"python3\""));
     assert!(!out.contains("\"comm\":\"worker\""));

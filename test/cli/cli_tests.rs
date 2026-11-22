@@ -404,21 +404,24 @@ fn pro_mode_covers_every_clap_flag() {
 }
 
 #[test]
-fn proc_without_a_target_is_a_usage_error() {
-    // night-dragon-lts-T1: the required-operand law every other
-    // verb already rides (path, holds, touch, why) - a bare `proc`
-    // used to fall through to the runtime lane and exit 1 with a
-    // hand-rolled message instead of clap's usage error. The
-    // ArgGroup makes the requirement a parse-time fact: exit 2,
-    // the honest usage line, the same family as its siblings.
-    assert!(Cli::try_parse_from(["zejtron", "proc"]).is_err());
-    // Flags alone do not satisfy the group.
-    assert!(Cli::try_parse_from(["zejtron", "proc", "--find", "sh"]).is_err());
-    assert!(Cli::try_parse_from(["zejtron", "proc", "--depth", "2"]).is_err());
+fn proc_without_a_target_scans_every_user() {
+    // night-open-target-1: the required-operand law the path/holds/
+    // touch/why verbs ride does not fit the process scan - the
+    // pipeline ask (`proc --print-json | jq`, `proc --find ssh`)
+    // names no user by design, and the required group answered every
+    // such invocation with a usage error instead of data. A bare
+    // `proc` now parses: the runtime lane resolves the missing target
+    // to the whole-table subject (commands::proc::resolve_subject),
+    // the ps(1) shape.
+    assert!(Cli::try_parse_from(["zejtron", "proc"]).is_ok());
+    // Flags alone parse; the target stays optional.
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--find", "sh"]).is_ok());
+    assert!(Cli::try_parse_from(["zejtron", "proc", "--depth", "2"]).is_ok());
     // Either selection shape parses.
     assert!(Cli::try_parse_from(["zejtron", "proc", "--me"]).is_ok());
     assert!(Cli::try_parse_from(["zejtron", "proc", "root"]).is_ok());
-    // Both at once stays the conflict it always was.
+    // Both at once stays the conflict it always was (the group's
+    // multiple(false) law).
     assert!(Cli::try_parse_from(["zejtron", "proc", "--me", "root"]).is_err());
 }
 

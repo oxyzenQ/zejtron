@@ -57,6 +57,38 @@ impl TargetUser {
     }
 }
 
+/// The scan's subject (night-open-target-1): a resolved user, or the
+/// whole process table when the verb is invoked without a target.
+/// The pipeline ask - `zejtron proc --print-json | jq`,
+/// `zejtron proc --find ssh` - names no user by design, and the
+/// required-target grammar answered every one of those invocations
+/// with a usage error instead of data. No target is the ps(1) shape:
+/// the whole table, every uid.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Subject {
+    User(TargetUser),
+    All,
+}
+
+impl Subject {
+    /// The header label: the user's own `name uid=N` line, or the
+    /// all-users form the target-less invocation renders.
+    pub fn label(&self) -> String {
+        match self {
+            Subject::User(user) => user.label(),
+            Subject::All => "all users".to_owned(),
+        }
+    }
+
+    /// The uid filter the scan applies: `None` is every uid.
+    pub fn uid(&self) -> Option<u32> {
+        match self {
+            Subject::User(user) => Some(user.uid),
+            Subject::All => None,
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ProcFlags {
     pub me: bool,
@@ -99,7 +131,7 @@ fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> 
 
     let find = validate_find(flags.find)?;
 
-    let target = resolve_target(flags.me, user_or_uid)?;
+    let subject = resolve_subject(flags.me, user_or_uid)?;
     let view = ViewOptions {
         max_depth: flags.depth,
         find,
@@ -128,11 +160,11 @@ fn run_inner(user_or_uid: Option<&str>, flags: ProcFlags) -> Result<(), String> 
     // and --no-color are text-render concerns and ride unused on the
     // JSON lane.
     if flags.print_json {
-        let output = snapshot_json(&target, &view)?;
+        let output = snapshot_json(&subject, &view)?;
         println!("{output}");
         return Ok(());
     }
-    print!("{}", render_snapshot(&target, !flags.no_pid, &view)?);
+    print!("{}", render_snapshot(&subject, !flags.no_pid, &view)?);
     Ok(())
 }
 
@@ -146,12 +178,15 @@ fn validate_find(find: Option<String>) -> Result<Option<String>, String> {
     }
 }
 
-pub fn resolve_target(me: bool, user_or_uid: Option<&str>) -> Result<TargetUser, String> {
+/// The target grammar (night-open-target-1): `--me`, a user or UID,
+/// or neither - the neither arm is the whole-table scan. The
+/// both-given refusal stays: one subject, not two.
+pub fn resolve_subject(me: bool, user_or_uid: Option<&str>) -> Result<Subject, String> {
     match (me, user_or_uid) {
-        (true, None) => current_user(),
-        (false, Some(value)) => resolve_user_or_uid(value),
+        (true, None) => Ok(Subject::User(current_user()?)),
+        (false, Some(value)) => Ok(Subject::User(resolve_user_or_uid(value)?)),
         (true, Some(_)) => Err("use either --me or USER_OR_UID, not both".to_owned()),
-        (false, None) => Err("expected USER_OR_UID or --me".to_owned()),
+        (false, None) => Ok(Subject::All),
     }
 }
 
@@ -235,7 +270,7 @@ fn parse_passwd_entries(contents: &str) -> io::Result<Vec<PasswdEntry>> {
 }
 
 fn render_snapshot(
-    target: &TargetUser,
+    subject: &Subject,
     show_pid: bool,
     view: &ViewOptions,
 ) -> Result<String, String> {
@@ -248,10 +283,10 @@ fn render_snapshot(
     // wraps exactly the scan call, and a fast scan never draws - the
     // fast path's stderr stays byte for byte silent.
     let indicator = Spinner::arm("scanning processes", Style::Helix);
-    let scanned = scan_processes_for_uid(target.uid);
+    let scanned = scan_processes(subject.uid());
     indicator.finish();
     let report = scanned?;
-    Ok(render_report(target, report, show_pid, view))
+    Ok(render_report(subject, report, show_pid, view))
 }
 
 /// The JSON lane's snapshot (night-badass-9): the same scan the text
@@ -261,12 +296,12 @@ fn render_snapshot(
 /// families, ancestors kept), ascending by pid (the scan's own
 /// order, and the BTreeMap's). --depth stays the render limiter it
 /// is: the flat list is the data, not the drawing.
-fn snapshot_json(target: &TargetUser, view: &ViewOptions) -> Result<String, String> {
+fn snapshot_json(subject: &Subject, view: &ViewOptions) -> Result<String, String> {
     // The loading lane (night-ux-orion-2): the JSON lane rides the
     // same scan and the same narration bracket as the text lane -
     // one loading face, both renders.
     let indicator = Spinner::arm("scanning processes", Style::Helix);
-    let scanned = scan_processes_for_uid(target.uid);
+    let scanned = scan_processes(subject.uid());
     indicator.finish();
     let report = scanned?;
     let mut selected: Vec<Process> = report.processes;
@@ -277,7 +312,7 @@ fn snapshot_json(target: &TargetUser, view: &ViewOptions) -> Result<String, Stri
         selected = pruned.processes.into_values().collect();
     }
     Ok(processes_json(
-        target,
+        subject,
         &selected,
         report.unreadable_statuses,
     ))
@@ -288,15 +323,11 @@ fn snapshot_json(target: &TargetUser, view: &ViewOptions) -> Result<String, Stri
 /// the memory and thread counters, the fresh cmdline or null), and
 /// the unreadable-status count - the same honesty the text note
 /// renders, as a number the automation lane can gate on.
-fn processes_json(
-    target: &TargetUser,
-    processes: &[Process],
-    unreadable_statuses: usize,
-) -> String {
+fn processes_json(subject: &Subject, processes: &[Process], unreadable_statuses: usize) -> String {
     use crate::evidence::json::{write_array, write_opt_string, write_string};
     let mut out = String::with_capacity(160 * processes.len().max(1));
     out.push_str("{\"subject\":");
-    write_string(&mut out, &target.label());
+    write_string(&mut out, &subject.label());
     out.push_str(",\"processes\":");
     write_array(&mut out, processes.len(), |out, index| {
         let process = &processes[index];
@@ -327,7 +358,7 @@ fn processes_json(
 }
 
 fn render_report(
-    target: &TargetUser,
+    subject: &Subject,
     report: ScanReport,
     show_pid: bool,
     view: &ViewOptions,
@@ -350,7 +381,7 @@ fn render_report(
 
     forest = limit_depth(&forest, view.max_depth);
 
-    let mut output = render_forest(target, &forest, show_pid);
+    let mut output = render_forest(subject, &forest, show_pid);
     output.push('\n');
 
     if report.unreadable_statuses > 0 {
@@ -364,11 +395,11 @@ fn render_report(
     output
 }
 
-pub fn scan_processes_for_uid(target_uid: u32) -> Result<ScanReport, String> {
-    scan_processes_for_uid_at(Path::new("/proc"), target_uid)
+pub fn scan_processes(target_uid: Option<u32>) -> Result<ScanReport, String> {
+    scan_processes_at(Path::new("/proc"), target_uid)
 }
 
-fn scan_processes_for_uid_at(proc_root: &Path, target_uid: u32) -> Result<ScanReport, String> {
+fn scan_processes_at(proc_root: &Path, target_uid: Option<u32>) -> Result<ScanReport, String> {
     let mut processes = Vec::new();
     let mut unreadable_statuses = 0;
     let entries = fs::read_dir(proc_root)
@@ -398,7 +429,7 @@ fn scan_processes_for_uid_at(proc_root: &Path, target_uid: u32) -> Result<ScanRe
             continue;
         };
 
-        if process.pid == pid && process.uid == target_uid {
+        if process.pid == pid && target_uid.is_none_or(|uid| process.uid == uid) {
             // Enrich with cmdline (from /proc/<pid>/cmdline) and state char
             // (from /proc/<pid>/stat field 3).
             process.cmdline = crate::system::read_cmdline(proc_root, pid);
@@ -409,15 +440,19 @@ fn scan_processes_for_uid_at(proc_root: &Path, target_uid: u32) -> Result<ScanRe
 
     processes.sort_by_key(|process| process.pid);
     // The verb's own diagnostic lane (night-total-hardening-1): the
-    // scan reports what it saw - owned processes kept, unreadable
-    // statuses skipped, the uid the filter ran for. stderr only, the
-    // ledger's stdout stays byte-clean.
+    // scan reports what it saw - kept processes, unreadable statuses
+    // skipped, the uid the filter ran for (all uids for the whole-
+    // table ask, night-open-target-1). stderr only, the ledger's
+    // stdout stays byte-clean.
+    let subject_note = match target_uid {
+        Some(uid) => format!("target uid {uid}"),
+        None => "all uids".to_owned(),
+    };
     crate::output::verbose::vlog!(
         "proc",
-        "scanned /proc: {} owned processes, {} unreadable statuses (target uid {})",
+        "scanned /proc: {} processes kept, {} unreadable statuses ({subject_note})",
         processes.len(),
-        unreadable_statuses,
-        target_uid
+        unreadable_statuses
     );
     Ok(ScanReport {
         processes,
@@ -496,10 +531,10 @@ fn read_state_char(proc_dir: &std::path::Path) -> Option<String> {
     Some(label.to_owned())
 }
 
-pub fn render_forest(target: &TargetUser, forest: &ProcessForest, show_pid: bool) -> String {
+pub fn render_forest(subject: &Subject, forest: &ProcessForest, show_pid: bool) -> String {
     // The subject header rides green (the report's primary content);
     // the tree rows keep the roles render_process applies.
-    let mut output = format!("{}\n", crate::output::ok_out(&target.label()));
+    let mut output = format!("{}\n", crate::output::ok_out(&subject.label()));
 
     // night-dragon-1: the recursive render_process is now an explicit
     // pre-order walk. Two bounds replace the call stack: the (pid,
