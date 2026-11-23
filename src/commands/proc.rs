@@ -499,6 +499,35 @@ fn read_state_char(proc_dir: &std::path::Path) -> Option<String> {
     Some(label.to_owned())
 }
 
+/// The stat starttime reader (night-frontier-Z11): field 22, the
+/// process's birth in clock ticks since boot - the anti-recycling
+/// anchor the live lane's recorded-pid attribution compares the
+/// event's CLOCK_MONOTONIC stamp against (both clocks freeze while
+/// the host sleeps, so a suspend cannot forge an age). Pure over the
+/// stat line, the same testability shape `read_state_char`'s parsing
+/// rides; the IO wrapper reads the file.
+pub(crate) fn starttime_boot_ns_from_stat(stat: &str) -> Option<u64> {
+    let close_paren = stat.rfind(')')?;
+    let after = &stat[close_paren + 1..];
+    // After the comm's closing paren the next field is state (field
+    // 3); starttime is field 22 - nineteen fields past it.
+    let birth_ticks = after.split_whitespace().nth(19)?.parse::<u64>().ok()?;
+    // USER_HZ is 100 for the /proc ABI on every architecture Linux
+    // ships (include/uapi/asm-generic/param.h), so the tick divide is
+    // the birth's own granularity. The multiply rides u128: a
+    // multi-year uptime's tick count overflows u64 nanoseconds.
+    Some((birth_ticks as u128 * 1_000_000_000 / 100) as u64)
+}
+
+/// The process's birth in boot-relative nanoseconds, read from its
+/// own `/proc/<pid>/stat`. `None` when the process is gone or the
+/// stat line is unreadable - the recycle compare then rides as
+/// unmatched (the honest default, never a guessed recycling).
+pub(crate) fn process_starttime_boot_ns(proc_root: &Path, pid: u32) -> Option<u64> {
+    let stat = fs::read_to_string(proc_root.join(pid.to_string()).join("stat")).ok()?;
+    starttime_boot_ns_from_stat(&stat)
+}
+
 #[cfg(test)]
 #[path = "../../test/commands/proc_tests.rs"]
 mod tests;

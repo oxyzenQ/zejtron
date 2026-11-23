@@ -390,3 +390,25 @@ fn json_find_selection_flattens_the_matched_family() {
     assert!(out.contains("\"comm\":\"python3\""));
     assert!(!out.contains("\"comm\":\"worker\""));
 }
+
+// ── night-frontier-Z11: the stat starttime pins ──────────────────────
+
+#[test]
+fn the_starttime_reader_parses_field_22_past_the_paren() {
+    // A real /proc/<pid>/stat shape: the comm carries parens and
+    // spaces (the rfind(')') law), and starttime sits nineteen fields
+    // past the state. 50346 ticks = 503.46 s of boot-relative life.
+    let stat = "1234 (a (weird) cat) R 1 1 0 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 50346 12345678 18446744073709551615";
+    assert_eq!(starttime_boot_ns_from_stat(stat), Some(503_460_000_000));
+}
+
+#[test]
+fn the_starttime_reader_degrades_on_malformed_lines() {
+    // No closing paren, a truncated tail, or a non-numeric birth: the
+    // reader returns None - the recycle compare then rides as
+    // unmatched, never a guessed recycling.
+    assert_eq!(starttime_boot_ns_from_stat("no parens here"), None);
+    assert_eq!(starttime_boot_ns_from_stat("1234 (cat) R 1 2 3"), None);
+    let stat = "1234 (cat) R 1 1 0 0 -1 4194560 0 0 0 0 0 0 0 0 20 0 1 0 nan 12345678";
+    assert_eq!(starttime_boot_ns_from_stat(stat), None);
+}

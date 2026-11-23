@@ -11,6 +11,7 @@ pub mod doctor;
 pub mod holds;
 pub mod lane;
 pub(crate) mod lane_log;
+pub(crate) mod lane_pid;
 pub(crate) mod lane_unaccounted;
 pub mod net;
 pub mod path;

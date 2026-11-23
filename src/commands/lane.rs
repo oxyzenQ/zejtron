@@ -29,6 +29,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
 
+use crate::commands::lane_pid::PidVisibility;
 use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, Mode, UnaccountedEntry};
 
@@ -223,6 +224,16 @@ fn collect_live(
     let mut gone_opens: usize = 0;
     let mut gone_writes: usize = 0;
     let mut gone_changes: usize = 0;
+    let mut hidden_pids: usize = 0;
+    let mut recycled_pids: usize = 0;
+    // The recorded-pid compare's other half (night-frontier-Z11): one
+    // readdir of the namespace's listing, shared by every event's
+    // attribution. An empty window never pays it, and an unreadable
+    // listing degrades every pid to listed - the honest default an
+    // absence earns.
+    let listing = (!events.is_empty())
+        .then(crate::commands::lane_pid::proc_listing)
+        .flatten();
     for event in &events {
         let is_open = event.op == crate::ebpf::events::FILE_OP_OPEN;
         // Both write paths are writes: the plain write probe (op=2) and
@@ -258,39 +269,47 @@ fn collect_live(
             continue;
         }
         // The row's actor: the /proc facts for the recorded pid,
-        // resolved at render time - the same fields the snapshot's
-        // holder rows carry. A pid with no visible /proc entry at
-        // render time is a post-mortem candidate (the passes below):
-        // the common server shape is a short-lived writer -
-        // a cron one-shot, a logrotate run, a shell redirect - that
-        // finished its write and died inside the window.
-        let Some((name, user)) = pid_context(event.pid, query.users) else {
-            // The record's own comm (night-frontier-Z8, D5) names the
-            // actor first: the acting task's own name, read by the
-            // same probe in the same breath as the event - zero
-            // pid-reuse risk, no /proc round-trip to outlive the
-            // actor. The name may be the acting THREAD's (a worker
-            // pool's "wr-3"), not the leader's - the honest thread-
-            // level truth, rendered in the recorded-actor shape.
-            if let Some(comm) = record_actor_name(event) {
-                slots.push(Some(EvidenceRow::new(
-                    crate::ebpf::fileprobe::event_unix_secs_with(event, render_offset),
-                    event_kind(event.op),
-                    EvidenceActor::recorded(Some(comm), Some(event.pid), None),
-                    Provenance::Observed,
-                )));
-            } else {
+        // reconciled against the namespace's own listing and the
+        // process's birth (night-frontier-Z11) - the recycled holder's
+        // name never renders as the actor, and a pid the listing does
+        // not show rides the hidden-pids boundary instead of the old
+        // shrugged "no visible PID". A pid with no resolvable /proc
+        // entry is still a post-mortem candidate (the passes below).
+        let (context, visibility) = crate::commands::lane_pid::attribute_pid(
+            event.pid,
+            event.timestamp_ns,
+            query.users,
+            listing.as_ref(),
+        );
+        if visibility == PidVisibility::Hidden {
+            hidden_pids += 1;
+        } else if visibility == PidVisibility::Recycled {
+            recycled_pids += 1;
+        }
+        // Not cleanly live-attributable: the /proc name when it
+        // belongs (the hidden-but-alive holder), else the record's
+        // own comm (night-frontier-Z8, D5) - read by the same probe
+        // in the same breath as the event, no pid-reuse risk - and
+        // the exit ring answers what neither names.
+        let mut actor = context.map(|(name, user)| EvidenceActor::process(name, event.pid, user));
+        if visibility != PidVisibility::Live {
+            actor = actor.or_else(|| {
+                record_actor_name(event)
+                    .map(|comm| EvidenceActor::recorded(Some(comm), Some(event.pid), None))
+            });
+        }
+        match actor {
+            Some(actor) => slots.push(Some(EvidenceRow::new(
+                crate::ebpf::fileprobe::event_unix_secs_with(event, render_offset),
+                event_kind(event.op),
+                actor,
+                Provenance::Observed,
+            ))),
+            None => {
                 post_mortem.push((slots.len(), event));
                 slots.push(None);
             }
-            continue;
-        };
-        slots.push(Some(EvidenceRow::new(
-            crate::ebpf::fileprobe::event_unix_secs_with(event, render_offset),
-            event_kind(event.op),
-            EvidenceActor::process(name, event.pid, user),
-            Provenance::Observed,
-        )));
+        }
     }
 
     // The exit-ring pass (night-improve-61): the post-mortem
@@ -374,6 +393,16 @@ fn collect_live(
             "changes",
             "no visible PID - namespace boundary or exited before attribution",
         ));
+    }
+    // The recorded-pid compare's boundaries (night-frontier-Z11): the
+    // count-backed hidden-pids entry (the listing/lookup disagreement)
+    // and the recycled-pids entry (the anti-false-positive arm). Both
+    // ride only when they fired - a clean window adds NOTHING.
+    if hidden_pids > 0 {
+        unaccounted.push(crate::commands::lane_pid::hidden_pid_entry(hidden_pids));
+    }
+    if recycled_pids > 0 {
+        unaccounted.push(crate::commands::lane_pid::recycled_pid_entry(recycled_pids));
     }
     // night-frontier-Z1, the drop-truth: the camera's own failures,
     // named where the boundaries are named. The census is cumulative
@@ -557,26 +586,6 @@ fn record_actor_name(event: &crate::ebpf::events::FileEvent) -> Option<String> {
     // helper read) or the bytes are malformed garbage - both are the
     // honest absence, never a guessed "unknown".
     (event.comm[0] != 0).then(|| crate::commands::doctor::memory::exits::comm_string(&event.comm))
-}
-
-/// The pid's Name and Uid (real) from /proc, resolved to a username.
-/// `None` when the process is gone or hidden - the honest absence.
-fn pid_context(pid: u32, users: &HashMap<u32, String>) -> Option<(String, String)> {
-    use crate::commands::touch::uid_to_user;
-    use crate::system::read_status_value;
-    let status = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
-    let name = crate::system::read_status_name(&status)?;
-    let uid = read_status_value(&status, "Uid").and_then(|value| {
-        value
-            .split_whitespace()
-            .next()
-            .and_then(|v| v.parse::<u32>().ok())
-    });
-    let user = match uid {
-        Some(uid) => uid_to_user(uid, users),
-        None => "unknown".to_owned(),
-    };
-    Some((name, user))
 }
 
 #[cfg(test)]
