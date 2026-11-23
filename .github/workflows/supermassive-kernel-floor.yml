@@ -247,6 +247,25 @@ jobs:
       - name: Build the pro-v3 binary (the release amd64-v3 shape)
         run: cargo pro-linux-amd64-v3-musl --locked
 
+      # The Z11 detonation fixture (night-frontier-Z11, phase c): the
+      # pidhide fexit program and its userspace loader, built by the
+      # same pinned toolchains the probes build with (the stable MSRV
+      # for the loader, the dated nightly for the bpfel object). The
+      # builds ride --offline on the committed locks - the same
+      # supply-chain posture the release lane carries.
+      - name: Build the pidhide detonation fixture (Z11 phase c)
+        run: |
+          set -euo pipefail
+          CARGO_NET_OFFLINE=true cargo build --release --locked --offline \
+            --target x86_64-unknown-linux-musl \
+            --manifest-path test-fixtures/pidhide/Cargo.toml
+          # The bpfel object builds INSIDE the fixture's own directory:
+          # the bpfel target spec, the v3 rustflags, and the dated
+          # nightly pin are the fixture's own ebpf/.cargo config - the
+          # same nested shape the main probes build through.
+          ( cd test-fixtures/pidhide/ebpf && \
+            CARGO_NET_OFFLINE=true cargo build --release --locked --offline )
+
       # The floor kernel: the jammy GA release-day image (5.15.0-25),
       # resolved from the LIVE archive's jammy main pocket - the GA
       # suite, frozen by archive policy, so the resolution cannot
@@ -330,6 +349,13 @@ jobs:
             rootfs/opt/zejtron/zejtron
           chmod 755 rootfs/opt/zejtron/zejtron
           mkdir -p rootfs/opt/zejtron/.sandbox
+          # The Z11 detonation fixtures ride beside the payload: the
+          # loader (static musl) and the bpfel object it plants.
+          cp "$GITHUB_WORKSPACE"/test-fixtures/pidhide/target/x86_64-unknown-linux-musl/release/pidhide-loader \
+            rootfs/opt/zejtron/.sandbox/pidhide-loader
+          cp "$GITHUB_WORKSPACE"/test-fixtures/pidhide/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf \
+            rootfs/opt/zejtron/.sandbox/pidhide-ebpf
+          chmod 755 rootfs/opt/zejtron/.sandbox/pidhide-loader
           cat > rootfs/opt/zejtron/.sandbox/payload.sh <<'EOF'
           #!/usr/bin/env bash
           # The canonical low leg, root, inside the floor-kernel VM:
@@ -338,15 +364,27 @@ jobs:
           # 5.15.0 kernel the floor documents.
           set -u
           cd /opt/zejtron
+          verdict=PASS
           bash scripts/supermassive/legs/low.sh --bin /opt/zejtron/zejtron
           rc=$?
           if [ "$rc" -eq 0 ]; then
-            verdict=PASS
+            echo "SANDBOX-RESULT: supermassive low leg (full suite, root, floor kernel) - PASS"
           else
+            echo "SANDBOX-RESULT: supermassive low leg (full suite, root, floor kernel) - FAIL"
             verdict=FAIL
           fi
-          echo "SANDBOX-RESULT: supermassive low leg (full suite, root, floor kernel) - $verdict"
-          [ "$rc" -eq 0 ]
+          # The Z11 detonation proof (night-frontier-Z11, phase c):
+          # the real stealth mechanism planted and caught on this same
+          # floor kernel - the legs in scripts/sandbox/detect-rootkit.sh.
+          bash scripts/sandbox/detect-rootkit.sh
+          rc_z11=$?
+          if [ "$rc_z11" -eq 0 ]; then
+            echo "SANDBOX-RESULT: z11 detonation proof - PASS"
+          else
+            echo "SANDBOX-RESULT: z11 detonation proof - FAIL"
+            verdict=FAIL
+          fi
+          [ "$verdict" = PASS ]
           EOF
           chmod 755 rootfs/opt/zejtron/.sandbox/payload.sh
           cp "$GITHUB_WORKSPACE/scripts/sandbox/sandbox-init.sh" rootfs/init
@@ -376,10 +414,12 @@ jobs:
           MEM=$(( TOTAL_MB / 8 )); [ "$MEM" -lt 1024 ] && MEM=1024
           echo "envelope: $SMP vCPU / $MEM MB (low, of $CORES cores / $TOTAL_MB MB on the runner)"
           set +e
-          # 180s: the KVM boot + low-leg run finishes in ~100s on a
-          # healthy runner; 180s gives headroom and dies fast on a
-          # wedged guest, inside the job's fifteen-minute cap (night-T-4).
-          timeout 180 qemu-system-x86_64 \
+          # 300s: the KVM boot + low-leg run finishes in ~100s on a
+          # healthy runner; since night-frontier-Z11 phase c the same
+          # boot carries the detonation proof's five legs (~40s) - 300s
+          # gives both headroom and dies fast on a wedged guest, inside
+          # the job's fifteen-minute cap (night-T-4).
+          timeout 300 qemu-system-x86_64 \
             -machine q35,accel=kvm -cpu host \
             -m "$MEM" -smp "$SMP" \
             -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
@@ -410,7 +450,9 @@ jobs:
           echo "── kernel-floor verdicts (jammy GA 5.15.0) ──"
           grep -E '^SANDBOX-(RESULT|VERDICT)' vm.log || true
           grep -q '^SANDBOX-VERDICT: PASS' vm.log
+          grep -q '^SANDBOX-RESULT: z11 detonation proof - PASS' vm.log
           echo "OK: the full supermassive low leg ran green inside the real 5.15.0 floor kernel"
+          echo "OK: the Z11 detonation proof ran green on the same kernel (the stealth mechanism planted and caught)"
 
       - name: Watch summary (the floor lane's own rows)
         if: always()

@@ -66,14 +66,22 @@ for lock in $(git ls-files -- '*Cargo.lock' | sort); do
 		if ! find_banned "$lock" "$crate"; then
 			continue
 		fi
-		if [ "$lock" = "ebpf/Cargo.lock" ] && [[ "${SERDE_FAMILY}" == *"$crate"* ]]; then
-			# The guarded carve-out: allowed only as the
-			# upstream aya-build probe chain's passenger.
-			if grep -q "^name = \"${CARVE_OUT_ROOT}\"$" "$lock"; then
-				echo "  carve-out (upstream aya-ebpf build probe): $lock: $crate"
-			else
-				echo "  BANNED (no aya-build chain - a direct dependency): $lock: $crate"
-				status=1
+		if [ "$lock" = "ebpf/Cargo.lock" ] || [ "$lock" = "test-fixtures/pidhide/ebpf/Cargo.lock" ]; then
+			if [[ "${SERDE_FAMILY}" == *"$crate"* ]]; then
+				# The guarded carve-out: allowed only as the
+				# upstream aya-build probe chain's passenger. The
+				# fixture's lock rides the same guard - it pins the
+				# same aya-ebpf toolchain the probes build with, and
+				# its serde passengers are the same upstream
+				# aya-build's host-side probe (night-frontier-Z11,
+				# phase c: the detonation fixture is a detached
+				# workspace, never shipped).
+				if grep -q "^name = \"${CARVE_OUT_ROOT}\"$" "$lock"; then
+					echo "  carve-out (upstream aya-ebpf build probe): $lock: $crate"
+				else
+					echo "  BANNED (no aya-build chain - a direct dependency): $lock: $crate"
+					status=1
+				fi
 			fi
 		elif [ "$lock" = "proofs/Cargo.lock" ] && [[ "${SERDE_FAMILY}" == *"$crate"* ]]; then
 			# The guarded carve-out: allowed only as the upstream

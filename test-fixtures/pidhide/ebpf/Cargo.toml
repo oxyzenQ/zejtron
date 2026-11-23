@@ -1,0 +1,20 @@
+[package]
+name = "pidhide-ebpf"
+version = "80.5.3"
+edition = "2024"
+publish = false
+license = "AGPL-3.0-only OR Commercial"
+repository = "https://github.com/oxyzenQ/zejtron"
+description = "The Z11 detonation fixture's BPF side: a getdents64 fexit program that hides one pid from the /proc directory listing - the stealth mechanism the recorded-pid compare exists to catch, planted only inside the project's own CI micro-VM."
+
+[dependencies]
+aya-ebpf = "=0.3.0"
+
+[[bin]]
+name = "pidhide-ebpf"
+path = "src/main.rs"
+
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"
+
+[workspace]

@@ -1,0 +1,18 @@
+[package]
+name = "pidhide-loader"
+version = "80.5.3"
+edition = "2024"
+publish = false
+license = "AGPL-3.0-only OR Commercial"
+repository = "https://github.com/oxyzenQ/zejtron"
+description = "The Z11 detonation fixture's loader: plants the pidhide fexit program, writes the marker pid into its control map, spawns the marker process, and holds the estate for the collection window. Test-fixture only - never shipped."
+
+[dependencies]
+# The same exact pin the root manifest carries (the exact-pin law).
+aya = { version = "=0.16.0" }
+
+[[bin]]
+name = "pidhide-loader"
+path = "src/main.rs"
+
+[workspace]
