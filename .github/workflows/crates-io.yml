@@ -111,19 +111,35 @@ jobs:
             CLA.md COMMERCIAL_LICENSE.md CONTRIBUTING.md SECURITY.md QA.md \
             docs/DEPENDENCY_AUDIT.md docs/LICENSING_FAQ.md \
             src/main.rs src/info/clock.rs src/info/mod.rs \
-            ebpf-prebuilt/zejtron-ebpf.o ebpf-prebuilt/manifest.toml; do
+            ebpf-prebuilt/zejtron-ebpf.o ebpf-prebuilt/manifest.toml \
+            assets/gpg/maintainer-47A50AEF4B65AAC2.asc \
+            assets/gpg/pinned-maintainer-fpr.txt; do
             if ! grep -qx "${required}" <<<"${LIST}"; then
               echo "::error::ship-set missing required entry: ${required}"
               exit 1
             fi
           done
-          # The repo-only lanes must never ride the tarball.
-          for forbidden in "scripts/" "assets/" ".github/"; do
+          # The repo-only lanes must never ride the tarball. The
+          # assets/ law is a carve-out, not a blanket (the 2026-11-23
+          # tag lesson - this loop's blanket "assets/" refused the
+          # v80.5.2 ship-set because night-netrunner-Z1 made the two
+          # D5 trust anchors SHIP: build/gpg.rs reads the pinned
+          # public key at build time and src/info/commit_sig.rs
+          # include_str!'s the pinned fingerprint at compile time, so
+          # a registry extract without them cannot build - the
+          # Cargo.toml include comment block is the law). Every other
+          # assets/ file stays repo-only: branding rendered at
+          # repository time, no code path reads it.
+          for forbidden in "scripts/" ".github/"; do
             if grep -q "^${forbidden}" <<<"${LIST}"; then
               echo "::error::ship-set leaked repo-only lane: ${forbidden}"
               exit 1
             fi
           done
+          if grep "^assets/" <<<"${LIST}" | grep -qv "^assets/gpg/"; then
+            echo "::error::ship-set leaked repo-only lane: assets/ (only assets/gpg/ ships - the D5 trust anchors)"
+            exit 1
+          fi
           echo "ship-set verified: $(grep -c . <<<"${LIST}") files"
 
       # The full dry run: builds the package the registry would
