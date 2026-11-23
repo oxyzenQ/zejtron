@@ -258,14 +258,36 @@ changelog_release() {
 
 echo "Updating zejtron to ${TAG}"
 
+# The lock edits below are name-anchored version moves, NEVER a cargo
+# resolution (the 2026-11-23 lesson, the zelynic night-improve-67
+# shape). This step once ran `cargo update -p zejtron` and
+# `cargo update -p zejtron-ebpf --offline`, and the weekly maintenance
+# lane moved anyhow to 1.0.105 in ebpf/Cargo.lock while the local
+# sparse-index cache still topped out at 1.0.104 - the offline
+# re-resolution then refused the bump mid-flight ("failed to select a
+# version for the requirement anyhow = ^1, candidate versions found
+# which didn't match: 1.0.104"), leaving a half-bumped tree behind.
+# A version bump is a text rewrite: dependency versions are the
+# weekly lane's job, their bumps arrive in Cargo.lock as bytes cargo
+# itself wrote, and running the resolver here adds a network and
+# index-cache dependency to a step that needs none. The name-anchored
+# sed moves exactly the one line `cargo update -p` moves (verified:
+# the update rewrites only the version line after the package name),
+# it is idempotent over a half-bumped tree (a re-run after a failed
+# bump heals the remaining surfaces), and the verify rows below fail
+# loudly if the lock shape is not this script's to edit.
 sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?"/version = "'"${VERSION}"'"/' Cargo.toml
-cargo update -p zejtron
+sed -i -E "/^name = \"zejtron\"\$/{n;s/^version = \"[^\"]*\"/version = \"${VERSION}\"/;}" Cargo.lock
+grep -A3 'name = "zejtron"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' \
+	|| error "Cargo.lock zejtron entry was not rewritten - the lock shape is not this script's to edit"
 
 # The mirror law (night-improve-5): the detached ebpf/ workspace and
 # the prebuilt lane's manifest follow the root version in the same
 # invocation - never a half-mirrored tree.
 sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?"/version = "'"${VERSION}"'"/' ebpf/Cargo.toml
-(cd ebpf && cargo update -p zejtron-ebpf --offline)
+sed -i -E "/^name = \"zejtron-ebpf\"\$/{n;s/^version = \"[^\"]*\"/version = \"${VERSION}\"/;}" ebpf/Cargo.lock
+(cd ebpf && grep -A3 'name = "zejtron-ebpf"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"') \
+	|| error "ebpf/Cargo.lock zejtron-ebpf entry was not rewritten - the lock shape is not this script's to edit"
 ./scripts/dev/regenerate-ebpf-prebuilt.sh
 
 sed -i -E 's/^TAG=v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?/TAG='"${TAG}"'/' README.md docs/workflow/about-ci.md
