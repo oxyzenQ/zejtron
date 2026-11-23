@@ -469,6 +469,13 @@ pub(crate) unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
 /// appended fd-walk, unlink/rename, off-path, and identity-walk
 /// slots) - the kprobes read the same map, and a map
 /// resize cannot desync the two files.
+/// The inline is the floor kernel's own budget: the 5.15 verifier
+/// caps a CALL CHAIN's combined stack (the probe frames plus this
+/// 200-byte set returned by value sum past it), while the 6.x
+/// verifiers cap per frame - one flattened frame rides both shapes
+/// (night-frontier-Z11, D8: the floor lane's first real attach found
+/// the refusal, the flatten is the fix it proved).
+#[inline(always)]
 pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
     let mut set = [0u64; OFF_SLOTS as usize];
     for slot in 0..OFF_SLOTS {

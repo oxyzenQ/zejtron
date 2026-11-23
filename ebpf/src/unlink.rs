@@ -87,6 +87,11 @@ use crate::{file_events, tracked_inodes};
 /// for the canonical device token. Every hop a BTF-verified offset
 /// from the offsets map, every read probe-read (a bad address
 /// returns None, never a fault). `None` drops the event.
+/// The inline keeps the identity walk inside the probe's own frame -
+/// the 5.15 verifier's combined-stack cap counts the call chain, and
+/// this hop is one of the frames the floor refused (night-frontier-
+/// Z11, D8).
+#[inline(always)]
 unsafe fn identity_of(
     dentry: usize,
     o: &[u64; crate::events::OFF_SLOTS as usize],
@@ -109,6 +114,10 @@ unsafe fn identity_of(
 /// of ring traffic is spent (the open probe's price control), and a
 /// pass publishes the 72-byte record with the acting process's pid
 /// and its identity block (night-frontier-Z8, D5).
+/// The inline flattens the probe's walk-filter-publish tail into the
+/// probe's own frame - the 5.15 verifier's combined-stack cap counts
+/// the call chain this hop sat in (night-frontier-Z11, D8).
+#[inline(always)]
 unsafe fn publish_if_tracked(dentry: usize, op: u8) {
     // SAFETY: the offset reads run through the probe-read helpers (a
     // bad address returns None, never a fault) at BTF-verified

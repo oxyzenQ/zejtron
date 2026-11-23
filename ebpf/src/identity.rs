@@ -105,6 +105,10 @@ pub(crate) unsafe fn netns_inum_of(task: usize, o: &[u64; OFF_SLOTS as usize]) -
 /// infallible integer helper; the netns walk's own contract is
 /// [`netns_inum_of`]'s, reached only through the caller's offset
 /// set.
+/// The inline keeps the actor block inside the caller's frame - the
+/// 5.15 verifier's combined-stack cap counts the call chain, and the
+/// floor kernel's refusal named exactly these depths
+/// (night-frontier-Z11, D8).
 #[inline(always)]
 pub(crate) unsafe fn actor_identity(o: Option<&[u64; OFF_SLOTS as usize]>) -> ActorIdentity {
     // SAFETY: bpf_get_current_comm is aya's safe wrapper (an
