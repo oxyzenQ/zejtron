@@ -227,6 +227,19 @@ fi
 
 "${BIN}" doctor --detach || true
 
+# The legs' own artifacts, printed on any failure - the CI log is
+# the post-mortem's one seat (the VM's filesystem dies with it).
+if [ "${legs_failed}" -ne 0 ]; then
+	echo "── z11 detonation artifacts (the failing legs' own bytes) ──"
+	for artifact in leg-b.loader leg-b.json leg-c.json leg-c.err leg-d.json; do
+		[ -f "${artifact}" ] && {
+			echo "--- ${artifact}"
+			head -c 2000 "${artifact}"
+			echo
+		}
+	done
+fi
+
 if [ "${legs_failed}" -eq 0 ]; then
 	echo "SANDBOX-VERDICT: PASS (legs passed: ${legs_passed})"
 	exit 0

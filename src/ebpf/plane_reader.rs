@@ -160,6 +160,13 @@ fn enumerate_class(cmd: u64) -> Result<BTreeSet<u32>, std::io::Error> {
         }
         ids.insert(id);
         start = id;
+        if steps % 1000 == 0 {
+            crate::output::verbose::vlog!(
+                "plane",
+                "the id enumeration walked {} ids (last {start})",
+                ids.len()
+            );
+        }
     }
 }
 
