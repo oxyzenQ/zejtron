@@ -170,6 +170,19 @@ fn build_hash() -> &'static str {
     option_env!("ZEJTRON_GIT_HASH").unwrap_or("unknown")
 }
 
+/// The D5 commit-signature stamp (night-netrunner-Z1, the zelynic
+/// night-solid-defense-2 lineage): the build-time verdict on "does
+/// the commit this binary claims carry a GPG signature by the
+/// pinned maintainer key?" - verified by build/gpg.rs against the
+/// repo's pinned public key in an isolated keyring, `<state>[:<evidence-hex>]`
+/// grammar, consumed by the `sig` matrix's D5 row. "unstamped" is
+/// the fail-closed fallback (a build whose script never stamped
+/// cannot claim a signature verdict - the runtime row refuses on
+/// it, never a silent pass).
+pub(crate) fn vcs_commit_sig() -> &'static str {
+    option_env!("ZEJTRON_VCS_COMMIT_SIG").unwrap_or("unstamped")
+}
+
 /// The body of the version report (everything after the brand
 /// header). Separated from [`print_version_report`] so tests can
 /// assert the full line set without capturing stdout.
@@ -245,6 +258,7 @@ pub(crate) fn version_report_text() -> String {
 }
 
 pub mod clock;
+pub(crate) mod commit_sig;
 /// Print the full version report for `-V` / `--version`.
 ///
 /// The sibling's masterclass layout (night-weekly-maintenance-2, the

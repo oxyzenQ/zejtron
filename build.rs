@@ -27,6 +27,16 @@ mod prebuilt;
 #[path = "build/camera.rs"]
 mod camera;
 
+// The D5 commit-signature stamp lane (night-netrunner-Z1, ported
+// from the zelynic night-solid-defense-2 precedent): verifies at
+// build time that the commit being built from carries a GPG
+// signature by the pinned maintainer key, and stamps the verdict
+// the runtime `sig` matrix's D5 row reports. Unconditional like the
+// other build modules: a degraded host (no git, no gpg) stamps its
+// honest state and the runtime row refuses fail-closed.
+#[path = "build/gpg.rs"]
+mod gpg;
+
 // The std-only BLAKE3 the prebuilt lane verifies the manifest's
 // object pin with (night-weekly-maintenance-1: the checksum lane
 // upgraded from the night-improve-5 SHA-256) - build.rs stays
@@ -115,6 +125,21 @@ fn main() {
         .map(format_unix_secs_as_build_time)
         .unwrap_or_else(format_build_time_utc);
     println!("cargo:rustc-env=ZEJTRON_BUILD_TIME={build_time}");
+
+    // night-netrunner-Z1, the D5 commit-signature stamp lane: verify
+    // the commit this build rides (HEAD, the same object the
+    // ZEJTRON_GIT_HASH chain above resolved) carries a GPG signature
+    // by the pinned maintainer key, in an isolated keyring that
+    // holds ONLY the repo's tracked public key. The verdict rides
+    // ZEJTRON_VCS_COMMIT_SIG for the runtime `sig` matrix's D5 row -
+    // the row that binds the provenance claim to the release
+    // channel: with the maintainer key verified out-of-band and
+    // releases cut from signed tags, the chain key -> tag -> commit
+    // -> binary closes, and a binary swapped on the wire can no
+    // longer replay its claims unanswered. Fail-closed by grammar:
+    // a build that cannot verify stamps its honest degraded state
+    // and the runtime row refuses.
+    self::gpg::stamp_commit_signature();
 
     // night-improve-1, retargeted by night-improve-5 and made
     // unconditional by night-weekly-maintenance-1: stage the eBPF

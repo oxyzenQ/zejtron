@@ -61,16 +61,24 @@ rust-version = "1.98.1"
 #   them readable, the tarball does not carry them.
 # - rust-toolchain.toml ships so a source consumer's default
 #   toolchain matches the channel the release lane used.
-# Everything NOT listed stays repo-only: CI workflows, gates, assets
-# (branding, rendered at repository time - no code path reads them),
-# scripts/ (dev and package lanes are maintainer tooling), and the
-# test/ tree (the single test tree, #[path]-wired from src/ - it
-# compiles into the developer's cargo test run, never into a
+# - assets/gpg/** ships (night-netrunner-Z1, the D5 commit-signature
+#   lane): build/gpg.rs reads the pinned public key at build time and
+#   src/info/commit_sig.rs include_str!'s the pinned fingerprint at
+#   compile time, so a registry extract without them cannot build.
+#   A registry build answers "no-vcs" before the key is ever read
+#   (no .git to probe), and the runtime D5 row refuses fail-closed -
+#   but the files must ride the tarball for the compile to succeed.
+# Everything NOT listed stays repo-only: CI workflows, gates, the
+# branding assets (rendered at repository time - no code path reads
+# them), scripts/ (dev and package lanes are maintainer tooling),
+# and the test/ tree (the single test tree, #[path]-wired from src/ -
+# it compiles into the developer's cargo test run, never into a
 # consumer's build).
 include = [
     "src/**",
     "build.rs",
     "build/**",
+    "assets/gpg/**",
     "ebpf-prebuilt/**",
     "Cargo.toml",
     "Cargo.lock",

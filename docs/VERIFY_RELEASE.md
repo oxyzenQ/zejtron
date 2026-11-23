@@ -44,7 +44,7 @@ matrix artifact before it ships.
 Every build embeds a verifiable signature chain, and the binary
 verifies itself. The ownership claim is embedded MASKED - opaque
 64-bit words no `strings(1)` or `rg` scan can find - and materializes
-to plaintext only at runtime. Five depths, each checkable on its own:
+to plaintext only at runtime. Six depths, each checkable on its own:
 
 | Depth | What it proves | How to check |
 |---|---|---|
@@ -53,6 +53,7 @@ to plaintext only at runtime. Five depths, each checkable on its own:
 | D2 anchor integrity | The BLAKE3 anchor over the framed masked payload recomputes, and both FNV-64 fingerprints agree with the compile-time digests | `zejtron sig` (the D2 row) |
 | D3 binary self-hash | The BLAKE3 of the exact bytes the process runs from | `zejtron sig` (compare against `b3sum <binary>` or the pinned release hash) |
 | D4 camera object (night-frontier-Z5) | The embedded eBPF probe object recomputes the digest the build stamped over the same bytes as it staged them - a camera patched after the build refuses, from the binary alone | `zejtron sig` (the D4 row) |
+| D5 commit signature (night-netrunner-Z1) | The commit the binary claims carries a GPG signature by the pinned maintainer key `47A50AEF4B65AAC2` (full fingerprint in `assets/gpg/pinned-maintainer-fpr.txt`), verified at build time against the repo's own pinned public key in an isolated keyring - the row that binds the provenance claim to the release channel: with the maintainer key verified out-of-band and releases cut from signed tags, the chain key -> tag -> commit -> binary closes with no channel left to MITM silently. Fail-closed: every state except a verified match REFUSES (an unsigned dev HEAD is the honest refusal, named as the incomplete chain) | `zejtron sig` (the D5 row) |
 
 The at-rest contract (the anti-grep law): `grep -a rezky_nightky
 <binary>` and `strings <binary> | grep rezky` find NOTHING on an
@@ -63,11 +64,13 @@ is itself evidence the mask was stripped.
 `zejtron sig` (alias `zejtron signature`) renders the whole matrix -
 the facts block names the identity core (`rezky_nightky (oxyzenQ)`)
 and the contact line (`oxyzenQ@proton.me`, night-remake-2) - and
-closes with `verdict: SIGNATURE: AUTHENTIC (5/5 depths verified)`
-on an intact build. A tampered, hand-patched, or foreign-rebuilt
-binary gets `SIGNATURE: REFUSED (...)` naming the contradicting
-depth, exit 1; `--print-json` speaks the same matrix as one jq-ready
-line (`payload_tag` = the anchor's domain tag,
+closes with `verdict: SIGNATURE: AUTHENTIC (6/6 depths verified)`
+on an intact release build (a build from an unsigned dev HEAD
+refuses at D5 by name instead - the commit binding's own honest
+truth, never a silent pass). A tampered, hand-patched, or
+foreign-rebuilt binary gets `SIGNATURE: REFUSED (...)` naming the
+contradicting depth, exit 1; `--print-json` speaks the same matrix
+as one jq-ready line (`payload_tag` = the anchor's domain tag,
 `zejtron/depth-matrix/v1`). The anchor is a BLAKE3 digest over
 `zejtron/depth-matrix/v1` plus the length-prefixed clear bytes of the
 two masked layers - the same hash family the release checksum files
@@ -116,10 +119,13 @@ b3sum <binary>
 ```
 
 An executed check closes the loop on an executable host: `zejtron
-sig` must answer 5/5 AUTHENTIC on a release artifact (a depth that
+sig` must answer 6/6 AUTHENTIC on a release artifact (a depth that
 genuinely cannot run on the host - an out-of-tree build without the
 camera stamp, an unreadable self-image - is named `unavailable` in
-the verdict, never guessed), and `-V`'s Depth-matrix line must carry
+the verdict, never guessed; a build whose HEAD commit is not signed
+by the pinned maintainer key refuses at D5 instead - release
+commits are signed, dev commits may not be), and `-V`'s
+Depth-matrix line must carry
 `status=verified` - a rebuilt or patched artifact refuses by name.
 
 ### What AUTHENTIC proves, and what it does not
@@ -127,14 +133,24 @@ the verdict, never guessed), and `-V`'s Depth-matrix line must carry
 The D0-D2 chain proves the binary carries one coherent, unmasked
 identity story: the masked layers decode to the owner's claim, the
 two layers bind to each other, and the cryptographic anchor seals
-the bytes. It does not prove WHO built the artifact - any rebuild of
-the same sources materializes the same owner claim. That is D3's
-seat: every build hashes uniquely (the commit and build-time ride
-the `Build:`/`Build-time:` lines, and any code difference moves the
-hash), and the owner pins the expected D3 hash per release. Compare
-the pinned hash with `zejtron sig`'s D3 line (or `b3sum` of the
-installed binary) - a mismatch is a rebuilt, hacked, or fake binary,
-whatever its report claims.
+the bytes. It does not by itself prove WHO built the artifact - any
+rebuild of the same sources materializes the same owner claim. That
+has two seats now. D3: every build hashes uniquely (the commit and
+build-time ride the `Build:`/`Build-time:` lines, and any code
+difference moves the hash), and the owner pins the expected D3 hash
+per release. Compare the pinned hash with `zejtron sig`'s D3 line
+(or `b3sum` of the installed binary) - a mismatch is a rebuilt,
+hacked, or fake binary, whatever its report claims. And D5
+(night-netrunner-Z1): the commit the binary claims was verified at
+build time against the pinned maintainer public key in an isolated
+keyring, so a passing D5 row proves the binary was built from a
+commit the maintainer's key signed - the out-of-band twin closes
+the chain: verify the maintainer key (keyservers, GitHub), verify
+the signed tag the release was cut from (`git tag -v`), and the tag
+names the very commit D5 bound. A swapped binary on the wire can
+still replay claims - but it cannot forge the D5 verdict's
+signature evidence, and a consumer who follows the chain catches
+the swap.
 
 ## Checksum files
 

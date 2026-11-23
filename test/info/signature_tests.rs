@@ -255,28 +255,55 @@ fn year_tail_never_renders_behind_the_holder() {
     );
 }
 
-/// The collected matrix on a linux host: all five depths pass, the
-/// rows ride in D0..D4 order, the image hash is present, and the
-/// verdict is the full 5/5 line. The test binary verifies itself -
-/// the D4 row is the real self-check: the test binary's own build
-/// stamped the digest over the same object bytes it embedded, so a
-/// patched camera fails every suite lane that builds the crate.
+/// The collected matrix on a linux host: the rows ride in D0..D5
+/// order, the image hash is present, and the verdict is the build's
+/// own truth. The test binary verifies itself - the D4 row is the
+/// real self-check: the test binary's own build stamped the digest
+/// over the same object bytes it embedded, so a patched camera fails
+/// every suite lane that builds the crate.
+///
+/// The D5 honesty law (night-netrunner-Z1, the zelynic
+/// night-solid-defense-2 precedent): the commit-signature row
+/// reports the BUILD's own verified verdict, so a tree on a HEAD
+/// signed by the pinned maintainer key reads AUTHENTIC 6/6 and a
+/// tree on an unsigned HEAD (a plain dev commit, a CI lane) reads
+/// REFUSED with D5 naming the incomplete chain - both are the
+/// pristine truth for their build, and the matrix must never claim
+/// otherwise.
 #[test]
 #[cfg(target_os = "linux")]
 fn collect_verifies_the_running_test_binary_authentic() {
     let matrix = collect();
-    assert!(matrix.refused.is_none(), "no depth may refuse: {matrix:?}");
-    assert!(matrix.is_authentic());
     let ids: Vec<&str> = matrix.rows.iter().map(|row| row.id).collect();
-    assert_eq!(ids, vec!["D0", "D1", "D2", "D3", "D4"]);
-    for row in &matrix.rows {
-        assert_eq!(row.status, DepthStatus::Pass, "row {} refused", row.id);
+    assert_eq!(ids, vec!["D0", "D1", "D2", "D3", "D4", "D5"]);
+    // The depths before D5 never refuse on a pristine build; D5
+    // rides the build's own commit-signature truth.
+    let stamp = crate::info::vcs_commit_sig();
+    let sig_verified = stamp
+        .strip_prefix("verified:")
+        .is_some_and(|fpr| fpr == crate::info::commit_sig::PINNED_MAINTAINER_KEY_FPR);
+    if sig_verified {
+        assert!(matrix.refused.is_none(), "no depth may refuse: {matrix:?}");
+        assert!(matrix.is_authentic());
+        for row in &matrix.rows {
+            assert_eq!(row.status, DepthStatus::Pass, "row {} refused", row.id);
+        }
+        assert_eq!(matrix.verified, 6);
+        assert_eq!(
+            matrix.verdict_text(),
+            "SIGNATURE: AUTHENTIC (6/6 depths verified)"
+        );
+    } else {
+        // The honesty arm: the refusal IS the D5 row's truth, named.
+        assert_eq!(matrix.refused.as_ref().map(|(id, _)| *id), Some("D5"));
+        assert!(!matrix.is_authentic());
+        assert!(matrix.verified >= 5, "D0-D4 verify regardless: {matrix:?}");
+        assert!(
+            matrix.verdict_text().contains("D5 commit-signature"),
+            "the verdict names the unbound commit: {}",
+            matrix.verdict_text()
+        );
     }
-    assert_eq!(matrix.verified, 5);
-    assert_eq!(
-        matrix.verdict_text(),
-        "SIGNATURE: AUTHENTIC (5/5 depths verified)"
-    );
     assert_eq!(matrix.identity, "rezky_nightky (oxyzenQ)");
     assert_eq!(matrix.contact, "oxyzenQ@proton.me");
     assert_eq!(matrix.authors, AUTHORS_ORACLE);
@@ -387,7 +414,7 @@ fn verdict_text_names_the_unavailable_depths() {
     assert!(matrix.is_authentic());
     assert_eq!(
         matrix.verdict_text(),
-        "SIGNATURE: AUTHENTIC (2/5 depths verified; D1, D3 unavailable on this host)"
+        "SIGNATURE: AUTHENTIC (2/6 depths verified; D1, D3 unavailable on this host)"
     );
 }
 
@@ -468,6 +495,7 @@ fn matrix_report_shape_is_pinned() {
         "D2 anchor-integrity",
         "D3 binary-self-hash",
         "D4 camera-object",
+        "D5 commit-signature",
     ] {
         let count = lines.iter().filter(|l| l.starts_with(label)).count();
         assert_eq!(count, 1, "row label must appear exactly once: {label}");
@@ -481,7 +509,15 @@ fn matrix_report_shape_is_pinned() {
     assert!(report.contains(&format!("anchor      b3:{}", DEPTH_ANCHOR_HEX_ORACLE)));
     assert!(report.contains(&format!("commit      {}", matrix.commit)));
     assert!(report.contains(&format!("build-time  {}", matrix.build_time)));
-    assert!(report.contains("verdict: SIGNATURE: AUTHENTIC (5/5 depths verified)"));
+    // The verdict rides the build's own D5 truth (the honesty law
+    // pinned by collect_verifies_the_running_test_binary_authentic):
+    // a signed HEAD renders AUTHENTIC 6/6, an unsigned HEAD renders
+    // the named REFUSED - both are the pristine shape.
+    if matrix.is_authentic() {
+        assert!(report.contains("verdict: SIGNATURE: AUTHENTIC (6/6 depths verified)"));
+    } else {
+        assert!(report.contains("verdict: SIGNATURE: REFUSED (D5 commit-signature"));
+    }
     // The self-hash note closes the report (the honest-limits law).
     assert!(
         report.contains("note: the self-hash is a fingerprint to compare against a\npublished release hash; it cannot embed its own digest."),
@@ -509,13 +545,27 @@ fn matrix_json_is_one_line_with_the_documented_keys() {
         "\"anchor\":\"",
         "\"binary_self_hash\":\"",
         "\"depths\":[",
-        "\"verdict\":\"AUTHENTIC\"",
-        "\"verified\":\"5/5\"",
+        "\"verdict\":\"",
     ] {
         assert!(json.contains(key), "the JSON lane must carry {key}: {json}");
     }
-    assert_eq!(json.matches("\"depth\":").count(), 5);
-    assert_eq!(json.matches("\"status\":\"pass\"").count(), 5);
+    // Six depths always ride the array; the D5 row's status rides
+    // the build's own commit-signature truth (the honesty law), so
+    // the pass count and the verdict follow it.
+    assert_eq!(json.matches("\"depth\":").count(), 6);
+    let sig_verified = crate::info::vcs_commit_sig()
+        .strip_prefix("verified:")
+        .is_some_and(|fpr| fpr == crate::info::commit_sig::PINNED_MAINTAINER_KEY_FPR);
+    if sig_verified {
+        assert!(json.contains("\"verdict\":\"AUTHENTIC\""), "{json}");
+        assert!(json.contains("\"verified\":\"6/6\""), "{json}");
+        assert_eq!(json.matches("\"status\":\"pass\"").count(), 6);
+    } else {
+        assert!(json.contains("\"verdict\":\"REFUSED\""), "{json}");
+        assert!(json.contains("\"verified\":\"5/6\""), "{json}");
+        assert!(json.contains("\"depth\":\"D5\""), "{json}");
+        assert_eq!(json.matches("\"status\":\"pass\"").count(), 5);
+    }
 }
 
 /// The JSON lane's absence arm, synthesized: an unavailable image

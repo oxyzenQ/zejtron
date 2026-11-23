@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! The `sig` surface (night-signature-1, alias `signature`): the
-//! depth-matrix self-check. The verb collects the five depths from
+//! depth-matrix self-check. The verb collects the six depths from
 //! the running binary (see [`crate::info::signature`]) and renders
 //! the matrix - human text or one JSON line - then maps the verdict
 //! to the exit code: AUTHENTIC exits 0 (the partial-authentic arm

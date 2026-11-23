@@ -5,7 +5,7 @@
 //! night-signature-advanced-1 upgrade): the binary's own anti-theft /
 //! anti-fake-claim verification. The estate already states its
 //! identity (the -V `Copyright:` line, the trademark and licensing
-//! layers); this module makes the claim CHECKABLE, at five depths, by
+//! layers); this module makes the claim CHECKABLE, at six depths, by
 //! the binary itself and by anyone holding the artifact:
 //!
 //! - **D0 runtime identity** - the masked manifest materializes to
@@ -37,6 +37,20 @@
 //!   camera was patched after the build refuses by name, from the
 //!   binary alone - the D3 self-hash needs a published hash to
 //!   compare against, D4 needs nothing but itself.
+//! - **D5 commit signature** (night-netrunner-Z1, the zelynic
+//!   night-solid-defense-2 lineage) - the commit the `commit` line
+//!   claims carries a GPG signature by the PINNED maintainer key,
+//!   verified at build time by build/gpg.rs against the repo's own
+//!   pinned public key in an isolated keyring (the policy lives in
+//!   [`super::commit_sig`]). This is the row that binds the
+//!   provenance claim to the release channel: with the maintainer
+//!   key verified out-of-band and releases cut from signed tags,
+//!   D5 closes the key -> tag -> commit -> binary chain - a binary
+//!   swapped on the wire can no longer replay its claims unanswered.
+//!   Fail-closed by design: every state except a verified match
+//!   against the pin REFUSES (an unsigned dev HEAD is the honest
+//!   refusal, named as the incomplete chain), so the row can never
+//!   pass by saying nothing.
 //!
 //! The honesty law runs through every depth: an unverifiable depth is
 //! `unavailable` with the reason named, a contradicting depth is
@@ -107,7 +121,7 @@ pub(crate) struct SigMatrix {
     pub refused: Option<(&'static str, String)>,
     /// The unavailable depth ids, in row order.
     pub unavailable_ids: Vec<&'static str>,
-    /// How many of the five depths verified.
+    /// How many of the six depths verified.
     pub verified: usize,
 }
 
@@ -121,10 +135,10 @@ fn read_self_image() -> Result<Vec<u8>, &'static str> {
     std::fs::read("/proc/self/exe").map_err(|_| "the running image could not be read")
 }
 
-/// Collect the five depths from this running binary. One unmask pass
+/// Collect the six depths from this running binary. One unmask pass
 /// (inside the provenance view) feeds D0, D1, and D2; one image read
 /// feeds D3; the build-time camera stamp and the embedded probe
-/// object feed D4.
+/// object feed D4; the build-time commit-signature stamp feeds D5.
 pub(crate) fn collect() -> SigMatrix {
     let view = provenance::provenance_view();
     let commit = super::build_hash();
@@ -213,6 +227,20 @@ pub(crate) fn collect() -> SigMatrix {
         "D4",
         "camera-object",
         camera_object_row(stamped_digest, crate::ebpf::loader::PROBE_ELF),
+    );
+
+    // D5 - the commit signature (night-netrunner-Z1, the zelynic
+    // night-solid-defense-2 lineage). The stamp is the build's own
+    // verified verdict over the claimed commit; the policy (pinned
+    // fingerprint, honest sentences for every state) lives in the
+    // commit_sig module. Fail-closed: only a verified match against
+    // the pin passes - the row that closes the key -> tag -> commit
+    // -> binary chain, so it can never pass by saying nothing.
+    let rows = push_row(
+        rows,
+        "D5",
+        "commit-signature",
+        super::commit_sig::commit_signature_verdict(super::vcs_commit_sig(), commit),
     );
 
     let refused = rows.iter().find_map(|row| match row.status {
@@ -309,7 +337,7 @@ impl SigMatrix {
                 format!("SIGNATURE: REFUSED ({id} {name} — {reason})")
             }
             None => {
-                let mut line = format!("SIGNATURE: AUTHENTIC ({}/5 depths verified", self.verified);
+                let mut line = format!("SIGNATURE: AUTHENTIC ({}/6 depths verified", self.verified);
                 if !self.unavailable_ids.is_empty() {
                     line.push_str(&format!(
                         "; {} unavailable on this host",
@@ -424,7 +452,7 @@ pub(crate) fn matrix_json(matrix: &SigMatrix) -> String {
         },
     );
     out.push_str(",\"verified\":");
-    write_string(&mut out, &format!("{}/5", matrix.verified));
+    write_string(&mut out, &format!("{}/6", matrix.verified));
     out.push('}');
     out
 }

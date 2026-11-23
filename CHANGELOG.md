@@ -621,6 +621,41 @@ v11.0.0
   compare); the estate grew one pin (23) and the sock probe moved to
   its own module (ebpf/src/sock.rs, the pure move the 600-LOC cap
   owns).
+- **night-netrunner-Z1, D5 commit-signature - the depth matrix binds
+  the claimed commit to the pinned maintainer key (the zelynic
+  night-solid-defense-2 lineage, ported).** The supply-chain hole
+  this closes: D0-D2 prove the ownership claim, D3 fingerprints the
+  whole image, D4 seals the embedded camera object - but the
+  `commit` line the sig matrix carries was a CLAIM, not a bound
+  fact, so a binary swapped on the release channel could replay its
+  own claims unanswered. build/gpg.rs now verifies, at build time,
+  that HEAD's commit carries a GPG signature made by the pinned
+  maintainer key (the repo's own tracked public key
+  `assets/gpg/maintainer-47A50AEF4B65AAC2.asc`, imported into an
+  isolated throwaway GNUPGHOME - never the building user's
+  keyring), classifying HEAD into a `<state>[:<fpr>]` stamp
+  (`ZEJTRON_VCS_COMMIT_SIG`): unsigned HEAD commits answer from the
+  commit object itself before any keyring spawns, a signed HEAD
+  verifies through `git verify-commit --raw` with the primary
+  fingerprint located by SHAPE (the last 40-hex VALIDSIG token, the
+  gpg 2.4.7 extra-field trap), and no-vcs / unavailable / broken
+  states fail closed. The runtime half is the new sixth depth:
+  `zejtron sig` renders the D5 commit-signature row
+  (src/info/commit_sig.rs, pure over the stamp, every state an
+  honest sentence) and REFUSES on everything except a verified
+  match against the pin - an unsigned dev HEAD is the honest
+  refusal, named as the incomplete chain, exit 1 through the sig
+  surface's own law. The verdict counts moved 5/5 to 6/6 (human and
+  JSON lanes), the pinned fingerprint is single-sourced from
+  `assets/gpg/pinned-maintainer-fpr.txt` (build side and runtime
+  side read the same bytes - zero drift), and the file rides the
+  crates.io tarball via the manifest include list (the runtime's
+  include_str! is a compile-time dependency). With the maintainer
+  key verified out-of-band and releases cut from signed tags, D5
+  closes the key -> tag -> commit -> binary chain: a swapped
+  binary can no longer replay its claims unanswered. Docs updated
+  (docs/VERIFY_RELEASE.md: the six-depth table, the 6/6 verdict
+  contract, the AUTHENTIC honest-limits section).
 
 ### License
 
