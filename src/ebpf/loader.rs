@@ -18,14 +18,11 @@
 //! proc_events ring, the drain the doctor's ram symptom reads).
 //!
 //! This is the privileged one-shot. `doctor --attach` first answers
-//! the supply-chain question (night-netrunner-Z1, the eBPF
-//! supply-chain attestation): the camera anchor gate re-hashes the
-//! embedded probe object and refuses the whole attach unless it
-//! recomputes the BLAKE3 digest the build stamped over the staged
-//! bytes - the sig matrix's D4 verdict as a plant-time gate, so a
-//! camera patched inside the artifact after the build never reaches
-//! the kernel (the loader that rejects an object without a valid
-//! anchor). Only then it loads the
+//! the supply-chain question (night-netrunner-Z1): the camera anchor
+//! gate (src/ebpf/camera_object.rs, the loader half of the D4
+//! verdict) refuses the whole attach unless the embedded probe
+//! object recomputes the BLAKE3 digest the build stamped over the
+//! staged bytes. Only then it loads the
 //! embedded probe object, loads the core eight programs (phase 1's
 //! sched/sched_process_exec counter, phase 2's
 //! sock/inet_sock_set_state socket-event probe, phase 3's
@@ -59,18 +56,10 @@ use super::btf;
 use super::btf_offpath;
 use super::btf_unlink;
 use super::btf_writev;
-use super::embedded;
+use super::camera_object;
 use super::plant;
 use super::{LaneVerdict, PIN_DIR, any_pin_present, lane_verdict, probe_kernel};
 use crate::output::verbose::vlog;
-
-/// The embedded pure-Rust probe object (night-improve-1): the aya-ebpf
-/// ELF staged into OUT_DIR by build.rs. It rides inside the
-/// AlignedElf wrapper (the NIGHT-hunt-30 lesson - see embedded.rs)
-/// so aya's ELF parser reads 8-aligned bytes whatever the linker
-/// decided.
-pub(crate) static PROBE_ELF: &[u8] =
-    &embedded::AlignedElf::new(*include_bytes!(concat!(env!("OUT_DIR"), "/zejtron-ebpf.o"))).bytes;
 
 /// Attach the probe: the privileged one-shot.
 ///
@@ -78,27 +67,13 @@ pub(crate) static PROBE_ELF: &[u8] =
 /// failure is an error string that names its reason, and no failure
 /// leaves a partial pin set.
 pub fn attach() -> Result<String, String> {
-    // 0. The camera anchor gate (night-netrunner-Z1, the loader half
-    //    of the eBPF supply-chain attestation): the loader refuses to
-    //    plant an object that does not answer its build-stamped
-    //    BLAKE3 digest - the same verdict the sig matrix's D4 row
-    //    renders, one implementation, no drift between the report
-    //    and the plant path. The gate runs FIRST, before any probe,
-    //    any mount, any pin: the object is the one artifact that
-    //    executes at ring 0, and a camera whose bytes do not answer
-    //    the digest the build stamped over the staged bytes (an
-    //    object patched inside the artifact after the build) never
-    //    reaches the kernel. Fail-closed here: a build without the
-    //    stamp refuses too - the plant path cannot vouch for what it
-    //    cannot hash-verify, where the sig row names the same
-    //    unavailability honestly for an OLD build instead.
-    let camera_anchor = camera_anchor_gate().map_err(|reason| {
-        format!(
-            "attach refused: {reason}. The embedded camera object must recompute \
-                 the digest the build stamped over the staged bytes before anything \
-                 is planted"
-        )
-    })?;
+    // 0. The camera anchor gate (night-netrunner-Z1): the loader
+    //    refuses to plant an object that does not answer its
+    //    build-stamped BLAKE3 digest - the camera_object module's own
+    //    law (the D4 verdict as a plant-time gate, one implementation,
+    //    fail-closed), run FIRST, before any probe, mount, or pin.
+    let camera_anchor =
+        camera_object::camera_anchor_gate().map_err(camera_object::attach_refusal)?;
     vlog!("engine", "camera anchor verified: {camera_anchor}");
 
     // 1. The gate: the same probe and the same verdict the doctor's
@@ -441,10 +416,8 @@ pub fn attach() -> Result<String, String> {
 
     // 4. The alignment preflight (the AlignedElf contract):
     //    structurally impossible now, kept so a regression diagnoses
-    //    in one line.
-    if let Some(violation) = embedded::alignment_violation(PROBE_ELF, "zejtron-ebpf") {
-        return Err(violation);
-    }
+    //    in one line (the camera_object module's own seam).
+    camera_object::camera_preflight()?;
 
     // 6. Load the tracepoint programs and the kprobes, attach each
     //    to its point, pin everything. Any failure past this point
@@ -452,10 +425,10 @@ pub fn attach() -> Result<String, String> {
     vlog!(
         "engine",
         "loading embedded BPF object ({} bytes)",
-        PROBE_ELF.len()
+        camera_object::PROBE_ELF.len()
     );
-    let mut bpf =
-        Ebpf::load(PROBE_ELF).map_err(|e| fail(format!("the probe object failed to load: {e}")))?;
+    let mut bpf = Ebpf::load(camera_object::PROBE_ELF)
+        .map_err(|e| fail(format!("the probe object failed to load: {e}")))?;
     vlog!("engine", "probe object loaded - planting eight programs");
 
     let attach_result = plant::plant(
@@ -541,31 +514,6 @@ pub fn attach() -> Result<String, String> {
             vlog!("engine", "plant failed: {e}");
             Err(fail(e))
         }
-    }
-}
-
-/// The camera anchor gate (night-netrunner-Z1, the loader half of
-/// the eBPF supply-chain attestation): the plant path's own answer
-/// to "does this object answer its build-stamped digest?" - the
-/// sig matrix's D4 row (single-sourced through
-/// [`crate::info::signature::camera_object_row`]) rendered as a
-/// gate verdict instead of a report row. Pass hands back the
-/// verified anchor line for the transparency trace; every other
-/// state refuses - the loader that rejects an object without a
-/// valid anchor is the whole point of this seam. Pure over the
-/// stamp and the embedded bytes, so all three arms are pinnable
-/// without patching a real artifact.
-fn camera_anchor_gate() -> Result<String, String> {
-    use crate::info::signature::DepthStatus;
-    let stamped = option_env!("ZEJTRON_CAMERA_OBJECT_B3");
-    match crate::info::signature::camera_object_row(stamped, PROBE_ELF) {
-        (DepthStatus::Pass, detail) => Ok(detail),
-        (DepthStatus::Refused, detail) => Err(detail),
-        (DepthStatus::Unavailable, detail) => Err(format!(
-            "{detail} - the plant path fails closed where the sig row \
-             names the same unavailability: an object the loader cannot \
-             vouch for must not plant"
-        )),
     }
 }
 

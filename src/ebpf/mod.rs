@@ -15,16 +15,14 @@
 //!   /sys/kernel/btf/vmlinux, /sys/kernel/security/lockdown,
 //!   /proc/self/status CapEff - no subprocess, no PATH dependency,
 //!   no libc; the precise instrument for a kernel-facing lane);
-//! - the AlignedElf embedding wrapper (feature builds only).
+//! - the AlignedElf embedding wrapper (unconditional since
+//!   night-weekly-maintenance-1).
 //!
 //! The verb surface - [`attach`] and [`detach`] - is unconditional
 //! (night-weekly-maintenance-1): the eBPF support is a permanent part
-//! of the binary, never a feature toggle, so every build carries the
-//! loader and the readback.
-//!
-//! The kernel facts and pin paths compile unconditionally because the
-//! doctor's \[eBPF\] section is always present and always honest
-//! about what this binary can do.
+//! of the binary, never a feature toggle. The kernel facts and pin
+//! paths compile unconditionally for the same reason - the doctor's
+//! \[eBPF\] section is always present and always honest.
 
 use std::path::Path;
 
@@ -563,6 +561,8 @@ mod btf_decode;
 mod btf_offpath;
 mod btf_unlink;
 mod btf_writev;
+/// The camera object (night-netrunner-Z1): the embedded probe, its plant-time anchor gate.
+pub mod camera_object;
 pub mod cost;
 /// The pin estate's identity (night-frontier-Z2): the generation
 /// stamp - written at attach, re-derived at every recording boundary,

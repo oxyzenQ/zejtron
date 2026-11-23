@@ -43,7 +43,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use aya::maps::{Array, Map, MapData};
 
-use super::{PIN_MAP_GENERATION, loader};
+use super::PIN_MAP_GENERATION;
+use super::camera_object;
 
 /// The refusal marker (the repo-owned sentinel): every identity
 /// refusal starts with this exact string, so a classifier or a test
@@ -136,7 +137,7 @@ fn boot_id_fnv() -> Result<u64, String> {
 /// same; a different build (a changed probe, a changed record) rides
 /// a different identity.
 fn object_fnv() -> u64 {
-    fnv1a64(loader::PROBE_ELF)
+    fnv1a64(camera_object::PROBE_ELF)
 }
 
 /// The attach instant, unix seconds - the stamp's informational slot

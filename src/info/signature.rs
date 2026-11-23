@@ -226,7 +226,7 @@ pub(crate) fn collect() -> SigMatrix {
         rows,
         "D4",
         "camera-object",
-        camera_object_row(stamped_digest, crate::ebpf::loader::PROBE_ELF),
+        camera_object_row(stamped_digest, crate::ebpf::camera_object::PROBE_ELF),
     );
 
     // D5 - the commit signature (night-netrunner-Z1, the zelynic

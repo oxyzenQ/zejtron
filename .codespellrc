@@ -2,4 +2,8 @@
 skip = .git,target,Cargo.lock,corpus,coverage,artifacts
 quiet-level = 3
 check-filenames =
-ignore-words-list = rezky,nightky,oxyzenq,zejtron,procfs,symlink,symlinks,rustfmt,clippy,uptodate,renderD,statics
+# fpr is OpenPGP/GnuPG vocabulary - the fingerprint field token in
+# gpg's status lines and the depth-matrix D5 row (night-netrunner-Z1,
+# the zelynic night-solid-defense-2 precedent): not a misspelling of
+# "for".
+ignore-words-list = rezky,nightky,oxyzenq,zejtron,procfs,symlink,symlinks,rustfmt,clippy,uptodate,renderD,statics,fpr

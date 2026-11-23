@@ -330,7 +330,7 @@ fn the_embedded_camera_object_recomputes_the_build_stamp() {
     // honest shape, since a test binary of this tree cannot exist
     // without the stamp (the build.rs lanes always produce it).
     let stamped = env!("ZEJTRON_CAMERA_OBJECT_B3");
-    let (status, detail) = camera_object_row(Some(stamped), crate::ebpf::loader::PROBE_ELF);
+    let (status, detail) = camera_object_row(Some(stamped), crate::ebpf::camera_object::PROBE_ELF);
     assert_eq!(status, DepthStatus::Pass, "{detail}");
     assert!(
         detail.contains("recomputes from the embedded probe object"),
@@ -345,7 +345,7 @@ fn the_embedded_camera_object_recomputes_the_build_stamp() {
 #[test]
 fn a_patched_camera_object_refuses_naming_both_digests() {
     let stamped = "e642ace8b8e9a3f549434d21c45413688fc6e3ec3afb7292f078cd0850f996ec";
-    let mut patched = crate::ebpf::loader::PROBE_ELF.to_vec();
+    let mut patched = crate::ebpf::camera_object::PROBE_ELF.to_vec();
     let middle = patched.len() / 2;
     patched[middle] ^= 0x01;
     let (status, detail) = camera_object_row(Some(stamped), &patched);
@@ -359,7 +359,7 @@ fn a_patched_camera_object_refuses_naming_both_digests() {
 /// unavailable with the reason named - never a guess, never a pass.
 #[test]
 fn a_build_without_the_stamp_names_the_unavailability() {
-    let (status, detail) = camera_object_row(None, crate::ebpf::loader::PROBE_ELF);
+    let (status, detail) = camera_object_row(None, crate::ebpf::camera_object::PROBE_ELF);
     assert_eq!(status, DepthStatus::Unavailable, "{detail}");
     assert!(
         detail.contains("did not stamp the camera object digest"),

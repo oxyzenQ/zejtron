@@ -679,7 +679,14 @@ v11.0.0
   to), the refusal names both digests and the tamper shape, and the
   tamper arms are pinned by unit tests through the pure seam
   (pristine pass, one flipped byte refuses naming both digests,
-  missing stamp refuses the plant). Docs updated
+  missing stamp refuses the plant). The camera-object concern moved
+  to its own module (src/ebpf/camera_object.rs, the pure move the
+  600-LOC no-mercy cap owns - the btf_decode.rs precedent): the
+  embedded PROBE_ELF static, the anchor gate, the attach-shaped
+  refusal wrap, and the alignment preflight live beside their own
+  tests (test/ebpf/camera_object_tests.rs), and `fpr` joined the
+  codespell ignore list as OpenPGP vocabulary (the zelynic
+  .codespellrc precedent). Docs updated
   (docs/EBPF_LIFECYCLE.md: the plant path's supply-chain answer).
 
 ### License
