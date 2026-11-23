@@ -67,8 +67,8 @@ const PROGRAM_PINS: [(&str, usize); 12] = [
     ("kprobe/fault_dirty_shared_page", 287),
     ("kprobe/filemap_dirty_folio", 211),
     ("kprobe/vfs_open", 225),
-    ("kprobe/vfs_rename", 21),
-    ("kprobe/vfs_unlink", 36),
+    ("kprobe/vfs_rename", 78),
+    ("kprobe/vfs_unlink", 93),
     ("kprobe/vfs_writev", 219),
     ("tracepoint/io_uring/io_uring_submit_sqe", 261),
     ("tracepoint/raw_syscalls/sys_enter", 1323),
@@ -77,7 +77,14 @@ const PROGRAM_PINS: [(&str, usize); 12] = [
     ("tracepoint/sock/inet_sock_set_state", 261),
 ];
 
-const SHARED_TEXT_PIN: usize = 583;
+// night-frontier-Z11 (D8), the conscious re-pin: the unlink/rename
+// stubs now pass the offset set by REFERENCE to the shared publish
+// tail (the 5.15 floor verifier caps a CALL CHAIN's combined stack,
+// and the floor's first real attach refused the by-value copies) -
+// the stubs grew 21 -> 78 and 36 -> 93 for the register arguments,
+// and the shared tail shrank 583 -> 566 because it no longer
+// re-walks the offsets map itself.
+const SHARED_TEXT_PIN: usize = 566;
 
 /// The kernel-side ring contract: three bounded rings - the file
 /// events ring at 512 KiB (night-frontier-Z8, D5's conscious re-pin:

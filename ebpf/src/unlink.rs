@@ -87,11 +87,6 @@ use crate::{file_events, tracked_inodes};
 /// for the canonical device token. Every hop a BTF-verified offset
 /// from the offsets map, every read probe-read (a bad address
 /// returns None, never a fault). `None` drops the event.
-/// The inline keeps the identity walk inside the probe's own frame -
-/// the 5.15 verifier's combined-stack cap counts the call chain, and
-/// this hop is one of the frames the floor refused (night-frontier-
-/// Z11, D8).
-#[inline(always)]
 unsafe fn identity_of(
     dentry: usize,
     o: &[u64; crate::events::OFF_SLOTS as usize],
@@ -114,11 +109,12 @@ unsafe fn identity_of(
 /// of ring traffic is spent (the open probe's price control), and a
 /// pass publishes the 72-byte record with the acting process's pid
 /// and its identity block (night-frontier-Z8, D5).
-/// The inline flattens the probe's walk-filter-publish tail into the
-/// probe's own frame - the 5.15 verifier's combined-stack cap counts
-/// the call chain this hop sat in (night-frontier-Z11, D8).
-#[inline(always)]
-unsafe fn publish_if_tracked(dentry: usize, op: u8) {
+/// The filter-and-publish tail takes the offset set by REFERENCE
+/// (night-frontier-Z11, D8): the probe read it once, and the 5.15
+/// verifier caps a CALL CHAIN's combined stack - a second by-value
+/// 200-byte set in this frame re-walked the offsets map AND blew the
+/// floor's budget. One set, one frame, shared by reference.
+unsafe fn publish_if_tracked(o: &[u64; crate::events::OFF_SLOTS as usize], dentry: usize, op: u8) {
     // SAFETY: the offset reads run through the probe-read helpers (a
     // bad address returns None, never a fault) at BTF-verified
     // offsets, tracked_inodes.get is a typed map lookup the verifier
@@ -126,8 +122,7 @@ unsafe fn publish_if_tracked(dentry: usize, op: u8) {
     // and bpf_ktime_get_ns is an infallible integer helper - the
     // verifier re-proves the whole body at load time.
     unsafe {
-        let Some(o) = read_offset_set() else { return };
-        let Some((ino, device)) = identity_of(dentry, &o) else {
+        let Some((ino, device)) = identity_of(dentry, o) else {
             return;
         };
         let key = pack_filter_key(ino, device);
@@ -234,7 +229,7 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
         if dentry == 0 {
             return 0;
         }
-        publish_if_tracked(dentry, FILE_OP_UNLINK);
+        publish_if_tracked(&o, dentry, FILE_OP_UNLINK);
     }
     0
 }
@@ -272,7 +267,7 @@ pub fn rename_probe(ctx: ProbeContext) -> u32 {
         if dentry == 0 {
             return 0;
         }
-        publish_if_tracked(dentry, FILE_OP_RENAME);
+        publish_if_tracked(&o, dentry, FILE_OP_RENAME);
     }
     0
 }

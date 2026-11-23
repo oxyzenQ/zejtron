@@ -465,17 +465,12 @@ pub(crate) unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
 /// (an unparsable or absent map) drops the event — the host wrote
 /// these at attach; an unreadable set this late is a chain that was
 /// never alive. The array length is the shared OFF_SLOTS contract
-/// (twenty-two since night-frontier-Z8: the file-walk set plus the
-/// appended fd-walk, unlink/rename, off-path, and identity-walk
-/// slots) - the kprobes read the same map, and a map
-/// resize cannot desync the two files.
-/// The inline is the floor kernel's own budget: the 5.15 verifier
-/// caps a CALL CHAIN's combined stack (the probe frames plus this
-/// 200-byte set returned by value sum past it), while the 6.x
-/// verifiers cap per frame - one flattened frame rides both shapes
-/// (night-frontier-Z11, D8: the floor lane's first real attach found
-/// the refusal, the flatten is the fix it proved).
-#[inline(always)]
+/// (twenty-five since night-frontier-Z8's identity slots) - the
+/// kprobes read the same map, and a map resize cannot desync the two
+/// files. The set travels to the publish tails by REFERENCE
+/// (night-frontier-Z11, D8): the 5.15 verifier caps a CALL CHAIN's
+/// combined stack, and the floor kernel's first real attach refused
+/// the by-value copies - one set, one frame, shared.
 pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
     let mut set = [0u64; OFF_SLOTS as usize];
     for slot in 0..OFF_SLOTS {
