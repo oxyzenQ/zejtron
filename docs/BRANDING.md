@@ -55,7 +55,7 @@ exactly as it already was for the sibling name (section 7 below).
 ### 3.1. Logo file
 
 The official logo is located at [`../assets/zejtron-original-logo-2026.png`](../assets/zejtron-original-logo-2026.png).
-Its blake3 signature digest lives in [the asset signature registry](../assets/signature-assets.md) - every image under `assets/` is pinned there against duplicate or fake copies.
+Its blake3 signature digest lives in [the asset signature registry](../assets/signature-assets.md) - every image under `assets/`, and the D5 GPG trust anchors under `assets/gpg/`, is pinned there against duplicate, fake, or re-keyed copies.
 
 ### 3.2. Usage rules
 
