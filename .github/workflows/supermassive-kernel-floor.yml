@@ -259,12 +259,21 @@ jobs:
           CARGO_NET_OFFLINE=true cargo build --release --locked --offline \
             --target x86_64-unknown-linux-musl \
             --manifest-path test-fixtures/pidhide/Cargo.toml
-          # The bpfel object builds INSIDE the fixture's own directory:
-          # the bpfel target spec, the v3 rustflags, and the dated
-          # nightly pin are the fixture's own ebpf/.cargo config - the
-          # same nested shape the main probes build through.
+          # The bpfel object builds INSIDE the fixture's own directory
+          # with the flags the nested build itself passes explicitly
+          # (build/ebpf.rs): -Z build-std=core and -Z json-target-spec
+          # on the cargo invocation - the nightly pin, the bpfel target
+          # spec, and the v3 rustflags are the fixture's own ebpf/.cargo
+          # config, the same nested shape the main probes build through.
+          # The job env pins RUSTUP_TOOLCHAIN to the stable MSRV (the
+          # main build's law) - the env OVERRIDES rust-toolchain.toml,
+          # so the bpfel build names its own nightly explicitly, the
+          # same toolchain build.rs runs the probes' nested build with.
           ( cd test-fixtures/pidhide/ebpf && \
-            CARGO_NET_OFFLINE=true cargo build --release --locked --offline )
+            CARGO_NET_OFFLINE=true \
+            RUSTUP_TOOLCHAIN=nightly-2026-09-18 \
+            cargo build --release --locked --offline \
+              -Z build-std=core -Z json-target-spec )
 
       # The floor kernel: the jammy GA release-day image (5.15.0-25),
       # resolved from the LIVE archive's jammy main pocket - the GA
