@@ -53,11 +53,15 @@ missing path), so the lab runs the same with or without sudo.
 
 Six checks pin the anti-fake chain on the running binary: the `-V`
 `Depth-matrix:` line (the masked scheme's status line, `fp=` fingerprint
-plus `status=verified` plus the anchor over the masked payload),
-`zejtron sig` and the `signature` alias both exit 0, the matrix
-carries
-`verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)`, the JSON lane
-speaks one line with `"verdict":"AUTHENTIC"` and the
+plus `status=verified` plus the anchor over the masked payload), the
+`zejtron sig` / `signature` alias pair riding the same verdict, the
+matrix closing with the BUILD's own truth (night-netrunner-Z1: a
+HEAD signed by the pinned maintainer key closes
+`verdict: SIGNATURE: AUTHENTIC (6/6 depths verified)` with exit 0,
+an unsigned dev HEAD names its unbound commit at the D5
+commit-signature row with exit 1 - the lab pins the
+verdict/exit PAIRING, never a fixed side), the JSON lane speaking
+one line with the matching `"verdict"` and the
 `zejtron/depth-matrix/v1` payload tag, and the at-rest contract
 holds: the artifact carries NO greppable identity - `grep -a
 rezky_nightky <binary>` finds nothing, because the claim exists only
