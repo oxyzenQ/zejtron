@@ -132,25 +132,34 @@ fn next_id(cmd: u64, start: u32) -> Result<Option<u32>, std::io::Error> {
     }
 }
 
-/// Every public id of one class, ascending. The walk bound is the
-/// honest guard against a wedged kernel answering `next_id == start`
-/// forever (an id space wraps at 2^32; a million ids in one plane is
-/// already absurd, and the bound turns a kernel bug into a named
-/// error instead of a hang).
+/// Every public id of one class, ascending. The walk's guards are
+/// the honest termination contract (night-frontier-Z11, D8): the ids
+/// must advance STRICTLY upward (the uapi's own answer shape - an id
+/// at or below the query means the kernel echoed, and the walk names
+/// the refusal instead of spinning), and the step count is bounded
+/// outright (a million ids in one plane is already absurd; the bound
+/// turns any kernel wed into a named error, never a hang).
 fn enumerate_class(cmd: u64) -> Result<BTreeSet<u32>, std::io::Error> {
     let mut ids = BTreeSet::new();
     let mut start = 0u32;
+    let mut steps = 0u32;
     loop {
-        let Some(id) = next_id(cmd, start)? else {
-            return Ok(ids);
-        };
-        ids.insert(id);
-        start = id;
-        if ids.len() >= 1_000_000 {
+        steps += 1;
+        if steps > 100_000 {
             return Err(std::io::Error::other(
                 "the id enumeration did not terminate",
             ));
         }
+        let Some(id) = next_id(cmd, start)? else {
+            return Ok(ids);
+        };
+        if id <= start && start != 0 {
+            return Err(std::io::Error::other(format!(
+                "the id enumeration echoed (start {start}, answer {id})"
+            )));
+        }
+        ids.insert(id);
+        start = id;
     }
 }
 
@@ -320,6 +329,7 @@ fn resolve_one(pin: &str) -> Result<u32, std::io::Error> {
 /// kernel's refusals named), the estate walk last. No panic path:
 /// every refusal is a verdict.
 pub(crate) fn read() -> PlaneVerdict {
+    crate::output::verbose::vlog!("plane", "the id plane read begins");
     let present = super::ALL_PINS.iter().any(|p| Path::new(p).exists());
     if !present {
         return PlaneVerdict::Unavailable {
@@ -331,7 +341,13 @@ pub(crate) fn read() -> PlaneVerdict {
             reason: "requires CAP_SYS_ADMIN (the id enumeration is privileged)".to_owned(),
         };
     }
+    crate::output::verbose::vlog!("plane", "resolving the pinned estate");
     let objects = resolve_pins();
+    crate::output::verbose::vlog!(
+        "plane",
+        "{} present pins resolved; enumerating the public classes",
+        objects.len()
+    );
     let mut public = PublicPlane::default();
     for class in [PinClass::Prog, PinClass::Map, PinClass::Link] {
         match enumerate_class(class.next_id_cmd()) {
@@ -343,6 +359,11 @@ pub(crate) fn read() -> PlaneVerdict {
             }
         }
     }
+    crate::output::verbose::vlog!(
+        "plane",
+        "the public plane holds {} ids; reconciling",
+        public.total()
+    );
     reconcile(&objects, &public)
 }
 

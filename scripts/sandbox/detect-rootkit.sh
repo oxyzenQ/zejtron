@@ -190,15 +190,30 @@ rm -f audit.log
 
 # ── leg d: the id plane, verified ────────────────────────────────────
 echo "── z11 detonation: leg d (the ID plane, attached estate) ──"
-if "${BIN}" doctor --print-json >leg-d.json 2>leg-d.err; then
-	if jq -e '.ebpf.id_plane_state == "verified"' leg-d.json >/dev/null 2>&1 &&
-		"${BIN}" doctor | grep -q 'ID Plane:.*verified'; then
+# The verbose trace rides the leg: if the reader wedges on this
+# kernel, the trace's tail names the stage it stopped at (the
+# workflow's verdict step reads it from the log).
+timeout 30 "${BIN}" doctor -v >leg-d-trace.txt 2>&1
+leg_d_trace_rc=$?
+if "${BIN}" doctor --print-json >leg-d.json 2>leg-d.err &&
+	jq -e '.ebpf.id_plane_state == "verified"' leg-d.json >/dev/null 2>&1 &&
+	grep -q 'ID Plane:.*verified' leg-d-trace.txt; then
+	# The witness battery's exact shape: the doctor under the 64 MiB
+	# ceiling with the camera planted - the reader must answer there
+	# too, and its refusal (if any) must be a named absence, never a
+	# wedge.
+	ceiling_rc=0
+	(
+		ulimit -v 65536
+		timeout 30 "${BIN}" doctor >/dev/null 2>&1
+	) || ceiling_rc=$?
+	if [ "${ceiling_rc}" -eq 0 ]; then
 		pass_leg d-id-plane
 	else
-		fail_leg d-id-plane "the attached estate did not verify against the id plane (see leg-d.json)"
+		fail_leg d-id-plane "the doctor under the 64 MiB ceiling failed (rc ${ceiling_rc})"
 	fi
 else
-	fail_leg d-id-plane "the doctor run itself failed: $(cat leg-d.err)"
+	fail_leg d-id-plane "trace rc ${leg_d_trace_rc}: $(tail -3 leg-d-trace.txt | tr '\n' ' ')"
 fi
 
 # ── leg e: the honesty row (the reader without the capability) ───────
