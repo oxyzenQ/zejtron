@@ -17,7 +17,15 @@
 //! six maps - the post-mortem exit probe (ebpf/src/exits.rs) and its
 //! proc_events ring, the drain the doctor's ram symptom reads).
 //!
-//! This is the privileged one-shot. `doctor --attach` loads the
+//! This is the privileged one-shot. `doctor --attach` first answers
+//! the supply-chain question (night-netrunner-Z1, the eBPF
+//! supply-chain attestation): the camera anchor gate re-hashes the
+//! embedded probe object and refuses the whole attach unless it
+//! recomputes the BLAKE3 digest the build stamped over the staged
+//! bytes - the sig matrix's D4 verdict as a plant-time gate, so a
+//! camera patched inside the artifact after the build never reaches
+//! the kernel (the loader that rejects an object without a valid
+//! anchor). Only then it loads the
 //! embedded probe object, loads the core eight programs (phase 1's
 //! sched/sched_process_exec counter, phase 2's
 //! sock/inet_sock_set_state socket-event probe, phase 3's
@@ -70,6 +78,29 @@ pub(crate) static PROBE_ELF: &[u8] =
 /// failure is an error string that names its reason, and no failure
 /// leaves a partial pin set.
 pub fn attach() -> Result<String, String> {
+    // 0. The camera anchor gate (night-netrunner-Z1, the loader half
+    //    of the eBPF supply-chain attestation): the loader refuses to
+    //    plant an object that does not answer its build-stamped
+    //    BLAKE3 digest - the same verdict the sig matrix's D4 row
+    //    renders, one implementation, no drift between the report
+    //    and the plant path. The gate runs FIRST, before any probe,
+    //    any mount, any pin: the object is the one artifact that
+    //    executes at ring 0, and a camera whose bytes do not answer
+    //    the digest the build stamped over the staged bytes (an
+    //    object patched inside the artifact after the build) never
+    //    reaches the kernel. Fail-closed here: a build without the
+    //    stamp refuses too - the plant path cannot vouch for what it
+    //    cannot hash-verify, where the sig row names the same
+    //    unavailability honestly for an OLD build instead.
+    let camera_anchor = camera_anchor_gate().map_err(|reason| {
+        format!(
+            "attach refused: {reason}. The embedded camera object must recompute \
+                 the digest the build stamped over the staged bytes before anything \
+                 is planted"
+        )
+    })?;
+    vlog!("engine", "camera anchor verified: {camera_anchor}");
+
     // 1. The gate: the same probe and the same verdict the doctor's
     //    [eBPF] section reads - one truth, no drift between surfaces.
     //    The LiveAttached shape is the idempotence case handled below.
@@ -510,6 +541,31 @@ pub fn attach() -> Result<String, String> {
             vlog!("engine", "plant failed: {e}");
             Err(fail(e))
         }
+    }
+}
+
+/// The camera anchor gate (night-netrunner-Z1, the loader half of
+/// the eBPF supply-chain attestation): the plant path's own answer
+/// to "does this object answer its build-stamped digest?" - the
+/// sig matrix's D4 row (single-sourced through
+/// [`crate::info::signature::camera_object_row`]) rendered as a
+/// gate verdict instead of a report row. Pass hands back the
+/// verified anchor line for the transparency trace; every other
+/// state refuses - the loader that rejects an object without a
+/// valid anchor is the whole point of this seam. Pure over the
+/// stamp and the embedded bytes, so all three arms are pinnable
+/// without patching a real artifact.
+fn camera_anchor_gate() -> Result<String, String> {
+    use crate::info::signature::DepthStatus;
+    let stamped = option_env!("ZEJTRON_CAMERA_OBJECT_B3");
+    match crate::info::signature::camera_object_row(stamped, PROBE_ELF) {
+        (DepthStatus::Pass, detail) => Ok(detail),
+        (DepthStatus::Refused, detail) => Err(detail),
+        (DepthStatus::Unavailable, detail) => Err(format!(
+            "{detail} - the plant path fails closed where the sig row \
+             names the same unavailability: an object the loader cannot \
+             vouch for must not plant"
+        )),
     }
 }
 

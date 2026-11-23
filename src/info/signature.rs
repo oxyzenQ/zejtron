@@ -297,7 +297,11 @@ fn push_row(
 /// byte refuses naming both digests, and a build without the stamp
 /// (an older build.rs, an out-of-tree compile) names the
 /// unavailability instead of guessing.
-fn camera_object_row(stamped: Option<&str>, embedded: &[u8]) -> (DepthStatus, String) {
+///
+/// Single-sourced (night-netrunner-Z1): the eBPF loader's plant-time
+/// camera anchor gate rides THIS verdict - one implementation, no
+/// drift between the sig row and the loader's refusal.
+pub(crate) fn camera_object_row(stamped: Option<&str>, embedded: &[u8]) -> (DepthStatus, String) {
     let Some(stamped) = stamped else {
         return (
             DepthStatus::Unavailable,

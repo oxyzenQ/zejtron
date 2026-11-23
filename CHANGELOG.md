@@ -656,6 +656,31 @@ v11.0.0
   binary can no longer replay its claims unanswered. Docs updated
   (docs/VERIFY_RELEASE.md: the six-depth table, the 6/6 verdict
   contract, the AUTHENTIC honest-limits section).
+- **night-netrunner-Z1, the loader half - the camera anchor gate:
+  attach refuses to plant an object that does not answer its
+  build-stamped digest.** Until this pass the D4 camera verdict
+  lived on the `sig` surface only: a binary whose embedded probe
+  object was patched after the build reported REFUSED honestly, but
+  `doctor --attach` still planted it at ring 0 - the one artifact
+  that executes in kernel space, planted on a report nobody had to
+  read first. The gate closes that seam: attach's FIRST step (before
+  any probe, mount, or pin) re-hashes the embedded PROBE_ELF and
+  refuses the whole attach unless it recomputes the
+  `ZEJTRON_CAMERA_OBJECT_B3` digest the build stamped over the
+  staged bytes - the sig matrix's D4 row single-sourced through
+  `crate::info::signature::camera_object_row`, one implementation,
+  no drift between the report and the plant path. Fail-closed by
+  design where D4 is honest-unavailable: a build without the stamp
+  (an older build.rs, an out-of-tree compile) refuses the PLANT -
+  an object the loader cannot vouch for must not plant - while the
+  sig row keeps naming the same state `unavailable` for an old
+  build's age signal. The verified anchor rides the verbose trace
+  at plant time (`-v` names the digest the planted camera answers
+  to), the refusal names both digests and the tamper shape, and the
+  tamper arms are pinned by unit tests through the pure seam
+  (pristine pass, one flipped byte refuses naming both digests,
+  missing stamp refuses the plant). Docs updated
+  (docs/EBPF_LIFECYCLE.md: the plant path's supply-chain answer).
 
 ### License
 

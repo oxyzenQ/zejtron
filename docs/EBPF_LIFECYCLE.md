@@ -86,6 +86,18 @@ upgrades attach idempotence from structural to proven: a complete
 estate is the already-attached success shape only when its stamp
 says same boot, same build.
 
+The plant path itself answers the supply-chain question first
+(night-netrunner-Z1, the eBPF supply-chain attestation): before any
+probe, mount, or pin, the camera anchor gate re-hashes the embedded
+probe object and refuses the whole attach unless it recomputes the
+BLAKE3 digest the build stamped over the staged bytes - the same
+verdict the `sig` matrix's D4 row renders (one implementation, no
+drift), enforced at the one boundary where it is load-bearing: an
+object that executes at ring 0 never plants unless the loader can
+vouch for its bytes, and a build without the stamp refuses
+fail-closed. The verified anchor rides the verbose trace at plant
+time, so `-v` names the digest the planted camera answers to.
+
 This shape is the answer to the question every eBPF tool gets
 asked: "so it runs in the background?" No. The BACKGROUND is the
 kernel itself, doing what the kernel already does - executing
