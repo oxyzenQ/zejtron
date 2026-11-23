@@ -32,6 +32,26 @@ note saying a stronger lens existed and was out of reach.
 section names the kernel's own verdict — BTF, lockdown, capabilities,
 pins — in plain rows, so you never guess why the live lane is dark.
 
+### Q: Is zejtron a rootkit hunter?
+
+No — it is a ledger of named disagreements. zejtron does not claim
+absolute trust in any single view it reads; where the kernel's own
+sources of truth can contradict each other, it cross-validates them
+and records what it finds. Two disagreements are named today
+(night-frontier-Z11): a pid the direct `/proc/<pid>` lookup resolves
+while the namespace's directory listing does not show it — with the
+recorded pid's birth compared against the recorded event's stamp, so
+a recycled pid can never masquerade as the actor — and a deletion
+the audit log recorded inside the window that the event ring holds
+no unlink or rename for (an anchor-inode guard holds the benign
+delete-and-recreate shape out). Each disagreement lands in the
+Unaccounted block with its honest cautions beside it — a hidepid
+mount, a delete-and-recreate, or an exit race can read the same
+shape — and the tool never resolves the shape into an accusation by
+itself. A stealth mechanism that hides consistently from every view
+the kernel offers stays invisible to zejtron too; the analyst closes
+the case, not the tool.
+
 ## Kernel & distro support
 
 ### Q: Which kernels work?

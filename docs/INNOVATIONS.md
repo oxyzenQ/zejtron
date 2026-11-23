@@ -700,6 +700,70 @@ large-data load happens. Pinned by the supermassive loading surface
 draw arm's frame legality against the tree's own tables, the clear
 contract, the honest network exit set) beside the unit battery.
 
+**26. The silent-deletion reconciliation** (night-frontier-Z11,
+phase a; the deletion probe `src/commands/touch/audit.rs`
+([`try_audit_deletion`], [`audit_deletion_in_log`],
+[`audit_event_is_deletion`]), the builder
+`src/commands/lane_unaccounted.rs` ([`silent_deletion_entry`]), the
+live-lane wiring `src/commands/lane.rs` ([`collect_live`])). The
+hole: the ladder is exclusive - the live lane never consults the
+log lane - so the two lanes' deletion truths were never compared,
+and a deletion the audit log SAW while the camera's ring holds no
+unlink or rename (a hook bypassed or blocked - the bypass class a
+rootkit hunt would want) printed nothing anywhere. The close keeps
+the rows single-lane (the ladder's exclusivity is a law, and the
+rows never blend lanes) and adds the comparison as a BOUNDARY: when
+the ring's raw window holds no unlink and no rename, the audit log
+is asked the same question the snapshot lane would answer - the
+latest successful path-removing syscall (the unlink/rename family,
+arch-tabled: x86_64's rename/unlink/unlinkat/renameat/renameat2,
+aarch64's asm-generic unlinkat/renameat/renameat2) naming the path
+inside the window - and a yes renders as the "silent deletions"
+Unaccounted entry, the log's record instant carried and the honest
+cautions beside it. The anti-false-positive guard is the
+anchor-inode compare: a PATH record naming the target path carries
+its own inode, and one that disagrees with the scan's anchor
+describes a DIFFERENT object that wore the same name - the
+delete-and-recreate shape is held out, and the entry still says
+cross-validate, never the rootkit word. Pinned by
+`test/commands/touch/audit_tests.rs` (the fixture-log probe: match,
+rename match, failed syscall, different inode, out-of-window,
+modify-syscall, the arch predicate) and
+`test/commands/lane_unaccounted_tests.rs` (the wording pins).
+
+**27. The recorded-pid compare** (night-frontier-Z11, phase a; the
+classifier `src/commands/lane_pid.rs` ([`classify_pid`],
+[`attribute_pid`], [`proc_listing`]), the birth reader
+`src/commands/proc.rs` ([`starttime_boot_ns_from_stat`]), the
+builders `src/commands/lane_pid.rs` ([`hidden_pid_entry`],
+[`recycled_pid_entry`]), the live-lane wiring
+`src/commands/lane.rs` ([`collect_live`])). The hole: a pid the
+kernel recorded was attributed through one direct
+`/proc/<pid>/status` read, and a failed read wrote ONE message for
+THREE different truths - exited, namespace boundary, or hidden -
+while a SUCCESSFUL read could render a recycled pid's new holder as
+the actor. The close is one readdir and one stat-line field: the
+window's listing (`proc_listing`, one getdents pass shared by every
+event; an unreadable listing degrades every pid to listed - never a
+hidden verdict invented from an absence) and the stat starttime
+(field 22, boot-relative ticks; the event's CLOCK_MONOTONIC stamp is
+the other half, both clocks frozen through a suspend) split the
+truths into a pinnable table. The recycle compare runs first - a
+process born more than one /proc tick after the recorded event is
+the WRONG identity, whatever the listing says - so a recycled
+holder's name never renders as the actor (the record's own comm and
+the exit ring answer instead) and the count-backed "recycled pids"
+entry says what the /proc name would have lied about; a directory
+the direct lookup resolves while the listing omits it is the
+"hidden pids" entry, the getdents view and the lookup view of one
+namespace disagreeing (the live lane runs root, where hidepid cannot
+explain it away - the entry still names the hidepid shape and says
+cross-validate, never the rootkit word). `lane.rs` shed
+`pid_context` and its one-message shrug; `lane_pid.rs` owns the
+table. Pinned by `test/commands/lane_pid_tests.rs` (the truth
+table, the one-tick recycle boundary, the wording pins) and
+`test/commands/proc_tests.rs` (the starttime field-22 parse).
+
 ## How a newcomer reads this tree
 
 This page for the shape, [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md)

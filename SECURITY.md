@@ -68,11 +68,14 @@ Out of scope (by design, not neglect):
   running zejtron owns the machine; the tool reports what the kernel
   already exposes to the reading user — hardening root's view is a
   hardening task, not a zejtron bug.
-- **Evasion of introspection by design.** zejtron reports the procfs,
-  sysfs, and audit/journal surfaces as the kernel presents them to the
-  reading user; a process that hides from the kernel hides from
-  zejtron. Visibility gaps are the kernel's disclosure model, not an
-  enforcement failure.
+- **Absolute-trust visibility claims.** zejtron reports the procfs,
+  sysfs, and audit/journal surfaces as the kernel presents them to
+  the reading user; visibility gaps remain the kernel's disclosure
+  model, not an enforcement failure. What zejtron adds is the
+  recording of the kernel contradicting ITSELF - a listing that
+  omits a pid its lookup resolves, a deletion the audit log saw and
+  the event ring did not - named with its honest cautions, never
+  resolved into an accusation by the tool.
 - **Denial of service by a user who can already run processes on the
   machine against their own session**, unless it degrades other users
   or the host.
@@ -179,9 +182,20 @@ What the tool is not:
   disk images and preserves no chain of custody — it prints
   evidence to the operator's terminal; filing the output is the
   operator's act.
-- Not a rootkit hunter. A process that hides from the kernel hides
-  from zejtron (evasion of introspection is out of scope by
-  design, see Scope above).
+- Not a rootkit hunter — a ledger of named disagreements. zejtron
+  does not claim absolute trust in what it reads, but it
+  cross-validates the kernel's own sources of truth against each
+  other: the namespace's directory listing against a direct
+  `/proc/<pid>` lookup and the recorded pid's birth (the recycled
+  holder's name never renders as the actor), and the audit log's
+  deletion records against the event ring's window (night-frontier-
+  Z11). If a stealth mechanism forces the kernel to contradict
+  itself, zejtron records the bytes of that contradiction in the
+  Unaccounted block — with the honest cautions beside them (a
+  hidepid mount, a delete-and-recreate, an exit race can read the
+  same shape) — so the analyst, not the tool, closes the case. A
+  process that hides from every view the kernel offers consistently
+  still hides from zejtron.
 - Not host-wide from inside a container. zejtron reads the /proc
   of the namespace it runs in; host processes stay invisible
   unless the container shares the host's pid namespace.

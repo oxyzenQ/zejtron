@@ -52,6 +52,35 @@ v11.0.0
 
 ### Added
 
+- **night-frontier-Z11 phase a, the ledger of named disagreements -
+  the kernel's own contradictions recorded.** Two cross-validations
+  joined the live lane, both riding the Unaccounted grammar
+  additively (no row, no format break, no new command). The silent-
+  deletion reconciliation: the ladder's exclusivity means the live
+  lane never consulted the log lane, so a deletion the audit log
+  recorded inside the window while the event ring holds no unlink or
+  rename for the anchor inode - a hook the camera did not fire -
+  printed nothing anywhere; the comparison now runs as a boundary
+  (the arch-tabled deletion family probed in the fixture-testable
+  audit reader, the anchor-inode guard holding the benign
+  delete-and-recreate shape out), and a yes renders as the
+  "silent deletions" entry with the log's record instant and the
+  cautions beside it. The recorded-pid compare: the one
+  `/proc/<pid>/status` read that attributed every recorded pid wrote
+  one message for three truths (exited, namespace boundary, hidden)
+  and could render a recycled pid's new holder as the actor; one
+  namespace readdir and the stat starttime field against the
+  recorded event's CLOCK_MONOTONIC stamp split them - a holder born
+  more than one /proc tick after the event never renders as the
+  actor ("recycled pids"), a directory the direct lookup resolves
+  while the listing omits it rides "hidden pids" - and the truth
+  table lives in its own module (`src/commands/lane_pid.rs`),
+  pinnable pure. Every entry names its honest cautions (a hidepid
+  mount, a delete-and-recreate, an exit race can read the same
+  shape) and never resolves into an accusation by itself - the
+  doctrine in SECURITY.md, docs/FAQ.md, and README.md is the ledger
+  of named disagreements, not a rootkit hunter.
+
 - **night-open-target-1, the process scan opens its target - the
   pipeline runs without naming a user.** The pipeline ask -
   `zejtron proc --print-json | jq`, `zejtron proc --find ssh` -
