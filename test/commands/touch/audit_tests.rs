@@ -51,3 +51,137 @@ fn missing_journalctl_is_optional() {
 
     assert_eq!(info, None);
 }
+
+// ── night-frontier-Z11: the deletion probe pins ─────────────────────
+
+use crate::test_tempdir::TempDir;
+
+/// Write a fixture audit.log into a throwaway directory - the probe
+/// body's parameterized shape (`try_journalctl_command`'s own
+/// testability pattern) reads it instead of the host's trail.
+fn audit_log_with(contents: &str) -> TempDir {
+    let directory = TempDir::new().unwrap();
+    std::fs::write(directory.path().join("audit.log"), contents).unwrap();
+    directory
+}
+
+#[test]
+fn the_deletion_probe_finds_a_matching_unlink_record() {
+    let directory = audit_log_with(
+        r#"type=SYSCALL msg=audit(1699999100.1:1): uid=0 pid=9 comm="sed" syscall=257 success=yes a2=8001
+type=PATH msg=audit(1699999100.1:1): name="/srv/watched.bin" inode=4242 dev=fd:03
+type=SYSCALL msg=audit(1700000100.123:456): uid=1000 pid=1234 comm="rm" syscall=87 success=yes exit=0
+type=PATH msg=audit(1700000100.123:456): name="/srv/watched.bin" inode=4242 dev=fd:03
+"#,
+    );
+    let found = audit_deletion_in_log(
+        &directory.path().join("audit.log"),
+        "/srv/watched.bin",
+        4242,
+        1_699_999_000,
+    );
+    // The LATEST matching record wins, and the seconds are its own.
+    assert_eq!(found, Some(1_700_000_100));
+}
+
+#[test]
+fn the_deletion_probe_matches_a_rename_record() {
+    let directory = audit_log_with(
+        r#"type=SYSCALL msg=audit(1700000100.123:456): uid=1000 pid=1234 comm="mv" syscall=264 success=yes exit=0
+type=PATH msg=audit(1700000100.123:456): name="/srv/watched.bin" inode=4242 dev=fd:03
+"#,
+    );
+    let found = audit_deletion_in_log(
+        &directory.path().join("audit.log"),
+        "/srv/watched.bin",
+        4242,
+        1_699_999_000,
+    );
+    assert_eq!(found, Some(1_700_000_100));
+}
+
+#[test]
+fn the_deletion_probe_ignores_a_failed_syscall() {
+    let directory = audit_log_with(
+        r#"type=SYSCALL msg=audit(1700000100.123:456): uid=1000 pid=1234 comm="rm" syscall=87 success=no exit=-2
+type=PATH msg=audit(1700000100.123:456): name="/srv/watched.bin" inode=4242 dev=fd:03
+"#,
+    );
+    let found = audit_deletion_in_log(
+        &directory.path().join("audit.log"),
+        "/srv/watched.bin",
+        4242,
+        1_699_999_000,
+    );
+    assert_eq!(found, None);
+}
+
+#[test]
+fn the_deletion_probe_holds_out_a_different_inode() {
+    // The delete-and-recreate shape: a PATH record naming the target
+    // path whose inode is NOT the scan's anchor describes another
+    // object that wore the same name - not this object's deletion.
+    let directory = audit_log_with(
+        r#"type=SYSCALL msg=audit(1700000100.123:456): uid=1000 pid=1234 comm="rm" syscall=87 success=yes exit=0
+type=PATH msg=audit(1700000100.123:456): name="/srv/watched.bin" inode=9999 dev=fd:03
+"#,
+    );
+    let found = audit_deletion_in_log(
+        &directory.path().join("audit.log"),
+        "/srv/watched.bin",
+        4242,
+        1_699_999_000,
+    );
+    assert_eq!(found, None);
+}
+
+#[test]
+fn the_deletion_probe_ignores_out_of_window_records() {
+    let directory = audit_log_with(
+        r#"type=SYSCALL msg=audit(1700000100.123:456): uid=1000 pid=1234 comm="rm" syscall=87 success=yes exit=0
+type=PATH msg=audit(1700000100.123:456): name="/srv/watched.bin" inode=4242 dev=fd:03
+"#,
+    );
+    // A record older than the cutoff is the window's exclusion, not
+    // a disagreement inside it.
+    let found = audit_deletion_in_log(
+        &directory.path().join("audit.log"),
+        "/srv/watched.bin",
+        4242,
+        1_700_000_200,
+    );
+    assert_eq!(found, None);
+}
+
+#[test]
+fn the_deletion_probe_ignores_a_modify_syscall() {
+    // Truncate (77) sits in the modify set and not in the deletion
+    // family - a heavy write is not a removal.
+    let directory = audit_log_with(
+        r#"type=SYSCALL msg=audit(1700000100.123:456): uid=1000 pid=1234 comm="dd" syscall=77 success=yes exit=0
+type=PATH msg=audit(1700000100.123:456): name="/srv/watched.bin" inode=4242 dev=fd:03
+"#,
+    );
+    let found = audit_deletion_in_log(
+        &directory.path().join("audit.log"),
+        "/srv/watched.bin",
+        4242,
+        1_699_999_000,
+    );
+    assert_eq!(found, None);
+}
+
+#[test]
+fn the_deletion_probe_arch_predicate_covers_the_family() {
+    // The x86_64 table (this host's arch, and the default arm's):
+    // rename, unlink, unlinkat, renameat, renameat2 - and nothing the
+    // modify set adds beyond them.
+    for syscall in [82u64, 87, 263, 264, 316] {
+        assert!(
+            audit_event_is_deletion(syscall),
+            "syscall {syscall} must be a deletion"
+        );
+    }
+    assert!(!audit_event_is_deletion(77));
+    assert!(!audit_event_is_deletion(257));
+}

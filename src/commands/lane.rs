@@ -465,6 +465,36 @@ fn collect_live(
             &post_source,
         ));
     }
+    // The silent-deletion reconciliation (night-frontier-Z11): the
+    // two lanes' deletion truth compared. The rows stay single-lane
+    // (the ladder's exclusivity) - the comparison is a boundary, not
+    // a row. The ring IS the camera's record: when it holds an unlink
+    // or a rename for this window the lanes agree and the probe pays
+    // nothing; when it does not, the audit log is asked the same
+    // question the snapshot lane would answer - did a successful
+    // deletion syscall name this path (and this inode) inside the
+    // window? A yes is the disagreement the Unaccounted block names.
+    let ring_saw_deletion = events.iter().any(|event| {
+        event.op == crate::ebpf::events::FILE_OP_UNLINK
+            || event.op == crate::ebpf::events::FILE_OP_RENAME
+    });
+    if !ring_saw_deletion {
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        let cutoff_secs = now_secs.saturating_sub(window.as_secs() as i64);
+        if let Some(record_secs) = crate::commands::touch::audit::try_audit_deletion(
+            query.lookup_path,
+            query.inode,
+            cutoff_secs,
+        ) {
+            let record_wall = crate::info::clock::format_unix_secs(record_secs as i64);
+            unaccounted.push(crate::commands::lane_unaccounted::silent_deletion_entry(
+                &record_wall,
+            ));
+        }
+    }
     // events arrive ascending from the capture; the filter keeps the
     // order. No re-sorting here - the renderer never reorders.
     Ok(LaneParts {

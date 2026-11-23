@@ -189,3 +189,57 @@ fn the_clocksource_switch_entry_names_both_regimes() {
         entry.reason
     );
 }
+
+// ── night-frontier-Z11: the silent-deletion entry pins ──────────────
+
+#[test]
+fn the_silent_deletion_entry_names_the_lanes_disagreement() {
+    let entry = silent_deletion_entry("2026-11-23 18:30:00 UTC");
+    assert_eq!(entry.count, 1);
+    assert_eq!(entry.category, "silent deletions");
+    // The disagreement, with the log's record instant carried: the
+    // log lane spoke, the ring did not.
+    assert!(
+        entry.reason.contains("the log lane recorded a deletion"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("at 2026-11-23 18:30:00 UTC"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry
+            .reason
+            .contains("the event ring holds no unlink or rename for its inode"),
+        "{}",
+        entry.reason
+    );
+}
+
+#[test]
+fn the_silent_deletion_entry_names_both_readings_and_stays_honest() {
+    let entry = silent_deletion_entry("2026-11-23 18:30:00 UTC");
+    // The bypass reading and the replaced-path reading share the
+    // shape - the entry says so, and hands the cross-validation to
+    // the reader instead of claiming the rootkit word on its own.
+    assert!(
+        entry
+            .reason
+            .contains("a deletion the camera's hook did not see"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("bypassed or blocked"),
+        "{}",
+        entry.reason
+    );
+    assert!(entry.reason.contains("a replaced path"), "{}", entry.reason);
+    assert!(
+        entry.reason.contains("cross-validate with doctor"),
+        "{}",
+        entry.reason
+    );
+}

@@ -137,6 +137,32 @@ pub(crate) fn clocksource_switch_entry(pre: &str, post: &str) -> UnaccountedEntr
     )
 }
 
+/// The silent-deletion entry (night-frontier-Z11): the two lanes'
+/// disagreement about a deletion. The audit log recorded a successful
+/// path-removing syscall (the unlink/rename family) naming this path
+/// and this inode inside the window; the event ring - the camera's
+/// own record of the same window - holds no unlink and no rename for
+/// it. One of the kernel's two lanes saw what the other did not: a
+/// hook the camera did not fire (bypassed or blocked) prints this
+/// shape, and so does a replaced path that survived the probe's
+/// inode guard. The entry records the disagreement and names what it
+/// cannot distinguish - it never claims the rootkit word on its own.
+/// Pure, so the wording is pinnable without a live audit trail.
+pub(crate) fn silent_deletion_entry(record_wall: &str) -> UnaccountedEntry {
+    UnaccountedEntry::new(
+        1,
+        "silent deletions",
+        format!(
+            "the log lane recorded a deletion of this path (at {record_wall} UTC), \
+             but the event ring holds no unlink or rename for its inode in this \
+             window - the log's lane and the camera disagree; a deletion the \
+             camera's hook did not see (bypassed or blocked) and a replaced \
+             path read the same shape here - cross-validate with doctor and \
+             the host's audit trail"
+        ),
+    )
+}
+
 #[cfg(test)]
 #[path = "../../test/commands/lane_unaccounted_tests.rs"]
 mod tests;

@@ -194,6 +194,13 @@ fn try_journalctl_command(
 
 const MODIFY_SYSCALLS_X86_64: &[u64] = &[76, 77, 82, 87, 90, 92, 260, 263, 264, 268, 280, 316];
 const MODIFY_SYSCALLS_AARCH64: &[u64] = &[46, 48, 49, 52, 53, 54, 55, 56, 58, 59, 64, 67];
+// The deletion family (night-frontier-Z11): the syscalls that remove
+// the path or move it away. x86_64: rename=82, unlink=87, unlinkat=263,
+// renameat=264, renameat2=316. aarch64 rides the asm-generic table (the
+// tree's own SYSCALL_OPENAT_AARCH64=56 is the same numbering), where the
+// legacy unlink does not exist: unlinkat=35, renameat=38, renameat2=276.
+const DELETION_SYSCALLS_X86_64: &[u64] = &[82, 87, 263, 264, 316];
+const DELETION_SYSCALLS_AARCH64: &[u64] = &[35, 38, 276];
 const SYSCALL_OPEN_X86_64: u64 = 2;
 const SYSCALL_OPENAT_X86_64: u64 = 257;
 const SYSCALL_OPENAT_AARCH64: u64 = 56;
@@ -234,6 +241,121 @@ fn open_flags_modify(flags: u64) -> bool {
     const O_CREAT: u64 = 0o100;
 
     (flags & (O_WRONLY | O_RDWR | O_TRUNC | O_CREAT)) != 0
+}
+
+/// The deletion predicate (night-frontier-Z11): true when the syscall
+/// number is one of the arch's path-removing family. The default arm
+/// mirrors `audit_event_is_modification`'s x86_64 fallback.
+fn audit_event_is_deletion(syscall: u64) -> bool {
+    match std::env::consts::ARCH {
+        "x86_64" => DELETION_SYSCALLS_X86_64.contains(&syscall),
+        "aarch64" => DELETION_SYSCALLS_AARCH64.contains(&syscall),
+        _ => DELETION_SYSCALLS_X86_64.contains(&syscall),
+    }
+}
+
+/// The deletion probe (night-frontier-Z11): the audit log's latest
+/// successful deletion record naming the path at or after
+/// `cutoff_secs`, returned as the record's unix seconds. The live
+/// lane's reconciliation asks this when the event ring holds no
+/// unlink or rename for the anchor inode - a yes is the two lanes'
+/// disagreement, named in the Unaccounted block. The anchor-inode
+/// guard holds the benign delete-and-recreate shape out: a PATH
+/// record naming the target path carries the record's own inode, and
+/// one that disagrees with the scan's anchor describes a DIFFERENT
+/// object that wore the same name - not this object's deletion. A
+/// record with no inode on its PATH line matches on the name alone
+/// (the honest default), and a rename-over prints the same
+/// conservative miss. `None` when the log is unreadable or nothing
+/// in-window matches - the probe is a read, never a guess.
+pub(crate) fn try_audit_deletion(lookup_path: &Path, inode: u64, cutoff_secs: i64) -> Option<u64> {
+    audit_deletion_in_log(
+        Path::new("/var/log/audit/audit.log"),
+        &lookup_path.to_string_lossy(),
+        inode,
+        cutoff_secs,
+    )
+}
+
+/// The parameterized probe body: the same scan the fixed-path wrapper
+/// runs, against a caller-named log - the journal command's own
+/// testability shape (`try_journalctl_command`), so the pins can feed
+/// a fixture file instead of the host's audit trail.
+pub(crate) fn audit_deletion_in_log(
+    log_path: &Path,
+    lookup: &str,
+    inode: u64,
+    cutoff_secs: i64,
+) -> Option<u64> {
+    #[derive(Default)]
+    struct DeletionEvent {
+        sec: u64,
+        syscall: Option<u64>,
+        success: Option<bool>,
+        has_target_path: bool,
+        target_inode_ok: bool,
+    }
+
+    let file = fs::File::open(log_path).ok()?;
+    let reader = io::BufReader::new(file);
+    let mut events: HashMap<String, DeletionEvent> = HashMap::new();
+    let mut last_match: Option<(u64, String)> = None;
+
+    for line in reader.lines().map_while(Result::ok) {
+        let Some(msg_id) = extract_audit_msg_id(&line) else {
+            continue;
+        };
+        let is_syscall = line.contains("type=SYSCALL");
+        let is_path = line.contains("type=PATH");
+        if !is_syscall && !is_path {
+            continue;
+        }
+
+        let entry = events.entry(msg_id.clone()).or_default();
+        if entry.sec == 0
+            && let Some(sec) = extract_audit_seconds(&line)
+        {
+            entry.sec = sec;
+        }
+
+        if is_syscall {
+            entry.syscall = extract_kv_u64(&line, "syscall");
+            entry.success = extract_kv_string(&line, "success").map(|value| value == "yes");
+        }
+
+        if is_path
+            && let Some(name) = extract_kv_string(&line, "name")
+            && name == lookup
+        {
+            entry.has_target_path = true;
+            // The anchor-inode guard: a PATH record that names its own
+            // inode must name the anchor's; a record with no inode
+            // field matches on the name alone.
+            match extract_kv_u64(&line, "inode") {
+                Some(record_inode) => entry.target_inode_ok |= record_inode == inode,
+                None => entry.target_inode_ok = true,
+            }
+        }
+
+        if entry.has_target_path
+            && entry.target_inode_ok
+            && entry.success == Some(true)
+            && entry.syscall.is_some_and(audit_event_is_deletion)
+            && entry.sec > 0
+            && (entry.sec as i64) >= cutoff_secs
+        {
+            let update = match &last_match {
+                Some((last_sec, _)) => entry.sec >= *last_sec,
+                None => true,
+            };
+            if update {
+                last_match = Some((entry.sec, msg_id));
+            }
+        }
+    }
+
+    let (sec, _id) = last_match?;
+    Some(sec)
 }
 
 fn extract_audit_msg_id(line: &str) -> Option<String> {
