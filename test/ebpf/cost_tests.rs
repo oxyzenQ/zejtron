@@ -67,8 +67,8 @@ const PROGRAM_PINS: [(&str, usize); 12] = [
     ("kprobe/fault_dirty_shared_page", 287),
     ("kprobe/filemap_dirty_folio", 211),
     ("kprobe/vfs_open", 225),
-    ("kprobe/vfs_rename", 78),
-    ("kprobe/vfs_unlink", 93),
+    ("kprobe/vfs_rename", 23),
+    ("kprobe/vfs_unlink", 39),
     ("kprobe/vfs_writev", 219),
     ("tracepoint/io_uring/io_uring_submit_sqe", 261),
     ("tracepoint/raw_syscalls/sys_enter", 1323),
@@ -78,13 +78,14 @@ const PROGRAM_PINS: [(&str, usize); 12] = [
 ];
 
 // night-frontier-Z11 (D8), the conscious re-pin: the unlink/rename
-// stubs now pass the offset set by REFERENCE to the shared publish
-// tail (the 5.15 floor verifier caps a CALL CHAIN's combined stack,
-// and the floor's first real attach refused the by-value copies) -
-// the stubs grew 21 -> 78 and 36 -> 93 for the register arguments,
-// and the shared tail shrank 583 -> 566 because it no longer
-// re-walks the offsets map itself.
-const SHARED_TEXT_PIN: usize = 566;
+// stubs now read their own context slot straight from the offsets map
+// and carry NO offset set at all - the 5.15 floor verifier caps a
+// CALL CHAIN's combined stack, and the floor's first real attach
+// refused the three by-value copies (704 bytes against the 512
+// budget). The stubs ride their original stub sizes (21 -> 23 and
+// 36 -> 39, one map lookup each), the shared tail owns the one set
+// (583 -> 582), and the whole chain sums inside the floor's budget.
+const SHARED_TEXT_PIN: usize = 583;
 
 /// The kernel-side ring contract: three bounded rings - the file
 /// events ring at 512 KiB (night-frontier-Z8, D5's conscious re-pin:

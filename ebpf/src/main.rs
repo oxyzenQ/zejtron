@@ -471,6 +471,16 @@ pub(crate) unsafe fn read_ptr_at(base: usize, offset: u64) -> Option<usize> {
 /// (night-frontier-Z11, D8): the 5.15 verifier caps a CALL CHAIN's
 /// combined stack, and the floor kernel's first real attach refused
 /// the by-value copies - one set, one frame, shared.
+/// One offset slot, read on demand - the stub shapes (the probes
+/// that touch the context only) read their own slot straight from the
+/// map instead of holding the whole 200-byte set (night-frontier-Z11,
+/// D8: the 5.15 verifier caps a CALL CHAIN's combined stack, and the
+/// floor's first real attach refused the by-value copies - one set,
+/// one frame, shared; the stubs carry none at all).
+pub(crate) unsafe fn read_offset_slot(slot: u32) -> Option<u64> {
+    offsets.get(slot).copied()
+}
+
 pub(crate) unsafe fn read_offset_set() -> Option<[u64; OFF_SLOTS as usize]> {
     let mut set = [0u64; OFF_SLOTS as usize];
     for slot in 0..OFF_SLOTS {

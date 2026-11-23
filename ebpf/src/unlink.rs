@@ -73,7 +73,7 @@ const PT_REGS_RDX: usize = 96;
 const PT_REGS_RSI: usize = 104;
 const PT_REGS_RDI: usize = 112;
 
-use super::{read_offset_set, read_ptr_at, read_u32_at, read_u64_at};
+use super::{read_offset_set, read_offset_slot, read_ptr_at, read_u32_at, read_u64_at};
 use crate::events::{
     FILE_OP_RENAME, FILE_OP_UNLINK, FileEvent, OFF_SLOT_DENTRY_D_INODE, OFF_SLOT_INODE_I_INO,
     OFF_SLOT_INODE_I_SB, OFF_SLOT_RENAMEDATA_OLD_DENTRY, OFF_SLOT_SUPER_BLOCK_S_DEV,
@@ -109,12 +109,12 @@ unsafe fn identity_of(
 /// of ring traffic is spent (the open probe's price control), and a
 /// pass publishes the 72-byte record with the acting process's pid
 /// and its identity block (night-frontier-Z8, D5).
-/// The filter-and-publish tail takes the offset set by REFERENCE
-/// (night-frontier-Z11, D8): the probe read it once, and the 5.15
-/// verifier caps a CALL CHAIN's combined stack - a second by-value
-/// 200-byte set in this frame re-walked the offsets map AND blew the
-/// floor's budget. One set, one frame, shared by reference.
-unsafe fn publish_if_tracked(o: &[u64; crate::events::OFF_SLOTS as usize], dentry: usize, op: u8) {
+/// The filter-and-publish tail owns THE one offset set of the chain
+/// (night-frontier-Z11, D8): the stub shapes read their own context
+/// slot straight from the map and carry no array at all, so the 5.15
+/// verifier's combined-stack budget carries one 200-byte set, not the
+/// three copies the floor's first real attach refused.
+unsafe fn publish_if_tracked(dentry: usize, op: u8) {
     // SAFETY: the offset reads run through the probe-read helpers (a
     // bad address returns None, never a fault) at BTF-verified
     // offsets, tracked_inodes.get is a typed map lookup the verifier
@@ -122,7 +122,8 @@ unsafe fn publish_if_tracked(o: &[u64; crate::events::OFF_SLOTS as usize], dentr
     // and bpf_ktime_get_ns is an infallible integer helper - the
     // verifier re-proves the whole body at load time.
     unsafe {
-        let Some((ino, device)) = identity_of(dentry, o) else {
+        let Some(o) = read_offset_set() else { return };
+        let Some((ino, device)) = identity_of(dentry, &o) else {
             return;
         };
         let key = pack_filter_key(ino, device);
@@ -180,8 +181,15 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
     // offsets map written at attach, and the verifier re-proves the
     // whole body at load time.
     unsafe {
-        let Some(o) = read_offset_set() else { return 0 };
-        let arg = o[OFF_SLOT_UNLINK_DENTRY_ARG as usize] as usize;
+        // The stub's own slot, read straight from the map: the whole
+        // 25-slot set lives in the publish tail's frame alone, so the
+        // verifier's combined-stack budget carries one copy, not three
+        // (night-frontier-Z11, D8 - the floor kernel's first real
+        // attach refused the by-value copies).
+        let Some(arg_raw) = read_offset_slot(OFF_SLOT_UNLINK_DENTRY_ARG) else {
+            return 0;
+        };
+        let arg = arg_raw as usize;
         // The dentry read, FIXED-SHAPE AT THE BYTECODE LEVEL: the
         // position is this host's data (the offsets map, BTF-derived
         // at attach), but the context is touched ONLY through six
@@ -229,7 +237,7 @@ pub fn unlink_probe(ctx: ProbeContext) -> u32 {
         if dentry == 0 {
             return 0;
         }
-        publish_if_tracked(&o, dentry, FILE_OP_UNLINK);
+        publish_if_tracked(dentry, FILE_OP_UNLINK);
     }
     0
 }
@@ -249,7 +257,9 @@ pub fn rename_probe(ctx: ProbeContext) -> u32 {
     // at BTF-verified offsets, and the verifier re-proves the whole
     // body at load time.
     unsafe {
-        let Some(o) = read_offset_set() else { return 0 };
+        // The stub's own slot, read straight from the map - the same
+        // one-copy shape the unlink probe carries (night-frontier-Z11,
+        // D8).
         // arg0: struct renamedata * (BTF-verified at attach). The one
         // register read carries the same pinned-offset volatile shape
         // as the unlink probe's six: fixed load, host-independent,
@@ -260,14 +270,16 @@ pub fn rename_probe(ctx: ProbeContext) -> u32 {
         if renamedata == 0 {
             return 0;
         }
-        let Some(dentry) = read_ptr_at(renamedata, o[OFF_SLOT_RENAMEDATA_OLD_DENTRY as usize])
-        else {
+        let Some(slot) = read_offset_slot(OFF_SLOT_RENAMEDATA_OLD_DENTRY) else {
+            return 0;
+        };
+        let Some(dentry) = read_ptr_at(renamedata, slot) else {
             return 0;
         };
         if dentry == 0 {
             return 0;
         }
-        publish_if_tracked(&o, dentry, FILE_OP_RENAME);
+        publish_if_tracked(dentry, FILE_OP_RENAME);
     }
     0
 }
