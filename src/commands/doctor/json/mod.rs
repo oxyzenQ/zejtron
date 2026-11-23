@@ -302,6 +302,10 @@ fn write_ebpf_facts(out: &mut String, facts: &ebpf::EbpfFactsJson) {
     write_str_array(out, &facts.pins);
     out.push_str(",\"pins_missing\":");
     write_str_array(out, &facts.pins_missing);
+    out.push_str(",\"id_plane_state\":");
+    write_string(out, facts.id_plane_state);
+    out.push_str(",\"id_plane_detail\":");
+    write_string(out, &facts.id_plane_detail);
     out.push('}');
 }
 

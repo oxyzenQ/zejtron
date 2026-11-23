@@ -26,6 +26,7 @@
 //!   Mode:        Lazy Camera (Kernel: recording | CLI: asleep)
 //!   Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter, vfs_writev
 //!   Pins:        /sys/fs/bpf/zejtron (present: probe, probe_link, stats, sock_probe, sock_probe_link, sock_events)
+//!   ID Plane:    verified (10 pins, 34 public ids)
 //! ```
 //!
 //! One probe feeds every row (the same `probe_kernel` + `lane_verdict`
@@ -55,6 +56,7 @@ pub(super) fn section() -> String {
         &mode_row(&verdict),
         &probes_row(),
         &pins_row(),
+        &id_plane_row(),
     )
 }
 
@@ -87,6 +89,12 @@ pub(super) struct EbpfFactsJson {
     pub pins: Vec<&'static str>,
     /// The pin base names missing (partial sets only).
     pub pins_missing: Vec<&'static str>,
+    /// The ID Plane row's verdict token: `verified`, `hidden`, or
+    /// `unavailable` (night-frontier-Z11, phase b).
+    pub id_plane_state: &'static str,
+    /// The ID Plane row's detail: the counts and the cloaked names,
+    /// or the named absence's reason.
+    pub id_plane_detail: String,
 }
 
 /// Probe once and classify once, as [`section`] does - the JSON
@@ -100,6 +108,7 @@ pub(super) fn facts_json() -> EbpfFactsJson {
         LaneVerdict::Snapshot(reason) => ("snapshot", false, reason.clone()),
     };
     let (pins_state, pins, pins_missing) = pin_facts();
+    let id_plane_state = ebpf::plane_reader::read().label_parts();
     EbpfFactsJson {
         feature: "enabled",
         kernel: facts.release_label().to_owned(),
@@ -119,6 +128,8 @@ pub(super) fn facts_json() -> EbpfFactsJson {
         pins_state,
         pins,
         pins_missing,
+        id_plane_state: id_plane_state.0,
+        id_plane_detail: id_plane_state.1,
     }
 }
 
@@ -310,6 +321,32 @@ fn pin_names() -> Vec<&'static str> {
         .collect()
 }
 
+/// The ID Plane row (night-frontier-Z11, phase b, D8): the pinned
+/// estate reconciled against the kernel's own id enumeration - the
+/// two views `bpftool`'s plane answers from. Verified is the
+/// affirmative seat (bold green); a cloaked pin is the serious seat
+/// (bold red - the two kernel views disagreeing about our own
+/// estate); the named absence rides the attention seat (bold yellow)
+/// - the capability boundary and the absent estate are facts, not
+///   verdicts. The row is additive: an estate that cannot be read
+///   still prints, with the reason named.
+fn id_plane_row() -> String {
+    let verdict = crate::ebpf::plane_reader::read();
+    let (token, detail) = verdict.label_parts();
+    let painted = match verdict {
+        crate::ebpf::plane_reader::PlaneVerdict::Verified { .. } => {
+            crate::output::ok_bold_out(token)
+        }
+        crate::ebpf::plane_reader::PlaneVerdict::Cloaked { .. } => {
+            crate::output::error_bold_out(token)
+        }
+        crate::ebpf::plane_reader::PlaneVerdict::Unavailable { .. } => {
+            crate::output::warn_bold_out(token)
+        }
+    };
+    format!("{painted} {detail}")
+}
+
 /// The pure row renderer - separated from [`section`] so the shape is
 /// unit-pinnable without probing the host. The alignment is the KV
 /// discipline: fixed label column. Roles (night-weekly-maintenance-2,
@@ -318,7 +355,8 @@ fn pin_names() -> Vec<&'static str> {
 /// keys), the verdict tokens inside the values ride the bold tiers
 /// their rows paint, and the remaining facts stay unwrapped (white).
 /// In Mono every wrap is the identity - the plain bytes the shape
-/// shipped with. Ten rows is the contract; the allow is the honest
+/// shipped with. Eleven rows is the contract (the ID Plane row
+/// joined at night-frontier-Z11, phase b); the allow is the honest
 /// count, not an escape hatch.
 #[allow(clippy::too_many_arguments)]
 fn format_section(
@@ -332,6 +370,7 @@ fn format_section(
     mode: &str,
     probes: &str,
     pins: &str,
+    id_plane: &str,
 ) -> String {
     let mut out = String::new();
     // The separated sub-report (night-improve-42): one blank line
@@ -351,6 +390,7 @@ fn format_section(
         ("  Mode:        ", mode),
         ("  Probes:      ", probes),
         ("  Pins:        ", pins),
+        ("  ID Plane:    ", id_plane),
     ] {
         out.push_str(label);
         out.push_str(value);

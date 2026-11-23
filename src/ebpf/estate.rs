@@ -380,6 +380,23 @@ pub fn mask_consistency_verdict(
     Ok(())
 }
 
+/// The off-path pin's capability bit, or None for a core pin - the
+/// one mapping the presence law and the mask verdict share. A pure
+/// move from the ebpf entry module (night-frontier-Z11, phase b: the
+/// entry module stood at the 600-LOC cap, and the bit map belongs
+/// beside the bits it names - the same home both laws read).
+pub(crate) fn offpath_pin_bit(pin: &str) -> Option<u64> {
+    match pin {
+        crate::ebpf::PIN_PROG_DIRTY | crate::ebpf::PIN_LINK_DIRTY => Some(OFFPATH_BIT_DIRTY),
+        crate::ebpf::PIN_PROG_SPLICE | crate::ebpf::PIN_LINK_SPLICE => Some(OFFPATH_BIT_SPLICE),
+        crate::ebpf::PIN_PROG_IOURING | crate::ebpf::PIN_LINK_IOURING => Some(OFFPATH_BIT_IOURING),
+        crate::ebpf::PIN_PROG_MEMBACKED | crate::ebpf::PIN_LINK_MEMBACKED => {
+            Some(OFFPATH_BIT_MEMBACKED)
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 #[path = "../../test/ebpf/estate_tests.rs"]
 mod tests;

@@ -23,6 +23,7 @@ fn section_shape_pins_every_row() {
         "sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter",
         "/sys/fs/bpf/zejtron (present: probe_link, sock_probe_link, open_probe_link, write_probe_link, \
 probe, sock_probe, open_probe, write_probe, stats, sock_events, tracked_inodes, file_events, offsets)",
+        "verified (10 pins, 34 public ids)",
     );
     assert_eq!(
         section,
@@ -38,22 +39,23 @@ probe, sock_probe, open_probe, write_probe, stats, sock_events, tracked_inodes, 
          Probes:      sched_process_exec, inet_sock_set_state, vfs_open, raw_syscalls/sys_enter\n  \
          Pins:        /sys/fs/bpf/zejtron (present: probe_link, sock_probe_link, open_probe_link, \
 write_probe_link, probe, sock_probe, open_probe, write_probe, stats, sock_events, tracked_inodes, \
-file_events, offsets)"
+file_events, offsets)
+  ID Plane:    verified (10 pins, 34 public ids)"
     );
 }
 
 #[test]
 fn live_section_renders_the_separated_block() {
     // The live section (host-probing) still renders the contract
-    // shape: one blank line, the indented header, then exactly ten
+    // shape: one blank line, the indented header, then exactly eleven
     // rows, whatever the host says - a broken renderer cannot hide
     // behind host variance.
     let section = section();
     let lines: Vec<&str> = section.lines().collect();
     assert_eq!(
         lines.len(),
-        12,
-        "the section is the blank line + header + 10 rows"
+        13,
+        "the section is the blank line + header + 11 rows"
     );
     assert_eq!(lines[0], "", "one blank line separates the section");
     assert_eq!(lines[1], "  [eBPF]", "the header rides the KV indent");

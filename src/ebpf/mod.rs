@@ -226,20 +226,8 @@ pub fn all_pins_present() -> bool {
     // snapshot lane (night-zen-lts-Z: the record estate silent).
     ALL_PINS
         .iter()
-        .filter(|p| offpath_pin_bit(p).is_none())
+        .filter(|p| estate::offpath_pin_bit(p).is_none())
         .all(|p| Path::new(p).exists())
-}
-
-/// The off-path pin's capability bit, or None for a core pin - the
-/// one mapping the presence law and the mask verdict share.
-pub(crate) fn offpath_pin_bit(pin: &str) -> Option<u64> {
-    match pin {
-        PIN_PROG_DIRTY | PIN_LINK_DIRTY => Some(estate::OFFPATH_BIT_DIRTY),
-        PIN_PROG_SPLICE | PIN_LINK_SPLICE => Some(estate::OFFPATH_BIT_SPLICE),
-        PIN_PROG_IOURING | PIN_LINK_IOURING => Some(estate::OFFPATH_BIT_IOURING),
-        PIN_PROG_MEMBACKED | PIN_LINK_MEMBACKED => Some(estate::OFFPATH_BIT_MEMBACKED),
-        _ => None,
-    }
 }
 
 /// True when at least one pin exists - the "zejtron left something in
@@ -577,6 +565,9 @@ pub mod loader;
 /// bpffs seats the estate rides on, ensured at attach time and
 /// probed for the doctor's Tracefs row.
 pub mod mounts;
+/// The public ID plane reader (night-frontier-Z11, phase b): the
+/// pinned estate reconciled against the kernel's own id enumeration.
+pub mod plane_reader;
 mod plant;
 pub mod readback;
 /// The drain-boundary offsets re-verification (night-frontier-Z1):

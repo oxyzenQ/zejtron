@@ -46,12 +46,12 @@ fn the_presence_verdict_counts_only_the_core_pins() {
     let core: Vec<&str> = ALL_PINS
         .iter()
         .copied()
-        .filter(|p| offpath_pin_bit(p).is_none())
+        .filter(|p| crate::ebpf::estate::offpath_pin_bit(p).is_none())
         .collect();
     let offpath: Vec<&str> = ALL_PINS
         .iter()
         .copied()
-        .filter(|p| offpath_pin_bit(p).is_some())
+        .filter(|p| crate::ebpf::estate::offpath_pin_bit(p).is_some())
         .collect();
     // The estate's own shape: twenty-four core pins (eight links,
     // eight progs, eight maps) and the eight off-path entries.
@@ -65,7 +65,10 @@ fn the_presence_verdict_counts_only_the_core_pins() {
     // ... and none of the named-down-able off-path entries.
     assert!(offpath.contains(&PIN_PROG_DIRTY));
     assert!(offpath.contains(&PIN_LINK_MEMBACKED));
-    assert!(core.iter().all(|p| offpath_pin_bit(p).is_none()));
+    assert!(
+        core.iter()
+            .all(|p| crate::ebpf::estate::offpath_pin_bit(p).is_none())
+    );
 }
 
 #[test]
