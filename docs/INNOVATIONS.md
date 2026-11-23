@@ -701,7 +701,7 @@ draw arm's frame legality against the tree's own tables, the clear
 contract, the honest network exit set) beside the unit battery.
 
 **26. The silent-deletion reconciliation** (night-frontier-Z11,
-phase a; the deletion probe `src/commands/touch/audit.rs`
+phase a, D8; the deletion probe `src/commands/touch/audit.rs`
 ([`try_audit_deletion`], [`audit_deletion_in_log`],
 [`audit_event_is_deletion`]), the builder
 `src/commands/lane_unaccounted.rs` ([`silent_deletion_entry`]), the
@@ -731,7 +731,7 @@ rename match, failed syscall, different inode, out-of-window,
 modify-syscall, the arch predicate) and
 `test/commands/lane_unaccounted_tests.rs` (the wording pins).
 
-**27. The recorded-pid compare** (night-frontier-Z11, phase a; the
+**27. The recorded-pid compare** (night-frontier-Z11, phase a, D8; the
 classifier `src/commands/lane_pid.rs` ([`classify_pid`],
 [`attribute_pid`], [`proc_listing`]), the birth reader
 `src/commands/proc.rs` ([`starttime_boot_ns_from_stat`]), the
@@ -763,6 +763,59 @@ cross-validate, never the rootkit word). `lane.rs` shed
 table. Pinned by `test/commands/lane_pid_tests.rs` (the truth
 table, the one-tick recycle boundary, the wording pins) and
 `test/commands/proc_tests.rs` (the starttime field-22 parse).
+
+**28. The public ID plane reader and the detonation proof**
+(night-frontier-Z11, phase b and c, D8; the reader
+`src/ebpf/plane_reader.rs` ([`read`], [`classify_pid`],
+[`reconcile`], the `bpf(2)` attr discipline), the landing row
+`src/commands/doctor/ebpf.rs` ([`id_plane_row`], the JSON lane's
+`id_plane_state`/`id_plane_detail`), the fixture
+`test-fixtures/pidhide/` (the fexit program, the loader), the legs
+`scripts/sandbox/detect-rootkit.sh`, the lane
+`.github/workflows/supermassive-kernel-floor.yml`). The hole: the
+kernel names every live bpf object TWICE - per-object through the
+pin (BPF_OBJ_GET + BPF_OBJ_GET_INFO_BY_FD on the bpffs path) and
+publicly through the id enumeration (BPF_PROG_GET_NEXT_ID and
+siblings, the plane `bpftool` prints) - and nothing compared the
+two. A stealth mechanism that hides a program from `bpftool` must
+hide it from the enumeration while the object keeps living through
+its pin, and the pin estate was the one witness that could name the
+disagreement - the doctor's own section already walked the pins, but
+never asked the enumeration's opinion. The close is one bpf(2)
+caller (no `bpftool` subprocess, no new crate - the libc syscall
+trampoline the dependency law already carries): the attr arms are
+zero-initialized as whole bytes (the FileEvent explicit-pad
+discipline) with the uapi offsets pinned by `offset_of!` tests, the
+object id reads at offset 4 of every info shape the estate pins
+(prog, map, and link info all open `__u32 type; __u32 id;` - one
+read, no per-type guessing), the pin classification derives from the
+estate's own constants (the map pins' base names, the `_link`
+suffix), and the reconciliation is a pure truth table: every
+RESOLVED pin id must sit in its class's public set, an unresolved
+pin rides the notes without flipping the verdict, and the row reads
+`verified (N pins, M public ids)` / `hidden (Z cloaked: names) - N
+pins, M public ids` / `unavailable (...)`. THE CAPABILITY HONESTY:
+the enumeration is privileged in a stricter way than the pin walk -
+`CAP_SYS_ADMIN` even to enumerate - so a reader without the bit gets
+the named absence, never a guess and never a panic. THE VERIFIER:
+phase c detonates the phase-a detector against a REAL stealth
+mechanism - the fixture's fexit program on `__x64_sys_getdents64`
+absorbs one pid's dirent into its predecessor's record length
+before the syscall returns (the classic directory-listing hide, two
+bounded writes, every bound explicit), the camera still records the
+hidden actor's write (hiding from the listing does not hide from the
+kprobe), the direct lookup still resolves, the listing no longer
+names the pid, and `why` must render the "hidden pids" entry -
+inside the kernel-floor lane's own 5.15.0 KVM micro-VM, with the
+negative control proving the detector does not cry wolf. A green CI
+log is the public evidence; the id-plane cloaking itself can only be
+simulated in the pure verifier (no fixture can hide a program from
+the kernel's own enumeration without a kernel-level rootkit), and
+the docs say so plainly. Pinned by
+`test/ebpf/plane_reader_tests.rs` (the attr layout, the
+classification, the reconciliation table, the row wording) and the
+section shape pins; detonated by
+`scripts/sandbox/detect-rootkit.sh` in the floor lane.
 
 ## How a newcomer reads this tree
 

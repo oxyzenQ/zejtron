@@ -44,11 +44,17 @@ recorded pid's birth compared against the recorded event's stamp, so
 a recycled pid can never masquerade as the actor — and a deletion
 the audit log recorded inside the window that the event ring holds
 no unlink or rename for (an anchor-inode guard holds the benign
-delete-and-recreate shape out). Each disagreement lands in the
+delete-and-recreate shape out); and since phase b, the pinned pin
+estate against the kernel's own BPF ID plane - a program the direct
+pin lookup resolves while the public enumeration does not name its id
+prints as the `hidden` ID Plane row in the doctor's `[eBPF]` section.
+Each disagreement lands in the
 Unaccounted block with its honest cautions beside it — a hidepid
 mount, a delete-and-recreate, or an exit race can read the same
 shape — and the tool never resolves the shape into an accusation by
-itself. A stealth mechanism that hides consistently from every view
+itself. The ID plane check is privileged in a stricter way than the
+pin walk: enumerating ids needs `CAP_SYS_ADMIN` even to start, so a
+reader without it gets the named absence, never a guess. A stealth mechanism that hides consistently from every view
 the kernel offers stays invisible to zejtron too; the analyst closes
 the case, not the tool.
 

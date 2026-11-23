@@ -182,20 +182,18 @@ What the tool is not:
   disk images and preserves no chain of custody — it prints
   evidence to the operator's terminal; filing the output is the
   operator's act.
-- Not a rootkit hunter — a ledger of named disagreements. zejtron
-  does not claim absolute trust in what it reads, but it
-  cross-validates the kernel's own sources of truth against each
-  other: the namespace's directory listing against a direct
-  `/proc/<pid>` lookup and the recorded pid's birth (the recycled
-  holder's name never renders as the actor), and the audit log's
-  deletion records against the event ring's window (night-frontier-
-  Z11). If a stealth mechanism forces the kernel to contradict
-  itself, zejtron records the bytes of that contradiction in the
-  Unaccounted block — with the honest cautions beside them (a
-  hidepid mount, a delete-and-recreate, an exit race can read the
-  same shape) — so the analyst, not the tool, closes the case. A
-  process that hides from every view the kernel offers consistently
-  still hides from zejtron.
+- Not an enforcement tool — a read-only evidence ledger that
+  records kernel-level stealth. zejtron is a read-only evidence
+  ledger that records kernel-level stealth, not an enforcement
+  tool. It cross-validates the kernel's own sources of truth
+  (e.g., stat vs. readdir, pin estate vs. public ID plane). When a
+  stealth mechanism forces the kernel to contradict itself, zejtron
+  records the disagreement. It never claims absolute trust, and it
+  never kills processes. The cross-validations are pinned by unit
+  tests and detonated against a real stealth mechanism (a getdents
+  fexit fixture that hides a pid from the /proc listing) inside the
+  CI's own kernel-floor micro-VM (night-frontier-Z11, D8) - a green
+  CI log is the public evidence the detection is not a claim.
 - Not host-wide from inside a container. zejtron reads the /proc
   of the namespace it runs in; host processes stay invisible
   unless the container shares the host's pid namespace.

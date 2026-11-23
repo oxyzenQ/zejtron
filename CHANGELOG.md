@@ -52,6 +52,23 @@ v11.0.0
 
 ### Added
 
+- **feat(security): Z11 read-only stealth detection via cross-source
+  reconciliation (night-frontier-Z11, D8).** The full arc in one
+  release note: the silent-deletion reconciliation (the audit log's
+  deletion records against the event ring's window, the anchor-inode
+  guard holding the benign delete-and-recreate shape out), the
+  recorded-pid compare (the namespace's listing against the direct
+  lookup and the recorded pid's birth - the recycled holder's name
+  never renders as the actor), the public ID plane reader (the
+  pinned pin estate against the kernel's own id enumeration, one
+  bpf(2) caller, the `CAP_SYS_ADMIN` honesty named as a row), and
+  the detonation proof (the pidhide getdents64 fexit fixture planted
+  and caught inside the CI kernel-floor micro-VM's 5.15.0 kernel,
+  with the negative control proving the detector does not cry wolf).
+  Read-only throughout: it never claims absolute trust, and it never
+  kills processes. Per-phase detail below and in
+  docs/INNOVATIONS.md entries 26 through 28.
+
 - **night-frontier-Z11 phase a, the ledger of named disagreements -
   the kernel's own contradictions recorded.** Two cross-validations
   joined the live lane, both riding the Unaccounted grammar
