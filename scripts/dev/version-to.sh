@@ -278,16 +278,16 @@ echo "Updating zejtron to ${TAG}"
 # loudly if the lock shape is not this script's to edit.
 sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?"/version = "'"${VERSION}"'"/' Cargo.toml
 sed -i -E "/^name = \"zejtron\"\$/{n;s/^version = \"[^\"]*\"/version = \"${VERSION}\"/;}" Cargo.lock
-grep -A3 'name = "zejtron"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' \
-	|| error "Cargo.lock zejtron entry was not rewritten - the lock shape is not this script's to edit"
+grep -A3 'name = "zejtron"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' ||
+	error "Cargo.lock zejtron entry was not rewritten - the lock shape is not this script's to edit"
 
 # The mirror law (night-improve-5): the detached ebpf/ workspace and
 # the prebuilt lane's manifest follow the root version in the same
 # invocation - never a half-mirrored tree.
 sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?"/version = "'"${VERSION}"'"/' ebpf/Cargo.toml
 sed -i -E "/^name = \"zejtron-ebpf\"\$/{n;s/^version = \"[^\"]*\"/version = \"${VERSION}\"/;}" ebpf/Cargo.lock
-(cd ebpf && grep -A3 'name = "zejtron-ebpf"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"') \
-	|| error "ebpf/Cargo.lock zejtron-ebpf entry was not rewritten - the lock shape is not this script's to edit"
+(cd ebpf && grep -A3 'name = "zejtron-ebpf"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"') ||
+	error "ebpf/Cargo.lock zejtron-ebpf entry was not rewritten - the lock shape is not this script's to edit"
 ./scripts/dev/regenerate-ebpf-prebuilt.sh
 
 sed -i -E 's/^TAG=v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?/TAG='"${TAG}"'/' README.md docs/workflow/about-ci.md
