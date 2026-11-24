@@ -52,6 +52,21 @@ v11.0.0
 
 ### Added
 
+- **docs: the depth-cleanup pass - every checked claim rides the
+  source truth (night-depth-cleanup-1B-1).** A tree-wide sweep of
+  the docs and the code comments (archive excluded): 42 .md files
+  path-scanned, 169 path tokens inside .rs comments checked, CLI
+  verbs, CI lane names, gate/fuzz/theorem/proptest counts, the
+  docs index, and the Evidence Ledger's JSON grammar all verified
+  against the tree. Eight stale claims corrected: the D3 chain's
+  shared module rides its real name `build/blake3.rs`,
+  `src/RULES.md` names all eight subsystem dirs, the publish
+  checklist's tag step speaks the `<VERSION>` convention, and four
+  test-file headers name their real `#[path]` wiring seats
+  (`doctor.rs`, `port.rs`, `touch.rs`, `doctor/json/mod.rs`) after
+  the module idiom moved. Unverifiable private-era claims in the
+  changelog's Removed entries are left untouched - rewriting an
+  uncheckable record would be fabrication, not cleaning.
 - **docs(proofs): the concurrency census refreshed and the zelynic
   Z17 shape examined (night-netrunner-Z2, the LTS audit copy).** The
   census's basis now names the FULL atomic-site inventory instead of
