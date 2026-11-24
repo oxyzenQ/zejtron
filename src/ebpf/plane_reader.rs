@@ -98,9 +98,13 @@ struct BpfInfoByFd {
     info: u64,
 }
 
-/// One bpf(2) call: `cmd` over the zeroed attr, -1 with errno on
-/// refusal. The single syscall site of the whole module.
-fn sys_bpf(cmd: u64, attr: &BpfAttr) -> Result<(), std::io::Error> {
+/// One bpf(2) call: `cmd` over the zeroed attr, the kernel's own
+/// return value on success (-1 with errno on refusal). The single
+/// syscall site of the whole module. The value's meaning is the
+/// command's: an fd for the fd-answering commands (the kernel
+/// hands BPF_OBJ_GET's fd back as the syscall's own return value -
+/// never through the attr), zero for the rest.
+fn sys_bpf(cmd: u64, attr: &BpfAttr) -> Result<i64, std::io::Error> {
     // SAFETY: attr is a fully initialized 128-byte union (the caller
     // zeroed the whole before the typed arm rode in), syscall(2) with
     // the bpf(2) command set reads only the cmd's own prefix, and no
@@ -109,7 +113,7 @@ fn sys_bpf(cmd: u64, attr: &BpfAttr) -> Result<(), std::io::Error> {
     if ret < 0 {
         return Err(std::io::Error::last_os_error());
     }
-    Ok(())
+    Ok(ret)
 }
 
 /// One enumeration step: the smallest public id above `start`, or
@@ -121,7 +125,7 @@ fn next_id(cmd: u64, start: u32) -> Result<Option<u32>, std::io::Error> {
         next_id: 0,
     };
     match sys_bpf(cmd, &attr) {
-        Ok(()) => {
+        Ok(_) => {
             // SAFETY: the typed arm was written this call; reading it
             // back is the uapi's own contract for this command.
             let answer = unsafe { attr.next_id.next_id };
@@ -247,18 +251,26 @@ pub(crate) struct PinObject {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PlaneVerdict {
     /// Every resolved pin id sits in the public enumeration: the two
-    /// kernel views agree.
-    Verified { pins: usize, public: usize },
+    /// kernel views agree. The unresolved pins ride beside the
+    /// counts, their refusals named - the verdict claims only what
+    /// the resolved pins proved.
+    Verified {
+        pins: usize,
+        public: usize,
+        unresolved: Vec<String>,
+    },
     /// At least one resolved pin id the public enumeration does not
-    /// name - the disagreement, with the pin names beside it.
+    /// name - the disagreement, with the pin names beside it. The
+    /// unresolved pins ride here the same way.
     Cloaked {
         pins: usize,
         public: usize,
         cloaked: Vec<&'static str>,
+        unresolved: Vec<String>,
     },
     /// The plane cannot be read by this caller - the reason names it
     /// (the capability boundary, an absent estate, the kernel's own
-    /// refusal).
+    /// refusal, an estate walk that resolved nothing).
     Unavailable { reason: String },
 }
 
@@ -267,24 +279,44 @@ impl PlaneVerdict {
     /// row paints the token the way its siblings do).
     pub fn label_parts(&self) -> (&'static str, String) {
         match self {
-            Self::Verified { pins, public } => {
-                ("verified", format!("({pins} pins, {public} public ids)"))
-            }
+            Self::Verified {
+                pins,
+                public,
+                unresolved,
+            } => (
+                "verified",
+                with_unresolved(format!("({pins} pins, {public} public ids)"), unresolved),
+            ),
             Self::Cloaked {
                 pins,
                 public,
                 cloaked,
+                unresolved,
             } => (
                 "hidden",
-                format!(
-                    "({} cloaked: {}) - {pins} pins, {public} public ids",
-                    cloaked.len(),
-                    cloaked.join(", ")
+                with_unresolved(
+                    format!(
+                        "({} cloaked: {}) - {pins} pins, {public} public ids",
+                        cloaked.len(),
+                        cloaked.join(", ")
+                    ),
+                    unresolved,
                 ),
             ),
             Self::Unavailable { reason } => ("unavailable", format!("({reason})")),
         }
     }
+}
+
+/// The unresolved pins' notes, appended to a verdict's detail when
+/// any rode: the refusal named beside the proof the resolved pins
+/// carried, so the row never claims more than it saw (the dead-notes
+/// era printed `verified` over a walk that had resolved nothing).
+fn with_unresolved(detail: String, unresolved: &[String]) -> String {
+    if unresolved.is_empty() {
+        return detail;
+    }
+    format!("{detail}; unresolved: {}", unresolved.join(", "))
 }
 
 /// The estate's present pins, resolved against the per-object plane:
@@ -320,10 +352,14 @@ fn resolve_one(pin: &str) -> Result<u32, std::io::Error> {
         bpf_fd: 0,
         file_flags: 0,
     };
-    sys_bpf(BPF_OBJ_GET, &attr)?;
-    // SAFETY: the obj_get arm returned an fd in the command's own
-    // field; the uapi hands the same fd back through that arm.
-    let fd = unsafe { attr.obj_get.bpf_fd } as i32;
+    // The fd rides the syscall's own return value - the kernel's
+    // shape for every fd-answering bpf(2) command: BPF_OBJ_GET
+    // hands the fd back as the return and rejects a nonzero
+    // bpf_fd on input, so the attr is never a write-back seat for
+    // it. The read-back arm was the wrong-number era's silent
+    // survivor: fd 0 handed to the info walk, every pin a
+    // refusal, the whole reconciliation riding on nothing.
+    let fd = sys_bpf(BPF_OBJ_GET, &attr)? as i32;
 
     let mut info = [0u8; 128];
     let mut attr = BpfAttr { bytes: [0u8; 128] };
@@ -416,10 +452,18 @@ impl PublicPlane {
 }
 
 /// The pure reconciliation: every RESOLVED pin id must sit in its
-/// class's public set. An unresolved pin rides the notes (the pin's
-/// own refusal named) without flipping the verdict - the plane reader
-/// says what it could see and what it could not, never a guess.
+/// class's public set. An unresolved pin rides the verdict with its
+/// own refusal named, without flipping it - and an estate where
+/// NOTHING resolved is the named absence, never `verified` over
+/// zero proof (a walk that resolved no pin proved nothing about
+/// the plane, whatever the counts would say). Pure, so the whole
+/// truth table is pinnable without a live estate.
 pub(crate) fn reconcile(objects: &[PinObject], public: &PublicPlane) -> PlaneVerdict {
+    if objects.is_empty() {
+        return PlaneVerdict::Unavailable {
+            reason: "no pin estate (nothing to reconcile)".to_owned(),
+        };
+    }
     let mut cloaked = Vec::new();
     let mut notes = Vec::new();
     for object in objects {
@@ -429,8 +473,22 @@ pub(crate) fn reconcile(objects: &[PinObject], public: &PublicPlane) -> PlaneVer
                     cloaked.push(object.name);
                 }
             }
-            Err(ref refusal) => notes.push(format!("{} unresolved ({refusal})", object.name)),
+            Err(ref refusal) => notes.push(format!("{} ({refusal})", object.name)),
         }
+    }
+    // The every-refusal shape: the walk resolved no pin at all, so
+    // there is no resolved id to reconcile - the honest verdict is
+    // the named absence with the first refusal riding it (the
+    // false-verification hole: `verified` printed over a walk whose
+    // every open had refused, the notes dying in a dead Vec).
+    if notes.len() == objects.len() {
+        return PlaneVerdict::Unavailable {
+            reason: format!(
+                "the estate walk resolved no pin ({} present, first refusal: {})",
+                objects.len(),
+                notes.first().map(String::as_str).unwrap_or("unnamed")
+            ),
+        };
     }
     let pins = objects.len();
     let public_total = public.total();
@@ -438,12 +496,14 @@ pub(crate) fn reconcile(objects: &[PinObject], public: &PublicPlane) -> PlaneVer
         PlaneVerdict::Verified {
             pins,
             public: public_total,
+            unresolved: notes,
         }
     } else {
         PlaneVerdict::Cloaked {
             pins,
             public: public_total,
             cloaked,
+            unresolved: notes,
         }
     }
 }

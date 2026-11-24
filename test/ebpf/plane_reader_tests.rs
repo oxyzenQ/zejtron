@@ -20,7 +20,14 @@ fn the_attr_arms_ride_the_uapi_offsets() {
     // GET_NEXT_ID's arm: start_id in, next_id out - shared storage.
     assert_eq!(core::mem::offset_of!(BpfNextId, start_id), 0);
     assert_eq!(core::mem::offset_of!(BpfNextId, next_id), 4);
-    // BPF_OBJ_GET's arm: the pathname pointer at offset 0.
+    // BPF_OBJ_GET's arm: the pathname pointer at offset 0. The
+    // bpf_fd field at offset 8 is an INPUT the kernel rejects when
+    // nonzero (the v6.18 source: `attr->bpf_fd != 0` returns
+    // EINVAL) and never writes back - the fd rides the syscall's
+    // own return value instead, which is why resolve_one reads the
+    // return and not the arm. The read-back shape was the wrong-
+    // number era's silent survivor: a zeroed fd handed to the info
+    // walk, every pin a refusal, the notes dying unused.
     assert_eq!(core::mem::offset_of!(BpfObjGet, pathname), 0);
     assert_eq!(core::mem::offset_of!(BpfObjGet, bpf_fd), 8);
     // BPF_OBJ_GET_INFO_BY_FD's arm: fd, length, pointer.
@@ -133,7 +140,14 @@ fn every_resolved_pin_id_the_enumeration_names_is_verified() {
         resolved("stats", PinClass::Map, 12),
     ];
     let verdict = reconcile(&objects, &plane(&[7], &[12], &[9]));
-    assert_eq!(verdict, PlaneVerdict::Verified { pins: 3, public: 3 });
+    assert_eq!(
+        verdict,
+        PlaneVerdict::Verified {
+            pins: 3,
+            public: 3,
+            unresolved: vec![]
+        }
+    );
 }
 
 #[test]
@@ -152,7 +166,8 @@ fn a_resolved_pin_id_the_enumeration_omits_is_the_hidden_shape() {
         PlaneVerdict::Cloaked {
             pins: 3,
             public: 3,
-            cloaked: vec!["dirty_probe"]
+            cloaked: vec!["dirty_probe"],
+            unresolved: vec![]
         }
     );
 }
@@ -170,7 +185,8 @@ fn the_hidden_names_ride_in_planting_order_with_every_cloak_named() {
         PlaneVerdict::Cloaked {
             pins: 3,
             public: 3,
-            cloaked: vec!["file_events"]
+            cloaked: vec!["file_events"],
+            unresolved: vec![]
         }
     );
     // Two cloaks: both named, planting order kept.
@@ -184,22 +200,71 @@ fn the_hidden_names_ride_in_planting_order_with_every_cloak_named() {
         PlaneVerdict::Cloaked {
             pins: 2,
             public: 1,
-            cloaked: vec!["probe", "dirty_probe"]
+            cloaked: vec!["probe", "dirty_probe"],
+            unresolved: vec![]
         }
     );
 }
 
 #[test]
-fn an_unresolved_pin_rides_the_notes_without_flipping_the_verdict() {
+fn an_unresolved_pin_rides_the_verdict_without_flipping_it() {
     // A pin whose own open refused (the EPERM shape an unprivileged
     // reader hits against a root attach session) is named, never
-    // guessed: the verdict stays what the RESOLVED pins proved.
+    // guessed: the verdict stays what the RESOLVED pins proved, and
+    // the refusal itself rides the detail - the dead-notes era
+    // dropped it on the floor, so a walk could claim more than it
+    // saw without the row ever saying so.
     let objects = vec![
         resolved("probe", PinClass::Prog, 7),
         unresolved("stats", PinClass::Map, "pin access denied (requires root)"),
     ];
     let verdict = reconcile(&objects, &plane(&[7], &[12], &[]));
-    assert_eq!(verdict, PlaneVerdict::Verified { pins: 2, public: 2 });
+    assert_eq!(
+        verdict,
+        PlaneVerdict::Verified {
+            pins: 2,
+            public: 2,
+            unresolved: vec!["stats (pin access denied (requires root))".to_owned()]
+        }
+    );
+    // The row's own detail carries the refusal beside the counts.
+    let (token, detail) = verdict.label_parts();
+    assert_eq!(token, "verified");
+    assert_eq!(
+        detail,
+        "(2 pins, 2 public ids); unresolved: stats (pin access denied (requires root))"
+    );
+}
+
+#[test]
+fn an_estate_where_no_pin_resolved_is_the_named_absence() {
+    // The every-refusal shape: nothing resolved, so nothing was
+    // reconciled - `verified` over zero proof is the false
+    // verification the row refuses to print (the shape a hook that
+    // breaks every pin open would ride, named, never passed).
+    let objects = vec![
+        unresolved("probe", PinClass::Prog, "Invalid input error (os error 22)"),
+        unresolved("stats", PinClass::Map, "pin access denied (requires root)"),
+    ];
+    let (token, detail) = reconcile(&objects, &plane(&[7], &[12], &[9])).label_parts();
+    assert_eq!(token, "unavailable");
+    assert!(
+        detail.contains("the estate walk resolved no pin"),
+        "the absence must be named: {detail}"
+    );
+    assert!(
+        detail.contains("first refusal: probe (Invalid input error (os error 22))"),
+        "the first refusal must ride the reason: {detail}"
+    );
+}
+
+#[test]
+fn an_empty_estate_is_the_named_absence() {
+    // The pure function's own guard: no present pins means nothing
+    // to reconcile - the same honest absence the live read prints.
+    let (token, detail) = reconcile(&[], &plane(&[], &[], &[])).label_parts();
+    assert_eq!(token, "unavailable");
+    assert_eq!(detail, "(no pin estate (nothing to reconcile))");
 }
 
 // ── the row wording ──────────────────────────────────────────────────
@@ -209,6 +274,7 @@ fn the_row_wording_pins_the_task_landing_line() {
     let (token, detail) = PlaneVerdict::Verified {
         pins: 10,
         public: 34,
+        unresolved: vec![],
     }
     .label_parts();
     assert_eq!(token, "verified");
@@ -218,6 +284,7 @@ fn the_row_wording_pins_the_task_landing_line() {
         pins: 10,
         public: 34,
         cloaked: vec!["dirty_probe", "file_events"],
+        unresolved: vec![],
     }
     .label_parts();
     assert_eq!(token, "hidden");
@@ -242,4 +309,40 @@ fn the_row_wording_pins_the_task_landing_line() {
     .label_parts();
     assert_eq!(token, "unavailable");
     assert_eq!(detail, "(no pin estate (nothing to reconcile))");
+}
+
+#[test]
+fn the_row_wording_carries_the_unresolved_refusals() {
+    // The notes' own seat: an unresolved pin's refusal rides the
+    // detail beside the counts (verified and hidden both), so the
+    // row never claims more than the resolved pins proved.
+    let (token, detail) = PlaneVerdict::Verified {
+        pins: 10,
+        public: 34,
+        unresolved: vec![
+            "stats (pin access denied (requires root))".to_owned(),
+            "offsets (Invalid input error (os error 22))".to_owned(),
+        ],
+    }
+    .label_parts();
+    assert_eq!(token, "verified");
+    assert_eq!(
+        detail,
+        "(10 pins, 34 public ids); unresolved: stats (pin access denied (requires root)), \
+         offsets (Invalid input error (os error 22))"
+    );
+
+    let (token, detail) = PlaneVerdict::Cloaked {
+        pins: 10,
+        public: 34,
+        cloaked: vec!["dirty_probe"],
+        unresolved: vec!["stats (pin access denied (requires root))".to_owned()],
+    }
+    .label_parts();
+    assert_eq!(token, "hidden");
+    assert_eq!(
+        detail,
+        "(1 cloaked: dirty_probe) - 10 pins, 34 public ids; \
+         unresolved: stats (pin access denied (requires root))"
+    );
 }
