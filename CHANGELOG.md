@@ -822,6 +822,24 @@ v11.0.0
   untouched, the prebuilt lane in sync with an object byte-identical
   to the owner machine's run. docs/RULES.md's Version Bumps entry
   describes the census, not a file list.
+- **scripts(sandbox): the Z11 detonation self-serves its fixture
+  build (night-depth-cleanup-1B-1).** Leg b's artifact seats now
+  build the pidhide pair themselves when every seat is empty: the
+  repo's own build lane (scripts/sandbox/build-fixtures.sh, the
+  exact CI recipe, hermetic) runs once and the seats resolve again,
+  and a lane that cannot run still fails the leg loudly - the
+  lane's own verdict named in the failure, its log in the artifact
+  dump. The sudo shape is the one the detonation always runs under:
+  the attempt restores the invoking user's cargo, rustup, and
+  bpf-linker seats (PATH, CARGO_HOME, RUSTUP_HOME - what
+  secure_path strips) before the lane runs. The fixture root now
+  carries its own rust-toolchain.toml (the same 1.98.1 pin plus the
+  musl target - the ebpf/ sibling's own-pin discipline), and the
+  loader build runs with cwd inside the fixture (rustup resolves a
+  toolchain file by directory, not by --manifest-path), so a fresh
+  host self-installs the pair instead of dying mid-build on rustc
+  E0463. CI's packed-rootfs seat is untouched: its seats hit and no
+  build runs there.
 
 ### License
 

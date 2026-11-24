@@ -44,8 +44,13 @@
 #
 # The host lane runs the same script on the operator's own kernel
 # (bash scripts/sandbox/detect-rootkit.sh from the repo checkout).
-# Leg b's fixture artifacts then resolve from the repo's fixture
-# build tree - build them first with scripts/sandbox/build-fixtures.sh.
+# Leg b's fixture artifacts resolve from the repo's fixture build
+# tree; when the seats are empty the leg self-serves - it runs
+# scripts/sandbox/build-fixtures.sh (the exact CI recipe, hermetic)
+# once and resolves the seats again, so the detonation never depends
+# on a remembered side-step. A lane that cannot run is not hidden:
+# its log rides the artifact dump and the leg's failure names the
+# lane's own verdict.
 # The host lane plants a REAL hide on the RUNNING kernel; the leg's
 # loader is inert-safe (pid 0 = nobody hidden) and the drop at exit
 # detaches it, but the micro-VM stays the contained seat.
@@ -180,8 +185,46 @@ wait "${leg_a_writer}" || true
 
 # ── leg b: the pidhide hide ──────────────────────────────────────────
 echo "── z11 detonation: leg b (pidhide, the real stealth mechanism) ──"
+# The self-serve seat: when the artifacts are missing from every
+# seat, the repo's own build lane (scripts/sandbox/build-fixtures.sh
+# - the exact CI recipe, hermetic: no installs, no network, a
+# missing toolchain is a named failure) runs once and the seats
+# resolve again - the detonation never depends on a remembered
+# side-step. A lane that cannot run is not hidden: its log rides
+# the artifact dump and the leg's failure names the lane's verdict,
+# so the proof still cannot pass quietly.
 if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
-	fail_leg b-pidhide "the fixture artifacts are missing from every seat (loader ${LOADER}, object ${OBJECT}; build them with scripts/sandbox/build-fixtures.sh or pack the rootfs seat)"
+	echo "── fixtures: the seats are empty - building the pidhide pair via scripts/sandbox/build-fixtures.sh ──"
+	# sudo resets PATH (secure_path) and the toolchain seats ride the
+	# invoking user's home, so the build attempt restores the standard
+	# seats first - the invoking user's via SUDO_USER, root's via HOME
+	# - and the lane itself stays hermetic (its own named failure is
+	# what the leg carries if the toolchain is genuinely absent).
+	build_path="${PATH}"
+	# .cargo/bin carries cargo, rustup and the cargo-installed tools;
+	# .local/bin carries the bootstrap's prebuilt bpf-linker.
+	for tool_seat in \
+		"${HOME}/.cargo/bin" "/home/${SUDO_USER:-}/.cargo/bin" \
+		"${HOME}/.local/bin" "/home/${SUDO_USER:-}/.local/bin"; do
+		[ -n "${tool_seat}" ] && [ -d "${tool_seat}" ] && build_path="${build_path}:${tool_seat}"
+	done
+	# sudo also resets HOME, and rustup resolves toolchains under it -
+	# the invoking user's toolchain estate rides SUDO_USER's home.
+	build_env=()
+	if [ -n "${SUDO_USER:-}" ] && [ -d "/home/${SUDO_USER}/.rustup" ]; then
+		build_env+=(RUSTUP_HOME="/home/${SUDO_USER}/.rustup" CARGO_HOME="/home/${SUDO_USER}/.cargo")
+	fi
+	if env "${build_env[@]}" PATH="${build_path}" bash "${REPO_ROOT}/scripts/sandbox/build-fixtures.sh" >leg-b.build.log 2>&1; then
+		LOADER=${PIDHIDE_LOADER:-$(first_match is_exec \
+			"${SANDBOX}/pidhide-loader" \
+			"${FIXTURE}/target/x86_64-unknown-linux-musl/release/pidhide-loader")}
+		OBJECT=${PIDHIDE_OBJECT:-$(first_match is_file \
+			"${SANDBOX}/pidhide-ebpf" \
+			"${FIXTURE}/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf")}
+	fi
+fi
+if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
+	fail_leg b-pidhide "the fixture artifacts are missing from every seat (loader ${LOADER}, object ${OBJECT}; the build lane's own verdict: $(tail -1 leg-b.build.log 2>/dev/null || echo 'the build lane was not run'))"
 else
 	"${LOADER}" "${OBJECT}" 12 >leg-b.loader 2>&1 &
 	loader_pid=$!
@@ -299,7 +342,7 @@ fi
 # the post-mortem's one seat (the VM's filesystem dies with it).
 if [ "${legs_failed}" -ne 0 ]; then
 	echo "── z11 detonation artifacts (the failing legs' own bytes) ──"
-	for artifact in leg-b.loader leg-b.json leg-c.json leg-c.err leg-d.json; do
+	for artifact in leg-b.build.log leg-b.loader leg-b.json leg-c.json leg-c.err leg-d.json; do
 		[ -f "${artifact}" ] && {
 			echo "--- ${artifact}"
 			head -c 2000 "${artifact}"

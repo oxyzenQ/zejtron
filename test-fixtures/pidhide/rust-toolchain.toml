@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+
+# The pidhide detonation fixture's own toolchain pin (night-frontier-Z11
+# lineage: the ebpf/ sibling carries its dated nightly pin the same way).
+#
+# Without this file the loader build resolves the ROOT manifest's pin
+# (1.98.1, no targets listed) by directory walk-up: CI and the owner's
+# machine already carry the x86_64-unknown-linux-musl target there from
+# the release lanes, but a fresh host hits rustc E0463 mid-build. The
+# fixture pins the SAME channel with the musl target listed, so rustup
+# self-installs the pair on any host the self-serve auto-build lands on
+# (scripts/sandbox/detect-rootkit.sh leg b) - no remembered side-step,
+# and a host that already has both installs nothing new. The
+# rust-version-sync gate reads the ROOT file only and stays untouched.
+#
+# The build lane itself (scripts/sandbox/build-fixtures.sh) stays
+# hermetic: nothing installs, nothing fetches - rustup's own
+# toolchain-file behavior is rustup's, not the script's.
+
+[toolchain]
+channel = "1.98.1"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
+targets = ["x86_64-unknown-linux-musl"]

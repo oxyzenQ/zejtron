@@ -72,9 +72,11 @@ if [ -x "${LOADER}" ] && [ -f "${OBJECT}" ]; then
 	note "artifacts already present (rebuild skipped; delete the fixture target trees to force)"
 else
 	note "building the pidhide loader (stable MSRV, x86_64-unknown-linux-musl)..."
-	cargo build --release --locked --offline \
-		--target x86_64-unknown-linux-musl \
-		--manifest-path "${FIXTURE}/Cargo.toml"
+	(
+		cd "${FIXTURE}" &&
+			cargo build --release --locked --offline \
+				--target x86_64-unknown-linux-musl
+	)
 
 	note "building the pidhide ebpf object (nightly-2026-09-18, bpfel-unknown-none)..."
 	(
