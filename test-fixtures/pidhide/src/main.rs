@@ -146,7 +146,7 @@ fn plant(object: &str, hold_secs: u64) -> Result<(), String> {
     // borrow: the write-side binding ended at the target write, the
     // program held the object through the hold, and the census is
     // the first read after it.
-    let targets = Array::try_from(
+    let targets: Array<_, u64> = Array::try_from(
         bpf.map_mut("targets")
             .ok_or_else(|| "the fixture object carries no 'targets' map".to_owned())?,
     )
