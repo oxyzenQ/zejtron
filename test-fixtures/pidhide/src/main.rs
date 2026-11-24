@@ -48,9 +48,7 @@ fn main() {
         }
     };
     match plant(&object, hold) {
-        Ok(marker) => {
-            println!("PIDHIDE-PLANTED marker={marker}");
-        }
+        Ok(()) => {}
         Err(reason) => {
             eprintln!("PIDHIDE-REFUSED {reason}");
             std::process::exit(1);
@@ -59,8 +57,15 @@ fn main() {
 }
 
 /// The plant chain - every refusal is a named error string, never a
-/// panic, so the CI log reads the cause without a backtrace.
-fn plant(object: &str, hold_secs: u64) -> Result<u32, String> {
+/// panic, so the CI log reads the cause without a backtrace. The
+/// sentinel rides the attach, not the hold: the hide is live the
+/// moment the link plants, and the detect script's sentinel wait
+/// (ten one-second reads) must catch it while the hold is still
+/// running - the first shape printed after the hold, and the wait
+/// starved (the artifact named the plant, the leg's parse never saw
+/// it, and the `why` ran as the hold expired with the hide already
+/// detached).
+fn plant(object: &str, hold_secs: u64) -> Result<(), String> {
     // The load rides the verifier's basic log: the default level
     // (DEBUG|STATS) makes the kernel write every state line into
     // user memory, and on the 5.15 floor a failed log write returns
@@ -124,11 +129,15 @@ fn plant(object: &str, hold_secs: u64) -> Result<u32, String> {
         .attach()
         .map_err(|e| format!("the pidhide attach failed: {e}"))?;
 
+    // The sentinel: the hide is live NOW, while the hold below keeps
+    // the estate planted for the collection window.
+    println!("PIDHIDE-PLANTED marker={marker_pid}");
+
     // Hold the estate for the collection window. The marker's own
     // loop outlives this hold; the drop at scope exit detaches the
     // link and frees the program - the micro-VM's kernel carries
     // nothing out of the test.
     std::thread::sleep(Duration::from_secs(hold_secs));
     drop(bpf);
-    Ok(marker_pid)
+    Ok(())
 }
