@@ -792,7 +792,11 @@ read, no per-type guessing), the pin classification derives from the
 estate's own constants (the map pins' base names, the `_link`
 suffix), and the reconciliation is a pure truth table: every
 RESOLVED pin id must sit in its class's public set, an unresolved
-pin rides the notes without flipping the verdict, and the row reads
+pin rides the verdict's own detail without flipping it (the
+refusal named beside the counts, `; unresolved: name (reason)`),
+an estate where nothing resolved at all is the named absence -
+`unavailable (the estate walk resolved no pin (...))`, never
+`verified` over zero proof - and the row reads
 `verified (N pins, M public ids)` / `hidden (Z cloaked: names) - N
 pins, M public ids` / `unavailable (...)`. THE CAPABILITY HONESTY:
 the enumeration is privileged in a stricter way than the pin walk -
@@ -824,7 +828,20 @@ jammy floor source), the echo guard closes the start=0 hole
 (kernel idr ids start at 1 - an answer of 0 names a command that
 never wrote the field), and a regression pin in the attr-layout
 test family holds all five command numbers to the uapi enum so
-the drift cannot land silently again. Pinned by
+the drift cannot land silently again. THE READ-BACK SURVIVOR
+(closed the same D9 night): the number fix left two defects
+standing in the walk the enumerations fed - `resolve_one` read
+its fd from the attr arm the kernel never writes (BPF_OBJ_GET
+answers through the syscall's own return value, and the arm's
+`bpf_fd` is a one-way input the v6.18 source rejects when
+nonzero), so fd 0 rode to the info walk and every pin resolved
+as a refusal; and the refusal notes were built and never read,
+so the all-refusal estate printed `verified` over zero proof.
+The fd now rides the return, the notes ride the verdict's
+detail, and the every-refusal estate is the named absence. The
+same night closed leg c's own seat: the synthetic audit trail
+rode a CWD-relative `audit.log` no reader opens - it rides
+/var/log/audit/audit.log, the lane's one seat, now. Pinned by
 `test/ebpf/plane_reader_tests.rs` (the attr layout, the command
 numbers, the classification, the reconciliation table, the row
 wording) and the section shape pins; detonated by

@@ -1906,6 +1906,47 @@ v11.0.0
 
 ### Fixed
 
+- **The ID plane's verdict rode a walk that resolved nothing (D9,
+  the command-number fix's silent survivors).** Two defects the
+  UAPI fix left standing, one in the fd's seat and one in the
+  notes': `resolve_one` read its fd from the attr arm the kernel
+  never writes (BPF_OBJ_GET hands the fd back as the syscall's own
+  return value - the v6.18 source's `case BPF_OBJ_GET:
+  err = bpf_obj_get(&attr)`, where err IS the fd - and the arm's
+  `bpf_fd` is a one-way input the kernel rejects when nonzero,
+  never a write-back seat), so the walk handed fd 0 (stdin) to
+  BPF_OBJ_GET_INFO_BY_FD - which answers EINVAL for any non-bpf
+  fop - and every pin, every run, resolved as a refusal; and
+  `reconcile` built the refusal notes and never read them, so the
+  all-refusal estate still printed `verified (N pins, M public
+  ids)` - a verdict over zero proof, the exact false-verification
+  shape the proof's own law refuses (any leg d pass riding it was
+  the hollow walk passing, the cloaked-object detection dead
+  without ever saying so). `sys_bpf` now returns the kernel's own
+  value (the fd for the fd-answering commands, zero elsewhere) and
+  `resolve_one` takes the fd from the return; the unresolved notes
+  ride the verdict (`; unresolved: name (refusal)` beside the
+  counts, verified and hidden both); and an estate where NO pin
+  resolved is the named absence - `unavailable (the estate walk
+  resolved no pin (...))` - with the empty-estate guard matching
+  the live read's own wording. Pinned by the truth table's new
+  shapes (the notes riding without flipping the verdict, the
+  every-refusal absence, the empty estate, the unresolved row
+  wording) and the attr-layout family's fd-contract doc pin, so
+  the read-back shape cannot return silently.
+- **The detonation's leg c wrote its synthetic audit trail where no
+  reader looks (D9).** Leg c planted the record with a CWD-relative
+  `>audit.log` (landing in the detonation work directory) while the
+  mkdir beside it prepared /var/log/audit - and the audit lane
+  reads exactly one seat, the hard-coded /var/log/audit/audit.log
+  probe in `try_audit_log` (the same seat the lane-presence check
+  rides). The record was written where no reader ever looked, so
+  the why run could never see the deletion story and the leg had
+  no path to pass, whatever the detector did. The trail now rides
+  the seat the lane opens - redirect and cleanup both name
+  /var/log/audit/audit.log - and the record's own shape (the
+  SYSCALL/PATH pair, the msg-id join, the lookup-path equality the
+  matcher keys on) is untouched.
 - **The ID plane reader rode two wrong uapi command numbers (D9, the
   D8 wedge's root cause).** The reader's constants drifted from the
   uapi enum the night they were written: `BPF_OBJ_GET` rode 1
