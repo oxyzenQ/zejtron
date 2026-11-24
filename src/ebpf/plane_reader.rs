@@ -43,16 +43,16 @@ use std::collections::BTreeSet;
 use std::ffi::CString;
 use std::path::Path;
 
-/// BPF_OBJ_GET (uapi bpf_cmd): fd for a pinned path.
-const BPF_OBJ_GET: u64 = 1;
+/// BPF_OBJ_GET (uapi bpf_cmd 7): fd for a pinned path.
+const BPF_OBJ_GET: u64 = 7;
 /// BPF_PROG_GET_NEXT_ID (uapi bpf_cmd 11): the program id enumeration.
 const BPF_PROG_GET_NEXT_ID: u64 = 11;
 /// BPF_MAP_GET_NEXT_ID (uapi bpf_cmd 12): the map id enumeration.
 const BPF_MAP_GET_NEXT_ID: u64 = 12;
 /// BPF_OBJ_GET_INFO_BY_FD (uapi bpf_cmd 15): the per-object facts.
 const BPF_OBJ_GET_INFO_BY_FD: u64 = 15;
-/// BPF_LINK_GET_NEXT_ID (uapi bpf_cmd 30): the link id enumeration.
-const BPF_LINK_GET_NEXT_ID: u64 = 30;
+/// BPF_LINK_GET_NEXT_ID (uapi bpf_cmd 31): the link id enumeration.
+const BPF_LINK_GET_NEXT_ID: u64 = 31;
 
 /// The uapi `bpf_attr` arms this reader rides. Every arm is a
 /// zero-initialized 128-byte whole before the typed arm is written -
@@ -134,11 +134,13 @@ fn next_id(cmd: u64, start: u32) -> Result<Option<u32>, std::io::Error> {
 
 /// Every public id of one class, ascending. The walk's guards are
 /// the honest termination contract (night-frontier-Z11, D8): the ids
-/// must advance STRICTLY upward (the uapi's own answer shape - an id
-/// at or below the query means the kernel echoed, and the walk names
-/// the refusal instead of spinning), and the step count is bounded
-/// outright (a million ids in one plane is already absurd; the bound
-/// turns any kernel wed into a named error, never a hang).
+/// must advance STRICTLY upward past the initial query (the uapi's
+/// own answer shape - ids start at 1, so an answer of 0 means the
+/// command never wrote the field, and an id at or below the query
+/// means the kernel echoed; the walk names the refusal instead of
+/// spinning), and the step count is bounded outright (a million ids
+/// in one plane is already absurd; the bound turns any kernel wed
+/// into a named error, never a hang).
 fn enumerate_class(cmd: u64) -> Result<BTreeSet<u32>, std::io::Error> {
     let mut ids = BTreeSet::new();
     let mut start = 0u32;
@@ -153,14 +155,22 @@ fn enumerate_class(cmd: u64) -> Result<BTreeSet<u32>, std::io::Error> {
         let Some(id) = next_id(cmd, start)? else {
             return Ok(ids);
         };
-        if id <= start && start != 0 {
+        // The answer must clear the query that produced it: the
+        // kernel's idr hands out ids from 1 upward, so an answer of
+        // 0 (any step, the first included) names a command that
+        // never wrote the field, and an answer at or below a nonzero
+        // start names an echo. Either shape is the named refusal -
+        // the hole the wrong-link-command spin rode (the enumeration
+        // answered its own zeroed next_id forever while the step
+        // bound and the set-size bound both stayed quiet).
+        if id == 0 || (id <= start && start != 0) {
             return Err(std::io::Error::other(format!(
                 "the id enumeration echoed (start {start}, answer {id})"
             )));
         }
         ids.insert(id);
         start = id;
-        if steps % 1000 == 0 {
+        if steps.is_multiple_of(1000) {
             crate::output::verbose::vlog!(
                 "plane",
                 "the id enumeration walked {} ids (last {start})",

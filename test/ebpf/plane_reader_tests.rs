@@ -30,6 +30,29 @@ fn the_attr_arms_ride_the_uapi_offsets() {
 }
 
 #[test]
+fn the_command_numbers_ride_the_uapi_enum() {
+    // The uapi's own enum order (include/uapi/linux/bpf.h), stable
+    // since BPF_LINK_GET_NEXT_ID landed in v5.8: MAP_CREATE=0,
+    // MAP_LOOKUP_ELEM=1, MAP_UPDATE_ELEM=2, MAP_DELETE_ELEM=3,
+    // MAP_GET_NEXT_KEY=4, PROG_LOAD=5, OBJ_PIN=6, OBJ_GET=7,
+    // PROG_ATTACH=8, PROG_DETACH=9, PROG_TEST_RUN=10,
+    // PROG_GET_NEXT_ID=11, MAP_GET_NEXT_ID=12, PROG_GET_FD_BY_ID=13,
+    // MAP_GET_FD_BY_ID=14, OBJ_GET_INFO_BY_FD=15 ... LINK_CREATE=28,
+    // LINK_UPDATE=29, LINK_GET_FD_BY_ID=30, LINK_GET_NEXT_ID=31.
+    // The wrong-number era read BPF_OBJ_GET as 1 (MAP_LOOKUP_ELEM -
+    // every pin resolved as EBADF, pathname bytes read as a map fd)
+    // and BPF_LINK_GET_NEXT_ID as 30 (LINK_GET_FD_BY_ID - a command
+    // that answers with an fd and never writes next_id, the exact
+    // answer-0 spin the walk's echo guard refused to name at
+    // start=0); this pin is the contract those defects rode past.
+    assert_eq!(BPF_OBJ_GET, 7);
+    assert_eq!(BPF_PROG_GET_NEXT_ID, 11);
+    assert_eq!(BPF_MAP_GET_NEXT_ID, 12);
+    assert_eq!(BPF_OBJ_GET_INFO_BY_FD, 15);
+    assert_eq!(BPF_LINK_GET_NEXT_ID, 31);
+}
+
+#[test]
 fn every_info_shape_this_estate_pins_carries_the_id_at_offset_four() {
     // The read the id rides: prog, map, and link info all open
     // `__u32 type; __u32 id;` - the uapi contract that lets one
