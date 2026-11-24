@@ -1906,6 +1906,62 @@ v11.0.0
 
 ### Fixed
 
+- **The ID plane reader rode two wrong uapi command numbers (D9, the
+  D8 wedge's root cause).** The reader's constants drifted from the
+  uapi enum the night they were written: `BPF_OBJ_GET` rode 1
+  (MAP_LOOKUP_ELEM - the pin path's own bytes read as a map fd, every
+  pin resolving as EBADF, so the estate walk could never resolve a
+  single object), and `BPF_LINK_GET_NEXT_ID` rode 30
+  (LINK_GET_FD_BY_ID - a command that answers with an fd and never
+  writes `next_id`, so the link walk read its own zeroed field back
+  as an answer of 0 at `start=0` forever). That answer-0 shape is the
+  exact spin both D8 guards missed: the echo guard skipped `start=0`,
+  and the set-size bound never grew because the id 0 was already in
+  the set - the pre-guard run wedged the floor VM for its whole
+  300-second budget at the doctor-under-ceiling step, and every
+  post-guard run refused with "the id enumeration did not terminate"
+  on the 5.15 floor and the 6.18 host alike. Both numbers now ride
+  the uapi enum's own order (7 and 31, verified against v5.15, v6.18,
+  and the Ubuntu jammy 5.15.0-25 floor source), the echo guard closes
+  the start=0 hole (ids come from the kernel's idr at 1 and up - an
+  answer of 0 at any step names a command that never wrote the
+  field), and the command numbers ride a regression pin in the
+  attr-layout test family so a wrong constant can never land silently
+  again. The detonation proof's leg d (the ID plane, verified) has
+  never passed until this fix; the floor CI is its first live
+  confirmation. No A/B benchmark per house rule: the change rides
+  two integer constants and a guard condition, all on a path that
+  previously refused to answer at all - there is no before/after
+  performance surface, only a wrong answer made right.
+- **The detonation proof resolves its own binary seat (D9).** The
+  detonation hardcoded /opt/zejtron/zejtron (the micro-VM's packed
+  rootfs seat), so a host run outside the VM died at the attach step
+  with bash's own "No such file or directory" - and the leg a
+  failure reason blamed the floor kernel for an attach that never
+  ran, the dishonest shape. The binary seat now resolves in order:
+  the caller's ZEJTRON_BIN override, the micro-VM rootfs seat, then
+  the host install seat (`command -v zejtron`, the
+  install-on-my-machine lane). A binary absent from every seat fails
+  loudly and honestly before any leg runs, and the attach refusal
+  carries the binary path it rode.
+- **The why refusal teaches the deleted-path seats (D9).** The
+  missing-path refusal named the operand and stopped - an honest
+  boundary (the ledger keys every row to the inode the opening stat
+  anchors on, and a deleted path answers no stat), but a refusal
+  that only names itself leaves the operator with a deleted file in
+  hand and no next move. The doctor's unknown-symptom law already
+  teaches the documented grammar on its own refusals; why's NotFound
+  arm now carries the same shape: the boundary is named in one
+  clause, and the two seats that DO answer a deleted path ride
+  beside it - the directory's own recent-file walk (`zejtron recent
+  <its directory> --since <window>`, the path history) and the
+  doctor's memory symptom (`zejtron doctor --symptom ram`, the
+  deleted-but-open holder list while a process still holds the
+  inode). The refusal keeps its `path not found: <operand>` prefix
+  (the storm surface greps exactly that shape under load), and the
+  two error-path pins hold the prefix while pinning the taught
+  seats.
+
 - **The eBPF probe build is warning-free** (the owner's directive,
   "all should clean, don't warning"): the unlink/rename module
   carried seven redundant nested `unsafe` blocks - six per-read

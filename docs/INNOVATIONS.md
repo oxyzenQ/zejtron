@@ -811,10 +811,23 @@ negative control proving the detector does not cry wolf. A green CI
 log is the public evidence; the id-plane cloaking itself can only be
 simulated in the pure verifier (no fixture can hide a program from
 the kernel's own enumeration without a kernel-level rootkit), and
-the docs say so plainly. Pinned by
-`test/ebpf/plane_reader_tests.rs` (the attr layout, the
-classification, the reconciliation table, the row wording) and the
-section shape pins; detonated by
+the docs say so plainly. THE WRONG-NUMBER ERA (closed D9, the
+night after): the reader's first landing rode two constants that
+had drifted from the uapi enum - `BPF_OBJ_GET` as 1
+(MAP_LOOKUP_ELEM, every pin resolving as EBADF) and
+`BPF_LINK_GET_NEXT_ID` as 30 (LINK_GET_FD_BY_ID, a command that
+answers with an fd and never writes `next_id` - the link walk
+spun on its own zeroed field, the exact wedge the D8 guards
+chased and bounded but never named). The fix rides the enum's own
+order (7 and 31, verified against v5.15, v6.18, and the Ubuntu
+jammy floor source), the echo guard closes the start=0 hole
+(kernel idr ids start at 1 - an answer of 0 names a command that
+never wrote the field), and a regression pin in the attr-layout
+test family holds all five command numbers to the uapi enum so
+the drift cannot land silently again. Pinned by
+`test/ebpf/plane_reader_tests.rs` (the attr layout, the command
+numbers, the classification, the reconciliation table, the row
+wording) and the section shape pins; detonated by
 `scripts/sandbox/detect-rootkit.sh` in the floor lane.
 
 ## How a newcomer reads this tree
