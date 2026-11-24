@@ -41,6 +41,14 @@
 #
 # Usage (inside the micro-VM, as root):
 #   bash /opt/zejtron/scripts/sandbox/detect-rootkit.sh
+#
+# The host lane runs the same script on the operator's own kernel
+# (bash scripts/sandbox/detect-rootkit.sh from the repo checkout).
+# Leg b's fixture artifacts then resolve from the repo's fixture
+# build tree - build them first with scripts/sandbox/build-fixtures.sh.
+# The host lane plants a REAL hide on the RUNNING kernel; the leg's
+# loader is inert-safe (pid 0 = nobody hidden) and the drop at exit
+# detaches it, but the micro-VM stays the contained seat.
 
 set -u
 
@@ -57,8 +65,35 @@ elif [ -x /opt/zejtron/zejtron ]; then
 else
 	BIN=$(command -v zejtron 2>/dev/null || true)
 fi
-LOADER=${PIDHIDE_LOADER:-${SANDBOX}/pidhide-loader}
-OBJECT=${PIDHIDE_OBJECT:-${SANDBOX}/pidhide-ebpf}
+# The fixture artifacts resolve in order: the caller's explicit
+# override, the micro-VM's packed rootfs seat, then the repo's own
+# fixture build tree (scripts/sandbox/build-fixtures.sh lands them
+# there - the host lane's seat, since only CI packs the rootfs).
+# The detonation must run the real mechanism wherever the lane put
+# it, and an absent artifact must name the seat it checked instead
+# of a bare "missing".
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+FIXTURE="${REPO_ROOT}/test-fixtures/pidhide"
+# The first candidate that clears the check wins; nothing matches,
+# the first candidate rides on so the failure names the canonical seat.
+first_match() {
+	probe="$1"; shift
+	for candidate in "$@"; do
+		if "${probe}" "$candidate"; then
+			printf '%s' "$candidate"
+			return 0
+		fi
+	done
+	printf '%s' "$1"
+}
+is_exec() { [ -x "$1" ]; }
+is_file() { [ -f "$1" ]; }
+LOADER=${PIDHIDE_LOADER:-$(first_match is_exec \
+	"${SANDBOX}/pidhide-loader" \
+	"${FIXTURE}/target/x86_64-unknown-linux-musl/release/pidhide-loader")}
+OBJECT=${PIDHIDE_OBJECT:-$(first_match is_file \
+	"${SANDBOX}/pidhide-ebpf" \
+	"${FIXTURE}/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf")}
 WORK=${SANDBOX}/detonation
 
 if [ -z "${BIN}" ] || [ ! -x "${BIN}" ]; then
@@ -139,8 +174,9 @@ wait "${leg_a_writer}" || true
 
 # ── leg b: the pidhide hide ──────────────────────────────────────────
 echo "── z11 detonation: leg b (pidhide, the real stealth mechanism) ──"
-if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
-	fail_leg b-pidhide "the fixture artifacts are missing from the rootfs"
+	if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
+		fail_leg b-pidhide \
+			"the fixture artifacts are missing from every seat (loader ${LOADER}, object ${OBJECT}; build them with scripts/sandbox/build-fixtures.sh or pack the rootfs seat)"
 else
 	"${LOADER}" "${OBJECT}" 12 >leg-b.loader 2>&1 &
 	loader_pid=$!
