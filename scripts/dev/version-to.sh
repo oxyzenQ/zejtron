@@ -2,14 +2,19 @@
 # SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 # SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # OS: Linux only — zejtron is a Linux introspection tool.
-# Single-crate repo note (sibling-manifest lineage, retargeted by
-# night-improve-5): the root pair (Cargo.toml + Cargo.lock) is the
-# root version surface, and the detached ebpf/ workspace carries its
-# OWN manifest pair that mirrors the root version (the mirror law:
-# root == ebpf == the prebuilt lane's [contract] version). The bump
-# below rewrites all of them, then refreshes the prebuilt lane
-# fail-closed through its one writer - the zylaxion night-dinner-8
-# shape: a version bump always stales the lane's pins (the ebpf/ tree
+# The mirror census (the autodetect law, retargeted by
+# night-depth-cleanup-1B-1 from the sibling-manifest lineage): the
+# OLD version is read from the root manifest, and every TRACKED
+# Cargo.toml carrying that exact version is a mirror member - bumped
+# here whatever its path, with its sibling lock moved the same
+# name-anchored way (the root pair, the detached ebpf/ workspace,
+# and the test-fixtures/pidhide pair today). A crate that joins the
+# mirror by carrying the release version rides every future bump;
+# a crate that declares its own independent version stays
+# independent; nothing is remembered by hand, so nothing goes
+# stale. The bump then refreshes the prebuilt lane fail-closed
+# through its one writer - the zylaxion night-dinner-8 shape: a
+# version bump always stales the lane's pins (the ebpf/ tree
 # hash covers ebpf/Cargo.toml and ebpf/Cargo.lock), so the bump
 # invocation regenerates the lane instead of leaving the commit to
 # fail the parity gate.
@@ -276,40 +281,86 @@ echo "Updating zejtron to ${TAG}"
 # it is idempotent over a half-bumped tree (a re-run after a failed
 # bump heals the remaining surfaces), and the verify rows below fail
 # loudly if the lock shape is not this script's to edit.
-sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?"/version = "'"${VERSION}"'"/' Cargo.toml
-sed -i -E "/^name = \"zejtron\"\$/{n;s/^version = \"[^\"]*\"/version = \"${VERSION}\"/;}" Cargo.lock
-grep -A3 'name = "zejtron"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' ||
-	error "Cargo.lock zejtron entry was not rewritten - the lock shape is not this script's to edit"
+# The mirror census: the OLD version is read from the root manifest
+# first, then the tree is re-read for every tracked manifest riding
+# it. The rewrite anchors the OLD version exactly (idempotent over a
+# half-bumped tree: a re-run heals the remaining OLD surfaces and
+# leaves the NEW ones alone), and every manifest's sibling lock moves
+# the name-anchored way - the 2026-11-23 lesson above, a text
+# rewrite, never a resolver run.
+OLD_VERSION="$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)"
+[[ -n "${OLD_VERSION}" ]] || error "could not read the current version from Cargo.toml"
+mirror_manifests="$(git ls-files -- '*Cargo.toml' | while IFS= read -r manifest; do
+	manifest_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' "${manifest}" | head -1)"
+	if [[ "${manifest_version}" == "${OLD_VERSION}" ]]; then
+		printf '%s\n' "${manifest}"
+	fi
+done)"
+[[ -n "${mirror_manifests}" ]] || error "no tracked manifest carries version ${OLD_VERSION} - the mirror census found nothing to bump"
 
-# The mirror law (night-improve-5): the detached ebpf/ workspace and
-# the prebuilt lane's manifest follow the root version in the same
-# invocation - never a half-mirrored tree.
-sed -i -E 's/^version = "[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?"/version = "'"${VERSION}"'"/' ebpf/Cargo.toml
-sed -i -E "/^name = \"zejtron-ebpf\"\$/{n;s/^version = \"[^\"]*\"/version = \"${VERSION}\"/;}" ebpf/Cargo.lock
-(cd ebpf && grep -A3 'name = "zejtron-ebpf"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"') ||
-	error "ebpf/Cargo.lock zejtron-ebpf entry was not rewritten - the lock shape is not this script's to edit"
+bumped_surfaces=""
+doc_list=""
+while IFS= read -r manifest; do
+	# The manifest: every column-0 version line carrying the OLD
+	# version moves ([package] today, [workspace.package] if a
+	# manifest ever grows one - matching the release version is the
+	# definition of a mirror member).
+	sed -i -E 's/^version = "'"${OLD_VERSION}"'"/version = "'"${VERSION}"'"/' "${manifest}"
+	package_name="$(sed -n 's/^name = "\(.*\)"$/\1/p' "${manifest}" | head -1)"
+	[[ -n "${package_name}" ]] || error "${manifest}: no package name - the census needs it for the lock move"
+	bumped_surfaces+="${manifest} "
+	# The sibling lock, moved the name-anchored way and verified in
+	# the same breath as the old hardcoded rows were.
+	lock="$(dirname "${manifest}")/Cargo.lock"
+	if [[ -f "${lock}" ]]; then
+		sed -i -E "/^name = \"${package_name}\"\$/{n;s/^version = \"[^\"]*\"/version = \"${VERSION}\"/;}" "${lock}"
+		grep -A3 "name = \"${package_name}\"" "${lock}" | grep -q 'version = "'"${VERSION}"'"' ||
+			error "${lock}: ${package_name} entry was not rewritten - the lock shape is not this script's to edit"
+		bumped_surfaces+="${lock#./} "
+	fi
+done <<<"${mirror_manifests}"
+
 ./scripts/dev/regenerate-ebpf-prebuilt.sh
 
-sed -i -E 's/^TAG=v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?/TAG='"${TAG}"'/' README.md docs/workflow/about-ci.md
-sed -i -E 's#(zejtron-)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(-linux-)#\1'"${TAG}"'\3#g' README.md docs/workflow/about-ci.md
-sed -i -E 's#(/download/)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?/#\1'"${TAG}"'/#g' README.md docs/workflow/about-ci.md
-sed -i -E 's#(git tag -a )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' docs/workflow/about-ci.md
-sed -i -E 's#(git tag -a v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)? -m ")v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(")#\1'"${TAG}"'\4#g' docs/workflow/about-ci.md
-sed -i -E 's#(git push origin )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' docs/workflow/about-ci.md
-sed -i -E 's#(git commit -m "chore: prepare )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?( release")#\1'"${TAG}"'\3#g' docs/workflow/about-ci.md
-sed -i -E 's#(./version-to\.sh )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' README.md docs/workflow/about-ci.md
-sed -i -E 's#(img\.shields\.io/badge/version-)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?-#\1'"${TAG}"'-#g' README.md
-sed -i -E 's#(alt="Version )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(")#\1'"${TAG}"'\3#g' README.md
+# The release-example census: every tracked markdown surface whose
+# TAG= pin still carries the OLD tag rides the same anchored rewrite
+# shapes as before (TAG=, the download URL, the tag/push/commit
+# examples, the version-to invocation, the shields badge), wherever
+# they live. The changelog ledger is owned by changelog_release and
+# is never swept here.
+doc_targets="$({
+	printf '%s\n' README.md docs/workflow/about-ci.md
+	git grep -l "TAG=v${OLD_VERSION}" -- '*.md' || true
+} | sort -u | grep -v '^CHANGELOG.md$' || true)"
+while IFS= read -r doc; do
+	[[ -f "${doc}" ]] || continue
+	doc_list+="${doc} "
+	sed -i -E 's/^TAG=v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?/TAG='"${TAG}"'/' "${doc}"
+	sed -i -E 's#(zejtron-)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(-linux-)#\1'"${TAG}"'\3#g' "${doc}"
+	sed -i -E 's#(/download/)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?/#\1'"${TAG}"'/#g' "${doc}"
+	sed -i -E 's#(git tag -a )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' "${doc}"
+	sed -i -E 's#(git tag -a v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)? -m ")v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(")#\1'"${TAG}"'\4#g' "${doc}"
+	sed -i -E 's#(git push origin )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' "${doc}"
+	sed -i -E 's#(git commit -m "chore: prepare )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?( release")#\1'"${TAG}"'\3#g' "${doc}"
+	sed -i -E 's#(./version-to\.sh )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?#\1'"${TAG}"'#g' "${doc}"
+	sed -i -E 's#(img\.shields\.io/badge/version-)v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?-#\1'"${TAG}"'-#g' "${doc}"
+	sed -i -E 's#(alt="Version )v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?(")#\1'"${TAG}"'\3#g' "${doc}"
+done <<<"${doc_targets}"
 
 # --- Record the release in CHANGELOG.md (the release ledger line) ---
 changelog_release "${VERSION}"
 
-grep -q '^version = "'"${VERSION}"'"$' Cargo.toml || error "Cargo.toml version was not updated"
-grep -A3 'name = "zejtron"' Cargo.lock | grep -q 'version = "'"${VERSION}"'"' || error "Cargo.lock zejtron version was not updated"
-# The mirror law's verify rows (night-improve-5): the ebpf/ pair and
-# the prebuilt lane's pins land on the same version, verified.
-grep -q '^version = "'"${VERSION}"'"$' ebpf/Cargo.toml || error "ebpf/Cargo.toml version was not updated"
-grep -A3 'name = "zejtron-ebpf"' ebpf/Cargo.lock | grep -q 'version = "'"${VERSION}"'"' || error "ebpf/Cargo.lock zejtron-ebpf version was not updated"
+# The verify rows: every surface the census bumped asserts the NEW
+# version - the mirror law holds over whatever the tree carried, not
+# over a remembered list.
+while IFS= read -r manifest; do
+	grep -q '^version = "'"${VERSION}"'"$' "${manifest}" || error "${manifest} version was not updated"
+	package_name="$(sed -n 's/^name = "\(.*\)"$/\1/p' "${manifest}" | head -1)"
+	lock="$(dirname "${manifest}")/Cargo.lock"
+	if [[ -f "${lock}" ]]; then
+		grep -A3 "name = \"${package_name}\"" "${lock}" | grep -q 'version = "'"${VERSION}"'"' || error "${lock}: ${package_name} version was not updated"
+	fi
+done <<<"${mirror_manifests}"
 ./scripts/dev/regenerate-ebpf-prebuilt.sh --check || error "the prebuilt lane is stale after the bump"
 grep -q "TAG=${TAG}" README.md || error "README.md release examples do not mention TAG=${TAG}"
 grep -q "TAG=${TAG}" docs/workflow/about-ci.md || error "docs/workflow/about-ci.md release examples do not mention TAG=${TAG}"
@@ -319,4 +370,4 @@ grep -qxF "${TAG}" CHANGELOG.md || error "CHANGELOG.md ledger line for ${TAG} wa
 
 echo "VERSION=${VERSION}"
 echo "TAG=${TAG}"
-echo "Updated Cargo.toml, Cargo.lock, ebpf/Cargo.toml, ebpf/Cargo.lock, ebpf-prebuilt/, README.md, docs/workflow/about-ci.md, and CHANGELOG.md"
+echo "Updated ${bumped_surfaces}ebpf-prebuilt/, ${doc_list}and CHANGELOG.md (the mirror census re-read the tree: $(printf '%s' "${bumped_surfaces}" | wc -w) manifest surfaces bumped)"

@@ -796,6 +796,33 @@ v11.0.0
   .codespellrc precedent). Docs updated
   (docs/EBPF_LIFECYCLE.md: the plant path's supply-chain answer).
 
+### Changed
+
+- **scripts(dev): the version bump rides the mirror census - every
+  Cargo.toml is autodetected, none is remembered by hand.**
+  version-to.sh carried a hardcoded bump list (the root pair, the
+  ebpf/ pair) while the tree carries six tracked manifests: the
+  test-fixtures/pidhide pair carried the release version and went
+  stale on every bump (both sat on 80.5.3 through the whole 80.5
+  line), and a future crate joining the mirror would have been
+  forgotten the same way. The census re-reads the tree every run:
+  the OLD version comes from the root manifest, every tracked
+  manifest carrying that exact version is bumped together with its
+  sibling lock (the same name-anchored text move, never a resolver
+  run - the 2026-11-23 lesson stands), and the verify rows assert
+  the new version over whatever the tree carried, not over a
+  remembered list. Crates that declare their own independent
+  version (the fuzz harness's 0.0.0, the proofs crate's 0.1.0)
+  stay independent by their own declared value. The release-example
+  doc sweep is a census too: any tracked markdown whose `TAG=` pin
+  still names the old tag rides the same anchored rewrite shapes,
+  and the changelog ledger stays owned by its writer. Probed at
+  v80.6.0-dragon.1: eight manifest surfaces bumped (was four), the
+  pidhide pair and locks landed on the new version, fuzz/proofs
+  untouched, the prebuilt lane in sync with an object byte-identical
+  to the owner machine's run. docs/RULES.md's Version Bumps entry
+  describes the census, not a file list.
+
 ### License
 
 - **Migrated from GPL-3.0-only to AGPL-3.0-only.** This closes the SaaS

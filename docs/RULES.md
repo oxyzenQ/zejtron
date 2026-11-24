@@ -164,9 +164,16 @@ the superseded pre-freeze v5.0.0 design specification lives in
 
 Version bumps must use the `./scripts/dev/version-to.sh` script (`vX.Y.Z`, or
 `vX.Y.Z-pre` for a pre-release cut such as `v12.0.0-rc.1` - the same tag shape
-the release lane validates), which updates `Cargo.toml`, `Cargo.lock`,
-`README.md`, and `docs/workflow/about-ci.md` in a single, consistent pass.
-Manual version edits are prohibited.
+the release lane validates), which runs the mirror census: every tracked
+`Cargo.toml` carrying the release version and its sibling lock (the root
+pair, the detached ebpf/ pair, and the test-fixtures/pidhide pair today),
+the prebuilt lane, the release-example docs (`README.md`,
+`docs/workflow/about-ci.md`, and any doc whose `TAG=` pin still names the
+old tag), and the CHANGELOG ledger, in a single consistent pass. A crate
+that joins the mirror by carrying the release version is picked up
+automatically - the census re-reads the tree every run, so a new crate can
+never go stale by being forgotten in a list. Manual version edits are
+prohibited.
 
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
