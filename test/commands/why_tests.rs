@@ -59,11 +59,23 @@ fn missing_path_error_is_clean() {
     let missing = directory.path().join("missing");
 
     let (window, window_label) = crate::commands::lane::resolve_window(None).unwrap();
-    assert_eq!(
-        ledger::build_path_report(&missing, window, window_label, false, false, false)
-            .unwrap_err()
-            .to_string(),
-        format!("path not found: {}", missing.display())
+    let error = ledger::build_path_report(&missing, window, window_label, false, false, false)
+        .unwrap_err()
+        .to_string();
+    // The refusal opens with the operand (the storm surface greps
+    // for this prefix under load) and teaches the documented seats
+    // that DO answer a deleted path - the doctor's own grammar law.
+    assert!(
+        error.starts_with(&format!("path not found: {}", missing.display())),
+        "the refusal must open with the named operand: {error}"
+    );
+    assert!(
+        error.contains("zejtron recent"),
+        "the refusal must teach the directory-history seat: {error}"
+    );
+    assert!(
+        error.contains("doctor --symptom ram"),
+        "the refusal must teach the deleted-but-open seat: {error}"
     );
 }
 
@@ -74,11 +86,14 @@ fn broken_symlink_error_is_clean() {
     symlink(directory.path().join("missing"), &link).unwrap();
 
     let (window, window_label) = crate::commands::lane::resolve_window(None).unwrap();
-    assert_eq!(
-        ledger::build_path_report(&link, window, window_label, false, false, false)
-            .unwrap_err()
-            .to_string(),
-        format!("path not found: {}", link.display())
+    let error = ledger::build_path_report(&link, window, window_label, false, false, false)
+        .unwrap_err()
+        .to_string();
+    // The same refusal shape the missing path rides: the operand
+    // leads, the deleted-path seats are taught.
+    assert!(
+        error.starts_with(&format!("path not found: {}", link.display())),
+        "the refusal must open with the named operand: {error}"
     );
 }
 

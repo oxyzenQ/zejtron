@@ -47,7 +47,25 @@ pub fn build_path_report(
         // a pathological operand is named, never flooded.
         let operand = crate::system::display_operand(&path.display().to_string());
         if error.kind() == std::io::ErrorKind::NotFound {
-            super::WhyError(format!("path not found: {operand}"))
+            // The refusal teaches the documented grammar (the doctor's
+            // unknown-symptom law): the ledger's every row is keyed to
+            // the inode the opening stat anchors on, and a path that no
+            // longer answers a stat has no anchor to key - the ring
+            // records carry (dev, inode), never a path string, so this
+            // is an identity boundary, not a missing feature. The
+            // operator with a deleted path in hand is pointed at the
+            // seats that DO answer it: the directory's own recent-file
+            // walk (the path history) and the doctor's memory symptom
+            // (the deleted-but-open holders).
+            super::WhyError(format!(
+                "path not found: {operand} - the evidence ledger keys to \
+                 the inode the opening stat anchors on, and a deleted \
+                 path answers no stat; for a deleted file try \
+                 'zejtron recent <its directory> --since <window>' for \
+                 the directory's change history or, while a process \
+                 still holds it open, 'zejtron doctor --symptom ram' \
+                 for the deleted-but-open holder list"
+            ))
         } else {
             super::WhyError(format!("{operand}: {error}"))
         }
