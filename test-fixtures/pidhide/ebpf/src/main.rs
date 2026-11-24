@@ -70,14 +70,18 @@ static TARGETS: Array<u64> = Array::with_max_entries(6, 0);
 /// The `getdents_callback64` container's cursor field (`current_dir`,
 /// the user buffer position THIS entry is about to be written at):
 /// the dir_context the callback receives is the container's first
-/// field, so the container rides the context's slot 0 directly and
-/// the cursor sits at offset 8. The one 12-byte probe read spans the
-/// cursor (u64 @8) and the predecessor's record length
-/// (`prev_reclen`, i32 @16) in a single call. The layout is the
-/// getdents64 implementation's own, stable from the 5.15 floor
-/// through 6.x; a kernel that moved the fields fails the read or
-/// names itself in the absorb, never silently.
-const CONTAINER_CURSOR: usize = 8;
+/// field, and a dir_context is TWO pointers - the actor and the
+/// readdir position - so the container's second field sits at offset
+/// 16, not 8. The first shape read at 8 and caught the position
+/// pointer instead (the census named it: three matches, zero writes,
+/// the absorb's own u16 bound refusing the kernel pointer that rode
+/// the cursor seat). The one 12-byte probe read spans the cursor
+/// (u64 @16) and the predecessor's record length (`prev_reclen`,
+/// i32 @20) in a single call. The layout is the getdents64
+/// implementation's own, stable from the 5.15 floor through 6.x; a
+/// kernel that moved the fields fails the read or names itself in
+/// the absorb, never silently.
+const CONTAINER_CURSOR: usize = 16;
 /// The dirent64 header the absorb formula rides on: d_ino (8) at 0,
 /// d_off (8) at 8, d_reclen (2) at 16, d_type (1) at 18, d_name at
 /// 19 - the kernel's own `ALIGN(offsetof(linux_dirent64, d_name) +
