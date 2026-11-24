@@ -22,16 +22,28 @@
 # The loom instrument was examined and returned a signed census NO
 # (night-datapath-1): loom 0.7.3 proves interleavings of shared-memory
 # protocols, and zejtron's proof-carrying cores (events.rs, clock.rs)
-# are pure functions with no shared mutable state at all - the two
-# atomics the userspace tree carries are plain statics set once at
-# startup, not location-backed raw-memory CAS. Expressing a protocol
-# loom could prove would mean INVENTING shared state the datapath does
-# not have: a model, not a proof of the bytes the binary runs. The
-# verdict is standing-enforced, not archival: the proofs.yml
-# loom-census job re-reads the tree on every push and fails the day a
-# location-backed atomic lands outside its designated file or a loom
-# dependency enters without a standing lane. The instrument reopens
-# the day the tree carries a real shared-memory protocol.
+# are pure functions with no shared mutable state at all. The FULL
+# concurrency inventory (the night-netrunner-Z2 re-census, the LTS
+# release's audit copy): set-once statics (verbose.rs, capability.rs)
+# and OnceLocks ride std's own synchronization; the spinner's two
+# Arc<AtomicBool> flags are a cross-thread UI handshake with no
+# compound invariant; the kernel side carries per-slot monotonic
+# fetch_add counters whose slot ownership is compile-time static -
+# no CAS, no spin lock, no compound protocol, and NO location-backed
+# raw-memory atomic anywhere in the tree. Expressing a protocol loom
+# could prove would mean INVENTING shared state the datapath does not
+# have: a model, not a proof of the bytes the binary runs. The zelynic
+# night-frontier-Z17 shape (the interleaving theorem over a budget
+# core's CAS composition) was examined against this tree and returned
+# the same SKIP: zejtron is a camera, not a limiter - the subject does
+# not exist here, and proving the counters' exactness would prove the
+# fetch_add primitive, not zejtron's bytes. The verdict is
+# standing-enforced, not archival: the proofs.yml loom-census job
+# re-reads the tree on every push and fails the day a location-backed
+# atomic lands outside its designated shape or a loom dependency
+# enters without a standing lane. The instrument reopens the day the
+# tree carries a real shared-memory protocol - the honest further
+# lever then is the Z17 lemma decomposition, never a bigger budget.
 #
 # The included sources are #[path] wirings of the userspace tree's
 # leaf law files - the SAME bytes the binary builds (the fuzz

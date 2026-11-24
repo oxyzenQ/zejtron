@@ -222,12 +222,18 @@ jobs:
 
       # The signed census verdict (proofs/Cargo.toml's header,
       # docs/PROOFS.md): loom is censused, NOT adopted - zejtron's
-      # proof-carrying cores are pure functions, the userspace tree's
-      # two atomics are plain startup statics, and no shared-memory
-      # protocol exists for an interleaving checker to explore. This
-      # guard re-reads the tree every push and fails the day the
-      # signed basis moves: the reopen trigger made mechanical, not
-      # archival.
+      # proof-carrying cores are pure functions; the tree's atomic
+      # sites are set-once statics and OnceLocks (std's own
+      # synchronization), the spinner's UI flags (no compound
+      # invariant), and per-slot monotonic fetch_add counters
+      # (compile-time slot ownership) - no CAS, no spin lock, no
+      # shared-memory protocol for an interleaving checker to explore.
+      # The zelynic night-frontier-Z17 shape (the interleaving
+      # theorem over a budget core) was examined and returned the
+      # same SKIP: the subject does not exist here - zejtron is a
+      # camera, not a limiter. This guard re-reads the tree every
+      # push and fails the day the signed basis moves: the reopen
+      # trigger made mechanical, not archival.
       - name: Harden DNS (the poisoned-resolver defense)
         uses: ./.github/actions/harden-dns
       - name: Enforce the signed census verdict (the absence scan)

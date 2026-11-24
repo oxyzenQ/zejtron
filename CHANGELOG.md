@@ -52,6 +52,23 @@ v11.0.0
 
 ### Added
 
+- **docs(proofs): the concurrency census refreshed and the zelynic
+  Z17 shape examined (night-netrunner-Z2, the LTS audit copy).** The
+  census's basis now names the FULL atomic-site inventory instead of
+  a stale count: the set-once statics and OnceLocks (std's own
+  synchronization), the spinner's two Arc<AtomicBool> UI flags (a
+  cross-thread handshake with no compound invariant), and the
+  kernel side's per-slot monotonic fetch_add counters (compile-time
+  slot ownership) - no CAS, no spin lock, no compound protocol, and
+  no location-backed raw-memory atomic anywhere in the tree. The
+  zelynic night-frontier-Z17 shape (the interleaving theorem over a
+  budget core's CAS composition) was examined against this tree and
+  returned a signed SKIP: zejtron is a camera, not a limiter - the
+  subject does not exist here, and proving the counters' exactness
+  would prove the fetch_add primitive, not zejtron's bytes. The
+  loom-census guard's mechanical reopen trigger is unchanged and
+  standing. Records: docs/PROOFS.md (the census section), the
+  proofs/Cargo.toml header, the proofs.yml loom-census comment.
 - **feat(proofs): the for-all completion and the matrix proofs
   (night-netrunner-Z2).** The proof layer's depth from the zelynic
   reference, adapted to this estate's own laws and measured first:

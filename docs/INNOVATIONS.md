@@ -903,7 +903,15 @@ the zelynic Z12 lever (lemma decomposition) stays armed, not
 triggered - its own lesson is to decompose only the wall classes a
 census MEASURES, and zejtron's slowest harness measured 39.7
 seconds against a 15-minute ceiling, so the budget stays the
-non-lever. The sampled bridges ride beside (proptest, 4096 cases
+non-lever. The same depth carried the concurrency census's full
+inventory (the zelynic Z17 shape - the interleaving theorem over a
+budget core's CAS composition - examined and returned a signed
+SKIP: zejtron is a camera, not a limiter, the tree's atomic sites
+are set-once statics, OnceLocks, invariant-free UI flags, and
+per-slot monotonic counters, and proving counter exactness would
+prove the fetch_add primitive, not zejtron's bytes; the
+loom-census guard mechanically enforces the reopen). The sampled
+bridges ride beside (proptest, 4096 cases
 per law): the two decision laws' sampled forms, shrinking witnesses
 on any drift. Pinned by `proofs/src/kani_cores.rs` (the harness
 docs name each domain and budget class) and `proofs/src/

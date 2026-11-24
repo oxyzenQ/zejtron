@@ -112,16 +112,38 @@ day a theorem measures undecided, with real numbers.
 
 Loom 0.7.3 proves interleavings of shared-memory protocols.
 zejtron's proof-carrying cores are pure functions with no shared
-mutable state, and the userspace tree's two atomics
-(`src/output/capability.rs`, `src/output/verbose.rs`) are plain
-startup statics - set once, read after, no location-backed
-raw-memory CAS discipline anywhere. Inventing shared state a checker
-could explore would prove a model, not the bytes the binary runs.
-The verdict is standing-enforced, not archival: the proofs lane's
-`loom-census` job re-reads the tree on every push and fails the day
-a location-backed atomic lands outside the designated files or a
-loom dependency enters without a standing lane. The instrument
-reopens the day the tree carries a real shared-memory protocol.
+mutable state. The FULL concurrency inventory (the
+night-netrunner-Z2 re-census, the LTS release's audit copy): the
+userspace tree's set-once statics (`src/output/capability.rs`,
+`src/output/verbose.rs`) and its OnceLocks
+(`src/output/capability.rs`, `src/cli/mod.rs`) ride std's own
+synchronization; the spinner's two `Arc<AtomicBool>` flags
+(`src/output/spinner.rs`) are a cross-thread UI handshake with no
+compound invariant - the worst an interleaving reaches is a
+cosmetic frame, never corrupt state; the kernel side carries
+per-slot monotonic `fetch_add` counters (`ebpf/src/main.rs`'s drop
+census, `ebpf/src/write.rs`'s per-stage stats) whose slot ownership
+is compile-time static and whose exactness rides the fetch_add
+primitive itself - no CAS, no spin lock, no compound protocol, and
+NO location-backed raw-memory atomic anywhere in the tree.
+Inventing shared state a checker could explore would prove a model,
+not the bytes the binary runs.
+
+The zelynic night-frontier-Z17 shape (the interleaving theorem over
+a budget core's CAS composition) was examined against this tree and
+returned the same SKIP, for the same reason: zejtron is a camera,
+not a limiter - the budget-core subject does not exist here, and a
+theorem needs a subject, not a target of opportunity. Proving the
+counters' exactness for all interleavings would prove the fetch_add
+primitive (the toolchain's own contract), not zejtron's bytes - the
+same model-not-proof refusal the census already signed. The verdict
+is standing-enforced, not archival: the proofs lane's `loom-census`
+job re-reads the tree on every push and fails the day a
+location-backed atomic lands outside the designated shape or a loom
+dependency enters without a standing lane. The instrument reopens
+the day the tree carries a real shared-memory protocol - the honest
+further lever then is the Z17 lemma decomposition, never a bigger
+budget.
 
 ## Reproduce locally
 
