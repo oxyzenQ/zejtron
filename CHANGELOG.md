@@ -1906,6 +1906,47 @@ v11.0.0
 
 ### Fixed
 
+- **The ID plane's read-back rode a seat the memory model never gave
+  the kernel (the machine-named echo).** The first live host run
+  (v6.18.60, CAP_BPF + CAP_PERFMON, the estate attached, every pin
+  present) refused the whole plane with `the id enumeration echoed
+  (start 0, answer 0)` while the command numbers were already the
+  uapi enum's own and programs demonstrably lived in the idr - the
+  syscall returned success and the field stayed exactly what the
+  caller wrote, the signature of a read-back with no seat: `sys_bpf`
+  held the attr as a `*const` derived from a shared reference, so
+  the kernel's answer write (GET_NEXT_ID's `next_id` is a write-back
+  field, and the whole attr is copied back on success) had no place
+  in the memory model, and the caller read its own zeroed bytes back
+  as the answer - the same echoed-zero shape the wrong-command era
+  spun on, now named on a live kernel with every number right. The
+  attr is the uapi's in-out seat: `sys_bpf` now holds it as `*mut`
+  (the write-back contract's own shape, every call site in this one
+  module) and the module's attr-discipline doc carries the contract,
+  so a future caller cannot re-derive a shared seat silently. The
+  echo and step-bound refusals also gain their class - `the prog id
+  enumeration echoed (...)` names which enumeration refused, the
+  attribution the next anomaly needs in one run instead of three
+  guesses. The echo guard itself stays exactly as D8 landed it (it
+  is the bound that turned the wrong-link-command wedge into a named
+  refusal, and it will catch the next kernel lie the same way); the
+  machine-side cross-check after this fix is one command - `bpftool
+  prog list` - a refusal that survives it is a genuine kernel-level
+  enumeration anomaly and the row now says so with the class named.
+- **The detonation's leg b had no fixture seat outside the packed
+  rootfs (the host lane's missing lane).** The loader and the bpfel
+  object lived only in the micro-VM's rootfs (CI packs them inline),
+  so every host run of the detonation failed leg b with a bare
+  `the fixture artifacts are missing from the rootfs` - a verdict
+  about a seat that lane never had. The artifacts now resolve in
+  order (the caller's `PIDHIDE_LOADER` / `PIDHIDE_OBJECT` overrides,
+  the rootfs seat, the repo's fixture build tree), and
+  `scripts/sandbox/build-fixtures.sh` runs CI's exact recipe by hand
+  - the locked manifests, the offline posture, the stable MSRV
+  loader, the dated nightly bpfel object - landing the artifacts in
+  the repo tree the host lane resolves; the leg's failure names
+  every seat it checked beside the build lane, and the usage block
+  documents the host lane and its real-hide boundary.
 - **The ID plane's verdict rode a walk that resolved nothing (D9,
   the command-number fix's silent survivors).** Two defects the
   UAPI fix left standing, one in the fd's seat and one in the

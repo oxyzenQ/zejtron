@@ -34,10 +34,15 @@
 //! a pad that rides implicit is a pad a future field reorder can
 //! silently un-write), and `core::mem::offset_of!` pins the offsets
 //! the answer fields live at, so a uapi shape change cannot slip
-//! through silently. The object id sits at offset 4 of the returned
-//! info for every info shape this estate pins (prog, map, and link
-//! info all open `__u32 type; __u32 id;`) - one read, no per-type
-//! guessing.
+//! through silently. The attr is the uapi's in-out seat - the
+//! kernel writes the answer fields through it and copies the whole
+//! attr back on success - so the syscall site holds it as `*mut`
+//! (the write-back contract's own shape; a shared-reference
+//! derivation reads back the values the caller wrote, the echoed-
+//! zero shape the host machine named first). The object id sits at
+//! offset 4 of the returned info for every info shape this estate
+//! pins (prog, map, and link info all open `__u32 type; __u32 id;`)
+//! - one read, no per-type guessing.
 
 use std::collections::BTreeSet;
 use std::ffi::CString;
@@ -104,12 +109,27 @@ struct BpfInfoByFd {
 /// command's: an fd for the fd-answering commands (the kernel
 /// hands BPF_OBJ_GET's fd back as the syscall's own return value -
 /// never through the attr), zero for the rest.
-fn sys_bpf(cmd: u64, attr: &BpfAttr) -> Result<i64, std::io::Error> {
+///
+/// The attr rides as the uapi's own in-out seat - a `*mut` seat,
+/// never a shared-reference derivation. The kernel writes the
+/// answer fields through it on the answer-bearing commands
+/// (GET_NEXT_ID's `next_id` is a write-back field, not a return
+/// value) and copies the whole attr back on every success. A
+/// pointer derived from a shared reference gives the foreign write
+/// no seat in the memory model, and the caller then reads back the
+/// values it wrote itself - the echoed-zero shape the host machine
+/// named while the syscall's own answer rode past it. The mut
+/// pointer is the write-back contract's shape.
+fn sys_bpf(cmd: u64, attr: &mut BpfAttr) -> Result<i64, std::io::Error> {
     // SAFETY: attr is a fully initialized 128-byte union (the caller
-    // zeroed the whole before the typed arm rode in), syscall(2) with
-    // the bpf(2) command set reads only the cmd's own prefix, and no
-    // pointer field points back into our stack for these commands.
-    let ret = unsafe { libc::syscall(libc::SYS_bpf, cmd, attr as *const BpfAttr, 128u32) };
+    // zeroed the whole before the typed arm rode in) handed over as
+    // the *mut seat the uapi's write-back contract rides (the kernel
+    // writes the answer fields through it and copies the whole attr
+    // back on success), syscall(2) with the bpf(2) command set reads
+    // only the cmd's own prefix, and the pointer field that points
+    // back into our memory (INFO_BY_FD's info buffer) stays alive
+    // and valid for the call's own duration.
+    let ret = unsafe { libc::syscall(libc::SYS_bpf, cmd, attr as *mut BpfAttr, 128u32) };
     if ret < 0 {
         return Err(std::io::Error::last_os_error());
     }
@@ -124,10 +144,13 @@ fn next_id(cmd: u64, start: u32) -> Result<Option<u32>, std::io::Error> {
         start_id: start,
         next_id: 0,
     };
-    match sys_bpf(cmd, &attr) {
+    match sys_bpf(cmd, &mut attr) {
         Ok(_) => {
-            // SAFETY: the typed arm was written this call; reading it
-            // back is the uapi's own contract for this command.
+            // SAFETY: the typed arm was written this call, and the
+            // kernel's own answer rode in through the *mut seat the
+            // syscall held - reading it back is the uapi's contract
+            // for this command, through the same seat the write
+            // landed on.
             let answer = unsafe { attr.next_id.next_id };
             Ok(Some(answer))
         }
@@ -136,25 +159,27 @@ fn next_id(cmd: u64, start: u32) -> Result<Option<u32>, std::io::Error> {
     }
 }
 
-/// Every public id of one class, ascending. The walk's guards are
-/// the honest termination contract (night-frontier-Z11, D8): the ids
-/// must advance STRICTLY upward past the initial query (the uapi's
-/// own answer shape - ids start at 1, so an answer of 0 means the
+/// Every public id of one class, ascending. `label` names the class
+/// in the walk's own refusals - the attribution the next anomaly
+/// needs, one run, no guessing. The walk's guards are the honest
+/// termination contract (night-frontier-Z11, D8): the ids must
+/// advance STRICTLY upward past the initial query (the uapi's own
+/// answer shape - ids start at 1, so an answer of 0 means the
 /// command never wrote the field, and an id at or below the query
 /// means the kernel echoed; the walk names the refusal instead of
 /// spinning), and the step count is bounded outright (a million ids
 /// in one plane is already absurd; the bound turns any kernel wed
 /// into a named error, never a hang).
-fn enumerate_class(cmd: u64) -> Result<BTreeSet<u32>, std::io::Error> {
+fn enumerate_class(cmd: u64, label: &str) -> Result<BTreeSet<u32>, std::io::Error> {
     let mut ids = BTreeSet::new();
     let mut start = 0u32;
     let mut steps = 0u32;
     loop {
         steps += 1;
         if steps > 100_000 {
-            return Err(std::io::Error::other(
-                "the id enumeration did not terminate",
-            ));
+            return Err(std::io::Error::other(format!(
+                "the {label} id enumeration did not terminate"
+            )));
         }
         let Some(id) = next_id(cmd, start)? else {
             return Ok(ids);
@@ -169,7 +194,7 @@ fn enumerate_class(cmd: u64) -> Result<BTreeSet<u32>, std::io::Error> {
         // bound and the set-size bound both stayed quiet).
         if id == 0 || (id <= start && start != 0) {
             return Err(std::io::Error::other(format!(
-                "the id enumeration echoed (start {start}, answer {id})"
+                "the {label} id enumeration echoed (start {start}, answer {id})"
             )));
         }
         ids.insert(id);
@@ -201,6 +226,16 @@ impl PinClass {
             Self::Prog => BPF_PROG_GET_NEXT_ID,
             Self::Map => BPF_MAP_GET_NEXT_ID,
             Self::Link => BPF_LINK_GET_NEXT_ID,
+        }
+    }
+
+    /// The class's name in the plane's own refusals - the attribution
+    /// the next anomaly needs, one run, no guessing.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Prog => "prog",
+            Self::Map => "map",
+            Self::Link => "link",
         }
     }
 }
@@ -359,7 +394,7 @@ fn resolve_one(pin: &str) -> Result<u32, std::io::Error> {
     // it. The read-back arm was the wrong-number era's silent
     // survivor: fd 0 handed to the info walk, every pin a
     // refusal, the whole reconciliation riding on nothing.
-    let fd = sys_bpf(BPF_OBJ_GET, &attr)? as i32;
+    let fd = sys_bpf(BPF_OBJ_GET, &mut attr)? as i32;
 
     let mut info = [0u8; 128];
     let mut attr = BpfAttr { bytes: [0u8; 128] };
@@ -368,7 +403,7 @@ fn resolve_one(pin: &str) -> Result<u32, std::io::Error> {
         info_len: info.len() as u32,
         info: info.as_mut_ptr() as u64,
     };
-    let result = sys_bpf(BPF_OBJ_GET_INFO_BY_FD, &attr);
+    let result = sys_bpf(BPF_OBJ_GET_INFO_BY_FD, &mut attr);
     // SAFETY: fd is the raw descriptor BPF_OBJ_GET returned this call
     // and nothing else owns it - one close, whatever the info call did.
     unsafe { libc::close(fd) };
@@ -403,7 +438,7 @@ pub(crate) fn read() -> PlaneVerdict {
     );
     let mut public = PublicPlane::default();
     for class in [PinClass::Prog, PinClass::Map, PinClass::Link] {
-        match enumerate_class(class.next_id_cmd()) {
+        match enumerate_class(class.next_id_cmd(), class.label()) {
             Ok(ids) => public.insert(class, ids),
             Err(e) => {
                 return PlaneVerdict::Unavailable {

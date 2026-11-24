@@ -838,14 +838,33 @@ nonzero), so fd 0 rode to the info walk and every pin resolved
 as a refusal; and the refusal notes were built and never read,
 so the all-refusal estate printed `verified` over zero proof.
 The fd now rides the return, the notes ride the verdict's
-detail, and the every-refusal estate is the named absence. The
-same night closed leg c's own seat: the synthetic audit trail
-rode a CWD-relative `audit.log` no reader opens - it rides
-/var/log/audit/audit.log, the lane's one seat, now. Pinned by
+detail, and the every-refusal estate is the named absence. THE
+WRITE-BACK SEAT (closed after the first live host run): the
+numbers right, the machine still named `the id enumeration echoed
+(start 0, answer 0)` on an estate whose programs demonstrably
+lived - the signature of a read-back with no seat: `sys_bpf` held
+the attr as a shared-reference derivation (`*const`), so the
+kernel's answer write (the whole attr is the uapi's in-out seat,
+copied back on every success) had no place in the memory model
+and the caller read its own zeroed bytes back as the answer. The
+seat is `*mut` now (one syscall site, every call site with it),
+the echo and step-bound refusals name their class
+(`the prog id enumeration echoed (...)`), and the machine-side
+cross-check is one command - a refusal that survives `bpftool
+prog list` is a genuine kernel-level anomaly, and the row says so
+with the class named. The same night closed leg c's own seat: the
+synthetic audit trail rode a CWD-relative `audit.log` no reader
+opens - it rides /var/log/audit/audit.log, the lane's one seat,
+now. And the detonation's leg b gained the host lane's fixture
+seat: the loader and the bpfel object resolve from the repo's
+fixture build tree when no rootfs seat is packed
+(`scripts/sandbox/build-fixtures.sh` runs CI's exact recipe by
+hand), so the proof is no longer a CI-only verdict. Pinned by
 `test/ebpf/plane_reader_tests.rs` (the attr layout, the command
 numbers, the classification, the reconciliation table, the row
 wording) and the section shape pins; detonated by
-`scripts/sandbox/detect-rootkit.sh` in the floor lane.
+`scripts/sandbox/detect-rootkit.sh` in the floor lane and, with
+the fixture tree built, on the host lane.
 
 ## How a newcomer reads this tree
 
