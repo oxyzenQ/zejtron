@@ -21,6 +21,8 @@
 //! injectivity law is minutes; the full-domain alias residual is the
 //! one measured-uncertain harness and it says so in its doc).
 
+use std::mem::offset_of;
+
 use crate::{clock_core, events_core};
 
 // -- The events core's totality laws --------------------------------------
