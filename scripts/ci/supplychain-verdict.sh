@@ -88,6 +88,10 @@ fi
 findings_for() {
 	local lock="$1" workspace="$2" out="$3" dest="$4" json rc
 	json="$out.json"
+	# The json rides the workspace's own relative path, so a nested
+	# workspace (test-fixtures/pidhide) needs its parent created -
+	# the flat roots at line 65 cover the top-level workspaces only.
+	mkdir -p -- "$(dirname "$json")"
 	rc=0
 	cargo audit --json -f "$lock" >"$json" || rc=$?
 	# cargo-audit exits 1 when findings exist - the JSON report is
