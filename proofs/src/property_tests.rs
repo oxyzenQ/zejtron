@@ -48,6 +48,77 @@ proptest! {
         let rendered_b = clock_core::format_unix_secs(b);
         prop_assert!(rendered_a.as_bytes() <= rendered_b.as_bytes());
     }
+
+    // The watch-truth decision table, sampled over the full stamp
+    // domains and the clamped window range (night-netrunner-Z2; the
+    // Kani harness holds the for-all form): the verdict is Some
+    // exactly when the raw pre-attach span exceeds the one-second
+    // materiality bound, a Some carries the raw arithmetic whole, an
+    // unreadable pre stamp and an unstamped attach both degrade to
+    // None, and the window wholly inside the camera's life adds
+    // nothing - the camera never invents a gap.
+    #[test]
+    fn watch_gap_matches_the_documented_decision_table(
+        pre in any::<Option<u64>>(),
+        attach in any::<u64>(),
+        window_ns in 1_000_000_000u64..=3_600_000_000_000,
+    ) {
+        let verdict = clock_core::material_watch_gap_ns(
+            pre,
+            attach,
+            std::time::Duration::from_nanos(window_ns),
+        );
+        let window_ns = i128::from(window_ns);
+        match pre {
+            None => prop_assert!(verdict.is_none()),
+            Some(pre) => {
+                if attach == 0 {
+                    prop_assert!(verdict.is_none());
+                } else {
+                    let raw_gap =
+                        i128::from(attach) - (i128::from(pre) - window_ns);
+                    match verdict {
+                        None => prop_assert!(raw_gap <= 1_000_000_000),
+                        Some(gap) => {
+                            prop_assert_eq!(gap, raw_gap);
+                            prop_assert!(raw_gap > 1_000_000_000);
+                        }
+                    }
+                    if i128::from(pre) - window_ns >= i128::from(attach) {
+                        prop_assert!(verdict.is_none());
+                    }
+                }
+            }
+        }
+    }
+
+    // The sleep materiality sign law, sampled (the Kani harness holds
+    // the for-all form): None when either stamp is unreadable, else
+    // Some(delta) iff |delta| exceeds the SLEEP_BOUND, the delta is
+    // the exact post - pre, and a Some never carries zero - the sign
+    // picks exactly one arm (blackout above the bound, paravirt
+    // anomaly below zero).
+    #[test]
+    fn sleep_blackout_matches_the_documented_sign_law(
+        pre in any::<Option<u64>>(),
+        post in any::<Option<u64>>(),
+    ) {
+        let verdict = clock_core::material_sleep_ns(pre.map(i128::from), post.map(i128::from));
+        match (pre, post) {
+            (None, _) | (_, None) => prop_assert!(verdict.is_none()),
+            (Some(pre), Some(post)) => {
+                let raw = i128::from(post) - i128::from(pre);
+                match verdict {
+                    None => prop_assert!(raw.abs() <= clock_core::SLEEP_BOUND_NS),
+                    Some(delta) => {
+                        prop_assert_eq!(delta, raw);
+                        prop_assert!(delta.abs() > clock_core::SLEEP_BOUND_NS);
+                        prop_assert!(delta != 0);
+                    }
+                }
+            }
+        }
+    }
 }
 
 // -- The events core's laws ----------------------------------------------

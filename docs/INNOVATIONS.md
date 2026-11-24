@@ -866,6 +866,51 @@ wording) and the section shape pins; detonated by
 `scripts/sandbox/detect-rootkit.sh` in the floor lane and, with
 the fixture tree built, on the host lane.
 
+**29. The for-all completion and the matrix proofs** (night-netrunner-Z2;
+`proofs/src/kani_cores.rs`, `proofs/src/property_tests.rs`,
+`.github/workflows/proofs.yml`, [docs/PROOFS.md](PROOFS.md)). The
+hole: the proof layer's prose contract - "the camera refuses to
+invent a gap when the window rides wholly inside its life" (the
+watch-truth materiality, night-frontier-Z10 D7) and "the sleep
+delta's SIGN is the story - blackout above the bound, paravirt
+anomaly below zero" (night-frontier-Z6 D6) - were claims a unit
+test samples and a competitor copies as words; and the Kani tier
+ran its theorems sequentially in one job, so a wedged harness
+consumed the whole job's ceiling and starved every sibling's
+verdict. The depth lands three records, all measured first: the
+two decision laws ride the for-all tier as solver verdicts over
+their full legal domains (the watch-truth table over all
+Option<u64> pre stamps, all u64 attach stamps, and the clamped
+window range [1s, 1h] the parser's clamp guarantees reach the
+function - the absence arm, the one-second materiality bound, the
+unstamped and unreadable arms, and the exact-arithmetic identity
+each named; the sleep sign law over all u64 stamp pairs - None on
+unreadable stamps, Some iff |delta| exceeds the SLEEP_BOUND, the
+exact delta, never zero), both compiling the SAME clock.rs bytes
+through the include law (a theorem the lane verifies is a theorem
+the datapath runs); the ring-record contract upgrades from size
+pins to the byte-layout law (the full field-by-field offset table
+for SockEvent and FileEvent, the legacy head's end pinned forever -
+32 and 40 - and the identity block's append-only tail riding
+strictly beyond it, the zelynic Z7 D3 shape at the estate's own
+single-era scale, so a repr(C) change that moves any named byte
+fails the theorem lane, not just the unit test); and the Kani tier
+is the matrix of one-harness jobs now - eight theorems, one verdict
+per job, fail-fast false, the zelynic proofs lane's shape - a
+wedged harness consumes its own 15-minute ceiling and can never
+starve a sibling's verdict. The census discipline rides the record:
+the zelynic Z12 lever (lemma decomposition) stays armed, not
+triggered - its own lesson is to decompose only the wall classes a
+census MEASURES, and zejtron's slowest harness measured 39.7
+seconds against a 15-minute ceiling, so the budget stays the
+non-lever. The sampled bridges ride beside (proptest, 4096 cases
+per law): the two decision laws' sampled forms, shrinking witnesses
+on any drift. Pinned by `proofs/src/kani_cores.rs` (the harness
+docs name each domain and budget class) and `proofs/src/
+property_tests.rs`; the vehicle is `proofs.yml`'s matrix (the
+check-name discipline carries the engine: "Kani bounded model
+checking (<harness>)"); the record is [docs/PROOFS.md](PROOFS.md).
+
 ## How a newcomer reads this tree
 
 This page for the shape, [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md)

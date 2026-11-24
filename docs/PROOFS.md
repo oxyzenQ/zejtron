@@ -48,37 +48,55 @@ the declaration.
   round trip across the full signed i64 (std's SystemTime arithmetic
   is syscall-backed, outside a model checker's reach), the
   timestamp's chronological ordering, and sampled bridges for the
-  packing residual and the port decision table.
+  packing residual, the port decision table, the watch-truth
+  materiality, and the sleep blackout's sign law.
 - **Kani** (bounded model checking, `cargo kani --lib --harness`):
-  FOR ALL INPUTS within each harness's domain. Six totality
-  theorems, one invocation per harness - a verdict is never lost to
-  a sibling's budget:
+  FOR ALL INPUTS within each harness's domain. Eight totality
+  theorems, one harness per matrix job - a wedged harness consumes
+  its own ceiling and can never starve a sibling's verdict:
 
 | Harness | Theorem | Domain | Measured (kani 0.68.0, CaDiCaL, the port host) |
 | --- | --- | --- | --- |
 | `device_token_zero_extends_for_all_inputs` | the u32 widening is the zero extension | full u32 | 0.02s |
-| `record_sizes_are_the_shared_contract_for_all_inputs` | the ring byte counts are the struct sizes | static | 0.02s |
+| `record_sizes_are_the_shared_contract_for_all_inputs` | the ring byte counts, the field-by-field offset table, and the append-only head/tail law (night-netrunner-Z2) | static | 0.02s |
 | `is_port_surface_event_matches_the_spec_for_all_inputs` | the decision table equals the doc's spec | 32 symbolic bits | 0.02s |
 | `pack_filter_key_is_injective_on_the_documented_domain` | no collision inside the documented 32-bit domain | 128 symbolic bits | 0.03s |
 | `pack_filter_key_aliases_exactly_as_documented_for_all_inputs` | the residual aliases exactly as the doc pins | 160 symbolic bits | 0.03s |
 | `civil_arithmetic_round_trips_and_stays_in_domain_for_all_inputs` | Hinnant round trip + domain invariants (the yoe [0,399] law the leap-day fix restored) | +-4095 years, 41 symbolic bits | 39.7s |
+| `watch_gap_materiality_is_the_documented_decision_table_for_all_inputs` | the watch-truth materiality IS the documented decision table (the absence arm, the one-second bound, the unstamped and unreadable arms, the exact-arithmetic identity) | full u64 stamps + Option<u64> pre, clamped window [1s, 1h] | seconds class (the first CI run's hosted number is the standing record) |
+| `sleep_blackout_sign_law_holds_for_all_stamp_pairs` | the sleep materiality IS the documented sign law (None on unreadable stamps, the SLEEP_BOUND, the exact delta, never zero) | full u64 stamp pairs | seconds class (the first CI run's hosted number is the standing record) |
 
-  The whole Kani tier is 40 seconds of solver time inside the job's
-  15-minute ceiling. The numbers are this host's measurement (the
-  port session, 2026-11-18); CI's first runs are the standing
-  record's hosted numbers.
+  Every job sits two orders of magnitude inside its own 15-minute
+  ceiling. The numbers are this host's measurement (the port
+  session, 2026-11-18); CI's first runs are the standing record's
+  hosted numbers - the two night-netrunner-Z2 harnesses carry their
+  budget class until then.
+
+## The matrix split (night-netrunner-Z2, the zelynic shape)
+
+The night-datapath-1 record named the finest split a for-all theorem
+allows - one harness, one invocation, one verdict - and
+night-netrunner-Z2 enforced the same law one level up: the Kani tier
+is the matrix of one-harness jobs, the zelynic proofs lane's own
+shape. A wedged harness consumes its own job's 15-minute ceiling and
+can never starve a sibling's VERDICT; fail-fast false keeps every
+theorem's verdict its own.
 
 ## The 30-minute split rule (armed, not triggered)
 
 The owner's law: if a Kani or loom lane ever runs over 30 minutes,
-it must split into micro tests. The per-push lane already sits at
-the finest split a for-all theorem allows - one harness, one
-invocation, one verdict - and its measurement is 40 seconds against
-a 15-minute budget. The honest further lever is lemma decomposition,
-a proof-shape change that needs its own signed round; a harness that
-cannot decide inside 30 minutes moves to that round. The budget is
-never the lever - a bigger budget turns an undecided theorem into a
-longer wait, not a verdict.
+it must split into micro tests. The matrix split (above) is the
+invocation law at the job level; the honest FURTHER lever is lemma
+decomposition - the zelynic Z12 lever, whose own census taught the
+discipline: decompose the wall classes the census MEASURES
+(division-inversion derivations, multiply-monotonicity relations,
+function-boundary mod/div chains), never a shape that already
+decides inside the ceiling. zejtron's tier is 40 seconds of solver
+time against a 15-minute budget; nothing here qualifies, and a
+proof-shape change that needs its own signed round waits for a
+harness that cannot decide inside 30 minutes. The budget is never
+the lever - a bigger budget turns an undecided theorem into a longer
+wait, not a verdict.
 
 ## Why there is no night lane
 

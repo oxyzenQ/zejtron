@@ -21,7 +21,7 @@
 //! injectivity law is minutes; the full-domain alias residual is the
 //! one measured-uncertain harness and it says so in its doc).
 
-use crate::events_core;
+use crate::{clock_core, events_core};
 
 // -- The events core's totality laws --------------------------------------
 
@@ -36,14 +36,24 @@ fn device_token_zero_extends_for_all_inputs() {
     assert_eq!(token, u64::from(s_dev));
 }
 
-/// The shared-record byte counts are the identity the ring contract
-/// rides: each *_BYTES constant is the struct's size_of, and the
-/// socket record holds its documented 64 bytes (night-frontier-Z8, D5:
-/// the identity block rides the appended tail, the legacy head never
-/// renumbers). Static by
-/// construction; the harness pins it inside the model checker so a
-/// repr(C) layout change that moves a size fails the theorem lane
-/// too, not just the unit test.
+/// The shared-record contract is the identity the ring rides, pinned
+/// whole inside the model checker (night-netrunner-Z2, the byte-layout
+/// law): the size, the FIELD-BY-FIELD offset table, and the
+/// append-only head/tail vocabulary. The kernel side's `output` call,
+/// the host side's record-length check, and the renderers' field reads
+/// all walk this one layout - a repr(C) change that moves any byte
+/// named here fails the theorem lane, not just the unit test
+/// (test/ebpf/ringbuf_tests.rs, test/ebpf/file_events_tests.rs). The
+/// offsets are the documented table (events.rs's own comments): the
+/// legacy head never renumbers - the SockEvent head ends at 32
+/// (through pid), the FileEvent head at 40 (through _pad2) - and the
+/// identity block (night-frontier-Z8, D5) rides the appended tail
+/// strictly beyond the head's end. The pads are explicit fields (the
+/// 5.15-verifier lesson: every byte of the ring record is written,
+/// never left to implicit padding), and the pad fields close the
+/// records at exactly the pinned sizes. Static by construction; the
+/// harness pins it inside the model checker so the contract rides the
+/// for-all tier's own verdict.
 #[cfg(kani)]
 #[kani::proof]
 fn record_sizes_are_the_shared_contract_for_all_inputs() {
@@ -55,6 +65,58 @@ fn record_sizes_are_the_shared_contract_for_all_inputs() {
     assert_eq!(
         events_core::FILE_EVENT_BYTES,
         size_of::<events_core::FileEvent>()
+    );
+    // The SockEvent layout table (repr(C), natural alignment).
+    assert_eq!(offset_of!(events_core::SockEvent, timestamp_ns), 0);
+    assert_eq!(offset_of!(events_core::SockEvent, skaddr), 8);
+    assert_eq!(offset_of!(events_core::SockEvent, family), 16);
+    assert_eq!(offset_of!(events_core::SockEvent, protocol), 18);
+    assert_eq!(offset_of!(events_core::SockEvent, oldstate), 19);
+    assert_eq!(offset_of!(events_core::SockEvent, newstate), 20);
+    assert_eq!(offset_of!(events_core::SockEvent, _pad), 21);
+    assert_eq!(offset_of!(events_core::SockEvent, sport), 22);
+    assert_eq!(offset_of!(events_core::SockEvent, dport), 24);
+    assert_eq!(offset_of!(events_core::SockEvent, _pad2), 26);
+    assert_eq!(offset_of!(events_core::SockEvent, pid), 28);
+    assert_eq!(offset_of!(events_core::SockEvent, cgroup_id), 32);
+    assert_eq!(offset_of!(events_core::SockEvent, comm), 40);
+    assert_eq!(offset_of!(events_core::SockEvent, netns_inum), 56);
+    assert_eq!(offset_of!(events_core::SockEvent, _pad3), 60);
+    // The append-only law: the legacy head ends at 32 (the pre-D5
+    // record's own size), the identity block rides strictly beyond
+    // it, and the closing pad lands the record at exactly 64.
+    assert_eq!(
+        offset_of!(events_core::SockEvent, pid) + size_of::<u32>(),
+        32
+    );
+    assert!(offset_of!(events_core::SockEvent, cgroup_id) >= 32);
+    assert_eq!(
+        offset_of!(events_core::SockEvent, _pad3) + size_of::<u32>(),
+        64
+    );
+    // The FileEvent layout table (the same discipline).
+    assert_eq!(offset_of!(events_core::FileEvent, timestamp_ns), 0);
+    assert_eq!(offset_of!(events_core::FileEvent, op), 8);
+    assert_eq!(offset_of!(events_core::FileEvent, _pad), 9);
+    assert_eq!(offset_of!(events_core::FileEvent, inode), 16);
+    assert_eq!(offset_of!(events_core::FileEvent, device), 24);
+    assert_eq!(offset_of!(events_core::FileEvent, pid), 32);
+    assert_eq!(offset_of!(events_core::FileEvent, _pad2), 36);
+    assert_eq!(offset_of!(events_core::FileEvent, cgroup_id), 40);
+    assert_eq!(offset_of!(events_core::FileEvent, comm), 48);
+    assert_eq!(offset_of!(events_core::FileEvent, netns_inum), 64);
+    assert_eq!(offset_of!(events_core::FileEvent, _pad3), 68);
+    // The same append-only law: the head ends at 40, the identity
+    // block rides strictly beyond it, the record closes at exactly
+    // 72.
+    assert_eq!(
+        offset_of!(events_core::FileEvent, _pad2) + size_of::<u32>(),
+        40
+    );
+    assert!(offset_of!(events_core::FileEvent, cgroup_id) >= 40);
+    assert_eq!(
+        offset_of!(events_core::FileEvent, _pad3) + size_of::<u32>(),
+        72
     );
 }
 
@@ -187,4 +249,125 @@ fn civil_arithmetic_round_trips_and_stays_in_domain_for_all_inputs() {
     assert!((1..=31).contains(&day), "day out of domain");
     let back = days_from_civil(year, month, day);
     assert_eq!(back, days, "civil round trip broke the day count");
+}
+
+// -- The clock core's decision-table laws (night-netrunner-Z2) -------------
+
+/// FOR ALL (pre stamp, attach stamp, window) in the legal domains: the
+/// watch-truth materiality IS the documented decision table
+/// (night-frontier-Z10, D7) - the prose contract ("the camera refuses
+/// to invent a gap when the window rides wholly inside its life; the
+/// gap rides only past the one-second materiality bound; an unstamped
+/// estate degrades to None, never a guessed gap") becomes solver
+/// verdicts. The domains: `pre` rides the full Option<u64> (the
+/// capture's pre-breath stamp; None = the pre-Z10 estate's unreadable
+/// slot), `attach` the full u64 (0 = the named unstamped estate), and
+/// `window` the clamped CLI domain [1s, 1h] - exactly the values the
+/// parser's clamp guarantees reach this function (the caller clamps
+/// before the capture). Budget class: seconds (pure comparisons over
+/// bounded i128, the wall class the Z12 census calls the fast one).
+#[cfg(kani)]
+#[kani::proof]
+fn watch_gap_materiality_is_the_documented_decision_table_for_all_inputs() {
+    let pre: Option<u64> = kani::any();
+    let attach: u64 = kani::any();
+    let window_ns: u64 = kani::any();
+    kani::assume((1_000_000_000..=3_600_000_000_000).contains(&window_ns));
+    let verdict = clock_core::material_watch_gap_ns(
+        pre,
+        attach,
+        std::time::Duration::from_nanos(window_ns),
+    );
+    let window_ns = i128::from(window_ns);
+    match pre {
+        None => assert!(
+            verdict.is_none(),
+            "an unreadable pre stamp invented a gap"
+        ),
+        Some(pre) => {
+            if attach == 0 {
+                assert!(
+                    verdict.is_none(),
+                    "an unstamped attach invented a gap"
+                );
+            } else {
+                // The raw span arithmetic, re-stated (the doc's own
+                // contract): the requested span runs [pre - window,
+                // pre], the pre-attach span is attach - (pre - window).
+                let raw_gap = i128::from(attach) - (i128::from(pre) - window_ns);
+                match verdict {
+                    None => assert!(
+                        raw_gap <= 1_000_000_000,
+                        "the table withheld a gap the materiality bound must name"
+                    ),
+                    Some(gap) => {
+                        assert_eq!(
+                            gap, raw_gap,
+                            "the rendered gap is not the raw arithmetic"
+                        );
+                        assert!(
+                            raw_gap > 1_000_000_000,
+                            "a sub-second edge rode the render"
+                        );
+                    }
+                }
+                // The absence arm on its own domain: the window wholly
+                // inside the camera's life never renders a row - the
+                // camera never invents a gap.
+                if i128::from(pre) - window_ns >= i128::from(attach) {
+                    assert!(
+                        verdict.is_none(),
+                        "the camera invented a pre-attach gap"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// FOR ALL (pre, post) BOOTTIME stamp pairs in the full u64 domain:
+/// the sleep materiality IS the documented sign law (night-frontier-Z6,
+/// D6). None when either stamp is unreadable - the absence stays
+/// absent, never a guessed zero; else Some(delta) iff |delta| exceeds
+/// the one-second SLEEP_BOUND, and the delta is the exact post - pre.
+/// The SIGN is the story: strictly positive is the blackout arm (the
+/// host slept inside the window, the stamps' clock did not run there),
+/// strictly negative the paravirt anomaly arm (the pairing itself
+/// moved backwards and cannot be trusted to measure) - a Some can
+/// never carry zero (the bound's own order). Budget class: seconds
+/// (one subtraction and comparisons).
+#[cfg(kani)]
+#[kani::proof]
+fn sleep_blackout_sign_law_holds_for_all_stamp_pairs() {
+    let pre: Option<u64> = kani::any();
+    let post: Option<u64> = kani::any();
+    let verdict = clock_core::material_sleep_ns(pre.map(i128::from), post.map(i128::from));
+    match (pre, post) {
+        (None, _) | (_, None) => assert!(
+            verdict.is_none(),
+            "an unreadable stamp invented a sleep delta"
+        ),
+        (Some(pre), Some(post)) => {
+            let raw = i128::from(post) - i128::from(pre);
+            match verdict {
+                None => assert!(
+                    raw.abs() <= clock_core::SLEEP_BOUND_NS,
+                    "the table withheld a material sleep delta"
+                ),
+                Some(delta) => {
+                    assert_eq!(
+                        delta, raw,
+                        "the rendered delta is not the raw arithmetic"
+                    );
+                    assert!(
+                        delta.abs() > clock_core::SLEEP_BOUND_NS,
+                        "a sub-bound delta rode the render"
+                    );
+                    assert!(delta != 0, "a zero delta rode the render");
+                    // The sign is the story: exactly one arm exists.
+                    assert!(delta > 0 || delta < 0);
+                }
+            }
+        }
+    }
 }

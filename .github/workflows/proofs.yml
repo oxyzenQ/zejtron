@@ -11,9 +11,16 @@
 #
 # Trigger discipline: push and pull_request, no schedule. The lane is
 # capped at 15 minutes wall per job (the estate's per-push budget
-# law) and its hosted measurement is 40 seconds for the whole Kani
-# tier plus under a second for the property tier - the budget is a
-# ceiling, not a runtime.
+# law) and its hosted measurement is under a minute for the slowest
+# Kani theorem job plus under a second for the property tier - the
+# budget is a ceiling, not a runtime.
+#
+# The for-all tier is the matrix of one-harness jobs (night-netrunner-Z2,
+# the zelynic proofs lane's own shape): eight theorems, one verdict per
+# job, fail-fast false - a wedged harness consumes its own job's
+# ceiling and can never starve a sibling's VERDICT. The invocation-level
+# split the night-datapath-1 record named ("one harness per invocation")
+# is now the job-level split, the same law enforced one level up.
 #
 # No night lane exists, and that is a measured verdict, not an
 # omission: the zelynic reference split a solver-bound tier (four
@@ -25,13 +32,14 @@
 # finished in under a second. A night lane with nothing solver-bound
 # in it would be a schedule-only lane the estate's law already
 # forbids. The split rule stays armed, not triggered: if any Kani or
-# loom lane ever runs over 30 minutes, it must split into micro
-# tests - one harness per invocation is already the finest split a
-# for-all theorem allows (a verdict is never lost to a sibling's
-# budget), and the honest further lever is lemma decomposition, a
-# proof-shape change that needs its own signed round. A harness that
-# cannot decide inside 30 minutes moves to that round; the budget is
-# never the lever.
+# loom lane ever runs over 30 minutes, the honest further lever is
+# lemma decomposition (the zelynic Z12 lever - a proof-shape change
+# that needs its own signed round, never a bigger budget); a harness
+# that cannot decide inside 30 minutes moves to that round. The
+# Z12 census's own lesson rides beside it: decomposition targets the
+# wall classes the census MEASURES (division-inversion derivations,
+# multiply-monotonicity relations, function-boundary mod/div chains),
+# never a shape that already decides inside the ceiling.
 #
 # The loom instrument is censused, NOT adopted, by signed census
 # verdict (night-datapath-1): loom 0.7.3 proves interleavings of
@@ -113,7 +121,7 @@ jobs:
         run: cd proofs && cargo test --locked
 
   kani:
-    name: Kani bounded model checking (6 totality theorems, all inputs)
+    name: Kani bounded model checking (${{ matrix.harness }})
     runs-on: ubuntu-24.04
     # 15, the generous-lane exception (the reason named): the
     # cold-cache proof-harness builds dwarf the runs - the measured
@@ -127,6 +135,28 @@ jobs:
       # driver's rustc invocation. Probe-verified on the sibling's
       # lane: the clean tree verifies under the flag.
       RUSTFLAGS: -D warnings
+    # The for-all tier as the matrix of one-harness jobs
+    # (night-netrunner-Z2, the zelynic proofs lane's shape): one
+    # verdict per job, fail-fast false - a wedged harness consumes
+    # its own ceiling and can never starve a sibling's verdict, and
+    # each theorem's ceiling is the estate's own.
+    strategy:
+      fail-fast: false
+      matrix:
+        harness:
+          # The night-datapath-1 theorems (the decision tables, the
+          # layout contract, the packing laws, the civil arithmetic).
+          - device_token_zero_extends_for_all_inputs
+          - record_sizes_are_the_shared_contract_for_all_inputs
+          - is_port_surface_event_matches_the_spec_for_all_inputs
+          - pack_filter_key_is_injective_on_the_documented_domain
+          - pack_filter_key_aliases_exactly_as_documented_for_all_inputs
+          - civil_arithmetic_round_trips_and_stays_in_domain_for_all_inputs
+          # The night-netrunner-Z2 theorems (the decision-table laws
+          # the docs carried in prose: the watch-truth materiality and
+          # the sleep blackout's sign law).
+          - watch_gap_materiality_is_the_documented_decision_table_for_all_inputs
+          - sleep_blackout_sign_law_holds_for_all_stamp_pairs
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, SHA pin
@@ -165,23 +195,16 @@ jobs:
           key: proofs-kani-${{ runner.os }}-${{ hashFiles('proofs/Cargo.lock') }}
           restore-keys: proofs-kani-${{ runner.os }}-
 
-      # The decidable tier: six theorems, one invocation per harness -
-      # a verdict is never lost to a sibling's budget. Measured on the
-      # port host: five harnesses under a second each, the
-      # civil-arithmetic round trip 39.7 seconds; the whole tier is
-      # 40 seconds of solver time inside the 15-minute job.
-      - name: For-all theorems (the decidable tier)
-        run: |
-          cd proofs
-          for h in \
-            device_token_zero_extends_for_all_inputs \
-            record_sizes_are_the_shared_contract_for_all_inputs \
-            is_port_surface_event_matches_the_spec_for_all_inputs \
-            pack_filter_key_is_injective_on_the_documented_domain \
-            pack_filter_key_aliases_exactly_as_documented_for_all_inputs \
-            civil_arithmetic_round_trips_and_stays_in_domain_for_all_inputs; do
-            cargo kani --lib --harness "$h"
-          done
+      # One harness per job (the matrix shape): the verdict is this
+      # job's own, a grind can never starve a sibling's, and each
+      # theorem's ceiling is the estate's own. Measured on the port
+      # host: the fast harnesses under a second each, the
+      # civil-arithmetic round trip 39.7 seconds - every job inside
+      # its own 15-minute ceiling by two orders of magnitude.
+      - name: For-all theorem (one harness, one job)
+        env:
+          HARNESS: ${{ matrix.harness }}
+        run: cd proofs && cargo kani --lib --harness "$HARNESS"
 
   loom-census:
     name: Loom concurrency census (absence guard, signed verdict)

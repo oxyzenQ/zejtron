@@ -52,6 +52,33 @@ v11.0.0
 
 ### Added
 
+- **feat(proofs): the for-all completion and the matrix proofs
+  (night-netrunner-Z2).** The proof layer's depth from the zelynic
+  reference, adapted to this estate's own laws and measured first:
+  the two decision laws the docs carried in prose ride the Kani
+  for-all tier as solver verdicts - the watch-truth materiality
+  (night-frontier-Z10 D7's contract: the absence arm, the one-second
+  materiality bound, the unstamped and unreadable arms, the exact
+  arithmetic, over all Option<u64> pre stamps, all u64 attach
+  stamps, and the clamped window range [1s, 1h]) and the sleep
+  blackout's sign law (night-frontier-Z6 D6: None on unreadable
+  stamps, Some iff |delta| exceeds the SLEEP_BOUND, the exact delta,
+  never zero, over all u64 stamp pairs), both compiling the SAME
+  clock.rs bytes through the include law; the ring-record contract
+  upgrades from size pins to the byte-layout law (the full offset
+  table for SockEvent and FileEvent, the legacy head's end pinned
+  forever, the identity block's append-only tail, the zelynic Z7 D3
+  shape at the single-era scale); and the Kani tier is the matrix of
+  one-harness jobs (eight theorems, one verdict per job, fail-fast
+  false - the zelynic proofs lane's shape, a wedged harness consumes
+  its own ceiling and never starves a sibling's verdict). The sampled
+  bridges ride beside (proptest, 4096 cases per law). The census
+  discipline named: lemma decomposition stays armed, not triggered -
+  zejtron's slowest harness measured 39.7 seconds against a
+  15-minute ceiling, and the Z12 lever decomposes only the wall
+  classes a census MEASURES. Records: docs/PROOFS.md (the matrix
+  split, the harness table, the budget classes), docs/INNOVATIONS.md
+  entry 29.
 - **feat(security): Z11 read-only stealth detection via cross-source
   reconciliation (night-frontier-Z11, D8).** The full arc in one
   release note: the silent-deletion reconciliation (the audit log's
