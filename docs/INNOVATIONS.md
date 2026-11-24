@@ -770,7 +770,7 @@ table, the one-tick recycle boundary, the wording pins) and
 [`reconcile`], the `bpf(2)` attr discipline), the landing row
 `src/commands/doctor/ebpf.rs` ([`id_plane_row`], the JSON lane's
 `id_plane_state`/`id_plane_detail`), the fixture
-`test-fixtures/pidhide/` (the fexit program, the loader), the legs
+`test-fixtures/pidhide/` (the fentry program, the loader), the legs
 `scripts/sandbox/detect-rootkit.sh`, the lane
 `.github/workflows/supermassive-kernel-floor.yml`). The hole: the
 kernel names every live bpf object TWICE - per-object through the
@@ -803,10 +803,17 @@ the enumeration is privileged in a stricter way than the pin walk -
 `CAP_SYS_ADMIN` even to enumerate - so a reader without the bit gets
 the named absence, never a guess and never a panic. THE VERIFIER:
 phase c detonates the phase-a detector against a REAL stealth
-mechanism - the fixture's fexit program on `__x64_sys_getdents64`
-absorbs one pid's dirent into its predecessor's record length
-before the syscall returns (the classic directory-listing hide, two
-bounded writes, every bound explicit), the camera still records the
+mechanism - the fixture's fentry program on `filldir64` (the
+per-entry callback every getdents64 call drives) absorbs one pid's
+dirent into its predecessor's record length before the syscall
+returns (the classic directory-listing hide, one bounded write,
+every bound explicit; the first shape walked the whole batch and
+the verifier refused it on both lanes' kernels - the 5.15 floor's
+state-line flood killed the load's own log write, EFAULT over the
+verdict, and 6.18 blew the complexity limit, E2BIG - so the walk
+is gone: the kernel hands the program the entry's own name and
+length as arguments, and one parse per callback converges), the
+camera still records the
 hidden actor's write (hiding from the listing does not hide from the
 kprobe), the direct lookup still resolves, the listing no longer
 names the pid, and `why` must render the "hidden pids" entry -

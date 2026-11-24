@@ -9,7 +9,7 @@
 //! 2. spawn the marker process (a plain shell loop appending to the
 //!    watched file - the action the camera must record);
 //! 3. write the marker's pid into the control map (0 = inert);
-//! 4. load and attach the fexit program (the BTF-resolved hide);
+//! 4. load and attach the fentry program (the BTF-resolved hide);
 //! 5. hold the estate for the collection window, then exit - the
 //!    drop detaches the link and frees the program, the micro-VM's
 //!    kernel carries nothing out.
@@ -25,7 +25,7 @@ use std::time::Duration;
 
 use aya::{
     maps::Array,
-    programs::FExit,
+    programs::FEntry,
     Btf, EbpfLoader, VerifierLogLevel,
 };
 
@@ -65,16 +65,12 @@ fn plant(object: &str, hold_secs: u64) -> Result<u32, String> {
     // (DEBUG|STATS) makes the kernel write every state line into
     // user memory, and on the 5.15 floor a failed log write returns
     // EFAULT OVER THE VERDICT - bpf_check's own tail names EFAULT
-    // whenever the log write died, even over a clean verification
-    // (the first live floor run: the program verified deep into its
-    // walk and the load still died in the log copy). DISABLE is not
-    // the answer either - aya's retry rides a non-empty buffer with
-    // level 0, the kernel's own log sanity check refuses it with
-    // EINVAL, and the real verdict dies masked. DEBUG (level 1)
-    // logs the instructions and the final refusal without the state
-    // lines - a small log the first retry buffer holds whole, so a
-    // clean program loads and a refusal prints its complete named
-    // output in the CI log.
+    // whenever the log write died, even over a clean verification.
+    // The first shape's batch walk generated exactly that flood (the
+    // state lines of an unbounded-stride walk), so the walk is gone
+    // from the program and DEBUG (level 1) keeps the log small: a
+    // clean program loads whole, and a refusal prints its complete
+    // named output in the CI log.
     let mut bpf = EbpfLoader::new()
         .verifier_log_level(VerifierLogLevel::DEBUG)
         .load_file(object)
@@ -110,17 +106,19 @@ fn plant(object: &str, hold_secs: u64) -> Result<u32, String> {
         .set(0, &(marker_pid as u64), 0)
         .map_err(|e| format!("the target pid write failed: {e}"))?;
 
-    // The hide: BTF-resolved fexit on the getdents64 wrapper, the
-    // attach the floor kernel (5.15) carries BTF for.
+    // The hide: BTF-resolved fentry on the kernel's own getdents64
+    // callback (filldir64) - the per-entry seat the batch walk
+    // replacement rides, the one whose BTF the floor kernel (5.15)
+    // and 6.x both carry.
     let btf = Btf::from_sys_fs()
         .map_err(|e| format!("the kernel's BTF is unreadable: {e}"))?;
-    let program: &mut FExit = bpf
+    let program: &mut FEntry = bpf
         .program_mut("pidhide")
         .ok_or_else(|| "the fixture object carries no 'pidhide' program".to_owned())?
         .try_into()
-        .map_err(|e| format!("'pidhide' is not an fexit program: {e}"))?;
+        .map_err(|e| format!("'pidhide' is not an fentry program: {e}"))?;
     program
-        .load("__x64_sys_getdents64", &btf)
+        .load("filldir64", &btf)
         .map_err(|e| format!("the verifier refused the pidhide program: {e}"))?;
     program
         .attach()

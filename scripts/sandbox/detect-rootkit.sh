@@ -13,8 +13,10 @@
 #   leg a  negative control    a visible writer's window carries no
 #                              hidden-pid and no silent-deletion entry
 #                              - the detector does not cry wolf;
-#   leg b  the pidhide hide    the fixture's fexit program hides the
-#                              marker's dirent from getdents64; the
+#   leg b  the pidhide hide    the fixture's fentry program on the
+#                              kernel's own getdents64 callback
+#                              (filldir64) hides the marker's dirent
+#                              from getdents64; the
 #                              camera still records the marker's write
 #                              (hiding from the listing does not hide
 #                              from the kprobe); the direct /proc pid

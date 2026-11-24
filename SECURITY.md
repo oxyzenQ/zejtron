@@ -191,7 +191,7 @@ What the tool is not:
   records the disagreement. It never claims absolute trust, and it
   never kills processes. The cross-validations are pinned by unit
   tests and detonated against a real stealth mechanism (a getdents
-  fexit fixture that hides a pid from the /proc listing) inside the
+  fentry fixture that hides a pid from the /proc listing) inside the
   CI's own kernel-floor micro-VM (night-frontier-Z11, D8) - a green
   CI log is the public evidence the detection is not a claim.
 - Not host-wide from inside a container. zejtron reads the /proc

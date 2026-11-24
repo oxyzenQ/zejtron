@@ -841,6 +841,27 @@ v11.0.0
   host self-installs the pair instead of dying mid-build on rustc
   E0463. CI's packed-rootfs seat is untouched: its seats hit and no
   build runs there.
+- **test-fixtures(pidhide): the hide rides the kernel's own
+  per-entry callback, not a batch walk (night-depth-cleanup-1B-1).**
+  The first shape walked the returned getdents64 batch entry by
+  entry with a probe-read stride, and the verifier refused it on
+  BOTH kernels the lanes run: the 5.15 floor's state-line flood
+  killed the load's own log write (the verdict surfacing as EFAULT
+  over a verification that never finished - the kernel-floor lane's
+  standing red), and 6.18 blew the complexity limit outright
+  (E2BIG, the operator's own detonation run named it). The walk is
+  gone: the fixture is now an fentry program on `filldir64`, the
+  per-entry callback every getdents64 call drives - the kernel
+  hands the program the entry's own facts as arguments (the
+  container cursor, the name, its length), one decimal parse per
+  callback replaces the whole walk, and the hide is still the
+  `d_reclen` absorb: the predecessor's record length (the
+  container's `prev_reclen`, read before the kernel writes this
+  entry) grows to swallow the entry about to be written. The
+  loader loads and attaches fentry on `filldir64` and keeps the
+  small-log discipline that made refusals name themselves. Pinned
+  by the detonation's own legs - the floor lane proves the 5.15
+  verdict and the operator's kernel proves 6.x.
 
 ### License
 
