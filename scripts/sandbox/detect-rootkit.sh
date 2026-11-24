@@ -45,10 +45,32 @@
 set -u
 
 SANDBOX=/opt/zejtron/.sandbox
-BIN=${ZEJTRON_BIN:-/opt/zejtron/zejtron}
+# The binary seat resolves in order: the caller's explicit override, the
+# micro-VM's packed rootfs seat, then the host install seat (`which`, the
+# install-on-my-machine lane) - the detonation must run the camera it is
+# proving, wherever that camera lives, and an absent binary must name
+# itself honestly instead of masquerading as an attach refusal.
+if [ -n "${ZEJTRON_BIN:-}" ]; then
+	BIN="${ZEJTRON_BIN}"
+elif [ -x /opt/zejtron/zejtron ]; then
+	BIN=/opt/zejtron/zejtron
+else
+	BIN=$(command -v zejtron 2>/dev/null || true)
+fi
 LOADER=${PIDHIDE_LOADER:-${SANDBOX}/pidhide-loader}
 OBJECT=${PIDHIDE_OBJECT:-${SANDBOX}/pidhide-ebpf}
 WORK=${SANDBOX}/detonation
+
+if [ -z "${BIN}" ] || [ ! -x "${BIN}" ]; then
+	echo "detect-rootkit: no zejtron binary found (set ZEJTRON_BIN, install to PATH, or pack /opt/zejtron/zejtron)" >&2
+	echo "SANDBOX-RESULT: z11 leg a-attach - FAIL (the binary itself is absent)"
+	echo "SANDBOX-RESULT: z11 leg b-pidhide - FAIL (skipped (no camera))"
+	echo "SANDBOX-RESULT: z11 leg c-silent-deletion - FAIL (skipped (no camera))"
+	echo "SANDBOX-RESULT: z11 leg d-id-plane - FAIL (skipped (no camera))"
+	echo "SANDBOX-RESULT: z11 leg e-honesty - FAIL (skipped (no camera))"
+	echo "SANDBOX-VERDICT: FAIL"
+	exit 1
+fi
 
 mkdir -p "${WORK}"
 cd "${WORK}" || exit 1
@@ -82,7 +104,7 @@ lacks_unaccounted_category() {
 
 echo "── z11 detonation: attach (root, the lane the legs ride) ──"
 if ! "${BIN}" doctor --attach; then
-	fail_leg a-attach "the attach itself refused on the floor kernel"
+	fail_leg a-attach "the attach itself refused on the floor kernel (binary ${BIN})"
 	fail_leg b-pidhide "skipped (no camera)"
 	fail_leg c-silent-deletion "skipped (no camera)"
 	fail_leg d-id-plane "skipped (no camera)"
