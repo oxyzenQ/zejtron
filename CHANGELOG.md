@@ -1906,6 +1906,23 @@ v11.0.0
 
 ### Fixed
 
+- **The floor lane's load died in the verifier's log write-back, not
+  in the program (the EFAULT that rode over the verdict).** The
+  wrapper-shape fix landed and the verifier walked the program deep
+  into its entry chain (slot 0 and slot 1 verified clean, the frame
+  probe read and the control-map lookup verified clean) and then the
+  load died with `Bad address` - and on the v5.15 kernel that errno
+  rides bpf_check's own tail: a failed log copy_to_user sets the log
+  seat dead and EFAULT NAMED OVER THE VERDICT, even over a clean
+  verification - the aya default log level (DEBUG|STATS) makes the
+  kernel write every state line into the loader's buffer, so the
+  load's answer rode the log machinery's health instead of the
+  program's. The fixture loader now loads with the verifier log
+  disabled: the log machinery never touches user memory, the
+  load's answer is the kernel's own verdict and errno, and the CI
+  log reads the outcome from the loader's sentinel lines. The
+  verifier-log diagnostics trade is named in the loader's comment -
+  the verdict is the proof the lane needs.
 - **The pidhide fixture rode a context shape the wrapper's BTF never
   declared (the first live floor run's verifier refusal).** The
   detonation's leg b reached its plant for the first time (the

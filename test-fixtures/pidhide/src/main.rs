@@ -26,7 +26,7 @@ use std::time::Duration;
 use aya::{
     maps::Array,
     programs::FExit,
-    Btf, Ebpf,
+    Btf, EbpfLoader, VerifierLogLevel,
 };
 
 /// The marker's working file: the path the detect script asks `why`
@@ -61,7 +61,19 @@ fn main() {
 /// The plant chain - every refusal is a named error string, never a
 /// panic, so the CI log reads the cause without a backtrace.
 fn plant(object: &str, hold_secs: u64) -> Result<u32, String> {
-    let mut bpf = Ebpf::load_file(object)
+    // The load rides the verdict alone: the default verifier log
+    // level (DEBUG|STATS) makes the kernel write its log into user
+    // memory through copy_to_user, and on the 5.15 floor a failed
+    // log write returns EFAULT OVER THE VERDICT - bpf_check's own
+    // tail names EFAULT whenever the log write died, even over a
+    // clean verification (the first live floor run: the program
+    // verified deep into its walk and the load still died in the
+    // log copy). DISABLE keeps the log machinery out of the load's
+    // answer entirely - the kernel's own errno is the diagnostic,
+    // and the CI log reads it from the PIDHIDE-REFUSED line.
+    let mut bpf = EbpfLoader::new()
+        .verifier_log_level(VerifierLogLevel::DISABLE)
+        .load_file(object)
         .map_err(|e| format!("the fixture object failed to load: {e}"))?;
 
     // The marker first: its pid is the control map's one input. A
