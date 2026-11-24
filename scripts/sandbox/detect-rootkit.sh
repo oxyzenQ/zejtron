@@ -77,7 +77,8 @@ FIXTURE="${REPO_ROOT}/test-fixtures/pidhide"
 # The first candidate that clears the check wins; nothing matches,
 # the first candidate rides on so the failure names the canonical seat.
 first_match() {
-	probe="$1"; shift
+	probe="$1"
+	shift
 	for candidate in "$@"; do
 		if "${probe}" "$candidate"; then
 			printf '%s' "$candidate"
@@ -86,7 +87,12 @@ first_match() {
 	done
 	printf '%s' "$1"
 }
+# The probes ride first_match's indirect call seat - the analyzer
+# cannot see the dispatch through the variable, so the unreachability
+# note is named here instead of rewritten away.
+# shellcheck disable=SC2317
 is_exec() { [ -x "$1" ]; }
+# shellcheck disable=SC2317
 is_file() { [ -f "$1" ]; }
 LOADER=${PIDHIDE_LOADER:-$(first_match is_exec \
 	"${SANDBOX}/pidhide-loader" \
@@ -174,9 +180,8 @@ wait "${leg_a_writer}" || true
 
 # ── leg b: the pidhide hide ──────────────────────────────────────────
 echo "── z11 detonation: leg b (pidhide, the real stealth mechanism) ──"
-	if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
-		fail_leg b-pidhide \
-			"the fixture artifacts are missing from every seat (loader ${LOADER}, object ${OBJECT}; build them with scripts/sandbox/build-fixtures.sh or pack the rootfs seat)"
+if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
+	fail_leg b-pidhide "the fixture artifacts are missing from every seat (loader ${LOADER}, object ${OBJECT}; build them with scripts/sandbox/build-fixtures.sh or pack the rootfs seat)"
 else
 	"${LOADER}" "${OBJECT}" 12 >leg-b.loader 2>&1 &
 	loader_pid=$!
