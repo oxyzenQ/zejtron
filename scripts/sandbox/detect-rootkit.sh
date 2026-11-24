@@ -194,11 +194,16 @@ echo "── z11 detonation: leg c (silent deletion, the lanes' disagreement) �
 printf 'x\n' >"${WORK}/leg-c-file"
 leg_c_inode=$(stat -c '%i' "${WORK}/leg-c-file")
 leg_c_now=$(date +%s)
+# The record rides the one seat the audit lane reads: the reader
+# opens /var/log/audit/audit.log and no other path (the lane's own
+# hard-coded probe), so the synthetic trail belongs there - the
+# detonation's earlier CWD-relative `audit.log` redirect wrote the
+# record where no reader ever looked, and the leg could only fail.
 mkdir -p /var/log/audit
 {
 	echo "type=SYSCALL msg=audit(${leg_c_now}.000:1): arch=c000003e syscall=87 success=yes exit=0 a0=0 comm=\"fixture\" pid=1"
 	echo "type=PATH msg=audit(${leg_c_now}.000:1): name=\"${WORK}/leg-c-file\" inode=${leg_c_inode} dev=fd:03"
-} >audit.log
+} >/var/log/audit/audit.log
 if "${BIN}" why "${WORK}/leg-c-file" --since 30s --print-json >leg-c.json 2>leg-c.err; then
 	if has_unaccounted_category leg-c.json "silent deletions"; then
 		pass_leg c-silent-deletion
@@ -208,7 +213,7 @@ if "${BIN}" why "${WORK}/leg-c-file" --since 30s --print-json >leg-c.json 2>leg-
 else
 	fail_leg c-silent-deletion "the why run itself failed: $(cat leg-c.err)"
 fi
-rm -f audit.log
+rm -f /var/log/audit/audit.log
 
 # ── leg d: the id plane, verified ────────────────────────────────────
 echo "── z11 detonation: leg d (the ID plane, attached estate) ──"
