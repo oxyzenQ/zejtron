@@ -3,7 +3,7 @@
   SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 -->
 
-# zejtron 80.0.0 - publish checklist
+# zejtron publish checklist
 
 The v80.0.0 LTS freeze is in effect (see
 [docs/FREEZE.md](docs/FREEZE.md)): the tree says `<VERSION>` everywhere
@@ -29,10 +29,11 @@ agent does NOT publish; crates.io is the owner's hand, always.
 1. `cargo login` (paste the crates.io API token; the token is
    personal, never committed, never shared).
 2. `cd /path/to/zejtron && git pull`
-3. Tag the freeze if it is not tagged yet (the release lane triggers
-   on `v*` tags):
-   `git tag -a v80.0.0 -m "v80.0.0"` then
-   `git push origin v80.0.0` - CI builds the two musl shapes and
+3. Tag the release if it is not tagged yet (the release lane triggers
+   on `v*` tags; `<VERSION>` is the crate version the mirror law
+   pins - e.g. the freeze itself published `v80.0.0`):
+   `git tag -a v<VERSION> -m "v<VERSION>"` then
+   `git push origin v<VERSION>` - CI builds the two musl shapes and
    publishes the GitHub release.
 4. `cargo publish --locked`
    (do NOT pass --allow-dirty here; the tree must be clean.)

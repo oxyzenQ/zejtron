@@ -21,7 +21,7 @@
   counts a single line, and a stray root module fails the build.
 - `src/` is organized by subsystem directory, each with a `mod.rs`
   that owns module declarations and re-exports: `cli/`, `commands/`,
-  `info/`, `output/`, `system/`, `update/`.
+  `ebpf/`, `evidence/`, `info/`, `output/`, `system/`, `update/`.
 - `src/main.rs` stays bootstrap/wiring only — parse, dispatch, exit
   (the 100–300 LOC soft target; see `docs/RULES.md` main.rs Scope).
 - Nested command modules ride the `command.rs` + `command/` group

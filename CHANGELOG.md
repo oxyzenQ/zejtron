@@ -849,7 +849,7 @@ v11.0.0
   artifact (D1), the runtime-recomputed BLAKE3 anchor that refuses,
   exit 1, naming the depth, on a mismatch (D2), and the
   b3sum-verifiable self-hash the owner pins per release (D3). One
-  shared module (`build/sig.rs`) feeds both the build lane and the
+  shared module (`build/blake3.rs`) feeds both the build lane and the
   runtime so the format cannot drift, and the hash family is the
   estate's own std-only BLAKE3 - zero new dependencies. The verb is
   `zejtron sig` (a jq-ready JSON lane rides beside it); the grep

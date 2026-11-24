@@ -6,7 +6,7 @@
 //! ram and cpu byte pins, the standard array names (`processes`,
 //! `caches`), the absent-fact null law, the exit lane's three
 //! truths, the deferral's JSON honesty, and the one-line law.
-//! Wired from src/commands/doctor/json.rs.
+//! Wired from src/commands/doctor/json/mod.rs.
 
 use super::super::CheckStatus;
 use super::super::cpu::{CpuRow, CpuSample};

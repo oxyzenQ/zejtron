@@ -4,7 +4,7 @@
 //! port unit pins. Lives under the single test/ tree
 //! (night-improve-18, the discipline contract: every test
 //! file belongs under test/) and is #[path]-wired from
-//! src/commands/port/mod.rs, so `super::` reaches the module exactly like the
+//! src/commands/port.rs, so `super::` reaches the module exactly like the
 //! inline tests did.
 
 use super::*;
