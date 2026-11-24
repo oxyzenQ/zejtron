@@ -1906,6 +1906,30 @@ v11.0.0
 
 ### Fixed
 
+- **The pidhide fixture rode a context shape the wrapper's BTF never
+  declared (the first live floor run's verifier refusal).** The
+  detonation's leg b reached its plant for the first time (the
+  fixture-seat fix landed the artifacts) and the verifier refused
+  the fexit program outright: `func '__x64_sys_getdents64' doesn't
+  have 4-th argument / invalid bpf_context access off=24` - the
+  fixture read its return value at context slot 3, the shape a
+  four-argument tracing program would have, while the syscall
+  wrapper's own BTF declares ONE argument (`const struct pt_regs
+  *regs`): slot 3 is past the wrapper's last declared argument, and
+  the v5.15 verifier refuses it before any walk runs. The shape is
+  corrected to the wrapper's own: slot 0 is the trap frame pointer
+  and slot 1 is the return value the fexit trampoline appends after
+  it (the v5.15 btf_ctx_access FEXIT branch's own contract - the
+  slot past a function's last declared argument is the return
+  value's seat), the dirent buffer rides inside the frame (si at the
+  x86-64 ABI's own offset 104, read through a kernel probe read),
+  and the buffer's bytes are user memory read through the user probe
+  variant (the precise helper instead of the generic fallback).
+  aya's `ret()` is named down for this lane (bpf_get_func_ret is
+  5.17+; the context slot is the 5.15 shape). Both shapes verified
+  against the v5.15 kernel source (btf.c's arg-vs-nargs branches)
+  and the aya-ebpf 0.3.0 source (btf_arg's raw slot read, the
+  helper signatures) before the fix landed.
 - **The ID plane's read-back rode a seat the memory model never gave
   the kernel (the machine-named echo).** The first live host run
   (v6.18.60, CAP_BPF + CAP_PERFMON, the estate attached, every pin
