@@ -116,6 +116,33 @@ note() {
 	echo "[c77] note: $1"
 }
 
+# The camera-age law for the young-camera legs (night-frontier-Z9's
+# memory-backed window and Z10's watch-truth windows): both compare
+# against the ATTACH instant, so a runner slow enough to spend tens
+# of seconds between the attach and these legs turns the positive
+# watch proof into the honest no-row the negative leg demands (the
+# camera refuses to invent a gap when the window rides wholly inside
+# its life). One re-attach, one seat of the law: the legs ride a
+# camera seconds old on ANY host speed, and the fresh attach re-runs
+# the record verification the capabilities lean on. A re-attach that
+# cannot complete is named, and the legs ride the estate as it
+# stands. The off-path store legs do not need it (a live write's
+# record rides any camera age) - but the seats that skip their cc
+# actor still run the watch-truth legs, so the law is called on every
+# attached seat, not only where the actor builds.
+reattach_young_camera() {
+	if "$BIN" doctor --detach >"$SCRATCH/re-attach-detach.out" 2>&1; then
+		if "$BIN" doctor --attach >"$SCRATCH/attach.out" 2>"$SCRATCH/attach.err"; then
+			offpath_label="$(grep -oE 'off-path truth: [a-z_+-]+' "$SCRATCH/attach.out" | head -1 | cut -d' ' -f3-)"
+			note "the young-camera legs re-attached a fresh camera (off-path truth: ${offpath_label:-none named})"
+		else
+			note "the re-attach refused ($(head -c 160 "$SCRATCH/attach.err" 2>/dev/null | tr '\n' ' ')); the legs ride the detached estate and refuse by name"
+		fi
+	else
+		note "the re-attach could not detach the session camera; the legs ride it as it stands"
+	fi
+}
+
 # The JSON lane: jq when the lane carries it (a real parse), the
 # structural floor when it does not (one line, balanced braces) -
 # the degradation is named, never silent.
@@ -730,28 +757,11 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 				"actor rc=$op_rc: $(grep -E 'write|splice|unknown' "$SCRATCH/offpath-splice.out" | head -2 | tr '\n' ' ')"
 		fi
 
-		# The camera-age law for the young-camera legs: both the
-		# memory-backed window (night-frontier-Z9) and the watch-truth
-		# windows (night-frontier-Z10) compare against the ATTACH instant,
-		# so a runner slow enough to spend tens of seconds between the
-		# attach and these legs turns the positive watch proof into the
-		# honest no-row the negative leg demands (the camera refuses to
-		# invent a gap when the window rides wholly inside its life).
-		# The legs re-attach a fresh camera here, so the proofs ride a
-		# camera seconds old on ANY host speed, and the fresh attach
-		# re-runs the record verification the capabilities lean on. A
-		# re-attach that cannot complete is named, and the legs ride the
-		# estate as it stands.
-		if "$BIN" doctor --detach >"$SCRATCH/re-attach-detach.out" 2>&1; then
-			if "$BIN" doctor --attach >"$SCRATCH/attach.out" 2>"$SCRATCH/attach.err"; then
-				offpath_label="$(grep -oE 'off-path truth: [a-z_+-]+' "$SCRATCH/attach.out" | head -1 | cut -d' ' -f3-)"
-				note "the young-camera legs re-attached a fresh camera (off-path truth: ${offpath_label:-none named})"
-			else
-				note "the re-attach refused ($(head -c 160 "$SCRATCH/attach.err" 2>/dev/null | tr '\n' ' ')); the legs ride the detached estate and refuse by name"
-			fi
-		else
-			note "the re-attach could not detach the session camera; the legs ride it as it stands"
-		fi
+		# The young-camera law rides the helper (the camera-age comment
+		# lives there): the memory-backed leg below and the watch-truth
+		# legs after the off-path block compare against the ATTACH
+		# instant, so the camera must be seconds old here.
+		reattach_young_camera
 
 		# The memory-backed live window (night-frontier-Z9, D6): the
 		# actor creates a REAL memfd, publishes its /proc/<pid>/fd path
@@ -806,6 +816,13 @@ if [ "$IS_ROOT" = "1" ] && [ "$attach_ok" = "1" ] && command -v perl >/dev/null 
 
 	elif [ "$attach_ok" = "1" ]; then
 		note "off-path live windows skipped (no cc on this seat) - the attach's record verification carried the proof"
+		# The watch-truth legs below still ride the young-camera law:
+		# without this re-attach the camera ages through the skipped
+		# legs and the 10s window can no longer reach back past the
+		# attach instant - the positive proof would fail honestly on
+		# any seat slow enough, the structural doom the re-attach
+		# removes. (The watch-truth CI failure, first live floor run.)
+		reattach_young_camera
 	fi
 
 	# 7b-4. The watch-truth live windows (night-frontier-Z10, D7): the
