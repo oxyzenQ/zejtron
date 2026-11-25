@@ -16,17 +16,25 @@ fn help_carries_pro_mode_section() {
     assert!(help.contains("Pro mode:"));
 }
 
-/// The hidden aliases are disclosed in Pro mode - the one surface
-/// that names them next to the flags they alias.
+/// The alias estate is empty and stays empty: night-hit-1 removed the
+/// last hidden alias (--check-updated), so the flag's own spelling is
+/// the only spelling on the help surface, and a removed alias must
+/// never reappear.
 #[test]
-fn pro_mode_discloses_every_hidden_alias() {
+fn pro_mode_holds_the_alias_free_surface() {
     let help = help_command().render_help().to_string();
+    // The flag's own spelling still rides, with its real description.
+    assert!(
+        help.contains("--check-update"),
+        "Pro mode must name the --check-update flag"
+    );
+    // night-hit-1: the removed alias is gone from every surface.
+    assert!(
+        !help.contains("--check-updated"),
+        "the removed --check-updated alias must not reappear in Pro mode help"
+    );
     // --watch died with the lifecycle surface (night-improve-34); no
     // alias of it survives to disclose.
-    assert!(
-        help.contains("--check-updated"),
-        "Pro mode must disclose the hidden alias --check-updated"
-    );
     assert!(
         !help.contains("--watch"),
         "the removed --watch alias must not reappear in Pro mode help"

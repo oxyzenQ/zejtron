@@ -86,11 +86,17 @@ surface_help() {
 	sm_flag_used "--help"
 	sm_flag_used "--check-update"
 
-	# The update check's other documented spelling: the alias.
+	# night-hit-1: the alias is REMOVED - the old spelling is a usage
+	# error now, and the labeled failure must NAME the correct
+	# spelling (clap's own did-you-mean), never render the check. The
+	# closing quote in the grep pins the full token: '--check-update'
+	# must not match as a prefix of the rejected '--check-updated'.
 	sm_run "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" rc 20 -- "$SM_DEFAULT_BIN" --check-updated
-	if [[ "$rc" -eq 0 ]] || grep -q "update check failed" "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" 2>/dev/null; then
-		sm_pass "--check-updated (alias) obeys the same contract"
+	if [[ "$rc" -ne 0 ]] && grep -q "similar argument exists" "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" 2>/dev/null \
+		&& grep -q -- "--check-update'" "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" 2>/dev/null; then
+		sm_pass "--check-updated (removed alias) names the correct spelling"
 	else
-		sm_fail "--check-updated (alias) obeys the same contract" "exit $rc, neither render nor labeled failure"
+		sm_fail "--check-updated (removed alias) names the correct spelling" \
+			"exit $rc without naming the correct spelling"
 	fi
 }

@@ -9,10 +9,10 @@
 //! renders, so the one surface a user reads end-to-end showed none
 //! of them. Pro mode owns the whole estate: each spelling mirrors
 //! the verb's own help string verbatim (one wording authority - the
-//! CLI structs), the hidden aliases are disclosed next to the flags
-//! they alias (--check-updated is the one that survives;
-//! the lifecycle alias is gone with its surface, night-improve-34),
-//! and the
+//! CLI structs), the hidden aliases are all retired now (night-hit-1
+//! removed the last one, --check-updated - the flag's own spelling is
+//! the only spelling; the lifecycle alias left with its surface,
+//! night-improve-34), and the
 //! layout rides one description column so the geometry cannot drift
 //! per row.
 //!
@@ -206,7 +206,7 @@ const GROUPS: &[(&str, &[Row])] = &[
         &[
             (
                 "--check-update",
-                "Alias: --check-updated (same surface, one check)",
+                "Check the latest upstream release",
             ),
             (
                 "-V, --version",

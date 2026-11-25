@@ -154,9 +154,12 @@ pub struct Cli {
     // Top-level only (night-improve-15, sibling shape): a network
     // flag has no business parsing after a subcommand, and demoting
     // it removes one noise row from every subcommand's help.
+    // night-hit-1: the last hidden alias (--check-updated) retired -
+    // the flag's own spelling is the only spelling, and the typo
+    // rescue in cli/ux.rs still names it for a subcommand-scoped
+    // misspelling.
     #[arg(
         long = "check-update",
-        alias = "check-updated",
         help = "Check the latest upstream release"
     )]
     pub check_update: bool,
