@@ -113,7 +113,10 @@ fn commit_signature_state_names_the_stamp_state() {
     // An unknown grammar rides through as its own word - the
     // fail-closed verdict match, not the state fn, decides what it
     // means.
-    assert_eq!(commit_signature_state("quantum-sealed:xyz"), "quantum-sealed");
+    assert_eq!(
+        commit_signature_state("quantum-sealed:xyz"),
+        "quantum-sealed"
+    );
     assert_eq!(commit_signature_state("plain"), "plain");
 }
 

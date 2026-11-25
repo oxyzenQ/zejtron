@@ -204,10 +204,7 @@ const GROUPS: &[(&str, &[Row])] = &[
     (
         "global:",
         &[
-            (
-                "--check-update",
-                "Check the latest upstream release",
-            ),
+            ("--check-update", "Check the latest upstream release"),
             (
                 "-V, --version",
                 "Print complete version and build information",

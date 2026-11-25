@@ -158,10 +158,7 @@ pub struct Cli {
     // the flag's own spelling is the only spelling, and the typo
     // rescue in cli/ux.rs still names it for a subcommand-scoped
     // misspelling.
-    #[arg(
-        long = "check-update",
-        help = "Check the latest upstream release"
-    )]
+    #[arg(long = "check-update", help = "Check the latest upstream release")]
     pub check_update: bool,
 
     #[command(subcommand)]

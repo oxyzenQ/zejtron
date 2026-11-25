@@ -389,8 +389,7 @@ impl SigMatrix {
     pub(crate) fn verdict_text(&self) -> String {
         match self.verdict {
             SigVerdict::Authentic => {
-                let mut line =
-                    format!("SIGNATURE: AUTHENTIC ({}/6 depths verified", self.verified);
+                let mut line = format!("SIGNATURE: AUTHENTIC ({}/6 depths verified", self.verified);
                 if !self.unavailable_ids.is_empty() {
                     line.push_str(&format!(
                         "; {} unavailable on this host",
@@ -541,3 +540,11 @@ pub(crate) fn matrix_json(matrix: &SigMatrix) -> String {
 #[cfg(test)]
 #[path = "../../test/info/signature_tests.rs"]
 mod tests;
+
+// The render-surface pins (night-hit-2): the verdict classes' arms,
+// the report byte shape, and the JSON lane - the two-sibling module
+// shape (the btf.rs precedent), split at the render boundary when
+// the 600-line no-mercy gate drew the line.
+#[cfg(test)]
+#[path = "../../test/info/signature_render_tests.rs"]
+mod signature_render_tests;

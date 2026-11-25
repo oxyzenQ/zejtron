@@ -92,8 +92,8 @@ surface_help() {
 	# closing quote in the grep pins the full token: '--check-update'
 	# must not match as a prefix of the rejected '--check-updated'.
 	sm_run "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" rc 20 -- "$SM_DEFAULT_BIN" --check-updated
-	if [[ "$rc" -ne 0 ]] && grep -q "similar argument exists" "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" 2>/dev/null \
-		&& grep -q -- "--check-update'" "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" 2>/dev/null; then
+	if [[ "$rc" -ne 0 ]] && grep -q "similar argument exists" "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" 2>/dev/null &&
+		grep -q -- "--check-update'" "$SM_SCRATCH/alias.out" "$SM_SCRATCH/alias.err" 2>/dev/null; then
 		sm_pass "--check-updated (removed alias) names the correct spelling"
 	else
 		sm_fail "--check-updated (removed alias) names the correct spelling" \
