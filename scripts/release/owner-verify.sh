@@ -243,7 +243,14 @@ if [ -n "$HIDDEN" ]; then
 	note "- hidden-pids entry count (EVENTS recorded on the marker file): $EVENTS"
 	note "- distinct pids from the entry's sample clause: $((DISTINCT + MORE))"
 	note "- clause verbatim: ...$(printf '%s' "$REASON" | tail -c 400)"
-	ROW_PIDS=$(grep -oE 'pid=[0-9]+' "$OUT/manual-why-text.log" 2>/dev/null | sort -u | wc -l)
+	# The rows render the actor as `(pid NNN, root)` and older
+	# renders used `pid=NNN`; the pre-rowfix pattern (`pid=[0-9]+`)
+	# matched neither on run 3 (owner-verify-20261125T153617Z) and
+	# the cross-check printed 0 against the clause's 1 - a
+	# contradiction this very line exists to catch. The trailing
+	# comma keeps the clause's own `pid N xNNN` sample out of the
+	# row count: rows and clause must corroborate independently.
+	ROW_PIDS=$(grep -oE 'pid=[0-9]+|pid [0-9]+, ' "$OUT/manual-why-text.log" 2>/dev/null | sort -u | wc -l)
 	note "- distinct pids among the rendered rows: $ROW_PIDS"
 	note "- the math: EVENTS count recordings, not processes; the audit question is answered by the distinct figure above"
 else
