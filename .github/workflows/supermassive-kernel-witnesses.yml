@@ -128,24 +128,37 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The z11 flag rides the attach capability: the detonation
+          # legs REQUIRE the attach lane (a real fentry program
+          # planted on a BTF-readable kernel), so every at-or-above-
+          # floor witness carries them and focal - the below-floor
+          # 5.4 GA witness, pre-BTF, no fentry seat - stays the
+          # refusal witness (running the legs there would test the
+          # fixture's refusal, not the kernel's proof).
           - suite: focal
             title: kernel witness - focal GA 5.4.0 (below the floor, report mode)
             envelope: low
+            z11: false
           - suite: jammy
             title: kernel witness - jammy GA 5.15.0 (at the floor, report mode)
             envelope: low
+            z11: true
           - suite: noble
             title: kernel witness - noble GA 6.8.0 (above the floor, report mode)
             envelope: low
+            z11: true
           - suite: bookworm
             title: kernel witness - bookworm GA 6.1 LTS (the Debian LTS line, report mode)
             envelope: low
+            z11: true
           - suite: mainline-6.6
             title: kernel witness - mainline 6.6 LTS (the frozen mainline build, report mode)
             envelope: low
+            z11: true
           - suite: cachyos
             title: kernel witness - cachyos current (the latest line, best envelope)
             envelope: best
+            z11: true
     env:
       RUSTUP_TOOLCHAIN: "1.98.1"
     steps:
@@ -299,6 +312,35 @@ jobs:
       - name: Build the static pro-v3 musl binary
         run: cargo pro-linux-amd64-v3-musl --locked
 
+      # The Z11 detonation fixture (night-witness-z11, the witness
+      # carry of the floor lane's phase-c step): the pidhide fexit
+      # program and its userspace loader, built by the same pinned
+      # toolchains the probes build with (the stable MSRV for the
+      # loader, the dated nightly for the bpfel object). The builds
+      # ride --offline on the committed locks - the same supply-chain
+      # posture the release lane carries.
+      - name: Build the pidhide detonation fixture (the Z11 carry)
+        run: |
+          set -euo pipefail
+          CARGO_NET_OFFLINE=true cargo build --release --locked --offline \
+            --target x86_64-unknown-linux-musl \
+            --manifest-path test-fixtures/pidhide/Cargo.toml
+          # The bpfel object builds INSIDE the fixture's own directory
+          # with the flags the nested build itself passes explicitly
+          # (build/ebpf.rs): -Z build-std=core and -Z json-target-spec
+          # on the cargo invocation - the nightly pin, the bpfel target
+          # spec, and the v3 rustflags are the fixture's own ebpf/.cargo
+          # config, the same nested shape the main probes build through.
+          # The job env pins RUSTUP_TOOLCHAIN to the stable MSRV (the
+          # main build's law) - the env OVERRIDES rust-toolchain.toml,
+          # so the bpfel build names its own nightly explicitly, the
+          # same toolchain build.rs runs the probes' nested build with.
+          ( cd test-fixtures/pidhide/ebpf && \
+            CARGO_NET_OFFLINE=true \
+            RUSTUP_TOOLCHAIN=nightly-2026-09-18 \
+            cargo build --release --locked --offline \
+              -Z build-std=core -Z json-target-spec )
+
       # night-frontier-Z4, the cross-dialect determinism seat: the
       # certificate's TEST binary rides the static musl profile shape.
       # Scope stated honestly (night-zen-lts-2 corrected the claim):
@@ -331,13 +373,23 @@ jobs:
       # at every core the host has.
       - name: Run the witness (the local twin, report mode)
         run: |
+          set -euo pipefail
+          # night-witness-z11: the detonation legs ride every
+          # attach-capable witness (matrix.z11) - the same five legs
+          # the floor payload runs, planted and caught on THAT
+          # kernel, their ~40s riding the same boot.
+          args=()
+          if [ "${{ matrix.z11 }}" = "true" ]; then
+            args+=(--z11 "$PWD/test-fixtures/pidhide/target/x86_64-unknown-linux-musl/release/pidhide-loader:$PWD/test-fixtures/pidhide/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf")
+          fi
           bash scripts/sandbox/zejtron-sandbox.sh \
             --kernel "${{ matrix.suite }}" \
             --envelope "${{ matrix.envelope }}" \
             --binary "$PWD/target/x86_64-unknown-linux-musl/pro-linux-amd64-v3-musl/zejtron" \
             --cert-test /tmp/zejtron-cert-test \
             --battery \
-            --timeout 180
+            --timeout 240 \
+            "${args[@]}"
 
       # night-frontier-Z3, the corpus echo: the lane re-digests the
       # exact kernel image it just booted through the SAME instrument

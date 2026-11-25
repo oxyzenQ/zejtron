@@ -97,6 +97,15 @@
 #                           base userland does not carry: jq, busybox)
 #                           -- the image inherits the host file's
 #                           executable bit and the repo's 644/755 law
+#   --z11 HOST_LOADER:HOST_OBJECT
+#                           pack the pidhide detonation fixtures at
+#                           the detector's rootfs seats and run the
+#                           Z11 detonation legs (scripts/sandbox/
+#                           detect-rootkit.sh) on the booted kernel
+#                           after the suite (battery mode only) - the
+#                           floor lane's phase-c proof ridden on a
+#                           witness kernel; the payload's verdict
+#                           folds the legs' rc with the suite's rc
 #   --envelope low|best     low = quarter cores / eighth RAM
 #                           (default, the low-spec leg's math);
 #                           best = every core / three quarters
@@ -124,6 +133,7 @@ KERNEL="floor"
 BINARY=""
 EXTRAS=()
 CERT_TEST=""
+Z11=""
 ENVELOPE="low"
 NET=0
 TIMEOUT=1800
@@ -182,6 +192,10 @@ while [ $# -gt 0 ]; do
 		;;
 	--cert-test)
 		CERT_TEST="${2:?}"
+		shift 2
+		;;
+	--z11)
+		Z11="${2:?}"
 		shift 2
 		;;
 	--envelope)
@@ -410,10 +424,10 @@ chmod +x "${PAYLOAD}"
 # certificate test binary (--cert-test HOST_PATH, the musl release
 # test shape the lane builds). When packed, the payload renders the
 # certificate fixtures ON THE BOOTED KERNEL after the suite's
-# verdict is captured (the block re-ends the payload with the
-# suite's own rc - the suite's exit code stays the payload's
-# verdict), and relays per-file digests through SANDBOX-RENDER
-# sentinel rows. The fixtures are hermetic by shape (no camera, no
+# verdict is captured (the block leaves the suite's rc as the
+# payload's own exit code unless a later appended block owns the
+# combined verdict), and relays per-file digests through
+# SANDBOX-RENDER sentinel rows. The fixtures are hermetic by shape (no camera, no
 # wall clock - the certificate module's own contract), so every
 # dialect of the witness span (focal 5.4 -> cachyos 7.x) must emit
 # THE SAME bytes; the CI verdict job compares the digests across the
@@ -443,7 +457,64 @@ if [ -x /opt/zejtron/zejtron-cert ]; then
 		tail -n 5 /tmp/cert-run.log 2>/dev/null || true
 	fi
 fi
-exit "$rc"
+# The tail rides the suite's own rc as a bare test, never a bare
+# exit: when no block follows, the test IS the payload's exit code
+# (0 on a green suite, 1 otherwise - the same verdict), and a block
+# appended after this one always runs and owns the combined exit
+# (the Z11 carry's own law: the legs ride even when the suite
+# failed, the verdict folds both).
+[ "$rc" -eq 0 ]
+EOF
+	chmod +x "${PAYLOAD}"
+fi
+
+# night-witness-z11, the Z11 detonation carry: an OPTIONAL fixture
+# pair (--z11 HOST_LOADER:HOST_OBJECT, battery mode only) staged at
+# the detector's own rootfs seats, and the payload runs the floor
+# lane's phase-c legs on the booted kernel after the suite. The
+# pair is the pidhide loader (static musl) and the bpfel object it
+# plants - exactly the artifacts the floor workflow builds and the
+# paths scripts/sandbox/detect-rootkit.sh discovers first. A
+# missing host artifact is an assembly error, never a silent skip.
+if [ -n "${Z11}" ] && [ "$MODE" = "battery" ]; then
+	case "${Z11}" in
+	*:*) ;;
+	*) die "--z11 needs HOST_LOADER:HOST_OBJECT" ;;
+	esac
+	Z11_LOADER="${Z11%%:*}"
+	Z11_OBJECT="${Z11#*:}"
+	[ -x "${Z11_LOADER}" ] || die "z11 loader not found/executable: ${Z11_LOADER}"
+	[ -f "${Z11_OBJECT}" ] || die "z11 object not found: ${Z11_OBJECT}"
+	EXTRAS+=("${Z11_LOADER}:/opt/zejtron/.sandbox/pidhide-loader")
+	EXTRAS+=("${Z11_OBJECT}:/opt/zejtron/.sandbox/pidhide-ebpf")
+	cat >>"${PAYLOAD}" <<'EOF'
+
+# ── the Z11 detonation proof (night-witness-z11) ────────────────────
+# The floor lane's phase-c proof ridden on THIS kernel: the real
+# stealth mechanism planted and caught by the same five legs, their
+# SANDBOX-RESULT rows riding the console. The legs' own final
+# SANDBOX-VERDICT line is filtered from the console on purpose: the
+# one-final-verdict contract belongs to the init's relay of THIS
+# payload's exit code, and a mid-log PASS row could out-vote it in
+# the sentinel grep. The payload's verdict folds the legs' rc with
+# the suite's rc (the floor payload's own law).
+if [ -x /opt/zejtron/.sandbox/pidhide-loader ] && [ -f /opt/zejtron/.sandbox/pidhide-ebpf ]; then
+	bash scripts/sandbox/detect-rootkit.sh >/tmp/z11-detonation.log 2>&1
+	z11_rc=$?
+	grep -v '^SANDBOX-VERDICT:' /tmp/z11-detonation.log || true
+else
+	z11_rc=1
+	echo "SANDBOX-RESULT: z11 detonation - FAIL (the fixtures are absent from the packed rootfs)"
+fi
+if [ "$z11_rc" -eq 0 ]; then
+	echo "SANDBOX-RESULT: z11 detonation (kernel $(uname -r)) - PASS"
+else
+	echo "SANDBOX-RESULT: z11 detonation (kernel $(uname -r)) - FAIL"
+fi
+if [ "$rc" -eq 0 ] && [ "$z11_rc" -eq 0 ]; then
+	exit 0
+fi
+exit 1
 EOF
 	chmod +x "${PAYLOAD}"
 fi
