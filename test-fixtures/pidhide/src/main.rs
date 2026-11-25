@@ -4,7 +4,7 @@
 //! The Z11 detonation fixture's loader (night-frontier-Z11, phase c,
 //! D8). Test-fixture only - it never ships in any binary. The chain:
 //!
-//! 1. load the fixture object (the fexit program and its control
+//! 1. load the fixture object (the fentry program and its control
 //!    map, built by the same aya-ebpf toolchain the probes use);
 //! 2. spawn the marker process (a plain shell loop appending to the
 //!    watched file - the action the camera must record);
@@ -28,6 +28,8 @@ use aya::{
     programs::FEntry,
     Btf, EbpfLoader, VerifierLogLevel,
 };
+
+mod btf;
 
 /// The marker's working file: the path the detect script asks `why`
 /// about, the one the camera's write probe tracks.
@@ -100,8 +102,9 @@ fn plant(object: &str, hold_secs: u64) -> Result<(), String> {
         .map_err(|e| format!("the marker process failed to spawn: {e}"))?;
     let marker_pid = marker.id();
 
-    // The control map: one u64 slot, 0 = inert. Written before the
-    // attach so the program can never observe an unset target.
+    // The control map: slot 0 carries the pid (0 = inert), slots 6
+    // and 7 the container's field offsets. Written before the attach
+    // so the program can never observe an unset target.
     let mut targets: Array<_, u64> = Array::try_from(
         bpf.map_mut("targets")
             .ok_or_else(|| "the fixture object carries no 'targets' map".to_owned())?,
@@ -110,6 +113,23 @@ fn plant(object: &str, hold_secs: u64) -> Result<(), String> {
     targets
         .set(0, &(marker_pid as u64), 0)
         .map_err(|e| format!("the target pid write failed: {e}"))?;
+
+    // The container's field offsets ride the host's own BTF, never
+    // constants: upstream hoisted the user-buffer budget into
+    // dir_context, everything after the embedded context sat 8 bytes
+    // higher than the floor kernel carried it, and the hardcoded
+    // span read the budget where the cursor belonged - the parse
+    // matched, the absorb overflowed, the skip named nothing. The
+    // camera's offsets map carries the same lesson: a kernel that
+    // moved the fields is refused by name here, before the attach.
+    let (cursor_off, prev_off) = btf::resolve_container_offsets()
+        .map_err(|e| format!("the container offsets could not be resolved: {e}"))?;
+    targets
+        .set(6, &(u64::from(cursor_off)), 0)
+        .map_err(|e| format!("the cursor offset write failed: {e}"))?;
+    targets
+        .set(7, &(u64::from(prev_off)), 0)
+        .map_err(|e| format!("the prev_reclen offset write failed: {e}"))?;
 
     // The hide: BTF-resolved fentry on the kernel's own getdents64
     // callback (filldir64) - the per-entry seat the batch walk
@@ -142,22 +162,26 @@ fn plant(object: &str, hold_secs: u64) -> Result<(), String> {
     // while the estate is still planted. A hide that did not land
     // names its stage here - the fires, the failed probe reads, the
     // name matches, the writes that landed, the writes the kernel
-    // refused - never a guess in the CI log. The map rides a fresh
-    // borrow: the write-side binding ended at the target write, the
-    // program held the object through the hold, and the census is
-    // the first read after it.
+    // refused, the entries that led their batch (no predecessor to
+    // absorb into), the absorbs that overflowed the u16 bound - never
+    // a guess in the CI log. The map rides a fresh borrow: the
+    // write-side binding ended at the offset writes, the program held
+    // the object through the hold, and the census is the first read
+    // after it.
     let targets: Array<_, u64> = Array::try_from(
         bpf.map_mut("targets")
             .ok_or_else(|| "the fixture object carries no 'targets' map".to_owned())?,
     )
     .map_err(|e| format!("'targets' is not an array map: {e}"))?;
     let census_line = format!(
-        "PIDHIDE-CENSUS fired={} readfail={} matches={} write_ok={} write_fail={}",
+        "PIDHIDE-CENSUS fired={} readfail={} matches={} write_ok={} write_fail={} no_pred={} absorb_refused={}",
         targets.get(&1, 0).unwrap_or(0),
         targets.get(&2, 0).unwrap_or(0),
         targets.get(&3, 0).unwrap_or(0),
         targets.get(&4, 0).unwrap_or(0),
         targets.get(&5, 0).unwrap_or(0),
+        targets.get(&8, 0).unwrap_or(0),
+        targets.get(&9, 0).unwrap_or(0),
     );
     drop(bpf);
     println!("{census_line}");
