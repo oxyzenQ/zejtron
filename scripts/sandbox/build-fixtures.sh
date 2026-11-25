@@ -33,6 +33,11 @@
 # Usage:
 #   scripts/sandbox/build-fixtures.sh            build + verify
 #   scripts/sandbox/build-fixtures.sh -q         build + verify, quiet
+#   scripts/sandbox/build-fixtures.sh -f         force the rebuild: remove
+#           both fixture target trees first, so a pair that predates the
+#           fixture sources (the remembered bytes of an earlier shape -
+#           the target tree survives `git pull` untouched) can never run
+#           again
 #
 # Exit codes: 0 both artifacts present; 1 any named failure.
 
@@ -43,12 +48,14 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 FIXTURE="${REPO_ROOT}/test-fixtures/pidhide"
 
 QUIET=0
-if [ "${1:-}" = "-q" ]; then
-	QUIET=1
-elif [ -n "${1:-}" ]; then
-	echo "usage: $0 [-q]" >&2
-	exit 1
-fi
+FORCE=0
+for arg in "$@"; do
+	case "${arg}" in
+		-q) QUIET=1 ;;
+		-f) FORCE=1 ;;
+		*) echo "usage: $0 [-q] [-f]" >&2; exit 1 ;;
+	esac
+done
 
 note() { [ "${QUIET}" -eq 1 ] || echo "[fixtures] $*"; }
 die() {
@@ -68,8 +75,11 @@ rustup toolchain list 2>/dev/null | grep -q "nightly-2026-09-18" ||
 # committed locks answer every dependency, offline.
 export CARGO_NET_OFFLINE=true
 
-if [ -x "${LOADER}" ] && [ -f "${OBJECT}" ]; then
-	note "artifacts already present (rebuild skipped; delete the fixture target trees to force)"
+if [ "${FORCE}" -eq 1 ]; then
+	note "forced rebuild: removing the fixture build trees first - a pair that predates the sources must never run again"
+	rm -rf "${FIXTURE}/target" "${FIXTURE}/ebpf/target"
+elif [ -x "${LOADER}" ] && [ -f "${OBJECT}" ]; then
+	note "artifacts already present (rebuild skipped; pass -f to force)"
 else
 	note "building the pidhide loader (stable MSRV, x86_64-unknown-linux-musl)..."
 	(

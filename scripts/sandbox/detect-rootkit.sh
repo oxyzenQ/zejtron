@@ -50,9 +50,17 @@
 # tree; when the seats are empty the leg self-serves - it runs
 # scripts/sandbox/build-fixtures.sh (the exact CI recipe, hermetic)
 # once and resolves the seats again, so the detonation never depends
-# on a remembered side-step. A lane that cannot run is not hidden:
-# its log rides the artifact dump and the leg's failure names the
-# lane's own verdict.
+# on a remembered side-step. The seats are also freshness-stamped: a
+# pair that PREDATES the fixture sources (the remembered bytes of an
+# earlier shape, left in the target tree `git pull` never touches)
+# forces the rebuild too - the host lane that ran first-shape bytes
+# while the tree carried the filldir64 shape, and named the old attach
+# function (__x64_sys_getdents64) in a 6.18 verifier refusal, is the
+# exact bug this probe exists for. And the legs' artifacts start from
+# a clean room: a leg-b.build.log from an earlier run can never dress
+# a skipped rebuild up as a fresh one. A lane that cannot run is not
+# hidden: its log rides the artifact dump and the leg's failure names
+# the lane's own verdict.
 # The host lane plants a REAL hide on the RUNNING kernel; the leg's
 # loader is inert-safe (pid 0 = nobody hidden) and the drop at exit
 # detaches it, but the micro-VM stays the contained seat.
@@ -101,12 +109,45 @@ first_match() {
 is_exec() { [ -x "$1" ]; }
 # shellcheck disable=SC2317
 is_file() { [ -f "$1" ]; }
-LOADER=${PIDHIDE_LOADER:-$(first_match is_exec \
-	"${SANDBOX}/pidhide-loader" \
-	"${FIXTURE}/target/x86_64-unknown-linux-musl/release/pidhide-loader")}
-OBJECT=${PIDHIDE_OBJECT:-$(first_match is_file \
-	"${SANDBOX}/pidhide-ebpf" \
-	"${FIXTURE}/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf")}
+# The seat resolver (shared - the staleness probe re-resolves after
+# the rebuild lane lands a fresh pair) and the freshness probe. The
+# pair counts as fresh only when every fixture source - and the
+# manifests and configs the builds ride - is OLDER than BOTH
+# artifacts. A pair that predates the sources is a remembered
+# side-step: it must name itself and force the rebuild exactly like
+# an empty seat, never run silently. The run gate rides one probe:
+# a fresh pair (or a runnable pinned one) is the only seat the leg
+# accepts.
+resolve_seats() {
+	LOADER=${PIDHIDE_LOADER:-$(first_match is_exec \
+		"${SANDBOX}/pidhide-loader" \
+		"${FIXTURE}/target/x86_64-unknown-linux-musl/release/pidhide-loader")}
+	OBJECT=${PIDHIDE_OBJECT:-$(first_match is_file \
+		"${SANDBOX}/pidhide-ebpf" \
+		"${FIXTURE}/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf")}
+}
+pair_is_fresh() {
+	[ -x "${LOADER}" ] && [ -f "${OBJECT}" ] || return 1
+	local src
+	for src in "${FIXTURE}/Cargo.toml" "${FIXTURE}/rust-toolchain.toml" \
+		"${FIXTURE}/src/"*.rs \
+		"${FIXTURE}/ebpf/Cargo.toml" "${FIXTURE}/ebpf/.cargo/config.toml" \
+		"${FIXTURE}/ebpf/src/"*.rs; do
+		[ -e "${src}" ] || continue
+		if [ "${src}" -nt "${LOADER}" ] || [ "${src}" -nt "${OBJECT}" ]; then
+			return 1
+		fi
+	done
+	return 0
+}
+pair_runnable() {
+	if [ -n "${PIDHIDE_LOADER:-}" ] || [ -n "${PIDHIDE_OBJECT:-}" ]; then
+		[ -x "${LOADER}" ] && [ -f "${OBJECT}" ]
+	else
+		pair_is_fresh
+	fi
+}
+resolve_seats
 WORK=${SANDBOX}/detonation
 
 if [ -z "${BIN}" ] || [ ! -x "${BIN}" ]; then
@@ -122,6 +163,14 @@ fi
 
 mkdir -p "${WORK}"
 cd "${WORK}" || exit 1
+
+# The clean room: the legs' artifacts from an EARLIER run must never
+# masquerade as this run's bytes - the dump at the end prints "the
+# failing legs' own outputs", and a leftover leg-b.build.log from a
+# first-shape era dressed a skipped rebuild up as a fresh one (the
+# build log the operator read was years of runs behind the tree).
+rm -f "${WORK}"/leg-*.log "${WORK}"/leg-*.json "${WORK}"/leg-*.err \
+	"${WORK}"/leg-*.txt "${WORK}"/leg-b.loader
 
 legs_passed=0
 legs_failed=0
@@ -187,16 +236,29 @@ wait "${leg_a_writer}" || true
 
 # ── leg b: the pidhide hide ──────────────────────────────────────────
 echo "── z11 detonation: leg b (pidhide, the real stealth mechanism) ──"
-# The self-serve seat: when the artifacts are missing from every
-# seat, the repo's own build lane (scripts/sandbox/build-fixtures.sh
-# - the exact CI recipe, hermetic: no installs, no network, a
-# missing toolchain is a named failure) runs once and the seats
-# resolve again - the detonation never depends on a remembered
-# side-step. A lane that cannot run is not hidden: its log rides
-# the artifact dump and the leg's failure names the lane's verdict,
-# so the proof still cannot pass quietly.
-if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
-	echo "── fixtures: the seats are empty - building the pidhide pair via scripts/sandbox/build-fixtures.sh ──"
+# The self-serve seat: when the artifacts are missing from every seat,
+# OR they predate the fixture sources (the freshness probe), the repo's
+# own build lane (scripts/sandbox/build-fixtures.sh - the exact CI
+# recipe, hermetic: no installs, no network, a missing toolchain is a
+# named failure) runs once - FORCED when a stale pair must come down -
+# and the seats resolve again. The detonation never depends on a
+# remembered side-step, and a remembered one cannot run in place: the
+# first-shape bytes that survived in the target tree while the tree
+# carried the new sources rode exactly this hole. A lane that cannot
+# run is not hidden: its log rides the artifact dump and the leg's
+# failure names the lane's verdict, so the proof still cannot pass
+# quietly.
+if [ -n "${PIDHIDE_LOADER:-}" ] || [ -n "${PIDHIDE_OBJECT:-}" ]; then
+	# The caller pinned the seats explicitly: the pinned bytes run as
+	# chosen, and the choice is named in the log - never silently
+	# trusted, never rebuilt underneath the caller.
+	echo "── fixtures: the caller pinned the seats (PIDHIDE_LOADER/PIDHIDE_OBJECT) - the pinned pair runs as chosen (freshness probe skipped) ──"
+elif ! pair_is_fresh; then
+	if [ -x "${LOADER}" ] || [ -f "${OBJECT}" ]; then
+		echo "── fixtures: the seats resolve but predate the fixture sources - forcing the rebuild (a stale pair would run an earlier shape's bytes) ──"
+	else
+		echo "── fixtures: the seats are empty - building the pidhide pair via scripts/sandbox/build-fixtures.sh ──"
+	fi
 	# sudo resets PATH (secure_path) and the toolchain seats ride the
 	# invoking user's home, so the build attempt restores the standard
 	# seats first - the invoking user's via SUDO_USER, root's via HOME
@@ -216,17 +278,12 @@ if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
 	if [ -n "${SUDO_USER:-}" ] && [ -d "/home/${SUDO_USER}/.rustup" ]; then
 		build_env+=(RUSTUP_HOME="/home/${SUDO_USER}/.rustup" CARGO_HOME="/home/${SUDO_USER}/.cargo")
 	fi
-	if env "${build_env[@]}" PATH="${build_path}" bash "${REPO_ROOT}/scripts/sandbox/build-fixtures.sh" >leg-b.build.log 2>&1; then
-		LOADER=${PIDHIDE_LOADER:-$(first_match is_exec \
-			"${SANDBOX}/pidhide-loader" \
-			"${FIXTURE}/target/x86_64-unknown-linux-musl/release/pidhide-loader")}
-		OBJECT=${PIDHIDE_OBJECT:-$(first_match is_file \
-			"${SANDBOX}/pidhide-ebpf" \
-			"${FIXTURE}/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf")}
+	if env "${build_env[@]}" PATH="${build_path}" bash "${REPO_ROOT}/scripts/sandbox/build-fixtures.sh" -f >leg-b.build.log 2>&1; then
+		resolve_seats
 	fi
 fi
-if [ ! -x "${LOADER}" ] || [ ! -f "${OBJECT}" ]; then
-	fail_leg b-pidhide "the fixture artifacts are missing from every seat (loader ${LOADER}, object ${OBJECT}; the build lane's own verdict: $(tail -1 leg-b.build.log 2>/dev/null || echo 'the build lane was not run'))"
+if ! pair_runnable; then
+	fail_leg b-pidhide "the fixture artifacts are missing or stale on every seat (loader ${LOADER}, object ${OBJECT}; the build lane's own verdict: $(tail -1 leg-b.build.log 2>/dev/null || echo 'the build lane was not run'))"
 else
 	"${LOADER}" "${OBJECT}" 12 >leg-b.loader 2>&1 &
 	loader_pid=$!
@@ -348,6 +405,15 @@ if [ "${legs_failed}" -ne 0 ]; then
 		[ -f "${artifact}" ] && {
 			echo "--- ${artifact}"
 			head -c 2000 "${artifact}"
+			# The verdict lives at the log's TAIL - the verifier's
+			# final line and the refusing errno - so a truncated
+			# dump carries both ends, never the head alone (the
+			# 6.18 refusal's verdict rode the tail a head-only
+			# dump cut away).
+			if [ "$(wc -c <"${artifact}")" -gt 2000 ]; then
+				echo " [... the artifact continues; its tail: ...]"
+				tail -c 1200 "${artifact}"
+			fi
 			echo
 		}
 	done
