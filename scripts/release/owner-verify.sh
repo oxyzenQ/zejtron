@@ -173,9 +173,26 @@ OBJECT="$ROOT/test-fixtures/pidhide/ebpf/target/bpfel-unknown-none/release/pidhi
 if [ ! -x "$LOADER" ] || [ ! -f "$OBJECT" ]; then
 	note "SKIP: the fixture pair is not at the repo's build seats (the detector's own run in step 4 manages its own copies); build with scripts/sandbox/build-fixtures.sh and rerun this step"
 else
+	# Re-arm the lane the way the project itself does - the same seat
+	# leg-b rides (the detector's doctor --attach before its plant).
+	# The why windows' ladder (src/commands/lane.rs) reads zejtron's
+	# own pins when they are present and falls back to the log lane
+	# when they are not; it never attaches lazily. Run 2
+	# (owner-verify-20261125T145204Z) proved the gap: the detector's
+	# section-4 detach left no pins, both windows rode the journal
+	# fallback ("lane":"journal fallback" in the JSON), the journal
+	# never records a userspace write, and a live hide's stream of
+	# writes was honest-empty. Attach first, plant second, window
+	# third; the loader's marker loop appends every 50ms for ~20s,
+	# so any window during the hold catches the stream.
+	if runlog attach "$BIN" doctor --attach; then
+		note "- lane re-armed: the why windows ride the live camera (the pins the ladder reads)"
+	else
+		note "ATTENTION: doctor --attach refused - the windows will ride the log lane and may honest-empty; the ride records whatever lane serves it"
+	fi
 	# The exact invocation leg-b uses: the loader takes the bpfel
 	# object and a lifetime in seconds; 25s covers both 10s windows
-	# (the camera drains on read - the second run sees its own watch).
+	# (the marker's write stream runs ~20s of the hold).
 	"$LOADER" "$OBJECT" 25 >"$OUT/manual-loader.log" 2>&1 &
 	LOADER_PID=$!
 	MARKER_PID=""
