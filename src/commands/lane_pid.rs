@@ -25,8 +25,7 @@
 //! 3. Gone: no resolvable directory - the exited-or-namespace truth
 //!    the old message named, and the only one it could.
 
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use crate::evidence::UnaccountedEntry;
@@ -155,33 +154,70 @@ pub(crate) fn attribute_pid(
     (context, visibility)
 }
 
+/// The event-versus-distinct split (night-witness-pids): the clause
+/// appended to the count-backed pid entries. The entry's `count`
+/// counts EVENTS (one per recorded event); `per_pid` holds each
+/// distinct recorded pid's contribution, and the clause names up to
+/// 32 of them in ascending pid order - the audit question "how many
+/// processes is that, really" answered inside the entry instead of
+/// left to a misread of the count. Pure, so the clause is pinnable
+/// without a namespace.
+pub(crate) fn pid_sample_clause(count: usize, per_pid: &BTreeMap<u32, usize>) -> String {
+    const SAMPLE_CAP: usize = 32;
+    let distinct = per_pid.len();
+    let plural = if distinct == 1 { "" } else { "s" };
+    let listed: Vec<String> = per_pid
+        .iter()
+        .take(SAMPLE_CAP)
+        .map(|(pid, events)| format!("pid {pid} x{events}"))
+        .collect();
+    let mut clause = format!(" - the {count} events carry {distinct} distinct pid{plural}");
+    if !listed.is_empty() {
+        clause.push_str(&format!("; sample: {}", listed.join(", ")));
+        if distinct > SAMPLE_CAP {
+            clause.push_str(&format!(" (+{} more pids unlisted)", distinct - SAMPLE_CAP));
+        }
+    }
+    clause
+}
+
 /// The hidden-pids boundary (night-frontier-Z11): the count-backed
 /// entry for the recorded pids the namespace's own listing does not
-/// show. Pure, so the wording is pinnable without a tampered
-/// namespace.
-pub(crate) fn hidden_pid_entry(count: usize) -> UnaccountedEntry {
+/// show. The count counts events; the per-pid map rides the entry's
+/// own clause (night-witness-pids) so the distinct-process question
+/// is answered where the count is printed. Pure, so the wording is
+/// pinnable without a tampered namespace.
+pub(crate) fn hidden_pid_entry(count: usize, per_pid: &BTreeMap<u32, usize>) -> UnaccountedEntry {
+    let clause = pid_sample_clause(count, per_pid);
     UnaccountedEntry::new(
         count,
         "hidden pids",
-        "the kernel resolved these pids' /proc directories, but the directory \
-         listing does not show them - the listing and the direct lookup \
-         disagree, the shape a getdents filter (stealth) or a hidepid-style \
-         mount prints - cross-validate with sudo before trusting the process \
-         table",
+        format!(
+            "the kernel resolved these pids' /proc directories, but the directory \
+             listing does not show them - the listing and the direct lookup \
+             disagree, the shape a getdents filter (stealth) or a hidepid-style \
+             mount prints - cross-validate with sudo before trusting the process \
+             table{clause}"
+        ),
     )
 }
 
 /// The recycled-pids boundary (night-frontier-Z11): the count-backed
 /// entry for the recorded pids whose /proc identity now belongs to a
-/// process born after the event - the anti-false-positive arm. Pure,
-/// so the wording is pinnable without a pid-recycling race.
-pub(crate) fn recycled_pid_entry(count: usize) -> UnaccountedEntry {
+/// process born after the event - the anti-false-positive arm. The
+/// count counts events; the per-pid clause rides as above
+/// (night-witness-pids). Pure, so the wording is pinnable without a
+/// pid-recycling race.
+pub(crate) fn recycled_pid_entry(count: usize, per_pid: &BTreeMap<u32, usize>) -> UnaccountedEntry {
+    let clause = pid_sample_clause(count, per_pid);
     UnaccountedEntry::new(
         count,
         "recycled pids",
-        "these recorded pids now name processes born after the events - the \
-         old holders exited and the numbers moved on; the rows render the \
-         records' own actors, never the new holders' names",
+        format!(
+            "these recorded pids now name processes born after the events - the \
+             old holders exited and the numbers moved on; the rows render the \
+             records' own actors, never the new holders' names{clause}"
+        ),
     )
 }
 

@@ -25,7 +25,7 @@
 //! exclusive, and the verdict (not a row) names that nothing older
 //! than the window was looked for.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::time::Duration;
 
@@ -224,8 +224,13 @@ fn collect_live(
     let mut gone_opens: usize = 0;
     let mut gone_writes: usize = 0;
     let mut gone_changes: usize = 0;
-    let mut hidden_pids: usize = 0;
-    let mut recycled_pids: usize = 0;
+    // The pid boundaries count EVENTS per distinct recorded pid
+    // (night-witness-pids): the entry's count stays the event count
+    // the census compares, and the per-pid map answers the distinct-
+    // process question inside the entry instead of leaving the
+    // count to a misread.
+    let mut hidden_pids: BTreeMap<u32, usize> = BTreeMap::new();
+    let mut recycled_pids: BTreeMap<u32, usize> = BTreeMap::new();
     // The recorded-pid compare's other half (night-frontier-Z11): one
     // readdir of the namespace's listing, shared by every event's
     // attribution. An empty window never pays it, and an unreadable
@@ -282,9 +287,9 @@ fn collect_live(
             listing.as_ref(),
         );
         if visibility == PidVisibility::Hidden {
-            hidden_pids += 1;
+            *hidden_pids.entry(event.pid).or_insert(0) += 1;
         } else if visibility == PidVisibility::Recycled {
-            recycled_pids += 1;
+            *recycled_pids.entry(event.pid).or_insert(0) += 1;
         }
         // Not cleanly live-attributable: the /proc name when it
         // belongs (the hidden-but-alive holder), else the record's
@@ -396,13 +401,17 @@ fn collect_live(
     }
     // The recorded-pid compare's boundaries (night-frontier-Z11): the
     // count-backed hidden-pids entry (the listing/lookup disagreement)
-    // and the recycled-pids entry (the anti-false-positive arm). Both
-    // ride only when they fired - a clean window adds NOTHING.
-    if hidden_pids > 0 {
-        unaccounted.push(crate::commands::lane_pid::hidden_pid_entry(hidden_pids));
+    // and the recycled-pids entry (the anti-false-positive arm). The
+    // count counts events; each entry carries its per-pid split
+    // (night-witness-pids). Both ride only when they fired - a clean
+    // window adds NOTHING.
+    if !hidden_pids.is_empty() {
+        let count: usize = hidden_pids.values().sum();
+        unaccounted.push(crate::commands::lane_pid::hidden_pid_entry(count, &hidden_pids));
     }
-    if recycled_pids > 0 {
-        unaccounted.push(crate::commands::lane_pid::recycled_pid_entry(recycled_pids));
+    if !recycled_pids.is_empty() {
+        let count: usize = recycled_pids.values().sum();
+        unaccounted.push(crate::commands::lane_pid::recycled_pid_entry(count, &recycled_pids));
     }
     // night-frontier-Z1, the drop-truth: the camera's own failures,
     // named where the boundaries are named. The census is cumulative

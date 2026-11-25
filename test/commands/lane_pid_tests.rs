@@ -7,6 +7,7 @@
 //! wording - all pure, no live kernel and no tampered namespace.
 
 use super::*;
+use std::collections::BTreeMap;
 
 // ── the classify_pid truth table ─────────────────────────────────────
 
@@ -98,7 +99,7 @@ fn an_unreadable_birth_never_invents_a_recycling() {
 
 #[test]
 fn the_hidden_pid_entry_names_both_causes_and_the_caveat() {
-    let entry = hidden_pid_entry(2);
+    let entry = hidden_pid_entry(2, &BTreeMap::from([(499_478u32, 2usize)]));
     assert_eq!(entry.count, 2);
     assert_eq!(entry.category, "hidden pids");
     assert!(
@@ -127,7 +128,7 @@ fn the_hidden_pid_entry_names_both_causes_and_the_caveat() {
 
 #[test]
 fn the_recycled_pid_entry_names_the_holder_not_the_actor() {
-    let entry = recycled_pid_entry(3);
+    let entry = recycled_pid_entry(3, &BTreeMap::from([(9u32, 3usize)]));
     assert_eq!(entry.count, 3);
     assert_eq!(entry.category, "recycled pids");
     assert!(
@@ -141,5 +142,77 @@ fn the_recycled_pid_entry_names_the_holder_not_the_actor() {
         entry.reason.contains("never the new holders' names"),
         "{}",
         entry.reason
+    );
+    assert!(
+        entry.reason.contains("the 3 events carry 1 distinct pid;"),
+        "{}",
+        entry.reason
+    );
+}
+
+// ── the event-versus-distinct clause (night-witness-pids) ────────────
+
+#[test]
+fn the_clause_answers_the_distinct_process_question() {
+    // The misread the clause exists for: a count of 388 read as "388
+    // distinct hidden processes" when it is 388 events from one pid.
+    let per_pid = BTreeMap::from([(499_478u32, 388usize)]);
+    let entry = hidden_pid_entry(388, &per_pid);
+    assert!(
+        entry.reason.contains("the 388 events carry 1 distinct pid;"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("sample: pid 499478 x388"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("2 distinct pids"),
+        "{}",
+        entry.reason
+    );
+}
+
+#[test]
+fn the_clause_lists_ascending_and_bounds_at_32() {
+    // Forty distinct pids: the sample lists the first 32 in ascending
+    // pid order and names what it omits - bounded, never a dump.
+    let per_pid: BTreeMap<u32, usize> = (0..40u32).map(|pid| (pid, 1usize)).collect();
+    let entry = hidden_pid_entry(40, &per_pid);
+    assert!(
+        entry.reason.contains("the 40 events carry 40 distinct pids;"),
+        "{}",
+        entry.reason
+    );
+    assert!(
+        entry.reason.contains("(+8 more pids unlisted)"),
+        "{}",
+        entry.reason
+    );
+    assert!(entry.reason.contains("pid 31 x1"), "{}", entry.reason);
+    assert!(
+        !entry.reason.contains("pid 39 x1"),
+        "the cap bounds the sample: {}",
+        entry.reason
+    );
+}
+
+#[test]
+fn the_clause_is_byte_deterministic() {
+    // BTreeMap's ascending walk makes the sample stable across runs -
+    // the same input, the same bytes, pinnable.
+    let per_pid = BTreeMap::from([(20u32, 2usize), (10u32, 5usize)]);
+    assert_eq!(
+        hidden_pid_entry(7, &per_pid).reason,
+        hidden_pid_entry(7, &per_pid).reason
+    );
+    assert!(
+        hidden_pid_entry(7, &per_pid)
+            .reason
+            .contains("sample: pid 10 x5, pid 20 x2"),
+        "ascending pid order: {}",
+        hidden_pid_entry(7, &per_pid).reason
     );
 }
