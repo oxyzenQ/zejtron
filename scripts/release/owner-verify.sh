@@ -70,6 +70,8 @@ fi
 if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
 	fail_out "no zejtron binary resolved (install-on-my-machine first, or set ZEJTRON_BIN)"
 fi
+"$BIN" --version >/dev/null 2>&1 ||
+	fail_out "the binary under test does not execute ($BIN) - a corrupt or foreign install"
 
 LEFT=$(pgrep -af pidhide | grep -v 'grep\|owner-verify' || true)
 if [ -n "$LEFT" ]; then
@@ -120,9 +122,13 @@ note() {
 runlog() {
 	local artifact="$OUT/$1.log"
 	shift
-	local tag="$1"
-	shift
-	printf '```\n$ %s\n' "$tag" | tee -a "$RESULTS"
+	# One shift, then the tag is the FULL command ($*): the results
+	# must show exactly what ran and "$@" must run the binary WITH
+	# its arguments. The first real-machine run
+	# (owner-verify-20261125T143553Z) caught the double-shift this
+	# comment replaces: the binary was shifted away, the bare
+	# arguments executed as commands, every zejtron step rc=127.
+	printf '```\n$ %s\n' "$*" | tee -a "$RESULTS"
 	"$@" >"$artifact" 2>&1
 	local rc=$?
 	tail -n 200 "$artifact" | tee -a "$RESULTS"
@@ -144,10 +150,13 @@ section "3. negative control - no fixture, full JSON saved (audit step 4)"
 runlog negative-why-text "$BIN" why /etc/hostname --since 10s || true
 runlog negative-why-json "$BIN" why /etc/hostname --since 10s --print-json || true
 NEG_UNACC=$(jq -c '.unaccounted // []' "$OUT/negative-why-json.log" 2>/dev/null | head -c 2000 || true)
-note "- negative-control unaccounted: ${NEG_UNACC:-<unreadable>}"
-if [ "$NEG_UNACC" = "[]" ]; then
+if [ -z "$NEG_UNACC" ]; then
+	note "- negative-control unaccounted: <unreadable - the window's command failed above; this step's verdict is PENDING, not a boundary claim>"
+elif [ "$NEG_UNACC" = "[]" ]; then
+	note "- negative-control unaccounted: []"
 	note "PASS: the clean window names nothing (the leg-a shape)"
 else
+	note "- negative-control unaccounted: $NEG_UNACC"
 	note "ATTENTION: a no-fixture window named boundaries - send this back (it may be the host's own truth, e.g. a hidepid mount)"
 fi
 
