@@ -136,8 +136,22 @@ impl<'a> BtfBlob<'a> {
             };
             let name_off = u32_at(pos);
             let info = u32_at(pos + 4);
-            let kind = info & 0x1f;
-            let vlen = ((info >> 16) & 0x7fff) as usize;
+            // The info word (linux/btf.h): bits 0-15 vlen, bits 24-28
+            // kind, bit 31 kind_flag - and when the flag is set the
+            // low field is vlen:10 | klen:6, not a 16-bit vlen. The
+            // first shape read kind from the LOW bits and vlen from
+            // the high half: the synthetic blobs were built with the
+            // same swapped encoding, so the tests agreed with the
+            // walk and the real vmlinux desynced at the first flagged
+            // record (the refusal named it: a string offset of
+            // 0x0A000000, past the section). This is the camera's
+            // decode_info, ported whole.
+            let kind = (info >> 24) & 0x1f;
+            let vlen = if info & 0x8000_0000 != 0 {
+                (info & 0x3ff) as usize
+            } else {
+                (info & 0xffff) as usize
+            };
             let payload = kind_payload(kind, vlen)?;
             if kind == 4 {
                 // BTF_KIND_STRUCT: the members start after the record
