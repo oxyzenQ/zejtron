@@ -58,6 +58,14 @@ __pycache__
 # the machine, never a commit.
 dist/
 
+# The owner-verify runner's residue (night-witness-pids, the manual
+# lane): scripts/release/owner-verify.sh tees every step's output to
+# a timestamped results directory beside the checkout - the results
+# are the machine's findings to send back, never a tracked file (the
+# dist/ class: a product of the machine, never a commit).
+owner-verify-*/
+owner-verify-*.tar.gz
+
 # The night-cafe-1 vendored fixed CLI (scripts/labs-exp/, the
 # sibling's labs-exp law): a locally built or patched zejtron binary
 # is an extraction product of the machine, never a tracked file. The
