@@ -78,12 +78,19 @@ rustup toolchain list 2>/dev/null | grep -q "nightly-2026-09-18" ||
 # committed locks answer every dependency, offline.
 export CARGO_NET_OFFLINE=true
 
-if [ "${FORCE}" -eq 1 ]; then
-	note "forced rebuild: removing the fixture build trees first - a pair that predates the sources must never run again"
-	rm -rf "${FIXTURE}/target" "${FIXTURE}/ebpf/target"
-elif [ -x "${LOADER}" ] && [ -f "${OBJECT}" ]; then
+if [ -x "${LOADER}" ] && [ -f "${OBJECT}" ] && [ "${FORCE}" -eq 0 ]; then
 	note "artifacts already present (rebuild skipped; pass -f to force)"
 else
+	# The forced path REMOVES and then BUILDS - the removal is the
+	# preamble of the rebuild, never its substitute (the first shape
+	# of this branch only removed, and the detonation's forced rebuild
+	# died at the landed-artifact check with no compile line in the
+	# log - the removal had substituted for the build it exists to
+	# guarantee).
+	if [ "${FORCE}" -eq 1 ]; then
+		note "forced rebuild: removing the fixture build trees first - a pair that predates the sources must never run again"
+		rm -rf "${FIXTURE}/target" "${FIXTURE}/ebpf/target"
+	fi
 	note "building the pidhide loader (stable MSRV, x86_64-unknown-linux-musl)..."
 	(
 		cd "${FIXTURE}" &&
