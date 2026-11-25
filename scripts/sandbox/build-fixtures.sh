@@ -51,9 +51,12 @@ QUIET=0
 FORCE=0
 for arg in "$@"; do
 	case "${arg}" in
-		-q) QUIET=1 ;;
-		-f) FORCE=1 ;;
-		*) echo "usage: $0 [-q] [-f]" >&2; exit 1 ;;
+	-q) QUIET=1 ;;
+	-f) FORCE=1 ;;
+	*)
+		echo "usage: $0 [-q] [-f]" >&2
+		exit 1
+		;;
 	esac
 done
 
