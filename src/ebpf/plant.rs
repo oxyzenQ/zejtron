@@ -65,7 +65,7 @@ pub(super) const SOCK_TRACEPOINT_EVENT: &str = "inet_sock_set_state";
 pub(super) const MAP_SOCK_EVENTS: &str = "sock_events";
 
 /// The file-open program's name (the ELF symbol - the fn name in
-/// ebpf/src/main.rs). The ATTACH symbol is a separate constant -
+/// ebpf/src/filelane.rs). The ATTACH symbol is a separate constant -
 /// the program is role-named, the symbol is kernel-named, and the
 /// two meet only here (night-improve-3).
 pub(super) const OPEN_PROGRAM: &str = "open_probe";
@@ -96,7 +96,7 @@ pub(super) const WRITE_TRACEPOINT_CATEGORY: &str = "raw_syscalls";
 pub(super) const WRITE_TRACEPOINT_EVENT: &str = "sys_enter";
 
 /// The vectorized-write program's name (night-improve-42) - the ELF
-/// symbol in ebpf/src/main.rs. The ATTACH symbol is not a constant:
+/// symbol in ebpf/src/filelane.rs. The ATTACH symbol is not a constant:
 /// it is verified from the host's own BTF at attach time
 /// (vfs_writev preferred, do_iter_write the verified fallback), the
 /// argument-position sibling of the offsets law - a symbol whose
@@ -362,8 +362,9 @@ pub(super) fn plant(
 }
 
 /// Write the BTF-parsed offsets through the pin, slot by slot in the
-/// events.rs order. Thirteen slots from the struct walk - the walks
-/// the four kprobes read, parsed from the host's own BTF - plus the
+/// events.rs order. The struct-walk slots the file probes read,
+/// parsed from the host's own BTF (the OFF_SLOTS contract is
+/// events.rs's) - plus the
 /// two anchor slots the unlink/rename lane's symbol walk resolved
 /// (the vfs_unlink dentry argument index and the renamedata
 /// old_dentry member offset), written through the OFF_SLOT_*

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
-//! The BTF offsets parser (night-improve-3, feature builds only):
+//! The BTF offsets parser (night-improve-3):
 //! the loud half of the offsets contract. Every struct walk the two
 //! kprobes perform reads its offset from the `offsets` map - and the
 //! values in that map are parsed from THE HOST'S OWN

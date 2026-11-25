@@ -47,8 +47,10 @@ use crate::events::{PROCEXIT_EVENT_BYTES, ProcExitEvent};
 // asserted-where-output-lives discipline).
 const _: () = assert!(PROCEXIT_EVENT_BYTES == 32);
 
-/// The proc_events ring buffer (night-improve-47): 256 KiB, 8192
-/// records of 32 bytes. Unfiltered by design (the module header
+/// The proc_events ring buffer (night-improve-47): 256 KiB - 6553
+/// held records at the 40-byte stride (the 32-byte record plus the
+/// ring's 8-byte header, the loss-certificate arithmetic).
+/// Unfiltered by design (the module header
 /// names the leader check as the whole filter); on any host short
 /// of a build-storm the ring holds hours of exit history, and when
 /// it does fill, the oldest records are overwritten in the kernel

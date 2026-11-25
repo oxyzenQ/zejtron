@@ -5,7 +5,7 @@
 // of the file lane, in their own module under the 600-LOC no-mercy
 // cap (night-frontier-Z8, a PURE move of the two probes
 // night-improve-3 and night-improve-42 planted; the exits.rs/write.rs
-// precedent: a dedicated module beside the seven, same crate, same
+// precedent: a dedicated module beside the others, same crate, same
 // single-sourced record contract, same license law).
 //
 // The walks, the filter map, and the records they publish are

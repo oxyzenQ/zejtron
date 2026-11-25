@@ -9,8 +9,8 @@
 //! (night-improve-18, the discipline contract) and is #[path]-wired
 //! from src/commands/port/window.rs. The grammar half (parse, clamp,
 //! label, refusal) and the fallback contract are pinned in every
-//! lane; the live rendering half is pinned under the ebpf feature
-//! with synthetic events - the format is the contract, not the
+//! lane; the live rendering half is pinned with synthetic events -
+//! the format is the contract, not the
 //! host's traffic.
 
 use super::*;

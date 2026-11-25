@@ -151,10 +151,11 @@ pub const PIN_MAP_DROP_CENSUS: &str = "/sys/fs/bpf/zejtron/drop_census";
 /// proven to be this boot's own camera, planted by this build.
 pub const PIN_MAP_GENERATION: &str = "/sys/fs/bpf/zejtron/generation";
 
-/// Every pin the attach lane plants, in removal order (all links
-/// first - unlinking a link detaches its program; programs and maps
-/// last). Thirty-two pins: one link/program pair per probe (the exec
-/// tracepoint, the sock tracepoint, the five file kprobes - the open
+/// Every pin the attach lane plants, in removal order (every link
+/// precedes its own program - unlinking a link detaches it; the
+/// core links lead). Thirty-two pins: one link/program pair per
+/// probe (the exec tracepoint, the sock tracepoint, the five file
+/// probes - the open
 /// probe, the write probe, the writev probe, and since
 /// night-frontier-2 the unlink and rename probes - and the
 /// post-mortem exit tracepoint, plus the four off-path probes: the

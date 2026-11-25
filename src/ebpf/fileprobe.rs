@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
-//! The file window capture (night-improve-3, feature builds only):
+//! The file window capture (night-improve-3):
 //! the live lane's one-shot, shared by holds, touch, and why. The
 //! whole lifecycle of a live window lives here, once: insert the
 //! queried file into the tracked_inodes filter map, collect over the
@@ -153,8 +153,8 @@ pub fn select_window(events: &[FileEvent], inode: u64, device: u64) -> Vec<FileE
 /// one-offset-per-render-breath law): every row of a report renders
 /// under the ONE offset its renderer sampled at its start, so a wall
 /// clock step between two rows' reads can never make the rows
-/// disagree. Same arithmetic as [`event_unix_secs`], same `None`
-/// honesty.
+/// disagree. A `None` offset renders an honest `None` row - the
+/// offset is the renderer's own sample, never a recomputation.
 pub fn event_unix_secs_with(event: &FileEvent, offset: Option<i128>) -> Option<i64> {
     let offset = offset?;
     let nanos = event.timestamp_ns as i128 + offset;

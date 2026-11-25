@@ -16,7 +16,12 @@
 // stream. SEVENTH and EIGHTH in their own module (night-frontier-2,
 // unlink.rs): the unlink and rename probes, the forensic closer for
 // the file arena - the death-and-movement half the open/write
-// probes never saw.
+// probes never saw. The capability-gated off-path estate rides
+// beside them (night-frontier-Z7 and night-frontier-Z9): the two
+// mmap-dirty anchors and the folio probe, the splice probe, and the
+// io_uring probe in offpath.rs, the memory-backed fault anchor in
+// membacked.rs - twelve programs in the one object; the census
+// lives in docs/CAMERA-COST.md.
 //
 //   1. sched_process_exec (phase 1, unchanged since): count process
 //      executions. The counter is the phase-1 chain proof, still the
@@ -44,7 +49,8 @@
 //      entry). O_PATH peeks never reach vfs_open and are not
 //      recorded - an O_PATH fd is not an open in the data sense.
 //
-//   4. write_probe on __x64_sys_write (night-improve-57, the second
+//   4. write_probe on the raw_syscalls/sys_enter tracepoint,
+//      filtering __x64_sys_write (night-improve-57, the second
 //      generation - ebpf/src/write.rs owns the full story): the
 //      first generation anchored at vfs_write, which the newest
 //      -O3 distro builds (cachyos 7.x, found live by the
@@ -86,8 +92,11 @@
 //      doctor's ram symptom drains the last five seconds on
 //      demand; nothing streams, nothing is written to disk.
 //
-//   stats           (Array<AtomicU64>) — phase 1's counter, one slot,
-//                                    unchanged. stats[0] counts
+//   stats           (Array<AtomicU64>) — phase 1's counter, grown by
+//                                    the write census and the question
+//                                    census (the STATS_* constants
+//                                    below; STATS_SLOTS entries).
+//                                    stats[0] counts
 //                                    sched_process_exec events since
 //                                    attach; BPF_ATOMIC fetch_add only.
 //   sock_events     (RingBuf)          — phase 2's event stream, the
@@ -113,7 +122,7 @@
 //                                    512 KiB holds 6553 72-byte
 //                                    records of history (D5's own
 //                                    re-pin; see the map below).
-//   offsets         (Array<u64>, 22)   — phase 3's struct offsets, the
+//   offsets         (Array<u64>, 25)   — phase 3's struct offsets, the
 //                                    file-walk slots plus every
 //                                    appended walk, written
 //                                    once at attach from the host's
@@ -148,6 +157,14 @@
 //                                    (src/ebpf/readback.rs) so a
 //                                    silent drop stops being
 //                                    silent.
+//   generation      (Array<u64>, 5)   — night-frontier-Z2's estate
+//                                    identity: the loader writes it
+//                                    once at attach (boot id, object
+//                                    id, the attach instants, the
+//                                    capability mask - GEN_SLOT_* in
+//                                    estate.rs owns the layout) and
+//                                    every drain reads it back; the
+//                                    programs never touch it.
 //
 // Deliberately absent (later passes own them): no keying by pid or
 // uid, no address reads (the sock record carries the port and the
@@ -344,10 +361,10 @@ pub(crate) static tracked_inodes: HashMap<u64, u8> = HashMap::with_max_entries(1
 #[map(name = "file_events")]
 pub(crate) static file_events: RingBuf = RingBuf::with_byte_size(512 * 1024, 0);
 
-/// The offsets config map (night-improve-3, grown by
-/// night-improve-57): Array<u64>, the twelve slots - eight
-/// file-walk slots plus the four fd-walk slots the syscall-stub
-/// write probe rides (see events.rs OFF_SLOT_*), written once at
+/// The offsets config map (night-improve-3, grown through
+/// night-improve-57 and the off-path, identity, and memory-backed
+/// walks after it): Array<u64>, OFF_SLOTS slots - the append-only
+/// slot census is events.rs's OFF_SLOT_* table - written once at
 /// attach time from the host's own BTF
 /// (src/ebpf/btf.rs). The slot indices are the shared contract in
 /// events.rs — OFF_SLOT_* on both sides.

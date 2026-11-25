@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
-//! readback unit pins (feature builds only - the readback module
-//! itself is feature-gated). Lives under the single test/ tree
+//! readback unit pins. Lives under the single test/ tree
 //! (night-improve-18, the discipline contract) and is #[path]-wired
 //! from src/ebpf/readback.rs. The live read (a real pinned map on a
 //! host with an attached probe) belongs to the owner's live session;

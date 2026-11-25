@@ -31,10 +31,10 @@
 //! section.
 //!
 //! The lane-independent half (the grammar, the clamp, the refusal)
-//! compiles in every build; the capture and the live rendering
-//! compile only under the ebpf feature. The two halves meet in
+//! serves every invocation; the capture and the live rendering are
+//! the live lane's own half. The two halves meet in
 //! [`format_port_output`], whose signature is lane-independent so
-//! the run() dispatch cannot tell the builds apart.
+//! the run() dispatch cannot tell the lanes apart.
 
 use std::time::Duration;
 
@@ -253,7 +253,7 @@ fn default_output(
     }
 }
 
-// ── The capture and the live rendering (feature builds only) ───────
+// ── The capture and the live rendering (the live lane) ─────────────
 
 use crate::ebpf::events::SockEvent;
 
@@ -356,7 +356,7 @@ pub fn capture_window(options: &PortOptions) -> Result<WindowCapture, LaneUnavai
 
 /// The drain slice: how often the collection wakes to empty the ring
 /// while it waits. Short enough that a busy host cannot overflow the
-/// ring's 8192 records between two drains, long enough that the
+/// ring's 3640-record window between two drains, long enough that the
 /// wakeup cost is noise next to the wait itself.
 const POLL_SLICE: Duration = Duration::from_millis(100);
 

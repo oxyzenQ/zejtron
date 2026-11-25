@@ -16,15 +16,18 @@
 //! walk kernel structs at its offsets, and a walk table that no
 //! longer matches the kernel reads garbage SILENTLY (the exact
 //! failure class the offsets law exists to prevent, one window
-//! later). The sock probe's records ride verified tracepoint-context
-//! constants (ebpf/src/main.rs's ctx_offsets, a fixed prefix stable
-//! since the tracepoint landed), and the exit probe's records ride
-//! helpers alone (pid/comm/ktime) - neither reads the offsets map,
-//! so neither carries offsets trust, and neither is gated here: a
-//! drift refusal on a ring whose records cannot be corrupted would
-//! be a refusal that lies. The file ring's drain is the one boundary
-//! where offsets trust is load-bearing, so it is the one boundary
-//! this module sits behind (src/ebpf/ringbuf.rs drain_file_events).
+//! later). The sock probe's transition facts ride verified
+//! tracepoint-context constants (sock.rs's own ctx_offsets, a fixed
+//! prefix stable since the tracepoint landed) and its identity tail
+//! reads the offsets map's identity slots (sock.rs's
+//! read_offset_set); the exit probe's records ride helpers alone
+//! (pid/comm/ktime) and read no offsets at all. The sock drain is
+//! not gated here - its reads are ctx constants and a map read, not
+//! struct walks - while only the file probes walk kernel structs at
+//! every slot: the file ring's drain is the one boundary where
+//! offsets trust is load-bearing on the read side, so it is the one
+//! boundary this module sits behind (src/ebpf/ringbuf.rs
+//! drain_file_events).
 //!
 //! WHAT DRIFT MEANS HERE: the planted offsets map is re-derived from
 //! the host's /sys/kernel/btf/vmlinux AS IT EXISTS NOW - all twenty-five

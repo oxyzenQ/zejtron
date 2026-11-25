@@ -71,8 +71,8 @@ pub fn resolve_window(since: Option<&str>) -> Result<(Duration, String), String>
 /// s_dev are two encodings of one (major, minor) pair; this brings
 /// both sides to the same canonical integer - the form the BPF side
 /// carries in its records and its filter keys. Lives here (not in
-/// the feature-gated events module) because the LaneQuery needs it
-/// in every build; the six-line decode is duplicated from
+/// the events module) because the LaneQuery needs it in every
+/// build; the six-line decode is duplicated from
 /// holds/procfs.rs by hand (that parser is a locked snapshot
 /// surface), and mirrored on the BPF side by
 /// events::device_token_from_kernel.
@@ -181,7 +181,7 @@ fn snapshot_fallback(query: &LaneQuery<'_>, window: Duration) -> LaneParts {
     parts
 }
 
-// ── The live half (feature builds only) ─────────────────────────────
+// ── The live half ───────────────────────────────────────────────────
 
 fn collect_live(
     query: &LaneQuery<'_>,

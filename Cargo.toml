@@ -158,12 +158,14 @@ clap = { version = "=4.6.7", features = ["derive"] }
 # the same family without a direct dependency; aya-ebpf 0.3 still
 # build-deps aya-build 0.2.1, so the serde carve-out's shape is
 # unchanged): loads the embedded object, attaches the tracepoint,
-# pins and reads the maps. libc is deliberately NOT pulled in: every
-# Phase 1 kernel fact is readable through std fs
+# pins and reads the maps. libc stayed out through Phase 1: every
+# Phase 1 kernel fact was readable through std fs
 # (/proc/sys/kernel/osrelease, /proc/self/status CapEff,
-# /sys/kernel/security/lockdown) and aya's typed API covers the rest
-# - an unused dependency would violate the dependency policy; a later
-# pass that needs a raw syscall adds it feature-gated, one line.
+# /sys/kernel/security/lockdown) and aya's typed API covered the
+# rest - the dependency policy kept it out, and the escape hatch the
+# policy reserved (a pass that needs a raw syscall) is what brought
+# it in at night-dragon-6; the call-site note further down is the
+# live telling.
 aya = { version = "=0.16.0" }
 
 # The eBPF support is UNCONDITIONAL (night-weekly-maintenance-1, the

@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
-//! embedded-object unit pins (feature builds only - the embedded
-//! module itself is feature-gated). Lives under the single test/ tree
+//! embedded-object unit pins. Lives under the single test/ tree
 //! (night-improve-18, the discipline contract) and is #[path]-wired
 //! from src/ebpf/embedded.rs. What is pinned: the AlignedElf type's
 //! alignment guarantee (the NIGHT-hunt-30 lesson), the misalignment

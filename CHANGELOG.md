@@ -53,6 +53,38 @@ v11.0.0
 
 ### Added
 
+- **docs: the master depth pass, round two - the registry and the
+  comments ride the source truth (night-depth-cleanup-2B-1).** The
+  full walk DOC_AUDIT.md prescribes, docs and code comments (archive
+  and the frozen changelog exempt), two read-only sweeps with every
+  finding hand-verified against the tree before its edit. Docs:
+  eight Kani totality theorems where about-ci.md and the registry
+  row still said six (PROOFS.md was already right), the dependency
+  table cells carry the exact pins, README's map says `lane*.rs`,
+  the attach enumerations in README and EBPF_LIFECYCLE.md name the
+  real twelve programs (the phantom `vfs_write` probe dropped, the
+  `raw_syscalls/sys_enter` write probe named, CAMERA-COST.md owns
+  the census), INNOVATIONS' 653-subprogram shape annotated as
+  reverted under THE INLINE LAW, ROADMAP-current.md opens with a
+  Status header (the v5-era plan shipped in v5.0.0), about-ci.md
+  gains its six missing lanes (the CI home carried fourteen of
+  twenty), DOC_AUDIT's rules point at the registry's real home,
+  and the registry gains the Z11 baseline row, the CHANGELOG row,
+  and a Site-local table for the eleven tracked docs that had no
+  row. Comments: reverify.rs's sock rationale matches sock.rs's
+  reads, Cargo.toml's libc note speaks past tense, clock.rs names
+  its real callers, the kernel header inventories the off-path
+  estate and the generation map and says 25 offset slots, the ring
+  arithmetic rides the loss-certificate numbers (6553 at the
+  40-byte stride, 3640 at the 72-byte), the dead
+  [`event_unix_secs`] link is gone, plant.rs names filelane.rs,
+  and the dead ebpf-feature qualifiers are swept from eighteen
+  sites. Deferred findings, named per rule 5: the MSRV literals,
+  the three-crates and verb-list restatements, the pricing
+  mirrors, the ring-byte restatements, the 1024-question mention,
+  and the inline fingerprints - frozen-contract or
+  commercial-surface language whose homes are authoritative;
+  rewording them was judged over-engineering for this pass.
 - **docs: the depth-cleanup pass - every checked claim rides the
   source truth (night-depth-cleanup-1B-1).** A tree-wide sweep of
   the docs and the code comments (archive excluded): 42 .md files

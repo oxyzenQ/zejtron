@@ -13,7 +13,7 @@ mod update;
 // The std-only temp-dir guard for the test tree
 // (night-dragon-maintenance-T1, the tempfile retirement): declared
 // ONCE at the crate root and consumed through `crate::test_tempdir`
-// by the eight test files that need a throwaway directory - a
+// by the nine test files that need a throwaway directory - a
 // per-test-file #[path] include would load the module multiple
 // times and trip clippy's duplicate_mod under the -D warnings law.
 // cfg(test): a registry tarball (which does not ship test/)

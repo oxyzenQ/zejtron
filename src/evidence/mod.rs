@@ -5,10 +5,9 @@
 //! surfaces - holds, touch, why - one grammar. Every
 //! report names its subject, its mode and window, its rows (each
 //! carrying exactly one provenance tag), what it cannot see, and a
-//! two-line verdict. The format is feature-independent and pure std:
-//! it compiles with or without the ebpf feature and renders the same
-//! bytes for the same rows - the SOURCE of the rows is what differs
-//! between builds, never the shape.
+//! two-line verdict. The format is lane-independent and pure std:
+//! it renders the same bytes for the same rows - the SOURCE of the
+//! rows is what differs between lanes, never the shape.
 //!
 //! The mode line's lane qualifier is the fallback ladder made
 //! visible: `live` (the kernel lane ran), `snapshot (journal

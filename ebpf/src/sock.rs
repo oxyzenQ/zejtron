@@ -4,7 +4,7 @@
 // zejtron eBPF probe, the socket-state program (night-frontier-Z1
 // moved here from main.rs - a PURE move under the 600-LOC no-mercy
 // cap, the exits.rs/write.rs/unlink.rs precedent: a dedicated module
-// beside the seven programs, same crate, same single-sourced record
+// beside the other programs, same crate, same single-sourced record
 // contract, same license law). The probe itself is phase 2,
 // untouched: the port surface's event camera, publishing the SockEvent
 // with the changer's pid and (night-frontier-Z8, D5) the changer's

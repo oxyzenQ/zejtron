@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
-//! loader unit pins (feature builds only - the loader module itself
-//! is feature-gated). Lives under the single test/ tree
+//! loader unit pins. Lives under the single test/ tree
 //! (night-improve-18, the discipline contract) and is #[path]-wired
 //! from src/ebpf/loader.rs. The privileged one-shot itself (attach on
 //! a live host) is exercised by the owner's live session, not by unit

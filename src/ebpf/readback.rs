@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
-//! The counter readback (night-improve-1, feature builds only): the
+//! The counter readback (night-improve-1): the
 //! last link of the chain. The kernel increments stats\[0\] on every
 //! sched_process_exec; this module reads the number back out through
 //! the pin - the same `MapData::from_pin` lane the zelynic lineage
