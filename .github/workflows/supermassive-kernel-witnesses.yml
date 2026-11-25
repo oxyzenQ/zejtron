@@ -380,7 +380,10 @@ jobs:
           # kernel, their ~40s riding the same boot.
           args=()
           if [ "${{ matrix.z11 }}" = "true" ]; then
-            args+=(--z11 "$PWD/test-fixtures/pidhide/target/x86_64-unknown-linux-musl/release/pidhide-loader:$PWD/test-fixtures/pidhide/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf")
+            fx="$PWD/test-fixtures/pidhide"
+            ld="$fx/target/x86_64-unknown-linux-musl/release/pidhide-loader"
+            ob="$fx/ebpf/target/bpfel-unknown-none/release/pidhide-ebpf"
+            args+=(--z11 "$ld:$ob")
           fi
           bash scripts/sandbox/zejtron-sandbox.sh \
             --kernel "${{ matrix.suite }}" \
