@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 //
 //! The ring readers (night-improve-2 opens the first, night-improve-3
-//! the second, night-improve-47 the third; feature builds only): the
+//! the second, night-improve-47 the third): the
 //! event-window pumps. std +
 //! aya, nothing else — no thread, no poll loop, no daemon. The pump
 //! runs for exactly one command: open the pinned ring, read the

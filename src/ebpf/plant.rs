@@ -362,10 +362,9 @@ pub(super) fn plant(
 }
 
 /// Write the BTF-parsed offsets through the pin, slot by slot in the
-/// events.rs order. The struct-walk slots the file probes read,
-/// parsed from the host's own BTF (the OFF_SLOTS contract is
-/// events.rs's) - plus the
-/// two anchor slots the unlink/rename lane's symbol walk resolved
+/// events.rs order: the struct-walk slots the file probes read, from
+/// the host's own BTF, plus the two anchor slots the unlink/rename
+/// lane's symbol walk resolved
 /// (the vfs_unlink dentry argument index and the renamedata
 /// old_dentry member offset), written through the OFF_SLOT_*
 /// constants so a contract drift names its slot. Every write error
