@@ -37,8 +37,8 @@ pub(crate) fn resolve_container_offsets() -> Result<(u32, u32), String> {
 pub(crate) fn parse_container_offsets(data: &[u8]) -> Result<(u32, u32), String> {
     let blob = BtfBlob::parse(data)?;
     let entry = blob.find_struct("getdents_callback64")?;
-    let cursor = blob.member_byte_offset(entry, "current_dir")?;
-    let prev = blob.member_byte_offset(entry, "prev_reclen")?;
+    let cursor = blob.member_byte_offset(&entry, "current_dir")?;
+    let prev = blob.member_byte_offset(&entry, "prev_reclen")?;
     Ok((cursor, prev))
 }
 
@@ -50,7 +50,7 @@ struct BtfBlob<'a> {
 }
 
 /// One located STRUCT record: member-list position and member count.
-struct StructEntry {
+struct StructEntry<'a> {
     members: &'a [u8],
     vlen: usize,
 }
@@ -127,7 +127,7 @@ impl<'a> BtfBlob<'a> {
     /// The STRUCT record named `sname`, found by one linear walk of
     /// the type section (a vmlinux-sized scan is a memory-resident
     /// pass, bounded by the file itself, never a grind).
-    fn find_struct(&self, sname: &str) -> Result<StructEntry, String> {
+    fn find_struct(&self, sname: &str) -> Result<StructEntry<'a>, String> {
         let mut pos = 0usize;
         while pos + TYPE_RECORD <= self.types.len() {
             let u32_at = |off: usize| -> u32 {
@@ -159,7 +159,7 @@ impl<'a> BtfBlob<'a> {
 
     /// One member's byte offset inside a located struct, direct
     /// members only. A bitfield result is refused by name.
-    fn member_byte_offset(&self, entry: &StructEntry, mname: &str) -> Result<u32, String> {
+    fn member_byte_offset(&self, entry: &StructEntry<'_>, mname: &str) -> Result<u32, String> {
         for index in 0..entry.vlen {
             let base = index * MEMBER_RECORD;
             let Some(rec) = entry.members.get(base..base + MEMBER_RECORD) else {
