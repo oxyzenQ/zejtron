@@ -58,7 +58,7 @@ fn missing_path_error_is_clean() {
     let directory = TempDir::new().unwrap();
     let missing = directory.path().join("missing");
 
-    let (window, window_label) = crate::commands::lane::resolve_window(None).unwrap();
+    let (window, window_label) = crate::commands::lane_window::resolve_window(None).unwrap();
     let error = ledger::build_path_report(&missing, window, window_label, false, false, false)
         .unwrap_err()
         .to_string();
@@ -85,7 +85,7 @@ fn broken_symlink_error_is_clean() {
     let link = directory.path().join("broken");
     symlink(directory.path().join("missing"), &link).unwrap();
 
-    let (window, window_label) = crate::commands::lane::resolve_window(None).unwrap();
+    let (window, window_label) = crate::commands::lane_window::resolve_window(None).unwrap();
     let error = ledger::build_path_report(&link, window, window_label, false, false, false)
         .unwrap_err()
         .to_string();
@@ -105,7 +105,7 @@ fn path_with_spaces_works() {
 
     // Through the ledger (the lane state is environment-dependent;
     // the subject line holds whichever lane served).
-    let (window, window_label) = crate::commands::lane::resolve_window(None).unwrap();
+    let (window, window_label) = crate::commands::lane_window::resolve_window(None).unwrap();
     let output =
         ledger::build_path_report(&path, window, window_label, false, false, false).unwrap();
 

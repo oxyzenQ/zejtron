@@ -1,72 +1,20 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
-//! Ladder pins (night-improve-3): the window grammar resolution (the
-//! port surface's grammar, the 10s default, the clamps), the log
-//! lane's actor formatting, the device token decode every build
-//! carries (the host half of the cross-encoding proof). The lane
-//! walk itself is environment-dependent (journalctl, audit.log, a
-//! live probe); its pieces are pinned, its outputs are pinned by the
-//! ledger tests. Wired from src/commands/lane.rs.
+//! Ladder pins (night-improve-3): the log lane's actor formatting,
+//! the device token decode every build carries (the host half of the
+//! cross-encoding proof), the pin-denial fallback, the exit-ring
+//! attribution rows. The window grammar pins moved with the resolver
+//! (test/commands/lane_window_tests.rs - the pure move under the
+//! 600-LOC cap). The lane walk itself is environment-dependent
+//! (journalctl, audit.log, a live probe); its pieces are pinned, its
+//! outputs are pinned by the ledger tests. Wired from
+//! src/commands/lane.rs.
 
 use super::*;
 use crate::commands::touch::{ProcessEvidence, TouchInfo};
 use crate::ebpf::ringbuf::exit_names_event;
 use std::time::Duration;
-
-#[test]
-fn the_default_window_is_ten_seconds() {
-    assert_eq!(WINDOW_DEFAULT, Duration::from_secs(10));
-}
-
-#[test]
-fn resolve_window_maps_the_grammar() {
-    let (w, l) = resolve_window(None).unwrap();
-    assert_eq!(w, Duration::from_secs(10));
-    assert_eq!(l, "10s");
-
-    let (w, l) = resolve_window(Some("60s")).unwrap();
-    assert_eq!(w, Duration::from_secs(60));
-    assert_eq!(l, "60s");
-
-    let (w, l) = resolve_window(Some("5m")).unwrap();
-    assert_eq!(w, Duration::from_secs(300));
-    assert_eq!(l, "5m");
-
-    let (w, l) = resolve_window(Some("1h")).unwrap();
-    assert_eq!(w, Duration::from_secs(3600));
-    assert_eq!(l, "1h");
-}
-
-#[test]
-fn resolve_window_clamps_the_same_range_as_port() {
-    // 0s floors to 1s; 2h ceilings to 1h - one grammar, two surfaces.
-    // The absurd ask (u64::MAX/1000 hours, the audit's own token)
-    // saturates through the same ceiling: every window surface that
-    // resolves through here truncates to the honest 1h maximum.
-    let (w, l) = resolve_window(Some("0s")).unwrap();
-    assert_eq!(w, Duration::from_secs(1));
-    assert_eq!(l, "1s");
-
-    let (w, l) = resolve_window(Some("2h")).unwrap();
-    assert_eq!(w, Duration::from_secs(3600));
-    assert_eq!(l, "1h");
-
-    let (w, l) = resolve_window(Some("999999h")).unwrap();
-    assert_eq!(w, Duration::from_secs(3600));
-    assert_eq!(l, "1h");
-
-    let (w, l) = resolve_window(Some("18446744073709551h")).unwrap();
-    assert_eq!(w, Duration::from_secs(3600));
-    assert_eq!(l, "1h");
-}
-
-#[test]
-fn resolve_window_refuses_the_non_grammar() {
-    for bad in ["7x", "abc", "m", ""] {
-        assert!(resolve_window(Some(bad)).is_err(), "{bad} must be refused");
-    }
-}
 
 #[test]
 fn the_stat_device_token_decode_is_the_host_half_of_the_proof() {

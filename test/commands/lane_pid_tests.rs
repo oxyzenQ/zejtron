@@ -159,7 +159,9 @@ fn the_clause_answers_the_distinct_process_question() {
     let per_pid = BTreeMap::from([(499_478u32, 388usize)]);
     let entry = hidden_pid_entry(388, &per_pid);
     assert!(
-        entry.reason.contains("the 388 events carry 1 distinct pid;"),
+        entry
+            .reason
+            .contains("the 388 events carry 1 distinct pid;"),
         "{}",
         entry.reason
     );
@@ -168,8 +170,14 @@ fn the_clause_answers_the_distinct_process_question() {
         "{}",
         entry.reason
     );
+    // The plural arm: two pids, the clause names the pair and its
+    // ascending sample.
+    let pair = BTreeMap::from([(10u32, 5usize), (20u32, 2usize)]);
+    let entry = hidden_pid_entry(7, &pair);
     assert!(
-        entry.reason.contains("2 distinct pids"),
+        entry
+            .reason
+            .contains("2 distinct pids; sample: pid 10 x5, pid 20 x2"),
         "{}",
         entry.reason
     );
@@ -182,7 +190,9 @@ fn the_clause_lists_ascending_and_bounds_at_32() {
     let per_pid: BTreeMap<u32, usize> = (0..40u32).map(|pid| (pid, 1usize)).collect();
     let entry = hidden_pid_entry(40, &per_pid);
     assert!(
-        entry.reason.contains("the 40 events carry 40 distinct pids;"),
+        entry
+            .reason
+            .contains("the 40 events carry 40 distinct pids;"),
         "{}",
         entry.reason
     );

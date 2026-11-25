@@ -33,38 +33,6 @@ use crate::commands::lane_pid::PidVisibility;
 use crate::evidence::row::{EvidenceActor, EvidenceKind, EvidenceRow, Provenance};
 use crate::evidence::{ChangesSection, Mode, UnaccountedEntry};
 
-/// The default window for holds/touch/why (the spec's lock): short
-/// enough that the live lane's collection-over-duration stays quick,
-/// long enough to catch the common "who just touched this".
-pub const WINDOW_DEFAULT: Duration = Duration::from_secs(10);
-
-/// Resolve a `--since` argument into the window and its label: the
-/// port surface's own grammar (`s`/`m`/`h`, clamped [1s, 1h] - one
-/// grammar, two surfaces, imported rather than duplicated), with
-/// the 10s default when the flag is absent. Every surface resolves
-/// through here so the default can never drift between them. An
-/// out-of-bounds ask - above the ceiling or below the floor - rides
-/// one stderr warning (the clamp note, night-dragon-lts-T1
-/// residual, both directions since night-total-hardening-1) and
-/// never touches stdout.
-pub fn resolve_window(since: Option<&str>) -> Result<(Duration, String), String> {
-    use crate::commands::port::window::{
-        clamp_window, parse_window, truncation_note, window_label,
-    };
-    let window = match since {
-        Some(raw) => {
-            let parsed = parse_window(raw).map_err(|e| format!("{e}"))?;
-            if let Some(note) = truncation_note(raw, parsed) {
-                eprintln!("{note}");
-            }
-            clamp_window(parsed)
-        }
-        None => WINDOW_DEFAULT,
-    };
-    let label = window_label(window);
-    Ok((window, label))
-}
-
 /// The canonical device token from a stat(2) st_dev value (the
 /// userspace encoding glibc reports - the 12-bit-major packing, the
 /// same split holds' dev_major_minor applies). st_dev and the kernel
@@ -407,11 +375,17 @@ fn collect_live(
     // window adds NOTHING.
     if !hidden_pids.is_empty() {
         let count: usize = hidden_pids.values().sum();
-        unaccounted.push(crate::commands::lane_pid::hidden_pid_entry(count, &hidden_pids));
+        unaccounted.push(crate::commands::lane_pid::hidden_pid_entry(
+            count,
+            &hidden_pids,
+        ));
     }
     if !recycled_pids.is_empty() {
         let count: usize = recycled_pids.values().sum();
-        unaccounted.push(crate::commands::lane_pid::recycled_pid_entry(count, &recycled_pids));
+        unaccounted.push(crate::commands::lane_pid::recycled_pid_entry(
+            count,
+            &recycled_pids,
+        ));
     }
     // night-frontier-Z1, the drop-truth: the camera's own failures,
     // named where the boundaries are named. The census is cumulative

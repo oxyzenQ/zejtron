@@ -9,7 +9,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use crate::commands::lane::resolve_window;
+use crate::commands::lane_window::resolve_window;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Target {

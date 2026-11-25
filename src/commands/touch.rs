@@ -79,7 +79,7 @@ impl ProcessEvidence {}
 
 pub fn run(path: &Path, since: Option<&str>, print_json: bool) -> Result<(), Box<dyn Error>> {
     let (window, window_label) =
-        crate::commands::lane::resolve_window(since).map_err(TouchError)?;
+        crate::commands::lane_window::resolve_window(since).map_err(TouchError)?;
     let output = ledger::build_report(path, window, window_label, print_json)?;
     println!("{output}");
     Ok(())
