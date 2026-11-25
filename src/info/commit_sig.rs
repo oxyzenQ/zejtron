@@ -32,10 +32,19 @@
 //! missing-stamp precedent: D4's absent stamp maps the row to
 //! `unavailable` (an old build's age signal - the sig report names
 //! it, the exit stays 0), but D5's absent, unknown, or foreign
-//! verdict is a REFUSAL, because a supply-chain row that can pass
+//! verdict is a refusal, because a supply-chain row that can pass
 //! by saying nothing reopens the exact hole it exists to close. A
 //! build from an unsigned HEAD (a plain dev tree, a CI lane) is
-//! the honest `REFUSED` here, named as the incomplete chain.
+//! the honest refusal here - the row refuses, named as the
+//! incomplete chain.
+//!
+//! The verdict CLASS splits the unsigned shape out of tampering
+//! (night-hit-2, the zelynic night-dragon-fly-4 shape): the
+//! commit-signature row still refuses on an unsigned commit, but the
+//! matrix's verdict reads UNSIGNED - a missing provenance link, not
+//! a modification - because every integrity depth above it verifies.
+//! [`commit_signature_state`] is the one parse the verdict match and
+//! the matrix's class computation share, so the two cannot drift.
 
 use super::signature::DepthStatus;
 
@@ -47,6 +56,16 @@ use super::signature::DepthStatus;
 /// newline: the include is the value).
 pub(crate) const PINNED_MAINTAINER_KEY_FPR: &str =
     include_str!("../../assets/gpg/pinned-maintainer-fpr.txt");
+
+/// The stamp's state word: the part before the `:` separator
+/// (`state:evidence`), or the whole stamp when no separator rides.
+/// The matrix's verdict class (night-hit-2) reads this word to split
+/// the unsigned shape out of the tamper class; the verdict match
+/// below consumes the same words, one grammar, no drift.
+#[must_use]
+pub(crate) fn commit_signature_state(stamp: &str) -> &str {
+    stamp.split_once(':').map_or(stamp, |(state, _)| state)
+}
 
 /// The D5 verdict: `(status, detail)` for the sig matrix's
 /// commit-signature row. Every state of the build-time stamp maps

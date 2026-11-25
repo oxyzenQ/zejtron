@@ -48,9 +48,14 @@
 //!   D5 closes the key -> tag -> commit -> binary chain - a binary
 //!   swapped on the wire can no longer replay its claims unanswered.
 //!   Fail-closed by design: every state except a verified match
-//!   against the pin REFUSES (an unsigned dev HEAD is the honest
-//!   refusal, named as the incomplete chain), so the row can never
-//!   pass by saying nothing.
+//!   against the pin REFUSES the row (an unsigned dev HEAD is the
+//!   honest refusal, named as the incomplete chain), so the row can
+//!   never pass by saying nothing. The verdict CLASS splits the
+//!   unsigned shape out of tampering (night-hit-2, the zelynic
+//!   night-dragon-fly-4 shape): an unsigned dev HEAD reads
+//!   `SIGNATURE: UNSIGNED (5/6 depths verified)` - a missing
+//!   provenance link, not a modification, exit 1 unchanged - while
+//!   every integrity break stays `SIGNATURE: TAMPERED`.
 //!
 //! The honesty law runs through every depth: an unverifiable depth is
 //! `unavailable` with the reason named, a contradicting depth is
@@ -81,6 +86,25 @@ impl DepthStatus {
             Self::Refused => "refused",
         }
     }
+}
+
+/// The verdict class of the whole matrix (night-hit-2, the zelynic
+/// night-dragon-fly-4 shape). The unsigned class splits out of the
+/// tamper class: an unsigned commit is a missing provenance link,
+/// not a modification - every integrity depth above it verifies.
+/// Both non-authentic classes exit 1 (the any-failed-depth
+/// contract); only AUTHENTIC exits 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SigVerdict {
+    /// Every depth that could run here passed (unavailable depths
+    /// named in the verdict line, never counted as refusals).
+    Authentic,
+    /// The commit-signature depth is the ONE refusal and its stamp
+    /// state is `unsigned` - the pristine-no-GPG build's truth.
+    Unsigned,
+    /// At least one depth contradicted the claim - the fake-build
+    /// arm. The verdict names the first contradicting depth.
+    Tampered,
 }
 
 /// One row of the matrix: the depth id, its name, the status, and the
@@ -117,8 +141,16 @@ pub(crate) struct SigMatrix {
     /// The D3 self-hash of the running image (`None` when the image
     /// lane is unavailable).
     pub binary_self_hash: Option<String>,
-    /// The first refused depth, when the verdict is REFUSED.
+    /// The first refused depth (the Tampered verdict names it in
+    /// the line and the JSON); None on the authentic and unsigned
+    /// classes' render paths - the unsigned line carries the count,
+    /// not a depth name.
     pub refused: Option<(&'static str, String)>,
+    /// The verdict class (night-hit-2): Authentic, Unsigned (the
+    /// lone-D5-unsigned shape), or Tampered. Computed once in
+    /// [`collect`] and consumed by every renderer - the text line,
+    /// the JSON lane, and the exit code cannot disagree.
+    pub verdict: SigVerdict,
     /// The unavailable depth ids, in row order.
     pub unavailable_ids: Vec<&'static str>,
     /// How many of the six depths verified.
@@ -257,6 +289,29 @@ pub(crate) fn collect() -> SigMatrix {
         .filter(|row| row.status == DepthStatus::Pass)
         .count();
 
+    // The verdict class (night-hit-2, the zelynic night-dragon-fly-4
+    // shape): an unsigned commit is a missing provenance link, not a
+    // modification. UNSIGNED fires only when the commit-signature
+    // depth is the ONE refusal and its stamp state says `unsigned` -
+    // a foreign key, a failed cryptographic check, or any
+    // integrity-depth refusal stays TAMPERED (tampering-class, not
+    // absent-provenance-class). An unavailable row is a named
+    // absence, never tampering evidence.
+    let refused_rows: Vec<&DepthRow> = rows
+        .iter()
+        .filter(|row| row.status == DepthStatus::Refused)
+        .collect();
+    let verdict = if refused_rows.is_empty() {
+        SigVerdict::Authentic
+    } else if refused_rows.len() == 1
+        && refused_rows[0].id == "D5"
+        && super::commit_sig::commit_signature_state(super::vcs_commit_sig()) == "unsigned"
+    {
+        SigVerdict::Unsigned
+    } else {
+        SigVerdict::Tampered
+    };
+
     SigMatrix {
         rows,
         identity: view.identity,
@@ -268,6 +323,7 @@ pub(crate) fn collect() -> SigMatrix {
         anchor: view.anchor_hex,
         binary_self_hash,
         refused,
+        verdict,
         unavailable_ids,
         verified,
     }
@@ -328,20 +384,13 @@ pub(crate) fn camera_object_row(stamped: Option<&str>, embedded: &[u8]) -> (Dept
 impl SigMatrix {
     /// The verdict line's tail: AUTHENTIC with the verified count
     /// (naming the unavailable depths when the image lane cannot run
-    /// here), or REFUSED naming the first contradicting depth.
+    /// here), UNSIGNED for the lone-unsigned-D5 shape, or TAMPERED
+    /// naming the first contradicting depth.
     pub(crate) fn verdict_text(&self) -> String {
-        match &self.refused {
-            Some((id, reason)) => {
-                let name = self
-                    .rows
-                    .iter()
-                    .find(|row| row.id == *id)
-                    .map(|row| row.name)
-                    .unwrap_or("unknown");
-                format!("SIGNATURE: REFUSED ({id} {name} — {reason})")
-            }
-            None => {
-                let mut line = format!("SIGNATURE: AUTHENTIC ({}/6 depths verified", self.verified);
+        match self.verdict {
+            SigVerdict::Authentic => {
+                let mut line =
+                    format!("SIGNATURE: AUTHENTIC ({}/6 depths verified", self.verified);
                 if !self.unavailable_ids.is_empty() {
                     line.push_str(&format!(
                         "; {} unavailable on this host",
@@ -351,13 +400,30 @@ impl SigMatrix {
                 line.push(')');
                 line
             }
+            SigVerdict::Unsigned => {
+                format!("SIGNATURE: UNSIGNED ({}/6 depths verified)", self.verified)
+            }
+            SigVerdict::Tampered => match &self.refused {
+                Some((id, reason)) => {
+                    let name = self
+                        .rows
+                        .iter()
+                        .find(|row| row.id == *id)
+                        .map(|row| row.name)
+                        .unwrap_or("unknown");
+                    format!("SIGNATURE: TAMPERED ({id} {name} — {reason})")
+                }
+                None => "SIGNATURE: TAMPERED (no depth named - report the shape)".to_owned(),
+            },
         }
     }
 
     /// True when every depth that could run here verified and none
-    /// refused. The sig surface maps this to the exit code.
+    /// refused. The sig surface maps this to the exit code: only the
+    /// authentic class exits 0 - the unsigned class is still a
+    /// failed depth (the any-failed-depth contract), exit 1.
     pub(crate) fn is_authentic(&self) -> bool {
-        self.refused.is_none()
+        self.verdict == SigVerdict::Authentic
     }
 }
 
@@ -388,6 +454,17 @@ pub(crate) fn matrix_report(matrix: &SigMatrix) -> String {
     out.push('\n');
     out.push_str(&format!("verdict: {}", matrix.verdict_text()));
     out.push('\n');
+    // The unsigned class carries its own note (night-hit-2, the
+    // zelynic shape): the verdict names the missing link honestly,
+    // and the self-hash note below stays the closing line for every
+    // verdict.
+    if matrix.verdict == SigVerdict::Unsigned {
+        out.push_str(
+            "note: an unsigned commit is a missing provenance link, not a\n\
+             modification - every integrity depth above verifies; releases\n\
+             still bind to signed commits/tags.\n",
+        );
+    }
     out.push_str("note: the self-hash is a fingerprint to compare against a\n");
     out.push_str("published release hash; it cannot embed its own digest.\n");
     let trimmed = out.trim_end_matches('\n');
@@ -449,10 +526,10 @@ pub(crate) fn matrix_json(matrix: &SigMatrix) -> String {
     out.push_str("],\"verdict\":");
     write_string(
         &mut out,
-        if matrix.is_authentic() {
-            "AUTHENTIC"
-        } else {
-            "REFUSED"
+        match matrix.verdict {
+            SigVerdict::Authentic => "AUTHENTIC",
+            SigVerdict::Unsigned => "UNSIGNED",
+            SigVerdict::Tampered => "TAMPERED",
         },
     );
     out.push_str(",\"verified\":");

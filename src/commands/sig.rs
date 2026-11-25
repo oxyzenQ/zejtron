@@ -5,13 +5,18 @@
 //! depth-matrix self-check. The verb collects the six depths from
 //! the running binary (see [`crate::info::signature`]) and renders
 //! the matrix - human text or one JSON line - then maps the verdict
-//! to the exit code: AUTHENTIC exits 0 (the partial-authentic arm
-//! included, the unavailable depths named in the verdict), REFUSED
-//! exits 1 as a runtime failure with the labeled error line. Usage
-//! errors stay exit 2 above this module, help/version stay 0 - the
-//! estate's exit-code law is untouched.
+//! class to the exit code (night-hit-2): AUTHENTIC exits 0 (the
+//! partial-authentic arm included, the unavailable depths named in
+//! the verdict); UNSIGNED and TAMPERED both exit 1 as a runtime
+//! failure with the labeled error line - the unsigned class names
+//! the missing provenance link (5/6 depths verified, the integrity
+//! depths all green), the tamper class names the contradicting
+//! depth. Usage errors stay exit 2 above this module,
+//! help/version stay 0 - the estate's exit-code law is untouched.
 
 use std::error::Error;
+
+use crate::info::signature::SigVerdict;
 
 pub fn run(print_json: bool) -> Result<(), Box<dyn Error>> {
     let matrix = crate::info::signature::collect();
@@ -23,8 +28,17 @@ pub fn run(print_json: bool) -> Result<(), Box<dyn Error>> {
     } else {
         println!("{}", crate::info::signature::matrix_report(&matrix));
     }
-    match matrix.refused {
-        None => Ok(()),
-        Some((depth, reason)) => Err(format!("SIGNATURE: REFUSED ({depth}: {reason})").into()),
+    match matrix.verdict {
+        SigVerdict::Authentic => Ok(()),
+        SigVerdict::Unsigned => Err(format!(
+            "SIGNATURE: UNSIGNED ({}/6 depths verified) - a missing provenance link, \
+             not a modification; releases still bind to signed commits/tags",
+            matrix.verified
+        )
+        .into()),
+        SigVerdict::Tampered => match matrix.refused {
+            Some((depth, reason)) => Err(format!("SIGNATURE: TAMPERED ({depth}: {reason})").into()),
+            None => Err("SIGNATURE: TAMPERED (no depth named - report the shape)".into()),
+        },
     }
 }

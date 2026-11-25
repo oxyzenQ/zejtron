@@ -203,9 +203,11 @@ expect_output "Depth-matrix: fp=" "-V carries the masked scheme's status line" -
 expect_output "status=verified anchor=b3:" "-V reports the verified anchor over the masked payload" -V
 # night-netrunner-Z1: the D5 commit-signature depth made sig's verdict
 # ride the BUILD's own truth - a HEAD signed by the pinned maintainer
-# key closes 6/6 AUTHENTIC (exit 0), an unsigned dev HEAD refuses at
-# D5 by name (exit 1). Both are the honest close for their build, so
-# the lab pins the PAIRING (exit matches verdict), never a fixed side.
+# key closes 6/6 AUTHENTIC (exit 0), an unsigned dev HEAD reads the
+# UNSIGNED class by name (night-hit-2: a missing provenance link, not
+# a modification, exit 1). Both are the honest close for their build,
+# so the lab pins the PAIRING (exit matches verdict), never a fixed
+# side.
 "$BIN" sig >/dev/null 2>&1
 sigexit=$?
 "$BIN" signature >/dev/null 2>&1
@@ -214,8 +216,8 @@ sigverdict=$("$BIN" sig 2>/dev/null | sed -n 's/^verdict: //p')
 if [[ "$sigverdict" == "SIGNATURE: AUTHENTIC (6/6 depths verified)" ]] && [[ "$sigexit" -eq 0 ]]; then
 	echo "${UX_OK}PASS verdict : the matrix closes 6/6 AUTHENTIC on the signed-HEAD build${UX_RESET}"
 	PASS=$((PASS + 1))
-elif [[ "$sigverdict" == "SIGNATURE: REFUSED (D5 commit-signature —"* ]] && [[ "$sigexit" -eq 1 ]]; then
-	echo "${UX_OK}PASS verdict : the matrix names the unsigned HEAD's unbound commit at D5, exit 1${UX_RESET}"
+elif [[ "$sigverdict" == "SIGNATURE: UNSIGNED (5/6 depths verified)" ]] && [[ "$sigexit" -eq 1 ]]; then
+	echo "${UX_OK}PASS verdict : the matrix names the unsigned HEAD's missing provenance link, exit 1${UX_RESET}"
 	PASS=$((PASS + 1))
 else
 	echo "${UX_ERR}FAIL verdict : exit=$sigexit verdict=$sigverdict${UX_RESET}"
@@ -231,7 +233,7 @@ fi
 sigjson=$("$BIN" sig --print-json 2>/dev/null)
 if [[ "$sigjson" == *'"payload_tag":"zejtron/depth-matrix/v1"'* ]] && [[ "$sigjson" != *$'\n'* ]] &&
 	{ [[ "$sigjson" == *'"verdict":"AUTHENTIC"'* && "$sigexit" -eq 0 ]] ||
-		[[ "$sigjson" == *'"verdict":"REFUSED"'* && "$sigexit" -eq 1 ]]; }; then
+		[[ "$sigjson" == *'"verdict":"UNSIGNED"'* && "$sigexit" -eq 1 ]]; }; then
 	echo "${UX_OK}PASS json : the depth matrix speaks one jq-ready line, verdict paired to the exit${UX_RESET}"
 	PASS=$((PASS + 1))
 else

@@ -53,7 +53,7 @@ to plaintext only at runtime. Six depths, each checkable on its own:
 | D2 anchor integrity | The BLAKE3 anchor over the framed masked payload recomputes, and both FNV-64 fingerprints agree with the compile-time digests | `zejtron sig` (the D2 row) |
 | D3 binary self-hash | The BLAKE3 of the exact bytes the process runs from | `zejtron sig` (compare against `b3sum <binary>` or the pinned release hash) |
 | D4 camera object (night-frontier-Z5) | The embedded eBPF probe object recomputes the digest the build stamped over the same bytes as it staged them - a camera patched after the build refuses, from the binary alone | `zejtron sig` (the D4 row) |
-| D5 commit signature (night-netrunner-Z1) | The commit the binary claims carries a GPG signature by the pinned maintainer key `47A50AEF4B65AAC2` (full fingerprint in `assets/gpg/pinned-maintainer-fpr.txt`), verified at build time against the repo's own pinned public key in an isolated keyring - the row that binds the provenance claim to the release channel: with the maintainer key verified out-of-band and releases cut from signed tags, the chain key -> tag -> commit -> binary closes with no channel left to MITM silently. Fail-closed: every state except a verified match REFUSES (an unsigned dev HEAD is the honest refusal, named as the incomplete chain) | `zejtron sig` (the D5 row) |
+| D5 commit signature (night-netrunner-Z1) | The commit the binary claims carries a GPG signature by the pinned maintainer key `47A50AEF4B65AAC2` (full fingerprint in `assets/gpg/pinned-maintainer-fpr.txt`), verified at build time against the repo's own pinned public key in an isolated keyring - the row that binds the provenance claim to the release channel: with the maintainer key verified out-of-band and releases cut from signed tags, the chain key -> tag -> commit -> binary closes with no channel left to MITM silently. Fail-closed: every state except a verified match refuses the row - and the verdict class splits the shapes (night-hit-2): an unsigned dev HEAD reads UNSIGNED (a missing provenance link, not a modification), while a foreign key, a broken signature, or any integrity break stays TAMPERED | `zejtron sig` (the D5 row) |
 
 The at-rest contract (the anti-grep law): `grep -a rezky_nightky
 <binary>` and `strings <binary> | grep rezky` find NOTHING on an
@@ -65,10 +65,15 @@ is itself evidence the mask was stripped.
 the facts block names the identity core (`rezky_nightky (oxyzenQ)`)
 and the contact line (`oxyzenQ@proton.me`, night-remake-2) - and
 closes with `verdict: SIGNATURE: AUTHENTIC (6/6 depths verified)`
-on an intact release build (a build from an unsigned dev HEAD
-refuses at D5 by name instead - the commit binding's own honest
-truth, never a silent pass). A tampered, hand-patched, or
-foreign-rebuilt binary gets `SIGNATURE: REFUSED (...)` naming the
+on an intact release build. A build from an unsigned dev HEAD
+(a plain dev commit, a CI lane) reads
+`verdict: SIGNATURE: UNSIGNED (5/6 depths verified)` with its own
+note - `a missing provenance link, not a modification - every
+integrity depth above verifies; releases still bind to signed
+commits/tags` (night-hit-2): the D5 row still refuses, the exit code
+stays 1 (the any-failed-depth contract), and the verdict never
+pretends a no-GPG build is tampered. A tampered, hand-patched, or
+foreign-rebuilt binary gets `SIGNATURE: TAMPERED (...)` naming the
 contradicting depth, exit 1; `--print-json` speaks the same matrix
 as one jq-ready line (`payload_tag` = the anchor's domain tag,
 `zejtron/depth-matrix/v1`). The anchor is a BLAKE3 digest over
@@ -123,10 +128,14 @@ sig` must answer 6/6 AUTHENTIC on a release artifact (a depth that
 genuinely cannot run on the host - an out-of-tree build without the
 camera stamp, an unreadable self-image - is named `unavailable` in
 the verdict, never guessed; a build whose HEAD commit is not signed
-by the pinned maintainer key refuses at D5 instead - release
+by the pinned maintainer key reads UNSIGNED at D5 instead - release
 commits are signed, dev commits may not be), and `-V`'s
 Depth-matrix line must carry
 `status=verified` - a rebuilt or patched artifact refuses by name.
+The line names where the last two depths verify: the artifact-byte
+depths (d0-d3) are what `-V` can prove on its own, and the hint
+`(runtime depths; d4/d5 ride zejtron sig)` appends after the layers
+so the hand-off is printed, not implied (night-hit-2).
 
 ### What AUTHENTIC proves, and what it does not
 

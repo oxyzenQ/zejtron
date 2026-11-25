@@ -486,8 +486,12 @@ pub(crate) fn provenance_view() -> ProvenanceView {
 
     let verified = fingerprints_ok && binding_ok && anchor_ok;
     let status = if verified { "verified" } else { "tampered" };
+    // The runtime-depth hint (night-hit-2, the zelynic shape): the
+    // line itself proves only the artifact-byte depths (d0-d3), so
+    // the hint appends AFTER the pinned layers and names where the
+    // remaining two depths verify - the `sig` verb, at runtime.
     let depth_line = format!(
-        "Depth-matrix: fp={MANIFEST_FINGERPRINT:016x} status={status} anchor=b3:{} layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor",
+        "Depth-matrix: fp={MANIFEST_FINGERPRINT:016x} status={status} anchor=b3:{} layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor (runtime depths; d4/d5 ride zejtron sig)",
         hex32(&runtime_anchor)
     );
 

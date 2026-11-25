@@ -279,7 +279,7 @@ pub(crate) mod commit_sig;
 /// Build: local-pro-linux-amd64-v3-musl (3ae9dda)
 /// Build-time: 2026-10-17 09:15Z
 /// Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
-/// Depth-matrix: fp=<16 lowercase hex> status=verified anchor=b3:<64 lowercase hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
+/// Depth-matrix: fp=<16 lowercase hex> status=verified anchor=b3:<64 lowercase hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor (runtime depths; d4/d5 ride zejtron sig)
 /// Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)
 /// License: AGPL-3.0-only OR Commercial
 /// Source: `<https://github.com/oxyzenQ/zejtron>`

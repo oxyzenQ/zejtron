@@ -172,8 +172,11 @@ fn pristine_view_verifies_all_three_thirds() {
 }
 
 /// The Depth-matrix line's shape: fp= token (16 lowercase hex), the
-/// verified status, the full b3: anchor, and the layers token that
-/// describes the masked + anchored scheme.
+/// verified status, the full b3: anchor, the layers token that
+/// describes the masked + anchored scheme, and the runtime-depth
+/// hint that rides AFTER the layers (night-hit-2: the line itself
+/// proves only the artifact-byte depths; d4/d5 verify at runtime via
+/// `sig`).
 #[test]
 fn depth_line_shape_is_stable() {
     let view = provenance::provenance_view();
@@ -191,6 +194,10 @@ fn depth_line_shape_is_stable() {
             "layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor"
         ),
         "layers token describes the masked + anchored scheme"
+    );
+    assert!(
+        depth.ends_with(" (runtime depths; d4/d5 ride zejtron sig)"),
+        "the runtime-depth hint rides after the layers: {depth}"
     );
     let anchor_token = depth
         .split(" anchor=b3:")
@@ -263,13 +270,13 @@ fn year_tail_never_renders_behind_the_holder() {
 /// every suite lane that builds the crate.
 ///
 /// The D5 honesty law (night-netrunner-Z1, the zelynic
-/// night-solid-defense-2 precedent): the commit-signature row
-/// reports the BUILD's own verified verdict, so a tree on a HEAD
-/// signed by the pinned maintainer key reads AUTHENTIC 6/6 and a
-/// tree on an unsigned HEAD (a plain dev commit, a CI lane) reads
-/// REFUSED with D5 naming the incomplete chain - both are the
-/// pristine truth for their build, and the matrix must never claim
-/// otherwise.
+/// night-solid-defense-2 precedent; the class split is night-hit-2):
+/// the commit-signature row reports the BUILD's own verified verdict,
+/// so a tree on a HEAD signed by the pinned maintainer key reads
+/// AUTHENTIC 6/6 and a tree on an unsigned HEAD (a plain dev commit,
+/// a CI lane) reads UNSIGNED 5/6 - a missing provenance link, not a
+/// modification, exit 1 unchanged. Both are the pristine truth for
+/// their build, and the matrix must never claim otherwise.
 #[test]
 #[cfg(target_os = "linux")]
 fn collect_verifies_the_running_test_binary_authentic() {
@@ -294,14 +301,23 @@ fn collect_verifies_the_running_test_binary_authentic() {
             "SIGNATURE: AUTHENTIC (6/6 depths verified)"
         );
     } else {
-        // The honesty arm: the refusal IS the D5 row's truth, named.
+        // The honesty arm (night-hit-2): the lone-unsigned-D5 shape
+        // reads the UNSIGNED class - the integrity depths above all
+        // verify, so the verdict names the missing provenance link,
+        // never tampering, and the exit law stays 1.
         assert_eq!(matrix.refused.as_ref().map(|(id, _)| *id), Some("D5"));
         assert!(!matrix.is_authentic());
-        assert!(matrix.verified >= 5, "D0-D4 verify regardless: {matrix:?}");
+        assert_eq!(matrix.verdict, SigVerdict::Unsigned);
+        assert_eq!(matrix.verified, 5, "D0-D4 verify regardless: {matrix:?}");
+        assert_eq!(
+            matrix.verdict_text(),
+            "SIGNATURE: UNSIGNED (5/6 depths verified)"
+        );
+        // The report carries the class's own note, named.
+        let report = matrix_report(&matrix);
         assert!(
-            matrix.verdict_text().contains("D5 commit-signature"),
-            "the verdict names the unbound commit: {}",
-            matrix.verdict_text()
+            report.contains("a missing provenance link, not a"),
+            "the unsigned note rides the report: {report}"
         );
     }
     assert_eq!(matrix.identity, "rezky_nightky (oxyzenQ)");
@@ -408,6 +424,7 @@ fn verdict_text_names_the_unavailable_depths() {
         anchor: DEPTH_ANCHOR_HEX_ORACLE.to_owned(),
         binary_self_hash: None,
         refused: None,
+        verdict: SigVerdict::Authentic,
         unavailable_ids: vec!["D1", "D3"],
         verified: 2,
     };
@@ -418,11 +435,12 @@ fn verdict_text_names_the_unavailable_depths() {
     );
 }
 
-/// The refusal arm: the first contradicting depth names itself in the
-/// verdict, and is_authentic flips the exit-code mapping in the sig
-/// surface.
+/// The tamper arm (night-hit-2): an integrity depth contradicted the
+/// claim, so the verdict reads TAMPERED naming the first
+/// contradicting depth, and is_authentic flips the exit-code mapping
+/// in the sig surface.
 #[test]
-fn verdict_text_names_the_refused_depth() {
+fn verdict_text_names_the_tampered_depth() {
     let matrix = SigMatrix {
         rows: vec![
             DepthRow {
@@ -463,13 +481,69 @@ fn verdict_text_names_the_refused_depth() {
             "D2",
             "the masked payload does not recompute the anchor - tampered or fake build".to_owned(),
         )),
+        verdict: SigVerdict::Tampered,
         unavailable_ids: vec![],
         verified: 2,
     };
     assert!(!matrix.is_authentic());
     assert_eq!(
         matrix.verdict_text(),
-        "SIGNATURE: REFUSED (D2 anchor-integrity — the masked payload does not recompute the anchor - tampered or fake build)"
+        "SIGNATURE: TAMPERED (D2 anchor-integrity — the masked payload does not recompute the anchor - tampered or fake build)"
+    );
+}
+
+/// The unsigned arm (night-hit-2, the zelynic night-dragon-fly-4
+/// shape): the commit-signature depth is the ONE refusal and the
+/// stamp state says `unsigned`, so the verdict reads UNSIGNED with
+/// the verified count - a missing provenance link, not a
+/// modification - and the report carries the class's own note while
+/// the exit law stays 1.
+#[test]
+fn verdict_text_names_the_unsigned_class() {
+    let matrix = SigMatrix {
+        rows: vec![
+            DepthRow {
+                id: "D0",
+                name: "runtime-identity",
+                status: DepthStatus::Pass,
+                detail: "rezky_nightky (oxyzenQ)".to_owned(),
+            },
+            DepthRow {
+                id: "D5",
+                name: "commit-signature",
+                status: DepthStatus::Refused,
+                detail: "commit 6e0e3dd carries NO GPG signature - the provenance \
+                         chain stops at an unbound commit; bind releases to signed \
+                         commits/tags"
+                    .to_owned(),
+            },
+        ],
+        identity: "rezky_nightky (oxyzenQ)".to_owned(),
+        contact: "oxyzenQ@proton.me".to_owned(),
+        authors: AUTHORS_ORACLE.to_owned(),
+        fingerprint: MANIFEST_FINGERPRINT_ORACLE,
+        commit: "6e0e3dd".to_owned(),
+        build_time: "2026-11-25 14:33Z".to_owned(),
+        anchor: DEPTH_ANCHOR_HEX_ORACLE.to_owned(),
+        binary_self_hash: Some("b851fa50".to_owned()),
+        refused: Some(("D5", "the unbound commit".to_owned())),
+        verdict: SigVerdict::Unsigned,
+        unavailable_ids: vec![],
+        verified: 5,
+    };
+    assert!(!matrix.is_authentic());
+    assert_eq!(
+        matrix.verdict_text(),
+        "SIGNATURE: UNSIGNED (5/6 depths verified)"
+    );
+    let report = matrix_report(&matrix);
+    assert!(
+        report.contains("a missing provenance link, not a"),
+        "the unsigned note rides the report: {report}"
+    );
+    assert!(
+        report.contains("releases"),
+        "the note names the release law: {report}"
     );
 }
 
@@ -512,11 +586,17 @@ fn matrix_report_shape_is_pinned() {
     // The verdict rides the build's own D5 truth (the honesty law
     // pinned by collect_verifies_the_running_test_binary_authentic):
     // a signed HEAD renders AUTHENTIC 6/6, an unsigned HEAD renders
-    // the named REFUSED - both are the pristine shape.
+    // the UNSIGNED class with its note (night-hit-2: a missing
+    // provenance link, not a modification) - both are the pristine
+    // shape.
     if matrix.is_authentic() {
         assert!(report.contains("verdict: SIGNATURE: AUTHENTIC (6/6 depths verified)"));
     } else {
-        assert!(report.contains("verdict: SIGNATURE: REFUSED (D5 commit-signature"));
+        assert!(report.contains("verdict: SIGNATURE: UNSIGNED (5/6 depths verified)"));
+        assert!(
+            report.contains("note: an unsigned commit is a missing provenance link, not a"),
+            "the unsigned note rides the report"
+        );
     }
     // The self-hash note closes the report (the honest-limits law).
     assert!(
@@ -561,7 +641,7 @@ fn matrix_json_is_one_line_with_the_documented_keys() {
         assert!(json.contains("\"verified\":\"6/6\""), "{json}");
         assert_eq!(json.matches("\"status\":\"pass\"").count(), 6);
     } else {
-        assert!(json.contains("\"verdict\":\"REFUSED\""), "{json}");
+        assert!(json.contains("\"verdict\":\"UNSIGNED\""), "{json}");
         assert!(json.contains("\"verified\":\"5/6\""), "{json}");
         assert!(json.contains("\"depth\":\"D5\""), "{json}");
         assert_eq!(json.matches("\"status\":\"pass\"").count(), 5);
@@ -569,10 +649,10 @@ fn matrix_json_is_one_line_with_the_documented_keys() {
 }
 
 /// The JSON lane's absence arm, synthesized: an unavailable image
-/// lane rides null for binary_self_hash, and a REFUSED verdict is
+/// lane rides null for binary_self_hash, and a TAMPERED verdict is
 /// spelled exactly so.
 #[test]
-fn matrix_json_absence_and_refusal_arms() {
+fn matrix_json_absence_and_tamper_arms() {
     let mut matrix = SigMatrix {
         rows: vec![DepthRow {
             id: "D3",
@@ -589,12 +669,16 @@ fn matrix_json_absence_and_refusal_arms() {
         anchor: DEPTH_ANCHOR_HEX_ORACLE.to_owned(),
         binary_self_hash: None,
         refused: None,
+        verdict: SigVerdict::Authentic,
         unavailable_ids: vec!["D3"],
         verified: 0,
     };
     let json = matrix_json(&matrix);
     assert!(json.contains("\"binary_self_hash\":null"));
     assert!(json.contains("\"contact\":null"));
+    // The tamper arm: a contradicting depth flips the class to
+    // TAMPERED, named in the one-line JSON.
     matrix.refused = Some(("D2", "mismatch".to_owned()));
-    assert!(matrix_json(&matrix).contains("\"verdict\":\"REFUSED\""));
+    matrix.verdict = SigVerdict::Tampered;
+    assert!(matrix_json(&matrix).contains("\"verdict\":\"TAMPERED\""));
 }

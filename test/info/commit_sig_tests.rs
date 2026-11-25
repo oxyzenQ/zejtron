@@ -95,6 +95,28 @@ fn unsigned_refuses_as_the_incomplete_chain() {
     );
 }
 
+/// The state word the matrix's verdict class reads (night-hit-2):
+/// the pre-colon token, the whole stamp when no separator rides.
+/// The verdict match and the class computation consume the same
+/// words - this pin is the no-drift contract.
+#[test]
+fn commit_signature_state_names_the_stamp_state() {
+    assert_eq!(commit_signature_state("unsigned"), "unsigned");
+    assert_eq!(commit_signature_state("unsigned:6e0e3dd"), "unsigned");
+    assert_eq!(
+        commit_signature_state("verified:F5324E0967F104D58CE025F347A50AEF4B65AAC2"),
+        "verified"
+    );
+    assert_eq!(commit_signature_state("wrong-key:ab12cd3"), "wrong-key");
+    assert_eq!(commit_signature_state("bad-signature"), "bad-signature");
+    assert_eq!(commit_signature_state("no-vcs"), "no-vcs");
+    // An unknown grammar rides through as its own word - the
+    // fail-closed verdict match, not the state fn, decides what it
+    // means.
+    assert_eq!(commit_signature_state("quantum-sealed:xyz"), "quantum-sealed");
+    assert_eq!(commit_signature_state("plain"), "plain");
+}
+
 #[test]
 fn degraded_states_refuse_their_honest_sentences() {
     for stamp in ["bad-signature", "no-vcs", "unavailable", "unstamped", ""] {
