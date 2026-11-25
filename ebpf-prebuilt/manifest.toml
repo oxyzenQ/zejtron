@@ -19,15 +19,15 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-25T07:02:20Z"
+generated = "2026-11-25T17:28:25Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "f62470990094bb6317c4b9b9b5c0b13923b7f6bdce4b7bae0a814a11de1af169"
+ebpf_tree_blake3 = "28780385a95bd67504187ed79a97c1812c3bdc9123858b32ec1b9437598ce8ad"
 built_by = "rezky_nightky (oxyzenQ) <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "b60852ad963a7bfd35cd8a874f3f9a8085f62a63354864e243bbb9874d9d6953"
+blake3 = "3be06ab1744dce78b4aa8db3c89042e5d1b43a6e657994bf658901cab948d451"
 size = 36592
 
 [contract]
@@ -36,4 +36,4 @@ size = 36592
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.
 attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "raw_syscalls/sys_enter", "vfs_writev", "vfs_unlink", "vfs_rename", "sched_process_exit", "filemap_dirty_folio", "__set_page_dirty_nobuffers", "fault_dirty_shared_page", "wp_page_shared", "io_uring/io_uring_submit_sqe"]
-version = "80.6.0-dragon.1"
+version = "80.6.0-dragon.2"

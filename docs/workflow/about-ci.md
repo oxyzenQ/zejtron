@@ -176,7 +176,7 @@ Release archives use a flat layout:
 Example release asset flow:
 
 ```sh
-TAG=v80.6.0-dragon.1
+TAG=v80.6.0-dragon.2
 cargo build --release --locked --target x86_64-unknown-linux-musl
 ```
 
@@ -219,7 +219,7 @@ for the owner's tag.
 ## Version Bump Flow
 
 ```sh
-./scripts/dev/version-to.sh v80.6.0-dragon.1
+./scripts/dev/version-to.sh v80.6.0-dragon.2
 ./scripts/build.sh
 ```
 
@@ -267,13 +267,13 @@ and the signed loom verdict.
 ## Release Command Flow
 
 ```sh
-./scripts/dev/version-to.sh v80.6.0-dragon.1
+./scripts/dev/version-to.sh v80.6.0-dragon.2
 ./scripts/build.sh
 git add .
-git commit -m "chore: prepare v80.6.0-dragon.1 release"
+git commit -m "chore: prepare v80.6.0-dragon.2 release"
 git push origin main
-git tag -a v80.6.0-dragon.1 -m "v80.6.0-dragon.1"
-git push origin v80.6.0-dragon.1
+git tag -a v80.6.0-dragon.2 -m "v80.6.0-dragon.2"
+git push origin v80.6.0-dragon.2
 ```
 
 ## Actions-Pin Health

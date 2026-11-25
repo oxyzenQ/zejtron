@@ -15,6 +15,7 @@ frozen verbatim.
 
 ## [Released]
 
+v80.6.0-dragon.2
 v80.6.0-dragon.1
 v80.5.3
 v80.5.2
