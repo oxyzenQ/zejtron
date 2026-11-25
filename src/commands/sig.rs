@@ -28,17 +28,25 @@ pub fn run(print_json: bool) -> Result<(), Box<dyn Error>> {
     } else {
         println!("{}", crate::info::signature::matrix_report(&matrix));
     }
-    match matrix.verdict {
-        SigVerdict::Authentic => Ok(()),
-        SigVerdict::Unsigned => Err(format!(
-            "SIGNATURE: UNSIGNED ({}/6 depths verified) - a missing provenance link, \
-             not a modification; releases still bind to signed commits/tags",
-            matrix.verified
-        )
-        .into()),
-        SigVerdict::Tampered => match matrix.refused {
-            Some((depth, reason)) => Err(format!("SIGNATURE: TAMPERED ({depth}: {reason})").into()),
-            None => Err("SIGNATURE: TAMPERED (no depth named - report the shape)".into()),
-        },
+    // The exit law rides its named predicate: only the authentic
+    // class exits 0. The match below names the failing class's own
+    // truth - the unreachable authentic arm stays a named string,
+    // never a panic (the estate's named-error law).
+    if !matrix.is_authentic() {
+        let error: String = match matrix.verdict {
+            SigVerdict::Unsigned => format!(
+                "SIGNATURE: UNSIGNED ({}/6 depths verified) - a missing provenance link, \
+                 not a modification; releases still bind to signed commits/tags",
+                matrix.verified
+            ),
+            SigVerdict::Tampered => match matrix.refused {
+                Some((depth, reason)) => format!("SIGNATURE: TAMPERED ({depth}: {reason})"),
+                None => "SIGNATURE: TAMPERED (no depth named - report the shape)".to_owned(),
+            },
+            SigVerdict::Authentic => "SIGNATURE: AUTHENTIC reached the error surface".to_owned(),
+        };
+        Err(error.into())
+    } else {
+        Ok(())
     }
 }
