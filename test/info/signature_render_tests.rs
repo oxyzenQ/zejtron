@@ -13,8 +13,8 @@
 //! and are imported here - one oracle source, two consumers, zero
 //! drift.
 
-use super::*;
 use super::tests::{AUTHORS_ORACLE, DEPTH_ANCHOR_HEX_ORACLE, MANIFEST_FINGERPRINT_ORACLE};
+use super::*;
 
 /// The verdict's honest-partial arm: unavailable depths are named in
 /// the verdict line, the verified count drops, and the verdict stays

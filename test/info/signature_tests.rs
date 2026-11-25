@@ -385,4 +385,3 @@ fn a_build_without_the_stamp_names_the_unavailability() {
         "{detail}"
     );
 }
-
