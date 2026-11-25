@@ -5,6 +5,12 @@
 
 # zejtron Roadmap
 
+> **Status:** the v80 LTS era (v80.6.0-dragon.1). The v5-era design
+> plan below shipped in v5.0.0 and is kept for history - the full
+> specification lives in [archive/v5.md](archive/v5.md); direction
+> moves under the freeze's own laws ([FREEZE.md](FREEZE.md),
+> [RULES.md](RULES.md)) - the owner's call, not this document's.
+
 This document describes the design direction and staged delivery plan for
 future zejtron releases. Nothing here is implemented. This is a design-only
 reference to guide deliberate, disciplined development when the project exits

@@ -114,11 +114,16 @@ is not asleep, it is absent.
 The lane's whole life, boot to boot:
 
 1. **Attach, once per boot.** `sudo zejtron doctor --attach` loads
-   the embedded pure-Rust object (eight programs: the
-   `sched_process_exec` counter, the `inet_sock_set_state`
-   socket-event probe, the `vfs_open`/`vfs_write`/`vfs_writev` file
-   probes, the `vfs_unlink`/`vfs_rename` forensic pair, and the
-   `sched_process_exit` post-mortem exit probe),
+   the embedded pure-Rust object (twelve programs: the eight core
+   probes - the `sched_process_exec` counter, the
+   `inet_sock_set_state` socket-event probe, the
+   `vfs_open`/`vfs_writev` file probes, the `vfs_unlink`/`vfs_rename`
+   forensic pair, the `sched_process_exit` post-mortem exit probe,
+   and the `raw_syscalls/sys_enter` write probe (the splice probe
+   rides the same section) - plus the four capability-gated
+   off-path probes (the two mmap-dirty anchors, the fault-dirty
+   anchor, and the io_uring probe); the full census lives in
+   `CAMERA-COST.md`),
    verifies every struct offset, the vectorized-
    write symbol, and the unlink/rename anchors against the host's
    own BTF - the member lookups descend the anonymous unions

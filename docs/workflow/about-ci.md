@@ -93,6 +93,21 @@ sweep (the committed seed anchors are the corpus).
 
 The lane rides nightly Rust - the fuzzer's standard toolchain - with the main crate's stable pin untouched: the override is env-scoped to the fuzz lane's cargo invocations, the other lanes never see it. Each run seeds its working corpus from the committed anchors (the grown corpus stays out of git and out of any cache - the churn-prone run-id-keyed cache retired with the schedule); a crash fails CI with the crashing input in the log, and the fix is a parser that returns the named error. The eBPF kernel-side code is deliberately not fuzzed: it runs behind the kernel verifier, not in userspace.
 
+## Miri (the UB lane)
+
+The `zejtron - Miri` workflow is the undefined-behavior verification
+of the pure-Rust core, on every push and pull request. The runner
+logic lives in the repo (`scripts/lib/miri.sh`, dispatched by
+`./scripts/build.sh miri`); the workflow only installs the toolchain
+and calls it - a contributor runs the same command locally, and the
+stamp-file contract (`target/miri-stamp`) keeps CI's verdict and the
+local banner on one source of truth. Miri interprets every
+instruction, so the full suite would take 30+ minutes and several
+test families spawn external binaries or read host files - shapes
+miri cannot run; the runner restricts to the five pure-Rust test
+families (the civil clock, the color ladder, the version report, and
+their siblings).
+
 ## Dependency Maintenance
 
 The `zejtron - Dependency Maintenance` workflow runs every Sunday at 10:00 WIB (03:00 UTC, the estate's one clock) and can also be run manually. It checks out the default branch, runs `cargo update` in every workspace (the refresh script `scripts/ci/refresh-cargo-deps.sh` auto-detects each committed `Cargo.toml` - root, `ebpf/`, `fuzz/`, and any future subfolder workspace), then proves the prebuilt lane through the ONE WRITER (the parity rider: the read-only verdict first, a rebuild only when the manifest pin lags the swept tree - see the sweep-staled prebuilt lane class in `MAINTENANCE.md`), executes `./scripts/build.sh`, and commits the validated dependency lane - every workspace `Cargo.lock` plus `ebpf-prebuilt/` - directly back to the default branch only after validation passes.
@@ -101,6 +116,50 @@ Maintenance workflow commits use:
 
 - `github-actions[bot]`
 - `41898282+github-actions[bot]@users.noreply.github.com`
+
+## Security Audit
+
+The `zejtron - Security Audit` workflow scans advisories on every
+push and pull request, plus the weekly watch (Sundays 03:00 UTC /
+10:00 WIB, the estate's one clock) over the advisory DB itself - a
+new advisory against an unchanged tree is a signal no change event
+can carry. Red in the run list is the owner's morning signal; the
+per-change runs watch the tree, unfiltered (the owner's
+unfiltered-CI simplification).
+
+## CodeQL
+
+The `zejtron - CodeQL` workflow is the security-analysis lane,
+pinned to `rust` - zejtron's surface is one Rust binary reading
+/proc, sysfs, and the filesystem. It runs on every push and pull
+request (the path filters retired with the unfiltered-CI
+simplification - their sync tax cost more than the runner minutes
+they saved) plus the same Sunday 03:00 UTC watch. Shell and Python
+tooling scripts are covered by the shell quad and the language
+discipline via the wholesale gate-keepers job instead.
+
+## CodeQL triage
+
+The `zejtron - CodeQL triage` workflow closes the standing false
+positive by rule, mechanically, right after each completed analysis
+- and doubles as the enforcement backstop if the scan-time exclusion
+in `.github/codeql/codeql-config.yml` is ever reverted. The
+cleartext-logging finding on the command render prints is a triaged
+false positive (SECURITY.md, hardening posture): the flagged data is
+kernel-exposed paths, usernames, uids, pids, and process metadata
+printed to the invoking user's own terminal - the ls(1)/ps(1)
+disclosure class - not a persisted log. CodeQL has no inline
+suppression for Rust, and every render refactor that shifts a print
+used to re-open the finding as a fresh alert, so the lane re-applies
+the verdict mechanically instead of by hand.
+
+## Docs CI
+
+The `zejtron - Docs CI` workflow is the spelling lane (`Docs
+Spelling Check`), unfiltered like the fast lane: every push and
+every pull request burns it. The publish lanes are the only filtered
+seats left in the estate, and theirs is a tag trigger (v*), not a
+path filter.
 
 ## Release
 
@@ -122,6 +181,18 @@ cargo build --release --locked --target x86_64-unknown-linux-musl
 ```
 
 The release workflow uploads `zejtron-${TAG}-linux-amd64-{v3,v4}-musl.tar.gz` (the two-leg matrix, both fully static) and matching checksum files.
+
+## Reproducible Release
+
+The `zejtron - Reproducible Release` workflow proves WHAT an artifact
+is, not just WHO shipped it: checksums and signatures answer the who,
+reproducibility answers the what - the hash the release page publishes
+must be the hash anyone can rebuild from source. Two independent
+runners build the pinned release shape (linux-amd64-v3-musl, the
+release lane's exact flag composition plus the redacted path
+prefixes) from the same commit with the same SOURCE_DATE_EPOCH pin.
+The full contract lives in `docs/VERIFY_RELEASE.md` (section 4a, the
+reproducible release chain).
 
 ## crates.io (the registry lane)
 
@@ -178,7 +249,7 @@ or to stable with no stale `-rc.N` tail on any rewritten surface.
 The `zejtron - Proofs` workflow runs on every push and pull request -
 the per-push verdict vehicle for the decidable instruments. Three
 jobs, one checks list: **Proptest exhaustion** (4096 shrinkable cases
-per law, stable, rootless), **Kani bounded model checking** (six
+per law, stable, rootless), **Kani bounded model checking** (eight
 totality theorems, FOR ALL INPUTS in each harness's domain, one
 invocation per harness so a verdict is never lost to a sibling's
 budget - the whole tier measured 40 seconds against the 15-minute

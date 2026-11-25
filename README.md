@@ -185,7 +185,7 @@ The eBPF event lane ships in every binary. No program loads until you attach.
 ./scripts/dev/bootstrap-ebpf.sh   # once per machine, for source builds
 cargo pro-linux-amd64-v3-musl     # source-builds and embeds the object
 ```
-The build cross-compiles `ebpf/` (pure Rust, aya-ebpf) into twelve programs (the eight core probes plus the capability-gated off-path set): `sched_process_exec`, `inet_sock_set_state`, `vfs_open`, `vfs_write`, `vfs_writev`, `vfs_unlink`, `vfs_rename`, and `sched_process_exit`. The nightly toolchain and bpf-linker are build-time prerequisites only. Runtime requires kernel 5.15+, lockdown inactive, and `CAP_BPF` + `CAP_PERFMON` for attach. Attach verifies every struct offset against the host's vmlinux BTF, refuses on missing members, and knows the anonymous unions modern kernels use (6.18's `struct file` carries `f_path` inside one). The fd-walk offsets are parsed from BTF at attach and written whole into the offsets map. The unlink probe's `vfs_unlink` dentry argument position is scanned out of the same BTF - the signature moved its dentry across the floor, so the position is per-host data, never a compiled guess - and the rename probe walks `renamedata.old_dentry` at its BTF-derived offset. If the write probe's self-verification fails, the refusal echoes the planted offsets beside the drop census. night-frontier-Z1 closes the verification loop around the recording boundary: the file ring's drain re-derives the planted walk table from the kernel's current BTF and refuses by slot on drift, before one record is trusted. night-frontier-Z2 adds the estate's identity: the camera stamps its boot identity, its probe object identity, and the attach instant into a pinned `generation` map at attach, and every drain re-derives the live facts before one record is trusted - a camera planted by another boot or another build refuses by name, with the remedy.
+The build cross-compiles `ebpf/` (pure Rust, aya-ebpf) into twelve programs (the eight core probes plus the capability-gated off-path set): `sched_process_exec`, `inet_sock_set_state`, `vfs_open`, `vfs_writev`, `vfs_unlink`, `vfs_rename`, `sched_process_exit`, and the `raw_syscalls/sys_enter` write probe. The nightly toolchain and bpf-linker are build-time prerequisites only. Runtime requires kernel 5.15+, lockdown inactive, and `CAP_BPF` + `CAP_PERFMON` for attach. Attach verifies every struct offset against the host's vmlinux BTF, refuses on missing members, and knows the anonymous unions modern kernels use (6.18's `struct file` carries `f_path` inside one). The fd-walk offsets are parsed from BTF at attach and written whole into the offsets map. The unlink probe's `vfs_unlink` dentry argument position is scanned out of the same BTF - the signature moved its dentry across the floor, so the position is per-host data, never a compiled guess - and the rename probe walks `renamedata.old_dentry` at its BTF-derived offset. If the write probe's self-verification fails, the refusal echoes the planted offsets beside the drop census. night-frontier-Z1 closes the verification loop around the recording boundary: the file ring's drain re-derives the planted walk table from the kernel's current BTF and refuses by slot on drift, before one record is trusted. night-frontier-Z2 adds the estate's identity: the camera stamps its boot identity, its probe object identity, and the attach instant into a pinned `generation` map at attach, and every drain re-derives the live facts before one record is trusted - a camera planted by another boot or another build refuses by name, with the remedy.
 
 ```sh
 sudo zejtron doctor --attach   # plant the probes
@@ -256,7 +256,7 @@ One crate, one binary, one discipline:
 src/
   main.rs        — entry point + dispatch (the ONLY file at src/ root)
   cli/           — clap derive definition, brand styling, the UX bridge
-  commands/      — the ten surfaces (+ lane/, the fallback ladder)
+  commands/      — the ten surfaces (+ lane*.rs, the fallback ladder)
   evidence/      — the Evidence Ledger format (rows, tiers, render)
   ebpf/          — the eBPF userspace lane (loader, rings, BTF)
   info/          — the -V report + the std-only civil clock
@@ -325,6 +325,7 @@ zejtron writes nothing. Its attack surface is the network lane (`--check-update`
 
 ## Documentation
 
+- [docs/README.md](docs/README.md) — the documentation index: the ownership registry every doc is measured against (the DOC_AUDIT.md rule 3 seat)
 - [docs/USAGE.md](docs/USAGE.md) — the usage playbook: investigation scenarios and how to read the Evidence Ledger
 - [docs/INNOVATIONS.md](docs/INNOVATIONS.md) — the innovation ledger: the named mechanisms behind the tool and where their truth lives
 - [docs/FAQ.md](docs/FAQ.md) — the FAQ: root and privileges, kernel support, where the eBPF objects come from, and the deployment shapes (desktop, server, ultra scale)

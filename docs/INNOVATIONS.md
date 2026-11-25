@@ -518,7 +518,10 @@ vocabulary grows append-only (ops 6-9; the rows name the silent
 path: "wrote (mmap (dirty page))", "wrote (splice (into))",
 "spliced out", "wrote (io_uring (async))"), the splice-out row is
 its own kind, the cost table re-pinned consciously (the shared
-text 346 -> 653 - the walks became bpf2bpf subprograms), and the
+text 346 -> 653 - the walks became bpf2bpf subprograms; that shape
+was found live by the C77 root leg and reverted under THE INLINE
+LAW - every walk inlined again, `docs/CAMERA-COST.md` owns the
+cost table), and the
 named residuals stay named: tmpfs/ramfs pages are never clean (an
 mmap write to a memory-backed file stays outside the dirty
 record), vmsplice's direction is flags-dependent, O_PATH peeks

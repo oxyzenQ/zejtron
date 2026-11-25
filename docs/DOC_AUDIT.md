@@ -41,7 +41,7 @@ audit's fix edits the doc - never the source to match the doc.
 
 1. **Tell once - one home per fact, no duplicates.** Every
    doc-owned fact has exactly one home: the single document that
-   owns telling it, named by the registry ([README.md](README.md)'s
+   owns telling it, named by the registry (the [docs index](README.md)'s
    ownership tables). Every other doc that needs the fact links to
    the home and does not restate it. The worst duplicates are the
    volatile facts - counts, versions, sizes, dates, paths that
@@ -65,7 +65,7 @@ audit's fix edits the doc - never the source to match the doc.
    a long one that only restates conclusions does not. The bar is
    the density of explanation, not the word count.
 
-3. **The registry is the estate.** [README.md](README.md)'s
+3. **The registry is the estate.** The [docs index](README.md)'s
    ownership tables are the complete map of what exists and what
    each doc owns. A doc not in the registry either gets a row or
    does not belong in the tree; a row with no doc behind it is

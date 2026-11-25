@@ -30,10 +30,26 @@ carries the disclaimer and yields to it.
 | [LICENSING_FAQ.md](LICENSING_FAQ.md) | The licensing quick answers: who needs the commercial license, tiers, contact. |
 | [FAQ.md](FAQ.md) | The user FAQ: root and privileges, kernel support, where the eBPF objects come from, the JSON lane, privacy, colors - and the deployment shapes (desktop, server, ultra scale). |
 | [MAINTENANCE.md](MAINTENANCE.md) | The maintenance record: the incident classes the tree is armed against (the root-owned `__pycache__` class, the in-tree artifact staging class, the sweep-staled prebuilt lane class, the unknown commit id class) and the one-command recovery for each. |
-| [PROOFS.md](PROOFS.md) | The proven datapath (night-datapath-1): what the proofs package verifies - the proptest tier, the six Kani totality theorems with their measured budgets, the armed 30-minute split rule, why there is no night lane, and the signed loom census verdict. |
+| [PROOFS.md](PROOFS.md) | The proven datapath (night-datapath-1): what the proofs package verifies - the proptest tier, the eight Kani totality theorems with their measured budgets, the armed 30-minute split rule, why there is no night lane, and the signed loom census verdict. |
 | [FREEZE.md](FREEZE.md) | The v80.0.0 LTS freeze declaration: what the CLI contract promises from the freeze onward, and what it refuses. |
 | [REAL_USAGE_AUDIT.md](REAL_USAGE_AUDIT.md) | The pre-LTS real-usage audit: the release binary driven end to end (every verb, every JSON lane strict-parsed, the degradation lanes below the eBPF floor, the 400-run stability loop) with the verdict that cleared the LTS production floor. |
 | [LTS_FORTRESS_AUDIT.md](LTS_FORTRESS_AUDIT.md) | The fortress audit record: the final pre-release audit before the v80.0.0 tag (night-last-total-lts), the sub-task verdicts and their peaks. |
+| [Z11-GREEN-BASELINE-2026-11-25.md](Z11-GREEN-BASELINE-2026-11-25.md) | The green-baseline record (2026-11-25): the first all-green Z11 detonation on the host's own kernel - the refusal-to-fix timeline, the five legs, the run transcript. |
+
+## Site-local (inside the trees they govern)
+
+| Document | What it owns |
+|---|---|
+| [../PUBLISH-CHECKLIST.md](../PUBLISH-CHECKLIST.md) | The publish checklist: the tag-to-registry steps in order, under the freeze's `<VERSION>` convention. |
+| [../AI_AGENTS_READ_THIS.md](../AI_AGENTS_READ_THIS.md) | The AI-agent notice: the license stop, and the `[measured]` capture-trap warning. |
+| [../src/RULES.md](../src/RULES.md) | The src-tree law: structure and size rules, placed at the tree they govern. |
+| [../assets/tools.md](../assets/tools.md) | The local tools notes behind the asset pipeline. |
+| [../assets/signature-assets.md](../assets/signature-assets.md) | The asset signature registry: blake3 digests for every image under `assets/` and the GPG trust anchors under `assets/gpg/`. |
+| [../corpus/README.md](../corpus/README.md) | The kernel dialect corpus: the parser regression lock - real kernel bytes, committed whole. |
+| [../fuzz/seeds/README.md](../fuzz/seeds/README.md) | The fuzz lane's seed anchors: the committed corpus the runs seed from. |
+| [../scripts/labs-exp/README.md](../scripts/labs-exp/README.md) | The lab experiment bench: owner-facing, self-contained verification tools. |
+| [../scripts/labs-exp/VERIFY_NIGHT_CAFE_1.md](../scripts/labs-exp/VERIFY_NIGHT_CAFE_1.md) | The night-cafe-1 session handoff: the shell palette and the artifact walls, verified locally. |
+| [../scripts/supermassive/README.md](../scripts/supermassive/README.md) | The supermassive contract's home: every surface, flag, and error path against the real binary. |
 
 ## Governance (repository root)
 
@@ -53,6 +69,7 @@ carries the disclaimer and yields to it.
 | Document | What it owns |
 |---|---|
 | [workflow/about-ci.md](workflow/about-ci.md) | How the CI estate is shaped and why. |
+| [../CHANGELOG.md](../CHANGELOG.md) | The changelog: `[Unreleased]` is the live surface; the History section is the frozen record (the audit reads it for precedent, never corrections). |
 | [archive/](archive/) | Frozen history - the retired changelog eras and the superseded v5.0.0 design specification - never rewritten, the header gate exempts them for exactly that reason. |
 
 <!-- ZEJTRON-DISCLAIMER -->
