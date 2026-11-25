@@ -46,8 +46,9 @@ if [ -z "$ROOT" ]; then
 	ROOT=$(git -C "$SCRIPT_DIR/../.." rev-parse --show-toplevel 2>/dev/null || true)
 fi
 [ -n "$ROOT" ] || fail_out "no zejtron checkout resolved (run inside the repo or set ZEJTRON_ROOT)"
-[ -f "$ROOT/Cargo.toml" ] && [ -f "$ROOT/scripts/sandbox/detect-rootkit.sh" ] ||
+if [ ! -f "$ROOT/Cargo.toml" ] || [ ! -f "$ROOT/scripts/sandbox/detect-rootkit.sh" ]; then
 	fail_out "$ROOT is not the zejtron checkout (Cargo.toml and the sandbox lanes are missing)"
+fi
 [ "$(id -u)" -eq 0 ] ||
 	fail_out "not root - the event windows need the eBPF lane; rerun with sudo"
 command -v jq >/dev/null 2>&1 ||
@@ -66,8 +67,9 @@ if [ -z "$BIN" ]; then
 		BIN=$(command -v zejtron 2>/dev/null || true)
 	fi
 fi
-[ -n "$BIN" ] && [ -x "$BIN" ] ||
+if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
 	fail_out "no zejtron binary resolved (install-on-my-machine first, or set ZEJTRON_BIN)"
+fi
 
 LEFT=$(pgrep -af pidhide | grep -v 'grep\|owner-verify' || true)
 if [ -n "$LEFT" ]; then
@@ -101,7 +103,7 @@ RESULTS="$OUT/RESULTS.md"
 	printf -- '- binary under test: %s\n' "$BIN"
 	printf -- '- checkout HEAD: %s / binary build sha: %s\n' "${HEAD_SHA:-unreadable}" "${BUILD_SHA:-not named by the binary}"
 	printf '\n'
-} > "$RESULTS"
+} >"$RESULTS"
 
 section() {
 	printf '\n## %s\n\n' "$1" | tee -a "$RESULTS"
@@ -193,7 +195,7 @@ section "6. post-run cleanup verify (audit step 1 again + the bpf-rm law)"
 runlog detach-final "$BIN" doctor --detach || true
 if [ -d /sys/fs/bpf/zejtron ]; then
 	note "ATTENTION: /sys/fs/bpf/zejtron still exists after doctor --detach - list what rides there:"
-	ls -la /sys/fs/bpf/zejtron | tee -a "$RESULTS"
+	find /sys/fs/bpf/zejtron | tee -a "$RESULTS"
 else
 	note "PASS: /sys/fs/bpf/zejtron absent after the project's own detach"
 fi
