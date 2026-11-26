@@ -586,6 +586,71 @@ D, E, G and the JSON key shapes from F. The manual lane's
 the host allows it) is the complete replacement: one file, every
 probe's exact command beside its captured bytes, the JSON lanes whole.
 
+## The fast-lane sweep confirmation (night-dragon-fly-5, 2026-11-26)
+
+The sweep instrument (fly-3, the fast lane per fly-4: every window
+probe rides the 1s floor, `ZEJTRON_SWEEP_FULL=1` restores the shipped
+widths - no hourly waits anywhere) ran end to end on the owner's
+machine against the installed dragon-3 binary (`/usr/bin/zejtron`,
+e76c87b). Verdict: **150 passed, 0 failed, 15 recorded, 0 skipped**
+across SW0-SW11 - the byte-equality laws, all ten verb flag matrices,
+the clamp interplay, every `--print-json` lane, the UX bridge, the
+pipe law, and the privileged attach lane.
+
+Chain of trust for the dump: the net `git diff e76c87b..HEAD` touches
+only `CHANGELOG.md`, this audit doc, and the two manual lab scripts -
+no `src/`, `ebpf/`, or `test/` bytes move, so the swept binary carries
+exactly the HEAD shipped code (59d6adf, seven commits later). CI rode
+17/17 green at 59d6adf (CI,
+Gate-keepers, the Supermassive legs including Kernel Witnesses, the
+Floor, Alpine, E2E, Proofs, Miri, Fuzz, netrunner, Docs, CodeQL,
+Security Audit, Reproducible Release). The window's earlier reds were
+each remediated by their follow-up commits (the SC2086 quad fix
+d19ef03, the umask revert abd323f, the sweep indent churn 59d6adf) -
+the record rides the commit messages.
+
+Third independent confirmation across two hardware estates and one
+binary lineage; every fly-2 close-out re-verified from the live
+bytes: the pre-attach watch gap renders single "(UTC)" (lts-3
+closed); the ledger refusals speak the house shape with why's own
+remedy suffix (F10 closed); the window helps read s/m/h/d (F2
+closed) and the clamp stderr rides the ASCII separator (F4 closed);
+attach/detach idempotence held (12 programs, 12 links, 8 maps; 28
+pins removed; "nothing to detach" twice); the honesty laws stayed
+visible - the pipe exit recorded with the 0/141 race named, the sig
+verdict deciding the exit code with the JSON whole (UNSIGNED 5/6 on
+the unsigned lineage), the ram verdict naming the 15% threshold in
+text and JSON ("this is unusual; investigate"), and the unattached
+port lane naming its remedy ("attach first: sudo zejtron doctor
+--attach").
+
+The recorded seams persist by construction, and the dump says so: the
+F11 bare-render record stays open (the probe moves with the fix when
+the owner closes it); the singular tick row fired again ("1 ticks";
+the "1 packets" row did not fire this run - live counts rode above
+1); the ID Plane nested parentheticals render ("unavailable (no pin
+estate (nothing to reconcile))"); the two UTC conventions share the
+why surface ("16:56:35 UTC" in the event-window header vs "(UTC)" in
+the stamps). New observation, recorded per the holds-seam law - named
+in this window, not patched in it: `port --print-json` owners ride
+`OwnerIdentity` (pid, process, user - the Hash+Eq contract behind
+`--group`) and omit the fd, so SO_REUSEPORT listeners (four distinct
+fds on 127.0.0.1:53) render as identical JSON rows while the text
+render names each fd. The rows are honest raw kernel rows; the JSON
+disambiguation seat is the owner's call (N1).
+
+Verdict: the fast-lane sweep is the final pre-release audit lane and
+it holds - the whole -h/--help estate stays deterministic, honest,
+and self-describing on the unprivileged default lane and on the
+privileged attach lane. Nothing in the dump blocks the mature LTS
+verdict. What remains is the owner's release-engineering seat (bind
+the lineage to a signed commit or tag so D5 returns 6/6) and the
+open wording seats (F1, F3, F4's paint candidate, F5, F6, F7, F11,
+F12, N1) - all owner-decision items, none correctness or safety.
+
+The sweep report landed and is audited above; no further capture is
+owed for this label.
+
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
