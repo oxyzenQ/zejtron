@@ -56,6 +56,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # The runner image materializes a checkout under umask 0002:
+      # git's 100644 entries land 664 and 100755 entries land 775, and
+      # section 7's exact 644/755 contract fails on every tracked file
+      # (431 files flagged in the incident this step heals). Strip only
+      # the umask-added group/other write bits; the executable bit and
+      # the directory bits stay untouched, so a real exec-bit drift or
+      # a shebang-parity break still fails the guard below.
+      - name: Normalize checkout modes (the runner umask defense)
+        run: chmod -R go-w .
+
       # Tool pins make findings meaningful: a red wholesale run means
       # the tree drifted, never that a linter released overnight.
       - name: Harden DNS (the poisoned-resolver defense)
