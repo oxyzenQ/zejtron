@@ -160,7 +160,7 @@ zejtron port abc              # 'error: invalid port: abc' (commands/port.rs:143
 zejtron port 0                # port 0 refused (commands/port.rs:148)
 zejtron port 99999            # u16 overflow refusal
 zejtron port ""               # 'the port is empty (e.g. zejtron port 22)' (commands/port.rs:137)
-zejtron holds /nonexistent-path-xyz    # '<operand>: no such file or directory' (commands/holds.rs:232)
+zejtron holds /nonexistent-path-xyz    # 'path not found: /nonexistent-path-xyz' (commands/holds.rs:235)
 zejtron touch /nonexistent-path-xyz    # 'path not found: /nonexistent-path-xyz' (commands/touch.rs:94)
 zejtron proc nouserxyz123     # 'unknown user: nouserxyz123' (commands/proc.rs:223)
 zejtron doctor --symptom xyz  # the KNOWN list echoed back (commands/doctor/symptom.rs:57)

@@ -32,18 +32,20 @@ pub fn run(
     // The scan error carries the path (night-total-hardening-1): a
     // missing or unreadable root used to surface as the bare OS text
     // ("No such file or directory (os error 2)") - the one runtime
-    // error in the CLI that did not name what was missing, unlike
-    // every sibling (`why`: "path not found: X", `holds`: "X: no such
-    // file or directory"). The root's own NotFound/PermissionDenied
-    // is the reportable fact; the per-entry skips inside the walk stay
-    // silent by the scan contract above.
+    // error in the CLI that did not name what was missing. The F10
+    // freeze-window close (night-dragon-fly-2) moves the missing-root
+    // refusal onto the house "path not found: X" shape - the one
+    // vocabulary touch, why, holds, and recent all speak now. The
+    // root's own NotFound/PermissionDenied is the reportable fact; the
+    // per-entry skips inside the walk stay silent by the scan contract
+    // above.
     let files = scan_recent_files(path).map_err(|error| match error.kind() {
         // The echo is capped and sanitized (night-total-hardening-1):
         // the scan root is the user's own bytes, and a pathological
         // length is named, not flooded.
         io::ErrorKind::NotFound => {
             format!(
-                "{}: no such file or directory",
+                "path not found: {}",
                 crate::system::display_operand(&path.display().to_string())
             )
         }
