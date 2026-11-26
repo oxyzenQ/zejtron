@@ -279,19 +279,41 @@ git push origin v80.6.0-dragon.2
 ## Actions-Pin Health
 
 The workflows' `uses:` pins are kept fresh by a contributor-carried
-gate (the sibling project's actions-pin contract, one engine for all
-four seats):
+gate (the sibling project's actions-pin contract, the zylaxion
+engine's final form, night-cafe-2):
 
 ```sh
-./scripts/gates/check-actions-pins.sh            # report only
-./scripts/gates/check-actions-pins.sh --apply    # heal stale tag pins
+./scripts/gates/check-actions-pins.sh               # read (warn, advisory)
+./scripts/gates/check-actions-pins.sh --strict      # strict read (exit 1 on stale)
+./scripts/gates/check-actions-pins.sh --apply       # heal stale pins in place
+./scripts/gates/check-actions-pins.sh --refresh-cache
 ```
 
 The gate reads every `uses:` reference against GitHub's latest stable
-release (with a tags fallback), classifies it, and - under `--apply` -
-heals tag pins sitting behind the upstream major in place. Branch pins
-(the `dtolnay/rust-toolchain@stable` shape) and SHA pins are reported
-as skips for a human decision, never healed by a guess.
+release (with a semver-tags fallback), classifies it, and - under
+`--apply` - heals in place. A tag pin behind its major (v3 vs upstream
+v4) heals to the moving major tag; an exact pin behind its own release
+(v4.2.0 vs v4.12.1) heals to the exact latest; a SHA pin whose comment
+carries a version token (`# v7, SHA pin`) is verified against the
+latest release's commit SHA and re-pinned when upstream moved - the
+pin's identity is the SHA, so a pin already sitting on the release
+commit is current in every form its token takes. MAJOR moves ride the
+table for a human call: reported, never auto-healed. Branch pins (the
+`dtolnay/rust-toolchain@stable` shape) and SHA pins without a version
+token are reported as skips for a human decision, never healed by a
+guess.
+
+The verdict is cached under `$GIT_DIR/zejtron/actions-pins/`, keyed on
+the workflows' content hash (any workflow edit re-checks) with a six
+hour TTL (upstream releases re-check even without edits), so a healthy
+estate costs zero API calls per read; a cached non-current verdict
+re-verifies cold before anything may act on it - upstream truth can
+move under a TTL-old cache. One `--apply` converges: the next read
+reports every pin current. The heal is guarded: the pre-apply
+`workflows/` tree is backed up and restored on any failure, the line
+rewrite verifies the target line still matches the swept content
+(drift fails the heal instead of corrupting), and nothing outside
+`.github/workflows/` may appear new after the apply.
 
 Four seats, one engine. The automatic seat is the pre-commit hook:
 `check-commit-gate.sh` delegates to the engine on every commit of a
@@ -305,11 +327,13 @@ and the only red it can produce (every skip reason stays a skip there
 too). The offline full gate
 (`scripts/build.sh check-all`) carries no seat at all: a check that
 needs the network has no place in a check that must stay fast. The
-on-demand seats are the report and the maintainer heal: `--apply`
-rewrites stale tag pins in place and fails closed if anything outside
+on-demand seats are the read and the maintainer heal: `--apply`
+rewrites stale pins in place and fails closed if anything outside
 `.github/workflows/` changes, and `GITHUB_TOKEN` (optional, standard
-convention) lifts the unauthenticated API quota, while every read -
-authenticated or bare - pins the API contract date with the
+convention; the engine falls back to `GH_TOKEN`, `gh auth token`, then
+the machine's own git credential helper - no new standing secret)
+lifts the unauthenticated API quota, while every read - authenticated
+or bare - pins the API contract date with the
 `X-GitHub-Api-Version: 2022-11-28` header.
 
 ## Supermassive (the heavy lane)

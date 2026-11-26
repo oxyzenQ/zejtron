@@ -83,11 +83,12 @@
 #
 #   17.  actions-pin freshness (scripts/gates/check-actions-pins.sh
 #        --strict, the push-time CI seat of the commit hook's
-#        advisory actions-pin report: a KNOWN-stale tag pin - a
-#        verdict upstream itself answered, with the runner's
+#        advisory actions-pin report: a KNOWN-stale pin - tag or SHA,
+#        a verdict upstream itself answered, with the runner's
 #        GITHUB_TOKEN lifting the API quota - turns the push red.
 #        Every skip reason stays a skip in every seat: offline,
-#        quota low, branch pins, and SHA pins never block. Skips
+#        quota low, branch pins, and SHA pins without a version-
+#        comment token never block. Skips
 #        with a warning when curl is absent locally (the wholesale
 #        contract); CI always has it)
 #
@@ -521,10 +522,11 @@ header "17. actions-pin freshness (the KNOWN-stale verdict, fail-closed)"
 # GitHub's answer right now, and a gate that blocks on facts it
 # cannot reach is a dishonest gate. CI is the opposite seat: the
 # network is there and the GITHUB_TOKEN is native, so the strict
-# verdict runs here and a KNOWN-stale tag pin turns the push red.
-# Every skip reason stays a skip (offline, quota low, branch pins,
-# SHA pins), so an offline local run passes honestly and the commit
-# hook keeps its advisory shape everywhere.
+# verdict runs here and a KNOWN-stale pin - tag or SHA - turns the
+# push red. Every skip reason stays a skip (offline, quota low,
+# branch pins, SHA pins without a version-comment token), so an
+# offline local run passes honestly and the commit hook keeps its
+# advisory shape everywhere.
 if command -v curl >/dev/null 2>&1; then
 	if bash scripts/gates/check-actions-pins.sh --strict; then
 		pass "17. actions-pin freshness"

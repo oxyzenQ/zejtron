@@ -3,368 +3,695 @@
 # SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # OS: Linux only — zejtron is a Linux introspection tool.
 #
-# ZEJTRON ACTIONS-PIN HEALTH CHECK (sibling-project lineage:
-# zelynic's scripts/gates/check-actions-pins.sh +
-# scripts/ci/actions-version-sweep.sh pair, collapsed into the one
-# gate zejtron's smaller estate needs).
+# ZEJTRON ACTIONS-PIN HEALTH CHECK (night-cafe-2, the zylaxion
+# engine's final form sized to this repo)
 #
-# The contract: every `uses:` reference in the CI estate stays on
-# the freshest version the upstream publishes, so the workflows
-# never rot on stale pins. Four seats, one engine:
-#   - automatic report: the pre-commit hook (check-commit-gate.sh
-#     delegates here, advisory) - every commit on a wired clone
-#     reads the pins' freshness; skips stay skips, never blocks
-#   - push-time verdict: the Gate-keepers CI lane (gate-keepers.sh
-#     section 17 runs --strict with the runner's GITHUB_TOKEN) -
-#     the one seat with the network and the authenticated quota,
-#     so the verdict is binding there: a KNOWN-stale tag pin
-#     turns the push red; every skip reason stays a skip there too
-#   - on-demand read:   ./scripts/gates/check-actions-pins.sh
-#   - maintainer heal:  ./scripts/gates/check-actions-pins.sh --apply
-#       (the healed pins are committed like any other change)
+# The actions-pin health contract: every `uses:` reference in the CI
+# estate stays on the freshest version the upstream publishes, so the
+# workflows never rot on stale pins. Two seats, one engine:
+#   - on-demand, maintainer seat: THIS SCRIPT — the default read is
+#     warn mode (the classified table, advisory exit); --apply heals.
+#     Healed pins are committed like any other change and the next
+#     read reports them current.
+#   - advisory reads: warn mode (the default) prints the classified
+#     table and exits 0; strict blocks on a KNOWN-stale verdict only.
+#     zejtron's strict seat is the Gate-keepers CI lane (section 17
+#     runs the --strict flag with the runner's GITHUB_TOKEN) — the
+#     one seat with the network and the authenticated quota, so the
+#     verdict is binding there. MAJOR moves are a human call —
+#     reported, never auto-healed.
+#   - the pre-commit hook seat: check-commit-gate.sh delegates here
+#     in warn mode — every commit on a wired clone reads the pins'
+#     freshness; skips stay skips, never blocks.
 #
-# Advisory by default, and that is a design decision, not softness
-# (the sibling's rule): pin freshness is a REMOTE fact that needs
-# the network and GitHub's answer right now. zejtron's commit gate
-# (scripts/build.sh check-all) is deliberately offline, so this
-# check is never wired into it - a gate that blocks a contributor's
-# commit on facts it cannot reach would be a dishonest gate. The
-# strict verdict lives where the network and the quota are native:
-# the Gate-keepers CI seat and the maintainer's pre-push run. Every
-# skip reason stays a skip in every seat - offline, quota low,
-# branch pin, SHA pin - so the only red --strict can produce is a
-# KNOWN-stale verdict, a fact upstream itself answered.
+# Version truth: GitHub releases/latest (stable releases only), with
+# the newest semver tag as the fallback for release-less repos. The
+# pin's identity is the SHA: a pin sitting on the latest release
+# commit is CURRENT in every form its comment token takes. Tag pins
+# on a moving major (v4 vs upstream v4.12.1) are CURRENT — the moving
+# tag already carries the minor/patch; an exact pin (v4.2.0) behind
+# its own major heals to the latest release. MAJOR moves rewrite the
+# comment's token with the author's chosen form preserved
+# (major-only vs exact), written only by the maintainer seat.
 #
-# The sweep contract, per uses: reference:
-#   - a tag pin (@vN) behind the latest stable release's major heals
-#     to that major's moving tag (the moving major tag already
-#     carries minor/patch; the release's major is the truth).
-#   - a tag pin already on the latest major is CURRENT.
-#   - a branch pin (dtolnay/rust-toolchain @stable): not a version
-#     pin - reported as SKIP, healed by a human decision, never by
-#     a guess.
-#   - a SHA pin: the pin's identity is the commit. The estate does
-#     carry SHA pins (the supply-chain-sensitive lanes), but none
-#     carry the sibling's trailing version-comment note, so a SHA
-#     pin's freshness is not machine-checkable here - it is
-#     reported as SKIP for a human call.
-#   - local (./...) and docker:// refs: out of scope by
-#     construction.
-#   - a pin AHEAD of the latest release: a deliberate pin wins over
-#     the sweep (reported, left alone).
+# Honesty rules (the sibling lineage): a verdict that cannot be
+# reached (offline, rate limit, missing tool, overrun budget,
+# unparsable answer) is an honest SKIP — never a fake "current", and
+# never a block. Only a fully parsed behind-verdict can block
+# (strict) or heal (--apply). Pin freshness is a REMOTE fact; a gate
+# that blocks a commit on facts it cannot reach would be a dishonest
+# gate.
 #
-# Version truth: GitHub releases/latest (stable releases only, no
-# prereleases) with a /tags fallback for the release-less repo (a
-# 404 on releases/latest falls through to it) and for the release
-# line that points at a differently-shaped tag (codeql-action's
-# latest release is a bundle tag while the action's own v-tags
-# carry the version truth); a repo with neither reports SKIP
-# honestly. A subdirectory action (org/repo/path@vN) looks its
-# REPO up - the first two segments - while the heal rewrites the
-# full path's pin. Failure modes stay honest
-# separately: an unreachable API and a low quota are SKIP reasons of
-# their own - never a fake "no versions upstream". Set GITHUB_TOKEN
-# (standard GitHub tooling convention; CI provides it natively) to
-# lift the unauthenticated IP quota - the token is sent as a Bearer
-# header and never written anywhere by this script, and every read
-# pins the API contract date with the X-GitHub-Api-Version: 2022-11-28
-# header, one contract for the authenticated and the bare shape. One
-# API call per
-# unique repo per run (responses memoized), well inside the
-# authenticated quota for this estate's size.
+# Speed contract: a read must not wait on the network twice. The
+# verdict is cached under $GIT_DIR/zejtron/actions-pins/ keyed on
+# the workflows' content hash (any workflow edit re-checks) with a
+# TTL (upstream releases re-check even without edits). A cached
+# non-current verdict re-verifies COLD before it can block or heal —
+# upstream truth can move under a TTL-old cache. A cold sweep runs
+# under a per-call timeout budget; a cached hit costs zero API calls.
 #
-# The diff guard: --apply may only change files under
-# .github/workflows/ - anything else fails the heal before the
-# tree can be committed.
+# Tooling delta (documented, zylaxion parity in contract not tooling):
+# JSON parsing and the guarded line rewrite ride python3 — present on
+# every ubuntu runner and dev box, one interpreter fewer to install
+# than jq. curl carries the API reads.
+#
+# Modes (off | warn | strict | auto; default warn):
+#   ZEJTRON_ACTIONS_HEALTH                 one-shot, beats git config
+#   git config zejtron.actionsHealthCheck  repo-local, persistent
+#
+# Tunables (env, optional):
+#   ZEJTRON_ACTIONS_HEALTH_TTL       cache seconds (default 21600 = 6h)
+#   ZEJTRON_ACTIONS_HEALTH_TIMEOUT   per-API-call seconds (default 10)
+#   GITHUB_TOKEN                     authenticated API reads; when
+#                                    empty it resolves from the
+#                                    machine's own git credential
+#                                    helper for github.com — no new
+#                                    standing secret, the push
+#                                    credential reuses itself
+#   GH_TOKEN                         same seat as GITHUB_TOKEN, the
+#                                    name CI exports natively; the
+#                                    resolve order is GITHUB_TOKEN,
+#                                    GH_TOKEN, gh auth token, then
+#                                    the credential helper
+#
+# Rate-limit posture: an unauthenticated read shares the 60 req/hour
+# per-IP pool on a hosted runner's egress, and a busy pool outlives
+# any retry window — the resolve silently degrades to honest skips
+# for the whole run. The authenticated cap is 1,000 req/hour, so CI
+# forwards its ephemeral GITHUB_TOKEN (see gate-keepers.yml) and every
+# api_get call carries the X-GitHub-Api-Version date header alongside
+# the Bearer token. No standing secret is added and checkout keeps
+# persist-credentials false; a 403 under a still-busy pool stays an
+# honest skip by design.
 #
 # Usage:
-#   ./scripts/gates/check-actions-pins.sh            # report only
-#   ./scripts/gates/check-actions-pins.sh --strict   # exit 1 on stale
-#   ./scripts/gates/check-actions-pins.sh --apply    # heal tag pins
-#   ./scripts/gates/check-actions-pins.sh --apply --strict
+#   bash scripts/gates/check-actions-pins.sh             # read (warn)
+#   bash scripts/gates/check-actions-pins.sh --strict    # strict read
+#   bash scripts/gates/check-actions-pins.sh --apply     # heal seat
+#   bash scripts/gates/check-actions-pins.sh --refresh-cache
 #
-# Exit codes: 0 current (or advisory skips only); 1 a KNOWN-stale
-# verdict under --strict; 2 usage error, a missing curl, or a
-# diff-guard violation under --apply.
+# The --strict flag is this repo's one flag the sibling does not
+# carry: it is the one-shot strict seat the Gate-keepers lane drives
+# (section 17), kept so the seat reads as a plain command line. It
+# beats the mode env for that run; the env beats git config.
+#
+# Exit codes: 0 healthy or honest skip; 1 known-stale block (strict /
+# auto only); 2 indeterminate usage — never blocks, never heals.
 
-set -Eeuo pipefail
+set -euo pipefail
 
-usage() {
-	echo "usage: ./scripts/gates/check-actions-pins.sh [--apply] [--strict]"
-	exit 2
-}
+# The root-owned __pycache__ wall, shell layer (night-cafe-1): any
+# interpreter this script spawns inherits dont-write-bytecode, so no
+# repo-local bytecode lands beside the scripts at any privilege level
+# (the sudo lane's per-file guards carry the same law — sudo's
+# env_reset strips environment guards before the interpreter starts).
+export PYTHONDONTWRITEBYTECODE=1
 
-APPLY=false
-STRICT=false
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$REPO_ROOT"
+
+API_ROOT="https://api.github.com"
+DEFAULT_TTL=21600
+DEFAULT_TIMEOUT=10
+
+MODE="${ZEJTRON_ACTIONS_HEALTH:-$(git config zejtron.actionsHealthCheck 2> /dev/null || echo warn)}"
+APPLY_REQUESTED=0
+REFRESH_ONLY=0
+STRICT_FLAG=0
 for arg in "$@"; do
-	case "${arg}" in
-	--apply) APPLY=true ;;
-	--strict) STRICT=true ;;
-	*) usage ;;
-	esac
+    case "${arg}" in
+    --apply) APPLY_REQUESTED=1 ;;
+    --strict) STRICT_FLAG=1 ;;
+    --refresh-cache) REFRESH_ONLY=1 ;;
+    -h | --help)
+        sed -n '5,98p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+        exit 0
+        ;;
+    *)
+        echo "Unknown option: ${arg}" >&2
+        exit 2
+        ;;
+    esac
 done
+# The strict flag is a one-shot mode override (the Gate-keepers
+# section 17 seat): it beats the mode env for this run.
+if [ "${STRICT_FLAG}" = "1" ]; then
+    MODE="strict"
+fi
 
-repo_root="$(git rev-parse --show-toplevel)"
-cd "${repo_root}"
+# ── mode gate ────────────────────────────────────────────────────────────
+case "${MODE}" in
+off)
+    exit 0
+    ;;
+warn | strict | auto) ;;
+*)
+    echo -e "\033[0;33m!\033[0m unknown actions-health mode '${MODE}' — falling back to warn"
+    MODE=warn
+    ;;
+esac
 
-[[ -d .github/workflows ]] || {
-	echo "no .github/workflows directory - nothing to check"
-	exit 0
-}
-command -v curl >/dev/null 2>&1 || {
-	echo "error: curl is required to read upstream version truth" >&2
-	exit 2
-}
-
-workflow_files="$(find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) | sort)"
-[[ -n "${workflow_files}" ]] || {
-	echo "no workflow files - nothing to check"
-	exit 0
-}
-
-# Memoized upstream latest-major lookup: one API call per repo per
-# run. Sets LATEST_MAJOR[slug] to the major number (or empty when
-# version truth is unavailable) and SKIP_REASON to the honest
-# reason (quota / unreachable / no-versions) - a skip that cannot
-# say why is a guess. Globals by design: command substitution would
-# run this in a subshell and silently lose every assignment.
-declare -A LATEST_MAJOR
-declare -A LATEST_TAG
-declare -A LATEST_REASON
-SKIP_REASON=""
-latest_major() {
-	local slug="$1"
-	if [[ -n "${LATEST_MAJOR[${slug}]+x}" ]]; then
-		# Memoized: the stored reason travels with the verdict - an
-		# unreachable or quota-limited lookup is never re-reported as
-		# "no versions upstream".
-		SKIP_REASON="${LATEST_REASON[${slug}]}"
-		return 0
-	fi
-	SKIP_REASON=""
-	local auth=()
-	if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-		auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-	fi
-	local body="" tag="" major=""
-	if ! body="$(curl -fsS -m 15 --retry 2 --retry-delay 1 --retry-all-errors \
-		-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" -H "X-GitHub-Api-Version: 2022-11-28" \
-		"${auth[@]}" \
-		"https://api.github.com/repos/${slug}/releases/latest" 2>/dev/null)"; then
-		# Distinguish the failure mode: quota (403/429) vs 404 (no
-		# releases, or no such repo) vs unreachable. A 404 is the
-		# release-less repo - the /tags fallback below exists for
-		# exactly that repo - so it falls through instead of skipping
-		# (the old shape read it as "unreachable" and the fallback
-		# could never run for the one case it was written for).
-		local code
-		code="$(curl -sS -o /dev/null -m 15 "${auth[@]}" -w '%{http_code}' \
-			-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" -H "X-GitHub-Api-Version: 2022-11-28" \
-			"https://api.github.com/repos/${slug}/releases/latest" 2>/dev/null || true)"
-		if [[ "${code}" == "403" || "${code}" == "429" ]]; then
-			SKIP_REASON="API quota low (HTTP ${code}): skip, retry later or set GITHUB_TOKEN"
-			LATEST_MAJOR["${slug}"]=""
-			LATEST_TAG["${slug}"]=""
-			LATEST_REASON["${slug}"]="${SKIP_REASON}"
-			return 0
-		fi
-		if [[ "${code}" != "404" ]]; then
-			SKIP_REASON="API unreachable (HTTP ${code:-000}): skip"
-			LATEST_MAJOR["${slug}"]=""
-			LATEST_TAG["${slug}"]=""
-			LATEST_REASON["${slug}"]="${SKIP_REASON}"
-			return 0
-		fi
-		# 404: no releases to read. Fall through - a repo with semver
-		# tags still has version truth below; a repo without them (or
-		# a repo that does not exist at all) lands in the honest
-		# no-versions skip.
-		tag=""
-	else
-		tag="$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"${body}" | head -1)"
-	fi
-	if [[ ! "${tag}" =~ ^v[0-9]+ ]]; then
-		# Fallback: the repo's semver tags, highest first. Runs for the
-		# release-less repo (the 404 above) and for the release line
-		# that points at a differently-shaped tag (codeql-action's
-		# latest release is a bundle tag while the action's own v-tags
-		# carry the version truth). A repo with neither a usable
-		# release nor semver tags reports nothing - the honest skip,
-		# never a guess.
-		# The body's shape is not ours to choose - the API answers the
-		# sweep's own User-Agent with one compact line (zero newlines,
-		# verified live), and a line-based sed over that single line
-		# degenerates to its LAST match - an arbitrary tag, not the
-		# highest. The page's ordering is not a contract either. So:
-		# extract every v-tag token regardless of shape, then take the
-		# highest. Only the name field can match - a URL carries its
-		# version behind a slash, never behind a quote.
-		# The read names its own transport failures too (the residual
-		# the landing commit's hook run exposed: a quota-limited /tags
-		# read - 403, the unauthenticated IP quota - was reported as
-		# "no upstream release or semver tags", a fake no-versions
-		# verdict, the exact lie the header promises never to tell).
-		# Quota and unreachable are skips of their own here as well,
-		# the same split the releases/latest read applies; only a read
-		# that SUCCEEDED and still found no v-tag reports the
-		# human-decision skip.
-		local tags_body=""
-		if ! tags_body="$(curl -fsS -m 15 -H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" -H "X-GitHub-Api-Version: 2022-11-28" \
-			"${auth[@]}" \
-			"https://api.github.com/repos/${slug}/tags?per_page=100" 2>/dev/null)"; then
-			local tags_code
-			tags_code="$(curl -sS -o /dev/null -m 15 "${auth[@]}" -w '%{http_code}' \
-				-H "Accept: application/vnd.github+json" -H "User-Agent: zejtron-pins-gate" -H "X-GitHub-Api-Version: 2022-11-28" \
-				"https://api.github.com/repos/${slug}/tags?per_page=100" 2>/dev/null || true)"
-			if [[ "${tags_code}" == "403" || "${tags_code}" == "429" ]]; then
-				SKIP_REASON="API quota low (HTTP ${tags_code}): skip, retry later or set GITHUB_TOKEN"
-			else
-				SKIP_REASON="API unreachable (HTTP ${tags_code:-000}): skip"
-			fi
-			LATEST_MAJOR["${slug}"]=""
-			LATEST_TAG["${slug}"]=""
-			LATEST_REASON["${slug}"]="${SKIP_REASON}"
-			return 0
-		fi
-		tag="$(grep -oE '"v[0-9]+(\.[0-9]+)*"' <<<"${tags_body}" | tr -d '"' | sort -V | tail -1 || true)"
-	fi
-	if [[ "${tag}" =~ ^v([0-9]+) ]]; then
-		major="${BASH_REMATCH[1]}"
-	else
-		major=""
-		SKIP_REASON="no upstream release or semver tags: human decision"
-	fi
-	LATEST_MAJOR["${slug}"]="${major}"
-	LATEST_TAG["${slug}"]="${tag}"
-	LATEST_REASON["${slug}"]="${SKIP_REASON}"
+# ── token resolution (env -> gh -> git credential helper) ───────────────
+TOKEN=""
+resolve_token() {
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        TOKEN="${GITHUB_TOKEN}"
+        return 0
+    fi
+    if [ -n "${GH_TOKEN:-}" ]; then
+        TOKEN="${GH_TOKEN}"
+        return 0
+    fi
+    if command -v gh > /dev/null 2>&1; then
+        TOKEN="$(gh auth token 2> /dev/null || true)"
+        [ -n "${TOKEN}" ] && return 0
+    fi
+    TOKEN="$(printf 'protocol=https\nhost=github.com\n\n' |
+        git credential fill 2> /dev/null | sed -n 's/^password=//p' || true)"
+    return 0
 }
 
-stale_count=0
-skip_count=0
-heal_count=0
-
-classify_pin() {
-	# $1 file, $2 line number, $3 uses ref (org/repo[/path]@ref, no comment)
-	local file="$1" lineno="$2" ref="$3"
-	local pin="${ref##*@}"
-	local ref_head="${ref%%@*}"
-	# The repo the API answers for is the first two segments: a
-	# subdirectory action (github/codeql-action/init@v4) must query
-	# its REPO, never the path - the old shape queried
-	# .../codeql-action/init/releases/latest, read the permanent 404
-	# as "unreachable", and the estate's only tag pins (the codeql
-	# trio) never saw a real verdict. The heal below rewrites
-	# ref_head (path included); the slug is only the lookup key.
-	local org="${ref_head%%/*}"
-	local rest="${ref_head#*/}"
-	local slug="${org}/${rest%%/*}"
-	local verdict=""
-
-	case "${pin}" in
-	\./.* | \./*)
-		echo "SKIP      ${file}:${lineno}  ${ref} (local action, out of scope)"
-		return 0
-		;;
-	"")
-		echo "SKIP      ${file}:${lineno}  ${ref} (empty ref)"
-		return 0
-		;;
-	esac
-	if [[ "${ref}" == docker://* ]]; then
-		echo "SKIP      ${file}:${lineno}  ${ref} (docker ref, out of scope)"
-		return 0
-	fi
-	if [[ "${pin}" =~ ^[0-9a-f]{40}$ ]]; then
-		skip_count=$((skip_count + 1))
-		echo "SKIP      ${file}:${lineno}  ${ref} (SHA pin: human decision, no version-comment contract)"
-		return 0
-	fi
-	if [[ ! "${pin}" =~ ^v[0-9]+$ ]]; then
-		skip_count=$((skip_count + 1))
-		echo "SKIP      ${file}:${lineno}  ${ref} (branch pin: not a version pin)"
-		return 0
-	fi
-
-	latest_major "${slug}"
-	local major="${LATEST_MAJOR[${slug}]}"
-	if [[ -z "${major}" ]]; then
-		skip_count=$((skip_count + 1))
-		echo "SKIP      ${file}:${lineno}  ${ref} (${SKIP_REASON})"
-		return 0
-	fi
-
-	local pin_major="${pin#v}"
-	if ((pin_major < major)); then
-		verdict="STALE"
-	elif ((pin_major > major)); then
-		skip_count=$((skip_count + 1))
-		echo "AHEAD     ${file}:${lineno}  ${ref} (deliberate pin wins: upstream latest major is v${major})"
-		return 0
-	else
-		verdict="CURRENT"
-	fi
-
-	if [[ "${verdict}" == "CURRENT" ]]; then
-		echo "CURRENT   ${file}:${lineno}  ${ref}"
-		return 0
-	fi
-
-	# Stale tag pin.
-	stale_count=$((stale_count + 1))
-	if [[ "${APPLY}" == true ]]; then
-		# The heal rewrites the full ref head (path included) - the
-		# slug is only the lookup key, never the sed target.
-		sed -i "s|uses:[[:space:]]*${ref_head}@${pin}\([[:space:]]*$\)|uses: ${ref_head}@v${major}\1|" "${file}"
-		if grep -q "uses: ${ref_head}@v${major}" "${file}"; then
-			heal_count=$((heal_count + 1))
-			echo "HEAL      ${file}:${lineno}  ${ref} -> ${ref_head}@v${major} (upstream ${LATEST_TAG[${slug}]})"
-		else
-			echo "FAILED    ${file}:${lineno}  ${ref} -> heal did not land (pattern mismatch; fix by hand)"
-		fi
-	else
-		echo "STALE     ${file}:${lineno}  ${ref} -> v${major} available (upstream ${LATEST_TAG[${slug}]}; run with --apply to heal)"
-	fi
+# ── API plumbing ─────────────────────────────────────────────────────────
+API_STATUS=0
+API_BODY=""
+api_get() {
+    local path="$1"
+    local auth=()
+    [ -n "${TOKEN}" ] && auth=(-H "Authorization: Bearer ${TOKEN}")
+    # The API version header rides every read, authenticated or not:
+    # pinning the contract date keeps the parse shapes stable against
+    # future breaking API versions.
+    API_STATUS=0
+    API_BODY="$(curl -sS --max-time "${ZEJTRON_ACTIONS_HEALTH_TIMEOUT:-$DEFAULT_TIMEOUT}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "User-Agent: zejtron-pins-gate" \
+        -H "X-GitHub-Api-Version: 2022-11-28" ${auth[@]+"${auth[@]}"} \
+        -w $'\n%{http_code}' "${API_ROOT}${path}" 2> /dev/null)" || {
+        API_STATUS=000
+        API_BODY=""
+        return 1
+    }
+    API_STATUS="${API_BODY##*$'\n'}"
+    API_BODY="${API_BODY%$'\n'*}"
+    [ "${API_STATUS}" = "200" ]
 }
 
-echo "zejtron actions-pin health check (apply=${APPLY}, strict=${STRICT})"
-echo ""
+# ── version math (the zelynic shapes, verbatim) ──────────────────────────
+is_semver() {
+    printf '%s' "$1" | grep -Eq '^v?[0-9]+(\.[0-9]+)*$'
+}
 
-while IFS= read -r file; do
-	while IFS=: read -r lineno line; do
-		# The uses ref up to any trailing comment; whitespace- and
-		# quote-tolerant (YAML allows quoted scalars and indented keys,
-		# so both ends are trimmed - a leading space would ride the
-		# slug straight into the API URL).
-		ref="$(sed -E 's/#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//' <<<"${line#*uses:}")"
-		ref="${ref//\"/}"
-		ref="${ref//\'/}"
-		[[ -z "${ref}" ]] && continue
-		classify_pin "${file}" "${lineno}" "${ref}"
-	done < <(grep -n "uses:" "${file}")
-done <<<"${workflow_files}"
+version_tuple() {
+    local v="${1#v}"
+    local maj min patch
+    IFS='.' read -r maj min patch <<< "$v"
+    printf '%s %s %s' "${maj:-0}" "${min:-0}" "${patch:-0}"
+}
 
-echo ""
+version_cmp() {
+    local a_maj a_min a_pat b_maj b_min b_pat
+    read -r a_maj a_min a_pat <<< "$(version_tuple "$1")"
+    read -r b_maj b_min b_pat <<< "$(version_tuple "$2")"
+    if [ "$a_maj" -lt "$b_maj" ]; then
+        printf '%s\n' -1
+    elif [ "$a_maj" -gt "$b_maj" ]; then
+        printf '%s\n' 1
+    elif [ "$a_min" -lt "$b_min" ]; then
+        printf '%s\n' -1
+    elif [ "$a_min" -gt "$b_min" ]; then
+        printf '%s\n' 1
+    elif [ "$a_pat" -lt "$b_pat" ]; then
+        printf '%s\n' -1
+    elif [ "$a_pat" -gt "$b_pat" ]; then
+        printf '%s\n' 1
+    else
+        printf '%s\n' 0
+    fi
+}
 
-if [[ "${APPLY}" == true ]]; then
-	# The diff guard: the heal may only touch the workflows tree.
-	local_diff="$(git diff --name-only | grep -v '^\.github/workflows/' || true)"
-	if [[ -n "${local_diff}" ]]; then
-		echo "DIFF GUARD: non-workflow files changed by the heal - failing closed:" >&2
-		echo "${local_diff}" >&2
-		exit 2
-	fi
-	if ((heal_count > 0)); then
-		echo "sweep verdict: ${heal_count} healed, ${stale_count} seen stale, ${skip_count} skipped"
-		echo "healed pins are working-tree changes - review git diff and commit them like any other change"
-	else
-		echo "sweep verdict: 0 healed, ${stale_count} seen stale, ${skip_count} skipped"
-	fi
+major_of() {
+    local maj _min _pat
+    read -r maj _min _pat <<< "$(version_tuple "$1")"
+    printf '%s\n' "$maj"
+}
+
+# ── per-repo truth (releases/latest primary, semver tags fallback) ──────
+declare -A LATEST_TAG=()
+declare -A LATEST_SHA=()
+declare -A REPO_VERDICT=()
+
+resolve_tag_sha() {
+    local repo="$1" tag="$2" obj_sha obj_type tagobj
+    api_get "/repos/${repo}/git/ref/tags/${tag}" || return 1
+    obj_sha="$(printf '%s' "$API_BODY" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("object",{}).get("sha","") or "")')"
+    obj_type="$(printf '%s' "$API_BODY" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("object",{}).get("type","") or "")')"
+    [ -n "$obj_sha" ] || return 1
+    if [ "$obj_type" = "tag" ]; then
+        # Annotated tag object: the commit SHA lives one deref deeper.
+        api_get "/repos/${repo}/git/tags/${obj_sha}" || return 1
+        tagobj="$(printf '%s' "$API_BODY" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("object",{}).get("sha","") or "")')"
+        [ -n "$tagobj" ] || return 1
+        printf '%s\n' "$tagobj"
+    else
+        printf '%s\n' "$obj_sha"
+    fi
+}
+
+query_repo() {
+    local repo="$1" tag
+    if [ -n "${LATEST_TAG[$repo]:-}" ] || [ -n "${REPO_VERDICT[$repo]:-}" ]; then
+        return 0
+    fi
+    if api_get "/repos/${repo}/releases/latest"; then
+        tag="$(printf '%s' "$API_BODY" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("tag_name","") or "")')"
+        if [ -n "$tag" ] && is_semver "$tag"; then
+            LATEST_TAG[$repo]="$tag"
+            return 0
+        fi
+    fi
+    if [ "${API_STATUS}" = "404" ] || [ "${API_STATUS}" = "200" ]; then
+        if api_get "/repos/${repo}/tags?per_page=100"; then
+            tag="$(printf '%s' "$API_BODY" | python3 -c '
+import json, re, sys
+names = [x.get("name", "") for x in json.load(sys.stdin)]
+names = [n for n in names if re.fullmatch(r"v?[0-9]+(\.[0-9]+)*", n)]
+names.sort(key=lambda s: [int(p) for p in s.lstrip("v").split(".")])
+print(names[-1] if names else "")
+' || true)"
+            if [ -n "$tag" ]; then
+                LATEST_TAG[$repo]="$tag"
+                return 0
+            fi
+            REPO_VERDICT[$repo]="no releases and no semver tags"
+            return 0
+        fi
+    fi
+    if [ "${API_STATUS}" = "403" ]; then
+        REPO_VERDICT[$repo]="api rate-limited (403)"
+    else
+        REPO_VERDICT[$repo]="api unreachable (status ${API_STATUS})"
+    fi
+}
+
+ensure_latest_sha() {
+    local repo="$1" sha
+    [ -z "${LATEST_SHA[$repo]:-}" ] || return 0
+    sha="$(resolve_tag_sha "$repo" "${LATEST_TAG[$repo]}")" || sha=""
+    if [ -n "$sha" ]; then
+        LATEST_SHA[$repo]="$sha"
+    else
+        REPO_VERDICT[$repo]="tag ${LATEST_TAG[$repo]} unresolvable"
+    fi
+}
+
+# ── output helpers (red failure, yellow skip, green keep) ───────────────
+# The shell brand palette (night-cafe-1): the C_* names map onto the
+# tiers inside the palette — the same bytes the CLI renders, plain
+# text when piped.
+# shellcheck disable=SC1091
+. "${REPO_ROOT}/scripts/lib/ux_palette.sh"
+readonly C_RED="$UX_ERR"
+readonly C_GREEN="$UX_OK"
+readonly C_YELLOW="$UX_WARN"
+readonly C_NC="$UX_RESET"
+
+HEALED=0
+KEPT=0
+SKIPPED=0
+INDETERMINATE=0
+MAJOR_MOVES=0
+declare -A EDIT_FILE=()
+declare -A EDIT_LINE=()
+declare -A EDIT_TEXT=()
+declare -A EDIT_ORIG=()
+
+note() { echo -e "  SWEEP: $*"; }
+keep() { echo -e "  ${C_GREEN}keep${C_NC}: $*"; }
+skip() { echo -e "  ${C_YELLOW}skip${C_NC}: $*"; }
+
+record_edit() {
+    local file="$1" lineno="$2" text="$3" orig="$4"
+    EDIT_FILE[$EDIT_COUNT]="$file"
+    EDIT_LINE[$EDIT_COUNT]="$lineno"
+    EDIT_TEXT[$EDIT_COUNT]="$text"
+    EDIT_ORIG[$EDIT_COUNT]="$orig"
+    EDIT_COUNT=$((EDIT_COUNT + 1))
+    return 0
+}
+EDIT_COUNT=0
+
+# ── sweep ────────────────────────────────────────────────────────────────
+sweep_sha_pin() {
+    local file="$1" lineno="$2" content="$3" repo="$4" action_part="$5"
+    local ref="$6" value="$7" comment="$8"
+    local cur_ver token latest cmp new_line new_sha new_token
+
+    token=""
+    if [[ $comment =~ v[0-9]+(\.[0-9]+)* ]]; then
+        token="${BASH_REMATCH[0]}"
+    fi
+    if [ -z "$token" ]; then
+        skip "${repo} — no version token in the pin comment; add \"# vN\" to enlist it"
+        SKIPPED=$((SKIPPED + 1))
+        return 0
+    fi
+    cur_ver="$token"
+
+    query_repo "$repo"
+    if [ -n "${REPO_VERDICT[$repo]:-}" ]; then
+        skip "${repo} — ${REPO_VERDICT[$repo]}"
+        SKIPPED=$((SKIPPED + 1))
+        INDETERMINATE=$((INDETERMINATE + 1))
+        return 0
+    fi
+    latest="${LATEST_TAG[$repo]}"
+    ensure_latest_sha "$repo"
+    if [ -n "${REPO_VERDICT[$repo]:-}" ]; then
+        skip "${repo} — ${REPO_VERDICT[$repo]}"
+        SKIPPED=$((SKIPPED + 1))
+        INDETERMINATE=$((INDETERMINATE + 1))
+        return 0
+    fi
+    new_sha="${LATEST_SHA[$repo]}"
+    cmp="$(version_cmp "$cur_ver" "$latest")"
+
+    if [ "$cmp" = "1" ]; then
+        keep "${repo} — pinned ${cur_ver} is ahead of latest release ${latest}"
+        KEPT=$((KEPT + 1))
+        return 0
+    fi
+    # The pin's identity is the SHA, not the comment's token: a pin
+    # already sitting on the release commit is CURRENT in every form
+    # its token takes (the zelynic no-op-heal rule).
+    if [ "$ref" = "$new_sha" ]; then
+        keep "${repo} — ${cur_ver} pinned at the latest release commit"
+        KEPT=$((KEPT + 1))
+        return 0
+    fi
+
+    new_line="${content/${value}/${action_part}@${new_sha}}"
+    if [ "$cmp" = "-1" ] && [ "$(major_of "$cur_ver")" != "$(major_of "$latest")" ]; then
+        # Major moved: the comment's version token moves with it,
+        # preserving the author's chosen form (major-only vs exact).
+        # The move is still only ever WRITTEN by the maintainer seat;
+        # AUTO refuses any batch that carries a major move.
+        if [ "$token" = "v$(major_of "$cur_ver")" ]; then
+            new_token="v$(major_of "$latest")"
+        else
+            new_token="v${latest#v}"
+        fi
+        new_line="${new_line/${token}/${new_token}}"
+        MAJOR_MOVES=$((MAJOR_MOVES + 1))
+    elif [ "$cmp" = "0" ]; then
+        note "${repo} — pin drift: ${cur_ver} current but the SHA moved; re-pinning to the release commit"
+    fi
+    record_edit "$file" "$lineno" "$new_line" "$content"
+    note "${repo} (${file#./}:${lineno}) — ${cur_ver} -> ${latest}, SHA ${ref:0:12} -> ${new_sha:0:12} HEAL"
+    HEALED=$((HEALED + 1))
+}
+
+sweep_tag_pin() {
+    local file="$1" lineno="$2" content="$3" repo="$4" action_part="$5"
+    local ref="$6" value="$7"
+    local latest cmp new_ref new_line
+
+    query_repo "$repo"
+    if [ -n "${REPO_VERDICT[$repo]:-}" ]; then
+        skip "${repo} — ${REPO_VERDICT[$repo]}"
+        SKIPPED=$((SKIPPED + 1))
+        INDETERMINATE=$((INDETERMINATE + 1))
+        return 0
+    fi
+    latest="${LATEST_TAG[$repo]}"
+    cmp="$(version_cmp "$ref" "$latest")"
+    if [ "$cmp" != "-1" ]; then
+        keep "${repo}@${ref} — latest release ${latest} needs no tag move"
+        KEPT=$((KEPT + 1))
+        return 0
+    fi
+    if [ "$(major_of "$ref")" = "$(major_of "$latest")" ]; then
+        keep "${repo}@${ref} — the moving tag already carries ${latest}"
+        KEPT=$((KEPT + 1))
+        return 0
+    fi
+    if [[ $ref == *.* ]]; then
+        new_ref="v${latest#v}"
+    else
+        new_ref="v$(major_of "$latest")"
+    fi
+    new_line="${content/${value}/${action_part}@${new_ref}}"
+    record_edit "$file" "$lineno" "$new_line" "$content"
+    note "${repo} (${file#./}:${lineno}) — ${ref} -> ${new_ref} HEAL (tag pin)"
+    HEALED=$((HEALED + 1))
+    MAJOR_MOVES=$((MAJOR_MOVES + 1))
+}
+
+run_sweep() {
+    local line file rest lineno content raw value comment
+    local action_part ref repo
+    while IFS= read -r line; do
+        file="${line%%:[0-9]*}"
+        rest="${line#"$file":}"
+        lineno="${rest%%:*}"
+        content="${rest#*:}"
+        raw="${content#*uses:}"
+        raw="${raw#"${raw%%[![:space:]]*}"}" # trim leading spaces
+        comment=""
+        if [[ $raw == *"#"* ]]; then
+            comment="#${raw#*#}"
+            raw="${raw%%#*}"
+            raw="${raw%"${raw##*[![:space:]]}"}" # trim trailing spaces
+        fi
+        value="$raw"
+        [ -n "$value" ] || continue
+        action_part="${value%@*}"
+        ref="${value##*@}"
+        if [[ $action_part == .* || $action_part == docker:* ]]; then
+            skip "${value} — local/docker reference, not a version pin"
+            SKIPPED=$((SKIPPED + 1))
+            continue
+        fi
+        IFS='/' read -r owner name _rest <<< "$action_part"
+        repo="${owner}/${name}"
+        if ! [[ $repo =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            skip "${value} — unparsable action reference"
+            SKIPPED=$((SKIPPED + 1))
+            continue
+        fi
+        if [[ $ref =~ ^[0-9a-fA-F]{40}$ ]]; then
+            sweep_sha_pin "$file" "$lineno" "$content" \
+                "$repo" "$action_part" "$ref" "$value" "$comment"
+        elif [[ $ref =~ ^v[0-9]+(\.[0-9]+)*$ ]]; then
+            sweep_tag_pin "$file" "$lineno" "$content" \
+                "$repo" "$action_part" "$ref" "$value"
+        else
+            skip "${repo}@${ref} — branch-style ref, not a version pin"
+            SKIPPED=$((SKIPPED + 1))
+        fi
+    done < <(grep -nE '^[[:space:]]*(-[[:space:]]+)?uses:' .github/workflows/*.yml 2> /dev/null || true)
+    return 0
+}
+
+# ── guarded apply (python rewrite with drift verification) ──────────────
+apply_edits() {
+    [ "${EDIT_COUNT}" -gt 0 ] || return 0
+    local backup pre_nonworkflow post_nonworkflow apply_out i
+    backup="$(mktemp -d)"
+    cp -a .github/workflows "${backup}/workflows"
+    pre_nonworkflow="$(git status --porcelain 2> /dev/null | grep -v '\.github/workflows/' || true)"
+
+    # One TSV record per edit (tab never appears inside a YAML line —
+    # yamllint enforces spaces): file, 1-based line, original, new.
+    local tsv=""
+    for ((i = 0; i < EDIT_COUNT; i++)); do
+        tsv+="${EDIT_FILE[$i]}"$'\t'"${EDIT_LINE[$i]}"$'\t'"${EDIT_ORIG[$i]}"$'\t'"${EDIT_TEXT[$i]}"$'\n'
+    done
+
+    apply_out="$(PIN_EDITS="${tsv}" python3 - << 'PYEOF'
+import os, sys
+edits = []
+for rec in os.environ["PIN_EDITS"].splitlines():
+    if not rec:
+        continue
+    f, ln, orig, new = rec.split("\t")
+    edits.append((f, int(ln), orig, new))
+per_file = {}
+for f, ln, orig, new in edits:
+    per_file.setdefault(f, []).append((ln, orig, new))
+for f, items in per_file.items():
+    with open(f, "r", encoding="utf-8") as fh:
+        lines = fh.read().split("\n")
+    for ln, orig, new in sorted(items, key=lambda x: -x[0]):
+        idx = ln - 1
+        if idx >= len(lines):
+            print(f"DRIFT: {f}:{ln} beyond EOF", file=sys.stderr)
+            sys.exit(1)
+        if lines[idx] != orig:
+            print(f"DRIFT: {f}:{ln} changed since the sweep", file=sys.stderr)
+            sys.exit(1)
+        lines[idx] = new
+    with open(f, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines))
+print("APPLIED")
+PYEOF
+)" || true
+
+    if [ "${apply_out}" != "APPLIED" ]; then
+        echo -e "  ${C_RED}FAIL${C_NC}: the apply could not prove itself clean — restoring the pre-apply tree"
+        rm -rf .github/workflows
+        cp -a "${backup}/workflows" .github/workflows
+        rm -rf "${backup}"
+        return 1
+    fi
+    # The delta-shaped proof: nothing outside .github/workflows/ may
+    # appear new in the tree after the apply.
+    post_nonworkflow="$(git status --porcelain 2> /dev/null | grep -v '\.github/workflows/' || true)"
+    if [ "${pre_nonworkflow}" != "${post_nonworkflow}" ]; then
+        echo -e "  ${C_RED}FAIL${C_NC}: writes escaped .github/workflows/ — restoring the pre-apply tree"
+        rm -rf .github/workflows
+        cp -a "${backup}/workflows" .github/workflows
+        rm -rf "${backup}"
+        return 1
+    fi
+    rm -rf "${backup}"
+    return 0
+}
+
+# ── cache ────────────────────────────────────────────────────────────────
+CACHE_DIR="$(git rev-parse --git-dir 2> /dev/null || echo .git)/zejtron/actions-pins"
+workflows_hash() {
+    cat .github/workflows/*.yml 2> /dev/null | sha256sum | cut -d' ' -f1
+}
+cache_fresh() {
+    local f="$1" now mtime ttl
+    [ -f "$f" ] || return 1
+    ttl="${ZEJTRON_ACTIONS_HEALTH_TTL:-$DEFAULT_TTL}"
+    now="$(date +%s)"
+    mtime="$(stat -c %Y "$f" 2> /dev/null || echo 0)"
+    [ "$((now - mtime))" -lt "$ttl" ]
+}
+write_cache() {
+    local f="$1" final="$2"
+    mkdir -p "$(dirname "$f")"
+    {
+        echo "CACHE-FINAL: ${final}"
+        echo "HEALED: ${HEALED}"
+        echo "KEPT: ${KEPT}"
+        echo "SKIPPED: ${SKIPPED}"
+        echo "INDETERMINATE: ${INDETERMINATE}"
+        echo "MAJOR_MOVES: ${MAJOR_MOVES}"
+        echo "GENERATED: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    } > "$f"
+}
+
+classify() {
+    if [ "${INDETERMINATE}" -gt 0 ]; then
+        FINAL="indeterminate"
+    elif [ "${HEALED}" -gt 0 ]; then
+        FINAL="behind"
+    else
+        FINAL="current"
+    fi
+}
+
+cold_run() {
+    HEALED=0
+    KEPT=0
+    SKIPPED=0
+    INDETERMINATE=0
+    MAJOR_MOVES=0
+    EDIT_COUNT=0
+    resolve_token
+    run_sweep
+    classify
+    write_cache "${CACHE_DIR}/${WF_HASH}.verdict" "${FINAL}"
+}
+
+# ═════════════════════════════════════════════════════════════════════════
+# main
+# ═════════════════════════════════════════════════════════════════════════
+WF_HASH="$(workflows_hash)"
+CACHE_FILE="${CACHE_DIR}/${WF_HASH}.verdict"
+FINAL="current"
+CACHED=0
+
+if cache_fresh "$CACHE_FILE"; then
+    CACHED=1
+    FINAL="$(sed -n 's/^CACHE-FINAL: //p' "$CACHE_FILE")"
+    HEALED="$(sed -n 's/^HEALED: //p' "$CACHE_FILE")"
+    KEPT="$(sed -n 's/^KEPT: //p' "$CACHE_FILE")"
+    SKIPPED="$(sed -n 's/^SKIPPED: //p' "$CACHE_FILE")"
+    INDETERMINATE="$(sed -n 's/^INDETERMINATE: //p' "$CACHE_FILE")"
+    MAJOR_MOVES="$(sed -n 's/^MAJOR_MOVES: //p' "$CACHE_FILE")"
+    # A cached non-current verdict is neither a block mandate nor a
+    # write mandate: re-verify COLD in every mode before anything
+    # downstream may act on it.
+    if [ "${FINAL}" != "current" ]; then
+        CACHED=0
+        cold_run
+    fi
 else
-	echo "sweep verdict: ${stale_count} stale, ${skip_count} skipped (apply=${APPLY})"
+    cold_run
 fi
 
-if [[ "${STRICT}" == true && "${stale_count}" -gt 0 ]]; then
-	echo "strict: KNOWN-stale pins present - failing" >&2
-	exit 1
+if [ "${REFRESH_ONLY}" = "1" ]; then
+    echo "pin cache refreshed: ${FINAL} (healed ${HEALED}, kept ${KEPT}, skipped ${SKIPPED})"
+    exit 0
 fi
+
+# The verdict, always classified, never silent in warn/strict. Auto's
+# silence is the reward for healthy pins.
+if [ "${MODE}" != "auto" ] || [ "${FINAL}" != "current" ]; then
+    [ "${CACHED}" = "1" ] &&
+        echo -e "  sweep verdict: ${HEALED} healed, ${KEPT} kept, ${SKIPPED} skipped (mode: ${MODE}, cached)"
+    [ "${CACHED}" = "0" ] &&
+        echo -e "  sweep verdict: ${HEALED} healed, ${KEPT} kept, ${SKIPPED} skipped (mode: ${MODE})"
+fi
+
+if [ "${FINAL}" = "current" ]; then
+    [ "${MODE}" = "auto" ] || echo -e "  ${C_GREEN}all action pins current${C_NC}"
+    exit 0
+fi
+
+if [ "${FINAL}" = "indeterminate" ]; then
+    echo -e "  ${C_YELLOW}pin freshness indeterminate this run${C_NC} — advisory only, never a block"
+    # Exit 0, not 2: the promise on this line is a CONTRACT, and the
+    # callers (the commit gate's section 3 and gate-keepers.sh's
+    # run_section) read every non-zero exit as a failure. Under an API
+    # rate limit every pin is unresolvable, FINAL lands on
+    # indeterminate, and a non-zero here turned the "never blocks on
+    # upstream flakiness" design into a red run — the exact scenario
+    # the design forbids (the sibling's night-hunter-5 script audit).
+    exit 0
+fi
+
+# FINAL == behind. MAJOR moves ride the table for the human; the
+# strict seat blocks on them, AUTO refuses to write them.
+if [ "${MAJOR_MOVES}" -gt 0 ] && [ "${MODE}" != "warn" ] && [ "${APPLY_REQUESTED}" = "0" ]; then
+    echo -e "  ${C_RED}major version moves pending${C_NC} — a human call: review the table, then run with --apply to take them"
+    exit 1
+fi
+
+if [ "${MODE}" = "warn" ] && [ "${APPLY_REQUESTED}" = "0" ]; then
+    echo -e "  ${C_YELLOW}stale pins found${C_NC} — heal with: bash scripts/gates/check-actions-pins.sh --apply"
+    exit 0
+fi
+
+if [ "${HEALED}" -gt 0 ] && apply_edits; then
+    if [ "${MODE}" = "auto" ]; then
+        git add .github/workflows/ 2> /dev/null || true
+        echo -e "  ${C_GREEN}healed and staged${C_NC}: review git diff --cached, then re-commit — the re-run reads the healed pins as current"
+        exit 1
+    fi
+    echo -e "  ${C_GREEN}healed${C_NC}: ${HEALED} pin(s) rewritten in .github/workflows/ — review and commit"
+    exit 0
+fi
+
+if [ "${MODE}" = "strict" ]; then
+    echo -e "  ${C_RED}stale pins, nothing healed${C_NC} — resolve the table above, then re-run"
+    exit 1
+fi
+
+# Warn-with-explicit-apply or a failed heal: advisory exit, the table
+# already printed. Remote facts never block a commit.
 exit 0
