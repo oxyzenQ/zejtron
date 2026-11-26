@@ -33,8 +33,8 @@ kept in `b3sum -c` format so the check below is the whole protocol.
 | `assets/qr/bitcoin.png` | bitcoin receive-address QR | 575 |
 | `assets/qr/ethereum.png` | ethereum receive-address QR | 591 |
 | `assets/qr/solana.png` | solana receive-address QR | 595 |
-| `assets/zejtron-demo-doctor.png` | the doctor surface demo capture | 519,707 |
-| `assets/zejtron-demo-why.png` | the why surface demo capture | 466,176 |
+| `assets/zejtron-demo-doctor.png` | the doctor surface demo capture | 549,752 |
+| `assets/zejtron-demo-why.png` | the why surface demo capture | 471,442 |
 | `assets/zejtron-original-logo-2026.png` | the official logo | 1,436,337 |
 
 The canonical digests, in `b3sum -c` checksum format (paths relative to
@@ -46,8 +46,8 @@ dc6108d809afdbbb41756c37ef3ce3eec4b674ed1c8c225678c0103c1e4cfa3b  assets/gpg/pin
 09ec09fcdc4815e23373cb266bb120aa4e1af140fb9d598e117d05478a791b47  assets/qr/bitcoin.png
 4eb520de0fe258d2c82ba07ccba8d9e48bafc63904d022a83cc42b59d1ed2ac7  assets/qr/ethereum.png
 bca56b0a454daf06ff2d57fe401719553e28733e73479de2652a0740a9e87d1a  assets/qr/solana.png
-9ea6142a2e8b088b51b97ba21f0a698cc8aebc6cb6750a3d4e2943cf206d2474  assets/zejtron-demo-doctor.png
-81bef1cf1eec0c4bcf3a4c9ec0fd3968269b9a0d448272c96b83dc68b7b1f58a  assets/zejtron-demo-why.png
+08bc6533734aa4a0f34e995016849f79af5f9bdf11ee43053f645bdecb1edd63  assets/zejtron-demo-doctor.png
+d01fdbd049cf1b49a47d91c3ad793e25e618f5fe4ead01bb408c68e994aee16b  assets/zejtron-demo-why.png
 517a96e06b2276021263a7cbd239c1dac9f828ab1937dd6f05153ecade5cf7d8  assets/zejtron-original-logo-2026.png
 ```
 
