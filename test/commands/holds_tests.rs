@@ -56,7 +56,7 @@ fn missing_path_error_is_clean() {
 
     assert_eq!(
         scan_path_holders(&missing).unwrap_err().to_string(),
-        format!("{}: no such file or directory", missing.display())
+        format!("path not found: {}", missing.display())
     );
 }
 
@@ -68,7 +68,7 @@ fn broken_symlink_error_is_clean() {
 
     assert_eq!(
         scan_path_holders(&link).unwrap_err().to_string(),
-        format!("{}: no such file or directory", link.display())
+        format!("path not found: {}", link.display())
     );
 }
 
