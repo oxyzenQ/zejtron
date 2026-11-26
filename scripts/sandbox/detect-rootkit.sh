@@ -347,7 +347,20 @@ mkdir -p /var/log/audit
 	echo "type=SYSCALL msg=audit(${leg_c_now}.000:1): arch=c000003e syscall=87 success=yes exit=0 a0=0 comm=\"fixture\" pid=1"
 	echo "type=PATH msg=audit(${leg_c_now}.000:1): name=\"${WORK}/leg-c-file\" inode=${leg_c_inode} dev=fd:03"
 } >/var/log/audit/audit.log
-if "${BIN}" why "${WORK}/leg-c-file" --since 30s --print-json >leg-c.json 2>leg-c.err; then
+# The window rides 2m, not 30s (night-dragon-fly-6, the CI seat's
+# own finding): the audit record carries a WALL-CLOCK stamp (the
+# kernel's audit contract) while the window arithmetic rides the
+# same wall clock, and the micro-VM's wall clock can STEP once the
+# kvmclock catch-up lands - the failing cachyos run's own evidence:
+# the camera's monotonic domain measured 24s from attach to the
+# probe while the wall domain measured 54s (the watch-gap entry
+# said "6s earlier" - the tool printed the step itself), so the
+# record stamped pre-step fell one second outside the pre-step
+# window and the honest probe refused the story it could not
+# support. The 2m seat gives the record headroom over any one-shot
+# boot-step the guest can produce; the assertion is unchanged - the
+# record must sit INSIDE the window with the ring holding no unlink.
+if "${BIN}" why "${WORK}/leg-c-file" --since 2m --print-json >leg-c.json 2>leg-c.err; then
 	if has_unaccounted_category leg-c.json "silent deletions"; then
 		pass_leg c-silent-deletion
 	else
