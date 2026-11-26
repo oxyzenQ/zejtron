@@ -35,6 +35,7 @@ carries the disclaimer and yields to it.
 | [REAL_USAGE_AUDIT.md](REAL_USAGE_AUDIT.md) | The pre-LTS real-usage audit: the release binary driven end to end (every verb, every JSON lane strict-parsed, the degradation lanes below the eBPF floor, the 400-run stability loop) with the verdict that cleared the LTS production floor. |
 | [LTS_FORTRESS_AUDIT.md](LTS_FORTRESS_AUDIT.md) | The fortress audit record: the final pre-release audit before the v80.0.0 tag (night-last-total-lts), the sub-task verdicts and their peaks. |
 | [Z11-GREEN-BASELINE-2026-11-25.md](Z11-GREEN-BASELINE-2026-11-25.md) | The green-baseline record (2026-11-25): the first all-green Z11 detonation on the host's own kernel - the refusal-to-fix timeline, the five legs, the run transcript. |
+| [ARC-GEMS-AUDIT-2026-11-26.md](ARC-GEMS-AUDIT-2026-11-26.md) | The depth architecture audit record (night-arc-gems-1): every runtime claim re-verified against the built binary, the bottleneck question answered by measurement (scale audit: 4x-33x inside budget), the zero-lock read path, the write-op census, and the stay-at-peak verdict. |
 
 ## Site-local (inside the trees they govern)
 
