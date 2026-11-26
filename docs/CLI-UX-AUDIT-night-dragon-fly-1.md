@@ -414,7 +414,23 @@ signature lane rode exit-recorded then; night-dragon-lts-4 (2026-11-26)
 made it verdict-driven - AUTHENTIC verifies at exit 0 on a signed tree,
 UNSIGNED refuses at exit 1 on an unsigned tree - so the lane now judges
 the verdict/exit agreement on both tree shapes instead of pinning one
-era's exit code. The
+era's exit code.
+
+The owner's privileged run (2026-11-26, /usr/bin/zejtron at
+local-pro-linux-amd64-v3-musl e88876b) exposed the battery's own wait
+bug: with a live event lane every port probe opened the shipped 60s
+shutter and the 2h clamp probe waited its clamped 1h - the run died on
+a ^C there. The battery now rides the fast lane by default: every
+window probe takes the 1s floor and the clamp probe is carried with
+--snapshot-only, which verifies the clamp wording without opening the
+shutter; ZEJTRON_BATTERY_FULL=1 restores the shipped widths for the
+deep run. Both lanes hold the full verdict set (122 passed, 0 failed,
+3 recorded, 1 skipped); the fast lane runs in seconds. The owner's
+captured sections before the kill were green end to end on real
+hardware, and the sudo lane's root-refusal line carries the F4
+em-dash family into the runtime error lane.
+
+The
 mismatch hunt that produced F10 ran against this report: the first
 pass carried 8 mismatches, 7 of which were the battery's own wrong
 expectations (clap's `is not in 0..=1000000` range shape, the v4
