@@ -440,10 +440,11 @@ re-detach). sig carried 6/6 depths AUTHENTIC with the D5 GPG commit
 signature verified against the pinned maintainer key. The run also
 re-observed the night-dragon-lts-3 holds-seam on this estate - the
 doubled "(UTC) (UTC)" in the pre-attach watch gap wording - the third
-independent sighting across two hardware estates; the pinned contract
-test keeps the byte until the next freeze window. The manual-lane
-audit is complete: two hardware estates, privileged and unprivileged,
-the fast lane, all expectations held.
+independent sighting across two hardware estates; the freeze window
+opened the same day and the seam dropped (night-dragon-fly-2), the
+pin now holding the single-UTC render. The manual-lane audit is
+complete: two hardware estates, privileged and unprivileged, the
+fast lane, all expectations held.
 
 The
 mismatch hunt that produced F10 ran against this report: the first

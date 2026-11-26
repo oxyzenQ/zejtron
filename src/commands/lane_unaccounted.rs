@@ -106,19 +106,20 @@ pub(crate) fn sleep_blackout_entry(sleep_delta_ns: i128) -> UnaccountedEntry {
 ///
 /// The seam the audit records (night-dragon-lts-3): the only
 /// production caller (lane.rs) feeds `format_unix_secs` output,
-/// which already carries the trailing "(UTC)", so the live render
-/// carries the doubled "(UTC) (UTC)" - observed on night-dragon-lts
-/// hardware under the sudo lane. The byte sits inside the v80.0.0
-/// freeze (`why`'s output bytes), so the freeze keeps it and the
-/// audit records it - the holds-seam law. The exact production
-/// render is pinned in lane_unaccounted_tests (the frozen doubled
-/// byte is a contract, not an accident); the one-line drop of the
-/// wrapper's "(UTC)" rides the next freeze window as a deliberate
-/// boundary change, never a silent patch.
+/// which already carries the trailing "(UTC)". The wrapper once
+/// appended its own, and the live render carried the doubled
+/// "(UTC) (UTC)" - observed on night-dragon-lts hardware under the
+/// sudo lane, then re-observed twice more across two hardware
+/// estates, and pinned as a frozen contract through the v80.0.0
+/// freeze (the holds-seam law). This freeze window dropped the
+/// wrapper's "(UTC)" deliberately (night-dragon-fly-2): the
+/// caller's suffix is the only one now, the pin test holds the
+/// exact single-UTC render, and the boundary change is recorded in
+/// the audit doc and the changelog - never a silent patch.
 pub(crate) fn watch_gap_entry(gap_ns: i128, attach_wall: Option<String>) -> UnaccountedEntry {
     let span = crate::info::clock::format_sleep_span(gap_ns);
     let planted = attach_wall
-        .map(|t| format!("the camera was planted at {t} (UTC); "))
+        .map(|t| format!("the camera was planted at {t}; "))
         .unwrap_or_else(|| "the camera's attach instant is unreadable; ".to_owned());
     UnaccountedEntry::new(
         1,

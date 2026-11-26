@@ -121,7 +121,14 @@ fn the_sleep_anomaly_entry_names_the_untrustworthy_pairing() {
 
 #[test]
 fn the_watch_gap_entry_names_the_attach_instant_and_the_span() {
-    let entry = watch_gap_entry(1_680_000_000_000, Some("2026-11-19 09:41:00".to_owned()));
+    // The input is the production shape: lane.rs feeds the
+    // `format_unix_secs` render, whose trailing "(UTC)" is the only
+    // one the entry carries (the seam night-dragon-lts-3, closed in
+    // the night-dragon-fly-2 freeze window).
+    let entry = watch_gap_entry(
+        1_680_000_000_000,
+        Some("2026-11-19 09:41:00 (UTC)".to_owned()),
+    );
     assert_eq!(entry.count, 1);
     assert_eq!(entry.category, "pre-attach watch gap");
     assert!(
@@ -169,32 +176,33 @@ fn the_watch_gap_entry_degrades_when_the_wall_clock_is_unreadable() {
     );
 }
 
-// The production caller (lane.rs) feeds `format_unix_secs` output,
-// which already carries the trailing "(UTC)" - the wrapper adds its
-// own, and the render carries the doubled "(UTC) (UTC)" (observed
-// live on night-dragon-lts hardware, the sudo-lane audit). The byte
-// sits inside the v80.0.0 freeze (`why`'s output bytes), so the
-// freeze keeps it and the audit records it (the holds-seam law: the
-// freeze keeps the bytes, the audit records them). This pin holds
-// the EXACT production render so the seam is a recorded contract,
-// not an accident (night-dragon-lts-3); dropping the wrapper's
-// "(UTC)" is a deliberate boundary change for the next freeze
-// window, never a silent patch.
+// The seam night-dragon-lts-3 rode its freeze window out
+// (night-dragon-fly-2): the wrapper once appended its own "(UTC)"
+// beside the caller's format_unix_secs suffix and the live render
+// carried the doubled "(UTC) (UTC)" - three independent sightings
+// across two hardware estates, pinned as a contract through the
+// v80.0.0 freeze, then dropped deliberately in this freeze window,
+// never a silent patch. The pin now holds the EXACT production
+// render: the caller's "(UTC)" is the only one, and no doubling
+// can return quietly.
 #[test]
-fn the_watch_gap_entry_pins_the_frozen_doubled_utc_byte() {
+fn the_watch_gap_entry_pins_the_single_utc_render() {
     let entry = watch_gap_entry(
         1_680_000_000_000,
         Some("2026-11-19 09:41:00 (UTC)".to_owned()),
     );
     assert_eq!(
         entry.reason,
-        "the camera was planted at 2026-11-19 09:41:00 (UTC) (UTC); \
+        "the camera was planted at 2026-11-19 09:41:00 (UTC); \
          the requested window began 28m 00s earlier - no event can exist \
          in that span, because the camera was not watching: the rows above \
          are the only evidence this window could have",
         "{}",
         entry.reason
     );
+    // The anti-doubling guard: the wrapper must never re-append a
+    // suffix the caller's render already carries.
+    assert!(!entry.reason.contains("(UTC) (UTC)"), "{}", entry.reason);
 }
 
 #[test]
