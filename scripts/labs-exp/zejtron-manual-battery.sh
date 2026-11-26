@@ -20,6 +20,12 @@
 #
 #   bash scripts/labs-exp/zejtron-manual-battery.sh
 #
+# The fast lane is the default: every event-window probe rides the
+# 1s floor (a privileged host shutter is real - the shipped widths
+# made a live run sit minutes per estate and the 2h clamp probe
+# wait its clamped 1h). ZEJTRON_BATTERY_FULL=1 runs the deep
+# estate at the shipped widths.
+#
 # The report lands at ./zejtron-manual-battery-report.txt (override
 # with ZEJTRON_BATTERY_OUT). Every probe line prints the exact command
 # first, so the report doubles as the manual: what you see is what ran.
@@ -77,6 +83,30 @@ PASS=0
 FAIL=0
 WARN=0
 SKIP=0
+
+# The wait contract (night-dragon-fly-1 fast lane): on a privileged
+# host the event-window shutter is real. The shipped widths (the
+# port 60s default, the 10s ledger default, the 30s explicit
+# probes, and the 2h clamp probe waiting its clamped 1h) made a
+# live-lane battery run sit minutes per estate. The fast lane (the
+# default) rides the 1s floor on every window probe and carries
+# the clamp probe with --snapshot-only: the clamp note validates
+# the value before any lane work, so the wording is verified
+# without the hour-long shutter. ZEJTRON_BATTERY_FULL=1 restores
+# the shipped widths for the deep run. The printed `+ command`
+# line stays the truth: the label names the surface, the command
+# names the exact bytes that ran.
+if [ "${ZEJTRON_BATTERY_FULL:-0}" = "1" ]; then
+	PORT_WIN=""
+	LEDGER_WIN=""
+	LEDGER_SPAN="30s"
+	CLAMP_WIN=""
+else
+	PORT_WIN="--since 1s"
+	LEDGER_WIN="--since 1s"
+	LEDGER_SPAN="2s"
+	CLAMP_WIN="--snapshot-only"
+fi
 
 rail() {
 	echo ""
@@ -201,6 +231,11 @@ probe_skip() {
 rail "0. the binary and the global surface"
 # ═════════════════════════════════════════════════════════════════════════
 echo "binary: $BIN"
+if [ "${ZEJTRON_BATTERY_FULL:-0}" = "1" ]; then
+	echo "lane: full - the shipped window widths (port 60s, ledger 10s, the 30s spans)"
+else
+	echo "lane: fast - every window probe rides the 1s floor (ZEJTRON_BATTERY_FULL=1 restores the shipped widths)"
+fi
 "$BIN" -V
 
 probe "bare invocation (the banner + help)" 0 "$BIN"
@@ -253,19 +288,19 @@ probe_json "recent --print-json field map" 'type(d["files"]) is list' \
 # ═════════════════════════════════════════════════════════════════════════
 rail "4. port (flag matrix, clamps, conflicts)"
 # ═════════════════════════════════════════════════════════════════════════
-probe "port default" 0 "$BIN" port
-probe "port --tcp" 0 "$BIN" port --tcp
-probe "port --udp" 0 "$BIN" port --udp
-probe "port --listen" 0 "$BIN" port --listen
-probe "port --all" 0 "$BIN" port --all
-probe "port --all --numeric" 0 "$BIN" port --all --numeric
-probe "port --tcp --group" 0 "$BIN" port --tcp --group
-probe "port --tcp --group --no-pid" 0 "$BIN" port --tcp --group --no-pid
-probe "port --events-only" 0 "$BIN" port --events-only
+probe "port default" 0 "$BIN" port $PORT_WIN
+probe "port --tcp" 0 "$BIN" port --tcp $PORT_WIN
+probe "port --udp" 0 "$BIN" port --udp $PORT_WIN
+probe "port --listen" 0 "$BIN" port --listen $PORT_WIN
+probe "port --all" 0 "$BIN" port --all $PORT_WIN
+probe "port --all --numeric" 0 "$BIN" port --all --numeric $PORT_WIN
+probe "port --tcp --group" 0 "$BIN" port --tcp --group $PORT_WIN
+probe "port --tcp --group --no-pid" 0 "$BIN" port --tcp --group --no-pid $PORT_WIN
+probe "port --events-only" 0 "$BIN" port --events-only $PORT_WIN
 probe "port --snapshot-only" 0 "$BIN" port --snapshot-only
-probe "port --since 2h (the clamp: warning line expected)" 0 "$BIN" port --since 2h
+probe "port --since 2h (the clamp: warning line expected)" 0 "$BIN" port --since 2h $CLAMP_WIN
 probe "port --since 0s (below the floor: clamp expected)" 0 "$BIN" port --since 0s
-probe "port 443 (single port)" 0 "$BIN" port 443
+probe "port 443 (single port)" 0 "$BIN" port 443 $PORT_WIN
 probe_fail "port --listen --all (conflict)" "cannot be used" "$BIN" port --listen --all
 probe_fail "port --events-only --snapshot-only (conflict)" "cannot be used" \
 	"$BIN" port --events-only --snapshot-only
@@ -273,9 +308,9 @@ probe_fail "port 0 refusal" "invalid port" "$BIN" port 0
 probe_fail "port 65536 refusal" "invalid port" "$BIN" port 65536
 probe_fail "port abc refusal" "invalid port" "$BIN" port abc
 probe_json "port --print-json field map" 'd["subject"], type(d["ports"]) is list' \
-	"$BIN" port --print-json
+	"$BIN" port --print-json $PORT_WIN
 probe_json "port 9999 JSON (the empty-port shape)" 'd["subject"], d["ports"]' \
-	"$BIN" port 9999 --print-json
+	"$BIN" port 9999 --print-json $PORT_WIN
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "5. proc (target group, depth ceiling, find)"
@@ -303,11 +338,11 @@ rail "6. holds (file, port, the temp lane)"
 # ═════════════════════════════════════════════════════════════════════════
 TMPDIR_B="$(mktemp -d)"
 touch "$TMPDIR_B/held file"
-probe "holds /etc/resolv.conf" 0 "$BIN" holds /etc/resolv.conf
-probe "holds 53" 0 "$BIN" holds 53
-probe "holds 443" 0 "$BIN" holds 443
-probe "holds <temp file> (the no-holder verdict)" 0 "$BIN" holds "$TMPDIR_B/held file"
-probe "holds --since 30s" 0 "$BIN" holds 53 --since 30s
+probe "holds /etc/resolv.conf" 0 "$BIN" holds /etc/resolv.conf $LEDGER_WIN
+probe "holds 53" 0 "$BIN" holds 53 $LEDGER_WIN
+probe "holds 443" 0 "$BIN" holds 443 $LEDGER_WIN
+probe "holds <temp file> (the no-holder verdict)" 0 "$BIN" holds "$TMPDIR_B/held file" $LEDGER_WIN
+probe "holds --since (the explicit width)" 0 "$BIN" holds 53 --since "$LEDGER_SPAN"
 probe_fail "holds 0 refusal" "invalid port" "$BIN" holds 0
 probe_fail "holds 65536 refusal" "invalid port" "$BIN" holds 65536
 # The holds refusal names the errno (no such file or directory) where
@@ -316,35 +351,35 @@ probe_fail "holds 65536 refusal" "invalid port" "$BIN" holds 65536
 probe_fail "holds missing-path refusal" "no such file or directory" \
 	"$BIN" holds "$TMPDIR_B/missing path"
 probe_json "holds --print-json field map" 'd["verdict"], bool(d["verdict"]["supports"]) is not None' \
-	"$BIN" holds /etc/resolv.conf --print-json
+	"$BIN" holds /etc/resolv.conf --print-json $LEDGER_WIN
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "7. touch (file, dir, the modify-nothing law)"
 # ═════════════════════════════════════════════════════════════════════════
 printf 'hello\n' >"$TMPDIR_B/touched file"
 mkdir -p "$TMPDIR_B/touched dir"
-probe "touch <file>" 0 "$BIN" touch "$TMPDIR_B/touched file"
-probe "touch <dir>" 0 "$BIN" touch "$TMPDIR_B/touched dir"
-probe "touch /etc/hosts" 0 "$BIN" touch /etc/hosts
-probe "touch --since 30s" 0 "$BIN" touch /etc/hosts --since 30s
+probe "touch <file>" 0 "$BIN" touch "$TMPDIR_B/touched file" $LEDGER_WIN
+probe "touch <dir>" 0 "$BIN" touch "$TMPDIR_B/touched dir" $LEDGER_WIN
+probe "touch /etc/hosts" 0 "$BIN" touch /etc/hosts $LEDGER_WIN
+probe "touch --since (the explicit width)" 0 "$BIN" touch /etc/hosts --since "$LEDGER_SPAN"
 probe_fail "touch missing-path refusal" "not found" "$BIN" touch "$TMPDIR_B/missing path"
 probe_json "touch --print-json field map" 'd["subject"], type(d["measured"]) is list, d["verdict"]["supports"]' \
-	"$BIN" touch /etc/hosts --print-json
+	"$BIN" touch /etc/hosts --print-json $LEDGER_WIN
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "8. why (trace, raw, the JSON conflict)"
 # ═════════════════════════════════════════════════════════════════════════
-probe "why /etc/passwd" 0 "$BIN" why /etc/passwd
-probe "why --trace (the explainability ladder)" 0 "$BIN" why /etc/passwd --trace
-probe "why --raw (the kernel events)" 0 "$BIN" why /etc/passwd --trace --raw
-probe "why 53 (port target)" 0 "$BIN" why 53
-probe "why --since 30s" 0 "$BIN" why /etc/passwd --since 30s
+probe "why /etc/passwd" 0 "$BIN" why /etc/passwd $LEDGER_WIN
+probe "why --trace (the explainability ladder)" 0 "$BIN" why /etc/passwd --trace $LEDGER_WIN
+probe "why --raw (the kernel events)" 0 "$BIN" why /etc/passwd --trace --raw $LEDGER_WIN
+probe "why 53 (port target)" 0 "$BIN" why 53 $LEDGER_WIN
+probe "why --since (the explicit width)" 0 "$BIN" why /etc/passwd --since "$LEDGER_SPAN"
 probe_fail "why --print-json --trace (conflict)" "cannot be used" \
 	"$BIN" why /etc/passwd --print-json --trace
 probe_fail "why 0 refusal" "invalid port" "$BIN" why 0
 probe_fail "why missing-path refusal" "not found" "$BIN" why "$TMPDIR_B/missing path"
 probe_json "why --print-json field map" 'd["measured"], type(d["unaccounted"]) is list, d["verdict"]["supports"]' \
-	"$BIN" why /etc/passwd --print-json
+	"$BIN" why /etc/passwd --print-json $LEDGER_WIN
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "9. doctor (readiness, symptoms, the JSON map)"
@@ -371,8 +406,8 @@ rail "10. the privileged lane (root or CAP_BPF + CAP_PERFMON)"
 # ═════════════════════════════════════════════════════════════════════════
 if [ "${ZEJTRON_BATTERY_ROOT:-0}" = "1" ]; then
 	probe "doctor --attach (the one-shot plant)" 0 "$BIN" doctor --attach
-	probe "why after attach (the event window)" 0 "$BIN" why /etc/passwd --since 30s
-	probe "port --events-only after attach" 0 "$BIN" port --events-only
+	probe "why after attach (the event window)" 0 "$BIN" why /etc/passwd --since "$LEDGER_SPAN"
+	probe "port --events-only after attach" 0 "$BIN" port --events-only $PORT_WIN
 	probe "doctor --detach (unpin everything, idempotent)" 0 "$BIN" doctor --detach
 	probe "doctor --detach again (idempotence)" 0 "$BIN" doctor --detach
 else
