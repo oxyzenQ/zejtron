@@ -365,6 +365,27 @@ terminal for the color-lane and host-specific halves.
   suggestions; the battery's expectation pins the CURRENT bytes until
   the owner rules.
 
+- **F11 - the bare render carries one extra trailing newline.**
+  `src/main.rs:176-183` (the `None` branch) calls
+  `print_help().map(|_| println!())`, and clap's `print_help` already
+  ends with the newline - so bare `zejtron` ends "...slow\n\n" while
+  `zejtron -h` ends "...slow\n". Measured on the 2026-11-26
+  pro-native-musl build of e88876b: bare = `-h` + one trailing blank
+  line, so the `[A1] bare: same bytes as -h` note above is wrong
+  today. No test pins either shape. Two honest fix directions (owner's
+  call): drop the `println!()` so bare equals `-h` byte for byte, or
+  correct the `[A1]` note to name the trailing blank line.
+
+- **F12 - the Pro mode global group order differs from the Options
+  block.** The root Options block lists `-V, --version`, then
+  `-v, --verbose`, then `--check-update` (`cli/mod.rs:70-72`
+  display_order pins), while the Pro mode `global:` group lists
+  `--check-update`, then `-V, --version`, then `-v, --verbose`
+  (`pro_mode.rs:205-217`). The same three flags render in two orders
+  on one surface. Micro; a row reorder in GROUPS (or a matching
+  display_order change) unifies them. Byte change under the freeze:
+  owner's call.
+
 ## The manual lane (night-dragon-fly-1 continuation, 2026-11-26)
 
 The copy-paste battery the audit pass runs with: the complete
@@ -388,8 +409,12 @@ resolver (`ZEJTRON_BIN_PATH`, then target/debug, target/release, the
 musl release lane, then $PATH).
 
 Sandbox verdict (no root, kernel below the 5.15 floor, piped stdout):
-122 passed, 0 failed, 3 recorded (the network and signature lanes ride
-exit-recorded, not judged), 1 skipped (the privileged lane). The
+122 passed, 0 failed, 3 recorded, 1 skipped (the privileged lane). The
+signature lane rode exit-recorded then; night-dragon-lts-4 (2026-11-26)
+made it verdict-driven - AUTHENTIC verifies at exit 0 on a signed tree,
+UNSIGNED refuses at exit 1 on an unsigned tree - so the lane now judges
+the verdict/exit agreement on both tree shapes instead of pinning one
+era's exit code. The
 mismatch hunt that produced F10 ran against this report: the first
 pass carried 8 mismatches, 7 of which were the battery's own wrong
 expectations (clap's `is not in 0..=1000000` range shape, the v4
