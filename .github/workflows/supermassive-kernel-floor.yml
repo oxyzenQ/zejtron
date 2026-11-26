@@ -256,7 +256,12 @@ jobs:
       - name: Build the pidhide detonation fixture (Z11 phase c)
         run: |
           set -euo pipefail
-          CARGO_NET_OFFLINE=true cargo build --release --locked --offline \
+          # The loader build rides the warning-denial law (night-cafe-3,
+          # NIGHT-strict-3's estate completion): RUSTFLAGS is set on THIS
+          # command only - the nested bpfel build below must keep its own
+          # ebpf/.cargo config's target-level v3 rustflags, and an
+          # inherited env RUSTFLAGS would shadow them.
+          RUSTFLAGS="-D warnings" CARGO_NET_OFFLINE=true cargo build --release --locked --offline \
             --target x86_64-unknown-linux-musl \
             --manifest-path test-fixtures/pidhide/Cargo.toml
           # The bpfel object builds INSIDE the fixture's own directory

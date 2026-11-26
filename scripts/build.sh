@@ -191,6 +191,63 @@ capture() {
 	"$@" >"$tmpdir/${name}.out" 2>"$tmpdir/${name}.err"
 }
 
+# The warning-denial law's gate-side enforcement (NIGHT-strict-3's
+# completion, night-cafe-3): a build lane that OUTPUTS a warning is a
+# failed lane. Two layers carry the law:
+#   1. the RUSTFLAGS="-D warnings" export below turns every rustc
+#      warning into a compile error before the lane can even finish;
+#   2. assert_no_warnings sweeps the lane's captured output for any
+#      remaining "warning:" line - the shapes rustc's flag cannot
+#      express (cargo-level notices, build-script cargo:warning=
+#      emissions, a future tool's own warning channel).
+# The sweep is scoped to the compile lanes only: the runtime battery
+# lanes later in this file drive the real binary, and zejtron's own
+# UX prints warning: lines by design (the clamped --since window, for
+# one) - those are REPORTED DATA, not build noise, and they were
+# never the law's target. libtest's default capture keeps passing
+# tests' stdout out of the lane log, so the test lanes sweep clean.
+assert_no_warnings() {
+	local name="$1"
+	local label="$2"
+	if grep -Eqi '(^|[[:space:]])warning:' "$tmpdir/${name}.log"; then
+		echo "error: the $label lane emitted warnings - the warning-denial law makes every build warning a failure" >&2
+		grep -Eni '(^|[[:space:]])warning:' "$tmpdir/${name}.log" | head -20 >&2
+		echo "hint: fix the warning at its source. A stale ebpf-prebuilt lane notice has its own remedy: ./scripts/dev/bootstrap-ebpf.sh, then commit the refreshed ebpf-prebuilt/" >&2
+		exit 1
+	fi
+}
+
+# run_strict: stream the lane live (non-quiet), keep the merged log,
+# fail on the lane's own non-zero exit, then enforce the sweep. The
+# lane's status rides PIPESTATUS[0] (pipefail is on; tee's status is
+# not the verdict).
+run_strict() {
+	local name="$1"
+	shift
+	if [[ "$QUIET" != "1" ]]; then
+		echo "+ $*"
+	fi
+	local status
+	if [[ "$QUIET" == "1" ]]; then
+		set +e
+		"$@" >"$tmpdir/${name}.log" 2>&1
+		status=$?
+		set -e
+	else
+		set +e
+		"$@" 2>&1 | tee "$tmpdir/${name}.log"
+		status=${PIPESTATUS[0]}
+		set -e
+	fi
+	if [[ "$status" -ne 0 ]]; then
+		echo "error: lane failed (exit $status): $*" >&2
+		echo "----- lane output -----" >&2
+		cat "$tmpdir/${name}.log" >&2
+		exit "$status"
+	fi
+	assert_no_warnings "$name" "$*"
+}
+
 expect_fail_contains() {
 	local name="$1"
 	local expected="$2"
@@ -234,16 +291,25 @@ if [[ "$MODE" == "check-all" ]]; then
 	# lane), so no ambient env can ever re-arm the rc.4 failure here,
 	# and a gnu binary can no longer exist in target/release. The
 	# verbs below are the only cargo entry points the gate owns.
-	run cargo check --all-targets --all-features --locked --target "$GATE_TARGET"
-	run cargo clippy --all-targets --all-features --locked --target "$GATE_TARGET" -- -D warnings
-	run cargo test --all-targets --all-features --locked --target "$GATE_TARGET"
+	# NIGHT-strict-3's gate-side completion (night-cafe-3): the gate
+	# lanes deny warnings through the environment - the check/test/
+	# build lanes carry no alias config, so the env reaches every unit;
+	# the nested ebpf build strips the host-poison -C tokens and keeps
+	# -D warnings by its own documented contract (build/ebpf.rs). The
+	# pro-native dev aliases deliberately stay lint-free (the
+	# config's own note): a scratch build is not the warning-gated
+	# shape.
+	export RUSTFLAGS="-D warnings${RUSTFLAGS:+ ${RUSTFLAGS}}"
+	run_strict gate_check cargo check --all-targets --all-features --locked --target "$GATE_TARGET"
+	run_strict gate_clippy cargo clippy --all-targets --all-features --locked --target "$GATE_TARGET" -- -D warnings
+	run_strict gate_test cargo test --all-targets --all-features --locked --target "$GATE_TARGET"
 	# The no-default-features lane: the flag has been a no-op
 	# since the feature toggle was removed (night-weekly-maintenance-1,
 	# the unconditional eBPF law), but the battery keeps running it
 	# so a future feature table cannot silently change the default.
-	run cargo clippy --all-targets --no-default-features --locked --target "$GATE_TARGET" -- -D warnings
-	run cargo test --all-targets --no-default-features --locked --target "$GATE_TARGET"
-	run cargo build --release --locked --target "$GATE_TARGET"
+	run_strict gate_clippy_nodef cargo clippy --all-targets --no-default-features --locked --target "$GATE_TARGET" -- -D warnings
+	run_strict gate_test_nodef cargo test --all-targets --no-default-features --locked --target "$GATE_TARGET"
+	run_strict gate_build cargo build --release --locked --target "$GATE_TARGET"
 elif [[ "$MODE" == "miri" ]]; then
 	run_miri
 	exit $?

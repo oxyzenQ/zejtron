@@ -138,6 +138,31 @@ All code must pass:
 - `cargo clippy --all-targets --all-features --locked -- -D warnings`
 - `cargo test --all-targets --all-features --locked`
 
+### The warning-denial law (warning = failed)
+
+A build lane that OUTPUTS a warning is a failed lane - there is no
+advisory tier for build noise. The law is enforced at every seat the
+estate builds through:
+
+- the release-shaped build aliases carry `-D warnings` as the leading
+  rustflag (NIGHT-strict-3, `.cargo/config.toml`);
+- the check-all gate exports `RUSTFLAGS="-D warnings"` over its
+  compile lanes and sweeps every lane's captured output for any
+  remaining `warning:` line (night-cafe-3, `scripts/build.sh`'s
+  `run_strict`); a lane that prints a warning fails with the offending
+  lines and the remedy named;
+- the CI workflows that compile outside the aliases (the Z11 pidhide
+  detonation fixture's loader builds) carry the same env on the
+  loader command.
+
+Deliberate exceptions, documented where they live: the `pro-native-*`
+dev aliases stay lint-free (a local scratch build is not the
+warning-gated shape), and the miri lane runs without the denial env
+(miri.yml's own comment; ci.yml owns the warning contract). The
+runtime battery lanes are out of scope by design - zejtron's own UX
+prints `warning:` lines as REPORTED DATA (the clamped `--since`
+window, for one), and reported data is not build noise.
+
 ## Major Release Design Gates
 
 Major releases (e.g. v81.0.0, the next major after the v80 LTS line)

@@ -130,6 +130,11 @@ pro-native-arm64-musl = [
 # var would SHADOW the target-level rustflags and silently drop the
 # -C codegen contract). The pro-native dev aliases stay lint-free:
 # a local scratch build has no business failing on warnings.
+# night-cafe-3 completes the estate: the check-all gate lanes (no
+# alias config, so the env reaches every unit) carry the same denial
+# through scripts/build.sh's own RUSTFLAGS export plus the captured-
+# output warning sweep - the law's canonical text lives in
+# docs/RULES.md, the warning = failed section.
 pro-linux-amd64-v3-musl = [
   "build",
   "--profile",

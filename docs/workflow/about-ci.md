@@ -22,6 +22,19 @@ It installs stable Rust with `rustfmt` and `clippy`, installs `codespell`, resto
 ./scripts/build.sh
 ```
 
+The fast lane is also the warning-denial law's CI seat (night-cafe-3,
+the NIGHT-strict-3 estate completion): a build lane that outputs a
+warning is a failed lane. The gate exports `RUSTFLAGS="-D warnings"`
+over its compile lanes and sweeps each lane's captured output for any
+remaining `warning:` line - the shapes rustc's flag cannot express
+(cargo-level notices, build-script emissions) fail the lane too, with
+the offending lines and the remedy named. The law lives in
+`scripts/build.sh` itself, so a local `check-all` enforces exactly
+what CI enforces; the deliberate exceptions (the lint-free
+`pro-native-*` dev aliases, the miri lane, the runtime battery's own
+reported `warning:` data lines) are documented in
+[docs/RULES.md](../RULES.md) and at each seat.
+
 ## Gate-keepers (the wholesale gate)
 
 The `zejtron - Gate-keepers` workflow runs `scripts/gate-keepers.sh`
