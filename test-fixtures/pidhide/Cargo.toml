@@ -3,7 +3,7 @@
 
 [package]
 name = "pidhide-loader"
-version = "80.6.0-dragon.3"
+version = "80.6.0"
 edition = "2024"
 publish = false
 license = "AGPL-3.0-only OR Commercial"
