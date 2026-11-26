@@ -353,12 +353,61 @@ terminal for the color-lane and host-specific halves.
   `--print-json`, and `path ""` has its own empty-operand guard
   ("the command name is empty (e.g. zejtron path sh)").
 
+- **F10 - the holds missing-path refusal names the errno, not the
+  house shape.** `touch` and `why` refuse a missing path with
+  "path not found: <path>" (`touch` exits 1 with the plain shape, `why`
+  appends the deleted-path remedies), while `holds` renders the raw
+  errno string "<path>: no such file or directory" - the same ask
+  answered in two vocabularies across sibling surfaces. Confirmed at
+  runtime on 2026-11-26 by the manual battery. Fix direction (owner's
+  call, a byte change under the freeze): harmonize holds to the
+  "path not found:" prefix, optionally carrying why's remedy
+  suggestions; the battery's expectation pins the CURRENT bytes until
+  the owner rules.
+
+## The manual lane (night-dragon-fly-1 continuation, 2026-11-26)
+
+The copy-paste battery the audit pass runs with: the complete
+source-derived surface in one shot - every verb's -h, every flag lane
+on the text and JSON side, the clamp and ceiling refusals, the UX
+bridge rescues (help, whoholds, lasttouch, whyopen, envpath, stat,
+status, the --ME and --Print-Json case rescues, --check-updated), the
+retired-lifecycle-flag refusals, the SIGPIPE exit-141 law, and the
+privileged attach/detach lane behind `ZEJTRON_BATTERY_ROOT=1`:
+
+```sh
+bash scripts/labs-exp/zejtron-manual-battery.sh
+sudo ZEJTRON_BATTERY_ROOT=1 bash scripts/labs-exp/zejtron-manual-battery.sh
+```
+
+Every probe prints the exact command before its output, so the report
+doubles as the manual; the report lands at
+`zejtron-manual-battery-report.txt` (override:
+`ZEJTRON_BATTERY_OUT`). The binary resolve order matches the shared
+resolver (`ZEJTRON_BIN_PATH`, then target/debug, target/release, the
+musl release lane, then $PATH).
+
+Sandbox verdict (no root, kernel below the 5.15 floor, piped stdout):
+122 passed, 0 failed, 3 recorded (the network and signature lanes ride
+exit-recorded, not judged), 1 skipped (the privileged lane). The
+mismatch hunt that produced F10 ran against this report: the first
+pass carried 8 mismatches, 7 of which were the battery's own wrong
+expectations (clap's `is not in 0..=1000000` range shape, the v4
+ledger field map where `rows` is the retired v3 name and the tiers
+ride row-level `provenance`, `doctor --raw` being a runtime refusal at
+exit 1, `sig --print-json` exiting 1 with the JSON whole on the
+unsigned verdict) and one - F10 - a real wording seam. The battery now
+pins the verified bytes.
+
 ## What the audit pass needs back
 
 The captured `battery-output.txt` (or the pasted sections A, D, E, G,
 H if size forces a split). Sections C/F/I can be trimmed to their
 headers and exit lines on a first pass; the wording audit runs on A, B,
-D, E, G and the JSON key shapes from F.
+D, E, G and the JSON key shapes from F. The manual lane's
+`zejtron-manual-battery-report.txt` (the privileged run included when
+the host allows it) is the complete replacement: one file, every
+probe's exact command beside its captured bytes, the JSON lanes whole.
 
 <!-- ZEJTRON-DISCLAIMER -->
 <!--

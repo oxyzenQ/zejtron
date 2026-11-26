@@ -105,6 +105,25 @@ case-variant subcommand rescue, the case-variant retired-verb
 rescue, and the non-UTF-8 argv collection) and rides CI's
 cargo-test lane.
 
+## zejtron-manual-battery.sh
+
+The end-to-end manual battery (night-dragon-fly-1's manual lane): the
+complete source-derived surface in one copy-paste run - every verb's
+`-h`, every flag lane on the text and JSON side, the clamp and ceiling
+refusals, the UX bridge rescues, the SIGPIPE law, and the privileged
+attach/detach lane behind `ZEJTRON_BATTERY_ROOT=1`. Every probe prints
+its exact command first, so the report doubles as the manual; the
+verdict line counts passed/failed/recorded/skipped and the exit code
+carries it. The report file is machine-specific audit evidence: send
+it back, never commit it.
+
+### Run
+
+```sh
+bash scripts/labs-exp/zejtron-manual-battery.sh
+sudo ZEJTRON_BATTERY_ROOT=1 bash scripts/labs-exp/zejtron-manual-battery.sh
+```
+
 ## zejtron-forensic-proof.sh
 
 The live forensic pair proof (night-frontier-2, one command): the
