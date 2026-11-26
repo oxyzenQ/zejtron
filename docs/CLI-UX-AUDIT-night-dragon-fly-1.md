@@ -430,6 +430,21 @@ captured sections before the kill were green end to end on real
 hardware, and the sudo lane's root-refusal line carries the F4
 em-dash family into the runtime error lane.
 
+The confirmation run closed the privileged evidence (2026-11-26
+21:11, nightpc, /usr/bin/zejtron at e88876b, the fast lane after
+pulling d0f7e6e..87a498f): 127 passed, 0 failed, 3 recorded,
+0 skipped - the full verdict set with the live lane exercised end to
+end (the 12-program attach, the pre-attach watch gap verdict naming
+the honest no-event-can-exist span, the 28-pin detach, idempotent
+re-detach). sig carried 6/6 depths AUTHENTIC with the D5 GPG commit
+signature verified against the pinned maintainer key. The run also
+re-observed the night-dragon-lts-3 holds-seam on this estate - the
+doubled "(UTC) (UTC)" in the pre-attach watch gap wording - the third
+independent sighting across two hardware estates; the pinned contract
+test keeps the byte until the next freeze window. The manual-lane
+audit is complete: two hardware estates, privileged and unprivileged,
+the fast lane, all expectations held.
+
 The
 mismatch hunt that produced F10 ran against this report: the first
 pass carried 8 mismatches, 7 of which were the battery's own wrong
