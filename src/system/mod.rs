@@ -134,7 +134,7 @@ pub fn effective_uid() -> Option<u32> {
 pub fn root_refusal(euid_is_root: bool, surface: &str) -> Option<String> {
     if euid_is_root {
         Some(format!(
-            "root refused — {surface}, do not use sudo\n  tip: re-run without sudo"
+            "root refused - {surface}, do not use sudo\n  tip: re-run without sudo"
         ))
     } else {
         None

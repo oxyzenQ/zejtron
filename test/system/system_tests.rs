@@ -21,7 +21,7 @@ fn root_refusal_pins_the_sibling_wording() {
         .expect("root must be refused");
     assert_eq!(
         refusal,
-        "root refused — the update check performs a network fetch, \
+        "root refused - the update check performs a network fetch, \
          do not use sudo\n  tip: re-run without sudo"
     );
     assert!(refusal.contains("do not use sudo"));
@@ -37,7 +37,7 @@ fn root_refusal_surfaces_interpolate_the_hazard() {
     // caller passes, pinned here with the live surface.
     let surface = "the update check performs a network fetch";
     let refusal = root_refusal(true, surface).expect("root must be refused");
-    assert!(refusal.starts_with("root refused — "));
+    assert!(refusal.starts_with("root refused - "));
     assert!(refusal.contains(surface));
 }
 

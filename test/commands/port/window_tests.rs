@@ -143,28 +143,28 @@ fn the_truncation_note_names_the_ask_byte_for_byte() {
     let absurd = "18446744073709551h";
     assert_eq!(
         truncation_note(absurd, parse_window(absurd).unwrap()).as_deref(),
-        Some("warning: --since 18446744073709551h exceeds the 1h maximum — clamped to 1h"),
+        Some("warning: --since 18446744073709551h exceeds the 1h maximum - clamped to 1h"),
     );
     assert_eq!(
         truncation_note("2h", parse_window("2h").unwrap()).as_deref(),
-        Some("warning: --since 2h exceeds the 1h maximum — clamped to 1h"),
+        Some("warning: --since 2h exceeds the 1h maximum - clamped to 1h"),
     );
     // 7200s is the same ask in seconds: above the ceiling, same note
     // shape, the ask still named as typed.
     assert_eq!(
         truncation_note("7200s", parse_window("7200s").unwrap()).as_deref(),
-        Some("warning: --since 7200s exceeds the 1h maximum — clamped to 1h"),
+        Some("warning: --since 7200s exceeds the 1h maximum - clamped to 1h"),
     );
     // The floor direction (night-total-hardening-1): a below-floor
     // ask is the same class of reshaping and now names itself too,
     // byte-for-byte, in both spellings that parse to zero.
     assert_eq!(
         truncation_note("0s", parse_window("0s").unwrap()).as_deref(),
-        Some("warning: --since 0s below the 1s minimum — clamped to 1s"),
+        Some("warning: --since 0s below the 1s minimum - clamped to 1s"),
     );
     assert_eq!(
         truncation_note("0m", parse_window("0m").unwrap()).as_deref(),
-        Some("warning: --since 0m below the 1s minimum — clamped to 1s"),
+        Some("warning: --since 0m below the 1s minimum - clamped to 1s"),
     );
 }
 

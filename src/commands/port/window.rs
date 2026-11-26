@@ -129,11 +129,11 @@ pub fn clamp_window(window: Duration) -> Duration {
 pub fn truncation_note(raw: &str, parsed: Duration) -> Option<String> {
     if parsed > WINDOW_CEILING {
         Some(format!(
-            "warning: --since {raw} exceeds the 1h maximum — clamped to 1h"
+            "warning: --since {raw} exceeds the 1h maximum - clamped to 1h"
         ))
     } else if parsed < WINDOW_FLOOR {
         Some(format!(
-            "warning: --since {raw} below the 1s minimum — clamped to 1s"
+            "warning: --since {raw} below the 1s minimum - clamped to 1s"
         ))
     } else {
         None
