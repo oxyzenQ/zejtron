@@ -60,6 +60,19 @@ fi
 REPORT="${ZEJTRON_BATTERY_OUT:-zejtron-manual-battery-report.txt}"
 exec > >(tee "$REPORT") 2>&1
 
+# The capture files are per-run mktemp children, never fixed /tmp names
+# (night-dragon-lts-2): a fixed name written by one uid and reopened by
+# another in the sticky world-writable /tmp is refused with EACCES even
+# for root (fs.protected_regular) - the poison that turned the sudo lane
+# into 123 false MISMATCHes on the night-dragon-lts audit after an
+# unprivileged run left its files behind. Unique names per run mean the
+# opener is always the owner, so the kernel law never fires and no run
+# ever reads a previous run's stale bytes.
+ZMB_OUT="$(mktemp /tmp/zmb-out.XXXXXXXX)"
+ZMB_ERR="$(mktemp /tmp/zmb-err.XXXXXXXX)"
+ZMB_JSON="$(mktemp /tmp/zmb-json.XXXXXXXX)"
+trap 'rm -rf "${TMPDIR_B:-}" "$ZMB_OUT" "$ZMB_ERR" "$ZMB_JSON"' EXIT
+
 PASS=0
 FAIL=0
 WARN=0
@@ -78,9 +91,9 @@ probe() { # label, expected_exit, command...
 	echo "+ $*"
 	echo "  probe: $label"
 	local out err rc
-	out="$("$@" 2>/tmp/zmb-err.txt)"
+	out="$("$@" 2>"$ZMB_ERR")"
 	rc=$?
-	err="$(cat /tmp/zmb-err.txt)"
+	err="$(cat "$ZMB_ERR")"
 	if [ -n "$out" ]; then
 		echo "$out"
 	fi
@@ -101,10 +114,10 @@ probe_warn() { # label, command... - informational, exit recorded not judged
 	shift
 	echo ""
 	echo "+ $*   [informational: $label]"
-	"$@" 2>/tmp/zmb-err.txt
+	"$@" 2>"$ZMB_ERR"
 	local rc=$?
 	local err
-	err="$(cat /tmp/zmb-err.txt)"
+	err="$(cat "$ZMB_ERR")"
 	if [ -n "$err" ]; then
 		echo "[stderr] $err"
 	fi
@@ -119,15 +132,15 @@ probe_fail() { # label, needle, command... - expects non-zero + needle
 	echo ""
 	echo "+ $*"
 	echo "  probe: $label"
-	"$@" >/tmp/zmb-out.txt 2>/tmp/zmb-err.txt
+	"$@" >"$ZMB_OUT" 2>"$ZMB_ERR"
 	local rc=$?
-	cat /tmp/zmb-out.txt /tmp/zmb-err.txt
+	cat "$ZMB_OUT" "$ZMB_ERR"
 	if [ "$rc" -eq 0 ]; then
 		echo "[exit 0 - EXPECTED FAILURE: MISMATCH]"
 		FAIL=$((FAIL + 1))
 		return
 	fi
-	if grep -q -- "$needle" /tmp/zmb-out.txt /tmp/zmb-err.txt; then
+	if grep -q -- "$needle" "$ZMB_OUT" "$ZMB_ERR"; then
 		echo "[exit $rc, refusal names '$needle' - as expected]"
 		PASS=$((PASS + 1))
 	else
@@ -145,11 +158,11 @@ probe_json() { # label, jq-filter-as-python-expr, command...
 	echo ""
 	echo "+ $*"
 	echo "  probe: $label"
-	"$@" >/tmp/zmb-json.txt 2>/tmp/zmb-err.txt
+	"$@" >"$ZMB_JSON" 2>"$ZMB_ERR"
 	local rc=$?
 	local err
-	err="$(cat /tmp/zmb-err.txt)"
-	cat /tmp/zmb-json.txt
+	err="$(cat "$ZMB_ERR")"
+	cat "$ZMB_JSON"
 	if [ -n "$err" ]; then
 		echo "[stderr] $err"
 	fi
@@ -158,14 +171,14 @@ probe_json() { # label, jq-filter-as-python-expr, command...
 		FAIL=$((FAIL + 1))
 		return
 	fi
-	if [ ! -s /tmp/zmb-json.txt ]; then
+	if [ ! -s "$ZMB_JSON" ]; then
 		echo "[empty JSON output: MISMATCH]"
 		FAIL=$((FAIL + 1))
 		return
 	fi
 	if python3 -c "
 import json, sys
-with open('/tmp/zmb-json.txt') as fh:
+with open('$ZMB_JSON') as fh:
     text = fh.read()
 d = json.loads(text)
 r = eval('$expr')
@@ -289,7 +302,6 @@ probe_json "proc --print-json field map" 'type(d["processes"]) is list, d["proce
 rail "6. holds (file, port, the temp lane)"
 # ═════════════════════════════════════════════════════════════════════════
 TMPDIR_B="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR_B"' EXIT
 touch "$TMPDIR_B/held file"
 probe "holds /etc/resolv.conf" 0 "$BIN" holds /etc/resolv.conf
 probe "holds 53" 0 "$BIN" holds 53
@@ -376,12 +388,12 @@ probe_json "net --print-json field map" 'type(d["interfaces"]) is list' \
 probe_warn "sig (unsigned-commit exit 1 is the honest verdict)" "$BIN" sig
 echo ""
 echo "+ $BIN sig --print-json   [the unsigned-commit lane: exit 1, JSON whole]"
-"$BIN" sig --print-json >/tmp/zmb-json.txt 2>/tmp/zmb-err.txt
+"$BIN" sig --print-json >"$ZMB_JSON" 2>"$ZMB_ERR"
 sig_rc=$?
-cat /tmp/zmb-json.txt
+cat "$ZMB_JSON"
 if python3 -c "
 import json
-with open('/tmp/zmb-json.txt') as fh:
+with open('$ZMB_JSON') as fh:
     d = json.load(fh)
 assert d['depths'] and d['identity'] and d['verdict']
 print('[json ok - verdict', d['verdict'], d['verified'], ']')
@@ -438,6 +450,13 @@ rail "verdict"
 # ═════════════════════════════════════════════════════════════════════════
 echo ""
 echo "battery: $PASS passed, $FAIL failed, $WARN recorded, $SKIP skipped"
+# The report must serve the invoking user: under sudo the tee child
+# writes it root-owned, so hand it back before the audit reads it - a
+# report the operator cannot move or open in their own editor is not
+# evidence, it is friction.
+if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+	chown "${SUDO_USER}" "$REPORT"
+fi
 if [ "$FAIL" -gt 0 ]; then
 	echo "the report names every mismatch - send the whole file back for the audit"
 	exit 1
