@@ -230,7 +230,12 @@ fn the_clocksource_switch_entry_names_both_regimes() {
 
 #[test]
 fn the_silent_deletion_entry_names_the_lanes_disagreement() {
-    let entry = silent_deletion_entry("2026-11-23 18:30:00 UTC");
+    // The input is the production shape: lane.rs feeds the
+    // `format_unix_secs` render, whose trailing "(UTC)" is the only
+    // marker (the hunt's catch, the same doubled-suffix family the
+    // watch-gap seam carried - closed in the night-dragon-fly-2
+    // window).
+    let entry = silent_deletion_entry("2026-11-23 18:30:00 (UTC)");
     assert_eq!(entry.count, 1);
     assert_eq!(entry.category, "silent deletions");
     // The disagreement, with the log's record instant carried: the
@@ -241,10 +246,12 @@ fn the_silent_deletion_entry_names_the_lanes_disagreement() {
         entry.reason
     );
     assert!(
-        entry.reason.contains("at 2026-11-23 18:30:00 UTC"),
+        entry.reason.contains("at 2026-11-23 18:30:00 (UTC)"),
         "{}",
         entry.reason
     );
+    // The anti-doubling guard: the caller's suffix is the only one.
+    assert!(!entry.reason.contains("UTC) UTC"), "{}", entry.reason);
     assert!(
         entry
             .reason
@@ -256,7 +263,7 @@ fn the_silent_deletion_entry_names_the_lanes_disagreement() {
 
 #[test]
 fn the_silent_deletion_entry_names_both_readings_and_stays_honest() {
-    let entry = silent_deletion_entry("2026-11-23 18:30:00 UTC");
+    let entry = silent_deletion_entry("2026-11-23 18:30:00 (UTC)");
     // The bypass reading and the replaced-path reading share the
     // shape - the entry says so, and hands the cross-validation to
     // the reader instead of claiming the rootkit word on its own.

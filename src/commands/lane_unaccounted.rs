@@ -161,12 +161,18 @@ pub(crate) fn clocksource_switch_entry(pre: &str, post: &str) -> UnaccountedEntr
 /// inode guard. The entry records the disagreement and names what it
 /// cannot distinguish - it never claims the rootkit word on its own.
 /// Pure, so the wording is pinnable without a live audit trail.
+/// The record instant rides the caller's `format_unix_secs` render,
+/// whose trailing "(UTC)" is the only marker - the hunt's catch the
+/// night-dragon-fly-2 window closed: the wrapper once appended its
+/// own " UTC" and the live render carried the doubled suffix, the
+/// same family seam night-dragon-lts-3 pinned for the watch-gap
+/// entry.
 pub(crate) fn silent_deletion_entry(record_wall: &str) -> UnaccountedEntry {
     UnaccountedEntry::new(
         1,
         "silent deletions",
         format!(
-            "the log lane recorded a deletion of this path (at {record_wall} UTC), \
+            "the log lane recorded a deletion of this path (at {record_wall}), \
              but the event ring holds no unlink or rename for its inode in this \
              window - the log's lane and the camera disagree; a deletion the \
              camera's hook did not see (bypassed or blocked) and a replaced \
