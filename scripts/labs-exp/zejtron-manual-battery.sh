@@ -76,6 +76,7 @@ probe() { # label, expected_exit, command...
 	shift 2
 	echo ""
 	echo "+ $*"
+	echo "  probe: $label"
 	local out err rc
 	out="$("$@" 2>/tmp/zmb-err.txt)"
 	rc=$?
@@ -99,7 +100,7 @@ probe_warn() { # label, command... - informational, exit recorded not judged
 	local label="$1"
 	shift
 	echo ""
-	echo "+ $*   [informational]"
+	echo "+ $*   [informational: $label]"
 	"$@" 2>/tmp/zmb-err.txt
 	local rc=$?
 	local err
@@ -117,6 +118,7 @@ probe_fail() { # label, needle, command... - expects non-zero + needle
 	shift 2
 	echo ""
 	echo "+ $*"
+	echo "  probe: $label"
 	"$@" >/tmp/zmb-out.txt 2>/tmp/zmb-err.txt
 	local rc=$?
 	cat /tmp/zmb-out.txt /tmp/zmb-err.txt
@@ -142,6 +144,7 @@ probe_json() { # label, jq-filter-as-python-expr, command...
 	shift 2
 	echo ""
 	echo "+ $*"
+	echo "  probe: $label"
 	"$@" >/tmp/zmb-json.txt 2>/tmp/zmb-err.txt
 	local rc=$?
 	local err
