@@ -385,9 +385,9 @@ rail "11. net and sig"
 probe "net" 0 "$BIN" net
 probe_json "net --print-json field map" 'type(d["interfaces"]) is list' \
 	"$BIN" net --print-json
-probe_warn "sig (unsigned-commit exit 1 is the honest verdict)" "$BIN" sig
+probe_warn "sig (the verdict decides the exit code)" "$BIN" sig
 echo ""
-echo "+ $BIN sig --print-json   [the unsigned-commit lane: exit 1, JSON whole]"
+echo "+ $BIN sig --print-json   [the signature lane: exit follows the verdict, JSON whole]"
 "$BIN" sig --print-json >"$ZMB_JSON" 2>"$ZMB_ERR"
 sig_rc=$?
 cat "$ZMB_JSON"
@@ -398,13 +398,40 @@ with open('$ZMB_JSON') as fh:
 assert d['depths'] and d['identity'] and d['verdict']
 print('[json ok - verdict', d['verdict'], d['verified'], ']')
 "; then
-	if [ "$sig_rc" -eq 1 ]; then
-		echo "[exit 1 - the honest unsigned verdict]"
-		PASS=$((PASS + 1))
-	else
-		echo "[exit $sig_rc - EXPECTED 1 on this unsigned tree: MISMATCH]"
+	# The verdict decides the honest exit code, not the battery's era
+	# (night-dragon-lts-4): AUTHENTIC verifies on a signed tree (exit 0),
+	# UNSIGNED refuses on an unsigned tree (exit 1). The mismatch is a
+	# verdict/exit disagreement - either verdict riding its matching
+	# exit is the honest shape.
+	sig_verdict=$(python3 -c "
+import json
+with open('$ZMB_JSON') as fh:
+    print(json.load(fh).get('verdict', ''))
+")
+	case "$sig_verdict" in
+	AUTHENTIC)
+		if [ "$sig_rc" -eq 0 ]; then
+			echo "[exit 0 - the signed verdict verified]"
+			PASS=$((PASS + 1))
+		else
+			echo "[exit $sig_rc - verdict AUTHENTIC expects exit 0: MISMATCH]"
+			FAIL=$((FAIL + 1))
+		fi
+		;;
+	UNSIGNED)
+		if [ "$sig_rc" -eq 1 ]; then
+			echo "[exit 1 - the honest unsigned verdict]"
+			PASS=$((PASS + 1))
+		else
+			echo "[exit $sig_rc - verdict UNSIGNED expects exit 1: MISMATCH]"
+			FAIL=$((FAIL + 1))
+		fi
+		;;
+	*)
+		echo "[verdict '$sig_verdict' outside the judged set {AUTHENTIC, UNSIGNED}: MISMATCH]"
 		FAIL=$((FAIL + 1))
-	fi
+		;;
+	esac
 else
 	echo "[sig json invalid: MISMATCH]"
 	FAIL=$((FAIL + 1))
