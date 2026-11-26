@@ -55,6 +55,34 @@ v11.0.0
 
 ### Added
 
+- **audit: the manual estate verdict lands green - three cosmetic
+  seams recorded, the sweep instrument added (night-dragon-fly-3).**
+  The privileged manual run on the dragon-3 tree (e76c87b):
+  127 passed, 0 failed, 3 recorded, 0 skipped on a second hardware
+  estate; every fly-2 close-out re-verified from the live bytes
+  (single "(UTC)", the house "path not found" shape, the s/m/h/d
+  helps, the ASCII clamp separator, attach/detach idempotence). New
+  recorded seams, named not patched: the singular "1 ticks" and
+  "1 packets" renders, the nested ID Plane parens, the two UTC
+  conventions on one surface. D5 rides UNSIGNED until the freeze
+  lineage is GPG-bound - the owner's release seat.
+  scripts/labs-exp/zejtron-manual-sweep.sh covers the whole
+  -h/--help estate plus the boundary and byte-equality lanes the
+  battery does not ride.
+- **ci: the wholesale gate rides green again - the battery quad
+  moves to the pinned-tool parity (night-dragon-fly-3).** The
+  Gate-keepers lane failed since the fast lane landed: shellcheck
+  SC2086 on the manual battery's intentional $PORT_WIN word
+  splitting, invisible locally because the sandbox gate warn-and-
+  skips a missing tool. The window vars (PORT_WIN, LEDGER_WIN,
+  CLAMP_WIN) now ride arrays with quoted expansion - the same argv
+  bytes, no SC2086 (d19ef03); the wrong runner-umask workflow step
+  (37bdd5a) was reverted with the corrected record (abd323f) after
+  the real job log proved the runner verifies 644/755 clean. Local
+  parity now carries the full pinned set (shellcheck 0.10.0,
+  shfmt 3.10.0, yamllint 1.38.0, actionlint 1.7.7, b3sum 1.8.7,
+  bpf-linker 0.11.1, nightly-2026-09-18) - a local gate without the
+  tools is a blind spot, and the record now says so.
 - **docs: the master depth pass, round two - the registry and the
   comments ride the source truth (night-depth-cleanup-2B-1).** The
   full walk DOC_AUDIT.md prescribes, docs and code comments (archive

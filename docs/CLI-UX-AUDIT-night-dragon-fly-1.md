@@ -497,6 +497,85 @@ task per commit, every pin moving in lockstep:
 No version move, no tag: the release engineering seat stays the
 owner's.
 
+## The manual estate verdict (night-dragon-fly-3, 2026-11-26)
+
+The manual lane's privileged run on the dragon-3 binary (e76c87b,
+the fly-2 tree, pro-linux-amd64-v3-musl) came back 127 passed,
+0 failed, 3 recorded, 0 skipped across sections 0-13 - the full
+-h/--help estate, the rescue bridge, the pipe law, and the
+privileged attach lane, on a second hardware estate. Every fly-2
+close-out re-verified from the live bytes:
+
+- the pre-attach watch gap renders single "(UTC)" (lts-3 closed);
+- the ledger verbs refuse with the house "path not found" shape
+  (F10 closed, the remedy suffix riding why's own);
+- the window helps read s/m/h/d (F2 closed) and the clamp/refusal
+  stderr rides the ASCII separator (F4 closed for the em-dash
+  family);
+- attach/detach idempotence held (12 programs, 12 links, 8 maps;
+  28 pins removed; re-detach answers "nothing to detach");
+- the honesty laws stayed visible in the dump: the root-refused
+  update check ("recorded, not judged"), the ram verdict's named
+  15% threshold ("this is unusual; investigate"), the sig verdict
+  deciding the exit code, and the "snapshot and event window can
+  disagree - that is the point" law.
+
+Still open, all owner-decision wording seats (none are correctness
+or safety defects): F1 (the four Pro mode rows drifting from the
+verb helps), F3 (usage-shaped refusals riding the runtime exit
+code), F4's warn-tier paint candidate, F5 (Commands-list punctuation
+policy), F6 (sig hyphenation drift), F7 (negative range asks losing
+the range name), F11 (the bare render's extra trailing newline),
+F12 (the Pro mode global group order).
+
+New observations from the same dump, recorded per the holds-seam
+law - named in this window, not patched in it:
+
+- the singular renders "1 ticks" (`doctor --symptom cpu`,
+  `src/commands/doctor/cpu.rs:340`) and "1 packets" (twice per
+  interface row, `doctor --symptom network`,
+  `src/commands/doctor/network.rs:341`) - cosmetic, live values,
+  no byte pin yet;
+- the ID Plane detail nests two parenthetical groups
+  ("unavailable (no pin estate (nothing to reconcile))");
+- the event-window header writes "15:20:32 UTC" while every stamp
+  writes "15:20:32 (UTC)" - two UTC conventions on one surface.
+
+Release readiness note: the current lineage (e76c87b through
+d19ef03) is GPG-unsigned, so the embedded depth-matrix honestly
+verifies 5/6 with the D5 refusal ("bind releases to signed
+commits/tags"). The signed era was e88876b (6/6 AUTHENTIC). Binding
+the freeze lineage back to a signed commit or a signed tag is the
+owner's release-engineering seat, not this session's.
+
+CI seat: the wholesale gate went red from d0f7e6e onward and the
+hunt found the real failure - shellcheck SC2086 on the manual
+battery's intentional `$PORT_WIN` word splitting. The local sandbox
+gate had warn-and-skipped 1b (no shellcheck installed there), a
+blind spot, not a pass. Fixed in d19ef03: the window vars
+(PORT_WIN, LEDGER_WIN, CLAMP_WIN) ride arrays with quoted
+expansion - the same argv bytes, no SC2086. The wrong runner-umask
+workflow step (37bdd5a) was reverted in abd323f with the corrected
+record: the runner's checkout verifies 644/755 clean, the 664/775
+artifact lived only in a local umask-0002 sandbox. Local parity now
+carries the full pinned set (shellcheck 0.10.0, shfmt 3.10.0,
+yamllint 1.38.0, actionlint 1.7.7, b3sum 1.8.7, bpf-linker 0.11.1,
+nightly-2026-09-18) - a local gate without the tools is a blind
+spot, and the record now says so.
+
+The sweep instrument: `scripts/labs-exp/zejtron-manual-sweep.sh`
+(night-dragon-fly-3) covers the whole -h/--help estate plus the
+lanes the battery does not ride: the shadow-duplicate PATH lane,
+the ceiling-accept and below-floor window boundaries, the d-unit
+clamp interplay on the clamped lanes, the device and symlink
+targets, the `--print-json`/`--raw` conflict, the
+`doctor --symptom ram --raw` drill-down, the byte-equality laws
+(bare vs -h vs --help, -V vs --version, `sig --print-json`
+determinism), and the JSON validity pass on every --print-json
+lane. The report lands at `zejtron-manual-sweep-report.txt`
+(`ZEJTRON_SWEEP_OUT` overrides); the next wording/UX/JSON audit
+runs on its dump.
+
 ## What the audit pass needs back
 
 The captured `battery-output.txt` (or the pasted sections A, D, E, G,
