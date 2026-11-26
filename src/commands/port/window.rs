@@ -76,7 +76,7 @@ pub const WINDOW_DEFAULT: Duration = Duration::from_secs(60);
 /// ("invalid duration: 2s" on the recent side, the owner's night-QC
 /// catch), with no example line to recover from.
 pub fn parse_window(input: &str) -> Result<Duration, PortError> {
-    let invalid = || PortError(format!("invalid duration: {input} (use e.g. 30s, 10m, 1h)"));
+    let invalid = || PortError(format!("invalid duration: {input} (use e.g. 30s, 10m, 1h, 7d)"));
     // The unit is the final CHARACTER, never the final byte
     // (night-dragon-lts-1): str::split_at panics when its index
     // lands inside a multibyte character, so a `--since 5分` or a

@@ -164,8 +164,8 @@ zejtron holds /nonexistent-path-xyz    # 'path not found: /nonexistent-path-xyz'
 zejtron touch /nonexistent-path-xyz    # 'path not found: /nonexistent-path-xyz' (commands/touch.rs:94)
 zejtron proc nouserxyz123     # 'unknown user: nouserxyz123' (commands/proc.rs:223)
 zejtron doctor --symptom xyz  # the KNOWN list echoed back (commands/doctor/symptom.rs:57)
-zejtron port --since 3x       # 'invalid duration: 3x (use e.g. 30s, 10m, 1h)' (commands/port/window.rs:79)
-zejtron recent --since 3x     # '... (use e.g. 30s, 10m, 2h, 7d)' (commands/recent.rs:167) - examples DIFFER
+zejtron port --since 3x       # 'invalid duration: 3x (use e.g. 30s, 10m, 1h, 7d)' (commands/port/window.rs:79)
+zejtron recent --since 3x     # '... (use e.g. 30s, 10m, 2h, 7d)' (commands/recent.rs:167) - examples share the s/m/h/d grammar now (the F2 close)
 zejtron recent --since 5分    # multibyte unit: clean refusal, no panic (night-dragon-lts-1)
 zejtron recent --limit 0 .    # the render must NAME the limit-0 cut (commands/recent.rs:223)
 ```
@@ -204,7 +204,7 @@ zejtron port --since 100h --snapshot-only                # stderr: 'warning: --s
 zejtron port --since 100h --snapshot-only 2>/dev/null    # stdout byte-clean
 zejtron port --since 100h --snapshot-only 2>&1 >/dev/null
 zejtron port --since 0s --snapshot-only                  # below-floor note
-zejtron port --since 7d --snapshot-only                  # 'd' ACCEPTED though help says s/m/h (finding F2)
+zejtron port --since 7d --snapshot-only                  # 'd' accepted and documented now (s/m/h/d, the F2 close), clamped to 1h
 zejtron port --since 18446744073709551h --snapshot-only  # u64 saturation -> clamp, no panic
 zejtron recent --since 100h .                            # NO clamp note by design (cli/mod.rs:215)
 zejtron holds /etc/resolv.conf --since 500m

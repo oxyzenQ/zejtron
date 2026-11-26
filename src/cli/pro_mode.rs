@@ -85,7 +85,7 @@ const GROUPS: &[(&str, &[Row])] = &[
             ("--no-pid", "Hide process IDs in owner lines"),
             (
                 "--since DURATION",
-                "Event window width (s/m/h, default 60s, clamped to [1s, 1h])",
+                "Event window width (s/m/h/d, default 60s, clamped to [1s, 1h])",
             ),
             ("--events-only", "Show only the event window (no snapshot)"),
             (
@@ -120,7 +120,7 @@ const GROUPS: &[(&str, &[Row])] = &[
         &[
             (
                 "--since DURATION",
-                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+                "Event window width (s/m/h/d, default 10s, clamped to [1s, 1h])",
             ),
             (
                 "--print-json",
@@ -133,7 +133,7 @@ const GROUPS: &[(&str, &[Row])] = &[
         &[
             (
                 "--since DURATION",
-                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+                "Event window width (s/m/h/d, default 10s, clamped to [1s, 1h])",
             ),
             (
                 "--print-json",
@@ -146,7 +146,7 @@ const GROUPS: &[(&str, &[Row])] = &[
         &[
             (
                 "--since DURATION",
-                "Event window width (s/m/h, default 10s, clamped to [1s, 1h])",
+                "Event window width (s/m/h/d, default 10s, clamped to [1s, 1h])",
             ),
             (
                 "--trace",

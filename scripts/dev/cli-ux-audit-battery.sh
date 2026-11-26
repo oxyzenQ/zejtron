@@ -412,10 +412,10 @@ probe "E doctor --symptom xyz" \
 	"exit 1, \"unknown symptom 'xyz' - the symptoms this version speaks: ram, cpu, disk, network, gpu, slow\" - observe: the code calls this a usage error while the house law says usage errors exit 2" \
 	"\"$ZEJTRON_BIN\" doctor --symptom xyz"
 probe "E port --since 3x (invalid duration)" \
-	"exit 1, 'invalid duration: 3x (use e.g. 30s, 10m, 1h)'" \
+	"exit 1, 'invalid duration: 3x (use e.g. 30s, 10m, 1h, 7d)'" \
 	"\"$ZEJTRON_BIN\" port --since 3x"
 probe "E recent --since 3x" \
-	"exit 1, 'invalid duration: 3x (use e.g. 30s, 10m, 2h, 7d)' - note the two examples DIFFER from the window parser" \
+	"exit 1, 'invalid duration: 3x (use e.g. 30s, 10m, 2h, 7d)' - the two examples share the s/m/h/d grammar now (the F2 close); each h example names its own lane's ceiling" \
 	"\"$ZEJTRON_BIN\" recent --since 3x"
 probe "E recent --since multibyte unit" \
 	"exit 1, clean refusal (no panic, night-dragon-lts-1)" \

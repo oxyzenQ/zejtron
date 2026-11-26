@@ -245,7 +245,7 @@ pub enum Commands {
         #[arg(
             value_name = "DURATION",
             long,
-            help = "Event window width (s/m/h, default 60s, clamped to [1s, 1h])"
+            help = "Event window width (s/m/h/d, default 60s, clamped to [1s, 1h])"
         )]
         since: Option<String>,
         #[arg(
@@ -324,7 +324,7 @@ pub enum Commands {
         #[arg(
             value_name = "DURATION",
             long,
-            help = "Event window width (s/m/h, default 10s, clamped to [1s, 1h])"
+            help = "Event window width (s/m/h/d, default 10s, clamped to [1s, 1h])"
         )]
         since: Option<String>,
         #[arg(long, help = "Print the Evidence Ledger as JSON (one line, jq-ready)")]
@@ -340,7 +340,7 @@ pub enum Commands {
         #[arg(
             value_name = "DURATION",
             long,
-            help = "Event window width (s/m/h, default 10s, clamped to [1s, 1h])"
+            help = "Event window width (s/m/h/d, default 10s, clamped to [1s, 1h])"
         )]
         since: Option<String>,
         #[arg(long, help = "Print the Evidence Ledger as JSON (one line, jq-ready)")]
@@ -359,7 +359,7 @@ pub enum Commands {
         #[arg(
             value_name = "DURATION",
             long,
-            help = "Event window width (s/m/h, default 10s, clamped to [1s, 1h])"
+            help = "Event window width (s/m/h/d, default 10s, clamped to [1s, 1h])"
         )]
         since: Option<String>,
         #[arg(
