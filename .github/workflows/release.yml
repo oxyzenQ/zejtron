@@ -313,8 +313,13 @@ jobs:
                 echo "::error::Plaintext identity found in the artifact (the masked provenance contract broke)"
                 exit 1
               fi
-              grep -aFq "License: AGPL-3.0-only" "${BIN}" \
-                || { echo "::error::Expected embedded license literal"; exit 1; }
+              # night-cafe-4: the pin carries the WHOLE dual clause, not
+              # a prefix - the substring form would also pass an
+              # artifact still carrying the retired single-door line,
+              # and the release lane's job is to verify the dual
+              # license claim exactly as src/info/mod.rs renders it.
+              grep -aFq "License: AGPL-3.0-only OR Commercial" "${BIN}" \
+                || { echo "::error::Expected embedded dual-license literal (AGPL-3.0-only OR Commercial)"; exit 1; }
               grep -aFq "${VERSION}" "${BIN}" \
                 || { echo "::error::Binary does not embed tag version '${VERSION}' (Cargo.toml/tag drift)"; exit 1; }
               echo "embedded build metadata verified (execution skipped: AVX-512 baseline)"

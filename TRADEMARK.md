@@ -7,14 +7,16 @@
 
 **Owner:** rezky_nightky (oxyzenQ)
 **Repository:** https://github.com/oxyzenQ/zejtron
-**License:** AGPL-3.0-only (source code)
+**License:** AGPL-3.0-only OR Commercial (source code; see [NOTICE](NOTICE))
 
 ## 1. Copyright & Ownership
 
 zejtron — including its source code, logo, name, and all associated
 branding materials (collectively, the "Marks") — is the exclusive
 intellectual property of **rezky_nightky (oxyzenQ)**. The source code
-is licensed under the GNU Affero General Public License v3 only (AGPL-3.0-only).
+is dual-licensed: AGPL-3.0-only for open-source use, or the Commercial
+License for proprietary use (see [NOTICE](NOTICE) and
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).
 The Marks are NOT covered by the AGPL and are reserved by the owner.
 
 The zejtron logo was created through AI-assisted generation under
