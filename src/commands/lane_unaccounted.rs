@@ -103,6 +103,18 @@ pub(crate) fn sleep_blackout_entry(sleep_delta_ns: i128) -> UnaccountedEntry {
 /// negative test pins the byte silence. `attach_wall` is `None`
 /// when the wall clock was unreadable at stamp time - the row then
 /// names the gap alone rather than guessing a clock.
+///
+/// The seam the audit records (night-dragon-lts-3): the only
+/// production caller (lane.rs) feeds `format_unix_secs` output,
+/// which already carries the trailing "(UTC)", so the live render
+/// carries the doubled "(UTC) (UTC)" - observed on night-dragon-lts
+/// hardware under the sudo lane. The byte sits inside the v80.0.0
+/// freeze (`why`'s output bytes), so the freeze keeps it and the
+/// audit records it - the holds-seam law. The exact production
+/// render is pinned in lane_unaccounted_tests (the frozen doubled
+/// byte is a contract, not an accident); the one-line drop of the
+/// wrapper's "(UTC)" rides the next freeze window as a deliberate
+/// boundary change, never a silent patch.
 pub(crate) fn watch_gap_entry(gap_ns: i128, attach_wall: Option<String>) -> UnaccountedEntry {
     let span = crate::info::clock::format_sleep_span(gap_ns);
     let planted = attach_wall

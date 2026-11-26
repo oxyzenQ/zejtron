@@ -169,6 +169,34 @@ fn the_watch_gap_entry_degrades_when_the_wall_clock_is_unreadable() {
     );
 }
 
+// The production caller (lane.rs) feeds `format_unix_secs` output,
+// which already carries the trailing "(UTC)" - the wrapper adds its
+// own, and the render carries the doubled "(UTC) (UTC)" (observed
+// live on night-dragon-lts hardware, the sudo-lane audit). The byte
+// sits inside the v80.0.0 freeze (`why`'s output bytes), so the
+// freeze keeps it and the audit records it (the holds-seam law: the
+// freeze keeps the bytes, the audit records them). This pin holds
+// the EXACT production render so the seam is a recorded contract,
+// not an accident (night-dragon-lts-3); dropping the wrapper's
+// "(UTC)" is a deliberate boundary change for the next freeze
+// window, never a silent patch.
+#[test]
+fn the_watch_gap_entry_pins_the_frozen_doubled_utc_byte() {
+    let entry = watch_gap_entry(
+        1_680_000_000_000,
+        Some("2026-11-19 09:41:00 (UTC)".to_owned()),
+    );
+    assert_eq!(
+        entry.reason,
+        "the camera was planted at 2026-11-19 09:41:00 (UTC) (UTC); \
+         the requested window began 28m 00s earlier - no event can exist \
+         in that span, because the camera was not watching: the rows above \
+         are the only evidence this window could have",
+        "{}",
+        entry.reason
+    );
+}
+
 #[test]
 fn the_clocksource_switch_entry_names_both_regimes() {
     let entry = clocksource_switch_entry("tsc", "hpet");
