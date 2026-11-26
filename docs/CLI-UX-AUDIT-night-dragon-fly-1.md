@@ -620,7 +620,11 @@ VM boot; the same leg rode green on the other five kernels and on the
 re-run). Recorded per the holds-seam law, not patched in this window:
 the netrunner seat compares two live doctor captures byte-for-byte
 while the report carries host-state counters - the normalization seat
-is N2, the owner's call.
+is N2, the owner's call. The fly-5b push's own matrix hit one more
+infra flake (the Kani job's release-bundle download failed at the
+fetch; the proof never started) and rode green on the re-run - three
+flakes across the two pushes, all on byte-identical shipped code, all
+green on their second attempt.
 
 Third independent confirmation across two hardware estates and one
 binary lineage; every fly-2 close-out re-verified from the live
