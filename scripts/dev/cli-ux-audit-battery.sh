@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 # SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+# OS: Linux only - zejtron is a Linux introspection tool.
+#
+# NON_LATIN_FIXTURE: the multibyte --since unit probes are the test
+# vectors themselves (the parser must refuse them cleanly, no panic,
+# night-dragon-lts-1); the CJK characters are the fixture, not prose.
 
 # night-dragon-fly-1: the CLI/UX end-to-end audit battery.
 #
