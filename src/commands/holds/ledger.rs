@@ -50,7 +50,10 @@ pub fn build_path_report(
         // sibling sites were capped.
         let operand = crate::system::display_operand(&path.display().to_string());
         if error.kind() == std::io::ErrorKind::NotFound {
-            HoldsError(format!("{operand}: no such file or directory"))
+            // The house vocabulary (F10, night-dragon-fly-2): the
+            // missing-path refusal speaks the "path not found:" shape
+            // touch and why speak, not the raw errno text.
+            HoldsError(format!("path not found: {operand}"))
         } else {
             HoldsError(format!("{operand}: {error}"))
         }

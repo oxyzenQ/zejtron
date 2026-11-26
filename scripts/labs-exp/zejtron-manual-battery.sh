@@ -47,20 +47,20 @@ set -u
 # carries, replicated inline so this battery needs no source line.
 BIN="${ZEJTRON_BIN_PATH:-}"
 if [ -z "$BIN" ]; then
-        for candidate in target/debug/zejtron target/release/zejtron \
-                target/x86_64-unknown-linux-musl/release/zejtron; do
-                if [ -x "$candidate" ]; then
-                        BIN="$candidate"
-                        break
-                fi
-        done
+	for candidate in target/debug/zejtron target/release/zejtron \
+		target/x86_64-unknown-linux-musl/release/zejtron; do
+		if [ -x "$candidate" ]; then
+			BIN="$candidate"
+			break
+		fi
+	done
 fi
 if [ -z "$BIN" ]; then
-        BIN="$(command -v zejtron 2>/dev/null || true)"
+	BIN="$(command -v zejtron 2>/dev/null || true)"
 fi
 if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
-        echo "error: no zejtron binary found (set ZEJTRON_BIN_PATH or build one)" >&2
-        exit 1
+	echo "error: no zejtron binary found (set ZEJTRON_BIN_PATH or build one)" >&2
+	exit 1
 fi
 
 REPORT="${ZEJTRON_BATTERY_OUT:-zejtron-manual-battery-report.txt}"
@@ -97,116 +97,116 @@ SKIP=0
 # line stays the truth: the label names the surface, the command
 # names the exact bytes that ran.
 if [ "${ZEJTRON_BATTERY_FULL:-0}" = "1" ]; then
-        PORT_WIN=""
-        LEDGER_WIN=""
-        LEDGER_SPAN="30s"
-        CLAMP_WIN=""
+	PORT_WIN=""
+	LEDGER_WIN=""
+	LEDGER_SPAN="30s"
+	CLAMP_WIN=""
 else
-        PORT_WIN="--since 1s"
-        LEDGER_WIN="--since 1s"
-        LEDGER_SPAN="2s"
-        CLAMP_WIN="--snapshot-only"
+	PORT_WIN="--since 1s"
+	LEDGER_WIN="--since 1s"
+	LEDGER_SPAN="2s"
+	CLAMP_WIN="--snapshot-only"
 fi
 
 rail() {
-        echo ""
-        echo "━━━ $* ━━━"
+	echo ""
+	echo "━━━ $* ━━━"
 }
 
 probe() { # label, expected_exit, command...
-        local label="$1"
-        local want="$2"
-        shift 2
-        echo ""
-        echo "+ $*"
-        echo "  probe: $label"
-        local out err rc
-        out="$("$@" 2>"$ZMB_ERR")"
-        rc=$?
-        err="$(cat "$ZMB_ERR")"
-        if [ -n "$out" ]; then
-                echo "$out"
-        fi
-        if [ -n "$err" ]; then
-                echo "[stderr] $err"
-        fi
-        if [ "$rc" -eq "$want" ]; then
-                echo "[exit $rc - as expected]"
-                PASS=$((PASS + 1))
-        else
-                echo "[exit $rc - EXPECTED $want: MISMATCH]"
-                FAIL=$((FAIL + 1))
-        fi
+	local label="$1"
+	local want="$2"
+	shift 2
+	echo ""
+	echo "+ $*"
+	echo "  probe: $label"
+	local out err rc
+	out="$("$@" 2>"$ZMB_ERR")"
+	rc=$?
+	err="$(cat "$ZMB_ERR")"
+	if [ -n "$out" ]; then
+		echo "$out"
+	fi
+	if [ -n "$err" ]; then
+		echo "[stderr] $err"
+	fi
+	if [ "$rc" -eq "$want" ]; then
+		echo "[exit $rc - as expected]"
+		PASS=$((PASS + 1))
+	else
+		echo "[exit $rc - EXPECTED $want: MISMATCH]"
+		FAIL=$((FAIL + 1))
+	fi
 }
 
 probe_warn() { # label, command... - informational, exit recorded not judged
-        local label="$1"
-        shift
-        echo ""
-        echo "+ $*   [informational: $label]"
-        "$@" 2>"$ZMB_ERR"
-        local rc=$?
-        local err
-        err="$(cat "$ZMB_ERR")"
-        if [ -n "$err" ]; then
-                echo "[stderr] $err"
-        fi
-        echo "[exit $rc - recorded, not judged]"
-        WARN=$((WARN + 1))
+	local label="$1"
+	shift
+	echo ""
+	echo "+ $*   [informational: $label]"
+	"$@" 2>"$ZMB_ERR"
+	local rc=$?
+	local err
+	err="$(cat "$ZMB_ERR")"
+	if [ -n "$err" ]; then
+		echo "[stderr] $err"
+	fi
+	echo "[exit $rc - recorded, not judged]"
+	WARN=$((WARN + 1))
 }
 
 probe_fail() { # label, needle, command... - expects non-zero + needle
-        local label="$1"
-        local needle="$2"
-        shift 2
-        echo ""
-        echo "+ $*"
-        echo "  probe: $label"
-        "$@" >"$ZMB_OUT" 2>"$ZMB_ERR"
-        local rc=$?
-        cat "$ZMB_OUT" "$ZMB_ERR"
-        if [ "$rc" -eq 0 ]; then
-                echo "[exit 0 - EXPECTED FAILURE: MISMATCH]"
-                FAIL=$((FAIL + 1))
-                return
-        fi
-        if grep -q -- "$needle" "$ZMB_OUT" "$ZMB_ERR"; then
-                echo "[exit $rc, refusal names '$needle' - as expected]"
-                PASS=$((PASS + 1))
-        else
-                echo "[exit $rc but output never mentions '$needle': MISMATCH]"
-                FAIL=$((FAIL + 1))
-        fi
+	local label="$1"
+	local needle="$2"
+	shift 2
+	echo ""
+	echo "+ $*"
+	echo "  probe: $label"
+	"$@" >"$ZMB_OUT" 2>"$ZMB_ERR"
+	local rc=$?
+	cat "$ZMB_OUT" "$ZMB_ERR"
+	if [ "$rc" -eq 0 ]; then
+		echo "[exit 0 - EXPECTED FAILURE: MISMATCH]"
+		FAIL=$((FAIL + 1))
+		return
+	fi
+	if grep -q -- "$needle" "$ZMB_OUT" "$ZMB_ERR"; then
+		echo "[exit $rc, refusal names '$needle' - as expected]"
+		PASS=$((PASS + 1))
+	else
+		echo "[exit $rc but output never mentions '$needle': MISMATCH]"
+		FAIL=$((FAIL + 1))
+	fi
 }
 
 probe_json() { # label, jq-filter-as-python-expr, command...
-        # The filter rides python: 'd["os"]' style. The raw JSON line is
-        # printed whole - the audit reads the field names, not a summary.
-        local label="$1"
-        local expr="$2"
-        shift 2
-        echo ""
-        echo "+ $*"
-        echo "  probe: $label"
-        "$@" >"$ZMB_JSON" 2>"$ZMB_ERR"
-        local rc=$?
-        local err
-        err="$(cat "$ZMB_ERR")"
-        cat "$ZMB_JSON"
-        if [ -n "$err" ]; then
-                echo "[stderr] $err"
-        fi
-        if [ "$rc" -ne 0 ]; then
-                echo "[exit $rc - EXPECTED 0: MISMATCH]"
-                FAIL=$((FAIL + 1))
-                return
-        fi
-        if [ ! -s "$ZMB_JSON" ]; then
-                echo "[empty JSON output: MISMATCH]"
-                FAIL=$((FAIL + 1))
-                return
-        fi
-        if python3 -c "
+	# The filter rides python: 'd["os"]' style. The raw JSON line is
+	# printed whole - the audit reads the field names, not a summary.
+	local label="$1"
+	local expr="$2"
+	shift 2
+	echo ""
+	echo "+ $*"
+	echo "  probe: $label"
+	"$@" >"$ZMB_JSON" 2>"$ZMB_ERR"
+	local rc=$?
+	local err
+	err="$(cat "$ZMB_ERR")"
+	cat "$ZMB_JSON"
+	if [ -n "$err" ]; then
+		echo "[stderr] $err"
+	fi
+	if [ "$rc" -ne 0 ]; then
+		echo "[exit $rc - EXPECTED 0: MISMATCH]"
+		FAIL=$((FAIL + 1))
+		return
+	fi
+	if [ ! -s "$ZMB_JSON" ]; then
+		echo "[empty JSON output: MISMATCH]"
+		FAIL=$((FAIL + 1))
+		return
+	fi
+	if python3 -c "
 import json, sys
 with open('$ZMB_JSON') as fh:
     text = fh.read()
@@ -214,17 +214,17 @@ d = json.loads(text)
 r = eval('$expr')
 print('[json ok -', repr(r)[:80], ']')
 "; then
-                PASS=$((PASS + 1))
-        else
-                echo "[json lane failed: $expr: MISMATCH]"
-                FAIL=$((FAIL + 1))
-        fi
+		PASS=$((PASS + 1))
+	else
+		echo "[json lane failed: $expr: MISMATCH]"
+		FAIL=$((FAIL + 1))
+	fi
 }
 
 probe_skip() {
-        echo ""
-        echo "+ $*   [SKIP - run with sudo ZEJTRON_BATTERY_ROOT=1]"
-        SKIP=$((SKIP + 1))
+	echo ""
+	echo "+ $*   [SKIP - run with sudo ZEJTRON_BATTERY_ROOT=1]"
+	SKIP=$((SKIP + 1))
 }
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -232,9 +232,9 @@ rail "0. the binary and the global surface"
 # ═════════════════════════════════════════════════════════════════════════
 echo "binary: $BIN"
 if [ "${ZEJTRON_BATTERY_FULL:-0}" = "1" ]; then
-        echo "lane: full - the shipped window widths (port 60s, ledger 10s, the 30s spans)"
+	echo "lane: full - the shipped window widths (port 60s, ledger 10s, the 30s spans)"
 else
-        echo "lane: fast - every window probe rides the 1s floor (ZEJTRON_BATTERY_FULL=1 restores the shipped widths)"
+	echo "lane: fast - every window probe rides the 1s floor (ZEJTRON_BATTERY_FULL=1 restores the shipped widths)"
 fi
 "$BIN" -V
 
@@ -252,7 +252,7 @@ probe_warn "--check-update (network lane, exit recorded)" "$BIN" --check-update
 rail "1. every verb's own -h (the ten surfaces + the sig alias)"
 # ═════════════════════════════════════════════════════════════════════════
 for verb in path recent port proc holds touch why doctor net sig; do
-        probe "$verb -h" 0 "$BIN" "$verb" -h
+	probe "$verb -h" 0 "$BIN" "$verb" -h
 done
 probe "signature (the sig alias)" 0 "$BIN" signature -h
 
@@ -262,7 +262,7 @@ rail "2. path (resolution + duplicates + package owner)"
 probe "path sh" 0 "$BIN" path sh
 probe "path python3 (the interpreter chain)" 0 "$BIN" path python3
 probe_json "path --print-json field map" 'd["command"], d["found"], bool(d["active"])' \
-        "$BIN" path sh --print-json
+	"$BIN" path sh --print-json
 probe_fail "path missing-command refusal" "not found" "$BIN" path no-such-binary-xyz
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -275,15 +275,15 @@ probe "recent --since 1h" 0 "$BIN" recent . --since 1h
 probe "recent --since 100h (unbounded window: accepted)" 0 "$BIN" recent . --since 100h
 probe "recent --since 5d" 0 "$BIN" recent . --since 5d
 probe_fail "recent --limit 1000001 (the ceiling refusal)" "is not in 0..=1000000" \
-        "$BIN" recent . --limit 1000001
+	"$BIN" recent . --limit 1000001
 probe_fail "recent --since nope (invalid duration)" "invalid duration" \
-        "$BIN" recent . --since nope
+	"$BIN" recent . --since nope
 probe_fail "recent --since 5x (multibyte-free bad unit)" "invalid duration" \
-        "$BIN" recent . --since 5x
+	"$BIN" recent . --since 5x
 probe_fail "recent --since 5分 (multibyte unit: clean refusal)" "invalid duration" \
-        "$BIN" recent . --since 5分
+	"$BIN" recent . --since 5分
 probe_json "recent --print-json field map" 'type(d["files"]) is list' \
-        "$BIN" recent . --limit 3 --print-json
+	"$BIN" recent . --limit 3 --print-json
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "4. port (flag matrix, clamps, conflicts)"
@@ -303,14 +303,14 @@ probe "port --since 0s (below the floor: clamp expected)" 0 "$BIN" port --since 
 probe "port 443 (single port)" 0 "$BIN" port 443 $PORT_WIN
 probe_fail "port --listen --all (conflict)" "cannot be used" "$BIN" port --listen --all
 probe_fail "port --events-only --snapshot-only (conflict)" "cannot be used" \
-        "$BIN" port --events-only --snapshot-only
+	"$BIN" port --events-only --snapshot-only
 probe_fail "port 0 refusal" "invalid port" "$BIN" port 0
 probe_fail "port 65536 refusal" "invalid port" "$BIN" port 65536
 probe_fail "port abc refusal" "invalid port" "$BIN" port abc
 probe_json "port --print-json field map" 'd["subject"], type(d["ports"]) is list' \
-        "$BIN" port --print-json $PORT_WIN
+	"$BIN" port --print-json $PORT_WIN
 probe_json "port 9999 JSON (the empty-port shape)" 'd["subject"], d["ports"]' \
-        "$BIN" port 9999 --print-json $PORT_WIN
+	"$BIN" port 9999 --print-json $PORT_WIN
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "5. proc (target group, depth ceiling, find)"
@@ -327,11 +327,11 @@ probe "proc root (the uid-0 tree)" 0 "$BIN" proc root
 probe "proc 0 (numeric UID)" 0 "$BIN" proc 0
 probe_fail "proc --me root (the target conflict)" "cannot be used" "$BIN" proc --me root
 probe_fail "proc --me --depth 0 (below the floor)" "is not in 1..=1024" \
-        "$BIN" proc --me --depth 0
+	"$BIN" proc --me --depth 0
 probe_fail "proc --me --depth 1025 (above the ceiling)" "is not in 1..=1024" \
-        "$BIN" proc --me --depth 1025
+	"$BIN" proc --me --depth 1025
 probe_json "proc --print-json field map" 'type(d["processes"]) is list, d["processes"][0]["pid"] >= 0' \
-        "$BIN" proc --print-json
+	"$BIN" proc --print-json
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "6. holds (file, port, the temp lane)"
@@ -349,9 +349,9 @@ probe_fail "holds 65536 refusal" "invalid port" "$BIN" holds 65536
 # close (night-dragon-fly-2): "path not found", the one shape touch,
 # why, holds, and recent all carry.
 probe_fail "holds missing-path refusal" "path not found" \
-        "$BIN" holds "$TMPDIR_B/missing path"
+	"$BIN" holds "$TMPDIR_B/missing path"
 probe_json "holds --print-json field map" 'd["verdict"], bool(d["verdict"]["supports"]) is not None' \
-        "$BIN" holds /etc/resolv.conf --print-json $LEDGER_WIN
+	"$BIN" holds /etc/resolv.conf --print-json $LEDGER_WIN
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "7. touch (file, dir, the modify-nothing law)"
@@ -364,7 +364,7 @@ probe "touch /etc/hosts" 0 "$BIN" touch /etc/hosts $LEDGER_WIN
 probe "touch --since (the explicit width)" 0 "$BIN" touch /etc/hosts --since "$LEDGER_SPAN"
 probe_fail "touch missing-path refusal" "not found" "$BIN" touch "$TMPDIR_B/missing path"
 probe_json "touch --print-json field map" 'd["subject"], type(d["measured"]) is list, d["verdict"]["supports"]' \
-        "$BIN" touch /etc/hosts --print-json $LEDGER_WIN
+	"$BIN" touch /etc/hosts --print-json $LEDGER_WIN
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "8. why (trace, raw, the JSON conflict)"
@@ -375,43 +375,43 @@ probe "why --raw (the kernel events)" 0 "$BIN" why /etc/passwd --trace --raw $LE
 probe "why 53 (port target)" 0 "$BIN" why 53 $LEDGER_WIN
 probe "why --since (the explicit width)" 0 "$BIN" why /etc/passwd --since "$LEDGER_SPAN"
 probe_fail "why --print-json --trace (conflict)" "cannot be used" \
-        "$BIN" why /etc/passwd --print-json --trace
+	"$BIN" why /etc/passwd --print-json --trace
 probe_fail "why 0 refusal" "invalid port" "$BIN" why 0
 probe_fail "why missing-path refusal" "not found" "$BIN" why "$TMPDIR_B/missing path"
 probe_json "why --print-json field map" 'd["measured"], type(d["unaccounted"]) is list, d["verdict"]["supports"]' \
-        "$BIN" why /etc/passwd --print-json $LEDGER_WIN
+	"$BIN" why /etc/passwd --print-json $LEDGER_WIN
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "9. doctor (readiness, symptoms, the JSON map)"
 # ═════════════════════════════════════════════════════════════════════════
 probe "doctor (the readiness check)" 0 "$BIN" doctor
 probe_fail "doctor --raw without --symptom (the named refusal)" "--symptom" \
-        "$BIN" doctor --raw
+	"$BIN" doctor --raw
 for symptom in ram cpu disk network gpu slow; do
-        probe "doctor --symptom $symptom" 0 "$BIN" doctor --symptom "$symptom"
+	probe "doctor --symptom $symptom" 0 "$BIN" doctor --symptom "$symptom"
 done
 probe_fail "doctor --symptom xyz (the vocabulary echo)" "xyz" \
-        "$BIN" doctor --symptom xyz
+	"$BIN" doctor --symptom xyz
 probe_fail "doctor --attach --symptom ram (conflict)" "cannot be used" \
-        "$BIN" doctor --attach --symptom ram
+	"$BIN" doctor --attach --symptom ram
 probe_fail "doctor --attach --detach (conflict)" "cannot be used" \
-        "$BIN" doctor --attach --detach
+	"$BIN" doctor --attach --detach
 probe_json "doctor --print-json field map" 'd["os"], d["kernel"], d["ebpf_lane"]' \
-        "$BIN" doctor --print-json
+	"$BIN" doctor --print-json
 probe_json "doctor --symptom ram JSON" 'type(d["processes"]) is list' \
-        "$BIN" doctor --symptom ram --print-json
+	"$BIN" doctor --symptom ram --print-json
 
 # ═════════════════════════════════════════════════════════════════════════
 rail "10. the privileged lane (root or CAP_BPF + CAP_PERFMON)"
 # ═════════════════════════════════════════════════════════════════════════
 if [ "${ZEJTRON_BATTERY_ROOT:-0}" = "1" ]; then
-        probe "doctor --attach (the one-shot plant)" 0 "$BIN" doctor --attach
-        probe "why after attach (the event window)" 0 "$BIN" why /etc/passwd --since "$LEDGER_SPAN"
-        probe "port --events-only after attach" 0 "$BIN" port --events-only $PORT_WIN
-        probe "doctor --detach (unpin everything, idempotent)" 0 "$BIN" doctor --detach
-        probe "doctor --detach again (idempotence)" 0 "$BIN" doctor --detach
+	probe "doctor --attach (the one-shot plant)" 0 "$BIN" doctor --attach
+	probe "why after attach (the event window)" 0 "$BIN" why /etc/passwd --since "$LEDGER_SPAN"
+	probe "port --events-only after attach" 0 "$BIN" port --events-only $PORT_WIN
+	probe "doctor --detach (unpin everything, idempotent)" 0 "$BIN" doctor --detach
+	probe "doctor --detach again (idempotence)" 0 "$BIN" doctor --detach
 else
-        probe_skip "doctor --attach / --detach"
+	probe_skip "doctor --attach / --detach"
 fi
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -419,7 +419,7 @@ rail "11. net and sig"
 # ═════════════════════════════════════════════════════════════════════════
 probe "net" 0 "$BIN" net
 probe_json "net --print-json field map" 'type(d["interfaces"]) is list' \
-        "$BIN" net --print-json
+	"$BIN" net --print-json
 probe_warn "sig (the verdict decides the exit code)" "$BIN" sig
 echo ""
 echo "+ $BIN sig --print-json   [the signature lane: exit follows the verdict, JSON whole]"
@@ -433,43 +433,43 @@ with open('$ZMB_JSON') as fh:
 assert d['depths'] and d['identity'] and d['verdict']
 print('[json ok - verdict', d['verdict'], d['verified'], ']')
 "; then
-        # The verdict decides the honest exit code, not the battery's era
-        # (night-dragon-lts-4): AUTHENTIC verifies on a signed tree (exit 0),
-        # UNSIGNED refuses on an unsigned tree (exit 1). The mismatch is a
-        # verdict/exit disagreement - either verdict riding its matching
-        # exit is the honest shape.
-        sig_verdict=$(python3 -c "
+	# The verdict decides the honest exit code, not the battery's era
+	# (night-dragon-lts-4): AUTHENTIC verifies on a signed tree (exit 0),
+	# UNSIGNED refuses on an unsigned tree (exit 1). The mismatch is a
+	# verdict/exit disagreement - either verdict riding its matching
+	# exit is the honest shape.
+	sig_verdict=$(python3 -c "
 import json
 with open('$ZMB_JSON') as fh:
     print(json.load(fh).get('verdict', ''))
 ")
-        case "$sig_verdict" in
-        AUTHENTIC)
-                if [ "$sig_rc" -eq 0 ]; then
-                        echo "[exit 0 - the signed verdict verified]"
-                        PASS=$((PASS + 1))
-                else
-                        echo "[exit $sig_rc - verdict AUTHENTIC expects exit 0: MISMATCH]"
-                        FAIL=$((FAIL + 1))
-                fi
-                ;;
-        UNSIGNED)
-                if [ "$sig_rc" -eq 1 ]; then
-                        echo "[exit 1 - the honest unsigned verdict]"
-                        PASS=$((PASS + 1))
-                else
-                        echo "[exit $sig_rc - verdict UNSIGNED expects exit 1: MISMATCH]"
-                        FAIL=$((FAIL + 1))
-                fi
-                ;;
-        *)
-                echo "[verdict '$sig_verdict' outside the judged set {AUTHENTIC, UNSIGNED}: MISMATCH]"
-                FAIL=$((FAIL + 1))
-                ;;
-        esac
+	case "$sig_verdict" in
+	AUTHENTIC)
+		if [ "$sig_rc" -eq 0 ]; then
+			echo "[exit 0 - the signed verdict verified]"
+			PASS=$((PASS + 1))
+		else
+			echo "[exit $sig_rc - verdict AUTHENTIC expects exit 0: MISMATCH]"
+			FAIL=$((FAIL + 1))
+		fi
+		;;
+	UNSIGNED)
+		if [ "$sig_rc" -eq 1 ]; then
+			echo "[exit 1 - the honest unsigned verdict]"
+			PASS=$((PASS + 1))
+		else
+			echo "[exit $sig_rc - verdict UNSIGNED expects exit 1: MISMATCH]"
+			FAIL=$((FAIL + 1))
+		fi
+		;;
+	*)
+		echo "[verdict '$sig_verdict' outside the judged set {AUTHENTIC, UNSIGNED}: MISMATCH]"
+		FAIL=$((FAIL + 1))
+		;;
+	esac
 else
-        echo "[sig json invalid: MISMATCH]"
-        FAIL=$((FAIL + 1))
+	echo "[sig json invalid: MISMATCH]"
+	FAIL=$((FAIL + 1))
 fi
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -486,10 +486,10 @@ probe_fail "unknown verb" "unrecognized" "$BIN" prt
 probe_fail "--ME case rescue" "--me" "$BIN" proc --ME
 probe_fail "--Print-Json case rescue" "--print-json" "$BIN" proc --Print-Json
 probe_fail "--check-updated rescue (top-level only flag)" "--check-update" \
-        "$BIN" --check-updated
+	"$BIN" --check-updated
 probe_fail "unknown flag" "unexpected argument" "$BIN" proc --bogus-flag
 probe_fail "proc --since (retired lifecycle flag)" "unexpected argument" \
-        "$BIN" proc --since 30s
+	"$BIN" proc --since 30s
 probe_fail "path with no argument" "required arguments" "$BIN" path
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -501,10 +501,10 @@ echo "+ $BIN doctor | head -1   [informational]"
 rc="${PIPESTATUS[0]}"
 echo "[pipe exit ${rc} - the UNIX law expects 141, silent, no backtrace]"
 if [ "$rc" = "141" ]; then
-        PASS=$((PASS + 1))
+	PASS=$((PASS + 1))
 else
-        WARN=$((WARN + 1))
-        echo "[exit ${rc} - recorded for the audit (0 means head won the race)]"
+	WARN=$((WARN + 1))
+	echo "[exit ${rc} - recorded for the audit (0 means head won the race)]"
 fi
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -517,10 +517,10 @@ echo "battery: $PASS passed, $FAIL failed, $WARN recorded, $SKIP skipped"
 # report the operator cannot move or open in their own editor is not
 # evidence, it is friction.
 if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
-        chown "${SUDO_USER}" "$REPORT"
+	chown "${SUDO_USER}" "$REPORT"
 fi
 if [ "$FAIL" -gt 0 ]; then
-        echo "the report names every mismatch - send the whole file back for the audit"
-        exit 1
+	echo "the report names every mismatch - send the whole file back for the audit"
+	exit 1
 fi
 echo "all expectations held - send $REPORT back for the audit"
