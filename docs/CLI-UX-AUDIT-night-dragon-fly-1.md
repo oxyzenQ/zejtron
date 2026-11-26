@@ -609,6 +609,19 @@ each remediated by their follow-up commits (the SC2086 quad fix
 d19ef03, the umask revert abd323f, the sweep indent churn 59d6adf) -
 the record rides the commit messages.
 
+The fly-5 push itself (4a432f0) rode the same matrix: 43 success, 1
+skipped, 2 timing flakes on byte-identical shipped code, each green
+on its second attempt. The netrunner-C77 root leg failed on the
+"verbose keeps stdout byte-clean (doctor)" seat - the two live doctor
+captures drifted on the `proc_net` socket count (26 vs 28, the
+runner's own network churn between the captures). The bookworm 6.1
+witness failed the silent-deletion leg (an empty events window on one
+VM boot; the same leg rode green on the other five kernels and on the
+re-run). Recorded per the holds-seam law, not patched in this window:
+the netrunner seat compares two live doctor captures byte-for-byte
+while the report carries host-state counters - the normalization seat
+is N2, the owner's call.
+
 Third independent confirmation across two hardware estates and one
 binary lineage; every fly-2 close-out re-verified from the live
 bytes: the pre-attach watch gap renders single "(UTC)" (lts-3
@@ -646,7 +659,7 @@ privileged attach lane. Nothing in the dump blocks the mature LTS
 verdict. What remains is the owner's release-engineering seat (bind
 the lineage to a signed commit or tag so D5 returns 6/6) and the
 open wording seats (F1, F3, F4's paint candidate, F5, F6, F7, F11,
-F12, N1) - all owner-decision items, none correctness or safety.
+F12, N1, N2) - all owner-decision items, none correctness or safety.
 
 The sweep report landed and is audited above; no further capture is
 owed for this label.
