@@ -277,7 +277,10 @@ terminal for the color-lane and host-specific halves.
   verbatim. Confirmed at runtime: the four Pro mode rows render the
   divergent text verbatim in `zejtron -h`.
 
-- **F2 - the window grammar documents s/m/h but accepts s/m/h/d.**
+- **F2 - the window grammar documents s/m/h but accepts s/m/h/d.
+  [CLOSED night-dragon-fly-2: the documenting direction landed - the
+  helps, the Pro mode mirrors, and the refusal example read s/m/h/d
+  now; see the close-out below.]**
   `commands/port/window.rs:108` parses `d`; the four window helps say
   "(s/m/h, default ...)" (`cli/mod.rs:248,327,343,363`) and the invalid
   duration example says "(use e.g. 30s, 10m, 1h)" (`window.rs:79`).
@@ -307,7 +310,11 @@ terminal for the color-lane and host-specific halves.
   memory report rode on)`, and the unknown-symptom line that echoes the
   full KNOWN list).
 
-- **F4 - the clamp warning rides a bare, unpainted eprintln.**
+- **F4 - the clamp warning rides a bare, unpainted eprintln.
+  [CLOSED night-dragon-fly-2 for the em-dash family: the two clamp
+  notes and the root-refusal line render ASCII " - " now; the
+  warn-tier paint candidate stays open, owner's call. See the
+  close-out below.]**
   `commands/port.rs:111` prints `truncation_note` output
   (`window.rs:129`) as a plain stderr line, while every runtime error
   rides the branded `error:` block (`output/mod.rs:422`) and the
@@ -354,7 +361,10 @@ terminal for the color-lane and host-specific halves.
   ("the command name is empty (e.g. zejtron path sh)").
 
 - **F10 - the holds missing-path refusal names the errno, not the
-  house shape.** `touch` and `why` refuse a missing path with
+  house shape. [CLOSED night-dragon-fly-2: holds (both lanes) AND
+  recent (the hunt's catch) harmonized to the "path not found:
+  " prefix; the remedy suffix stays why's own. See the close-out
+  below.]** `touch` and `why` refuse a missing path with
   "path not found: <path>" (`touch` exits 1 with the plain shape, `why`
   appends the deleted-path remedies), while `holds` renders the raw
   errno string "<path>: no such file or directory" - the same ask
@@ -455,6 +465,37 @@ ride row-level `provenance`, `doctor --raw` being a runtime refusal at
 exit 1, `sig --print-json` exiting 1 with the JSON whole on the
 unsigned verdict) and one - F10 - a real wording seam. The battery now
 pins the verified bytes.
+
+## The freeze-window close-out (night-dragon-fly-2, 2026-11-26)
+
+The recorded queue moved to resolved bytes in one gated session, one
+task per commit, every pin moving in lockstep:
+
+- F4 closed: the clamp warning pair (window.rs) and the root-refusal
+  line (system/mod.rs) render the ASCII " - " separator; the pinned
+  unit tests hold the new bytes. The stdout em-dash sites - the LEFT
+  LISTEN event-row note, the TAMPERED verdict line, the brand banner,
+  the evidence table's no-data glyph - are observed, not queued: they
+  are stdout render/identity bytes, not the stderr runtime family the
+  finding named.
+- F10 closed, wider than the finding: the hunt found recent's scan
+  root and holds' ledger lane (the site the run() path answers
+  through) carrying the errno vocabulary too; all four surfaces -
+  touch, why, holds, recent - now refuse with "path not found: X",
+  and the supermassive asserts plus both batteries moved in lockstep.
+- F2 closed on the documenting direction: the parser has accepted d
+  since the night-total-hardening-1 grammar unification, so the four
+  window helps, their Pro mode mirrors, and the refusal example read
+  s/m/h/d now; recent's documented grammar is the CLI-wide shape.
+- night-dragon-lts-3 closed: the wrapper's "(UTC)" dropped after the
+  three independent sightings, the pin holds the single-UTC
+  production render with an anti-doubling guard, and the hunt's sweep
+  over every format_unix_secs consumer caught the same family on the
+  Z11 silent-deletion entry (the live render carried
+  "(at ... (UTC) UTC)") - closed the same window, same law.
+
+No version move, no tag: the release engineering seat stays the
+owner's.
 
 ## What the audit pass needs back
 

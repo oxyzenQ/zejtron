@@ -897,6 +897,36 @@ v11.0.0
   by the detonation's own legs - the floor lane proves the 5.15
   verdict and the operator's kernel proves 6.x.
 
+### Fixed
+
+- **night-dragon-fly-2, the freeze window closes the audit queue -
+  four boundary byte families move deliberately.** The
+  night-dragon-fly-1 audit's recorded seams land as documented
+  boundary changes, never silent patches: the F4 em-dash family (the
+  window clamp warning pair and the root-refusal line) renders the
+  ASCII " - " separator the rest of the stderr lanes speak; the F10
+  vocabulary split ends - holds (both the scan lane and the ledger
+  lane the run() path answers through) and recent join touch and why
+  on the one "path not found: X" refusal shape; the F2 grammar
+  surfaces stop denying the unit the window parser accepts (the four
+  window help rows, their Pro mode mirrors, and the invalid-duration
+  refusal example read s/m/h/d now); and the night-dragon-lts-3
+  doubled "(UTC) (UTC)" rides out of the pre-attach watch gap wording
+  after three independent sightings across two hardware estates, the
+  frozen doubled-byte contract replaced by a single-UTC render pin
+  plus an explicit anti-doubling guard. The battery scripts, the
+  supermassive asserts, and the audit doc rubric move in lockstep.
+- **night-dragon-fly-2, the hunt finds the second doubled-suffix seam
+  on the Z11 silent-deletion entry.** The beyond-the-queue sweep over
+  every format_unix_secs consumer caught silent_deletion_entry
+  rendering "(at {record_wall} UTC)" against a caller feed that
+  already ends in "(UTC)" - the live render carried
+  "(at ... (UTC) UTC)", the same family seam the watch-gap entry
+  carried through its freeze. The wrapper's " UTC" drops the same
+  way: the caller's marker is the only one, the two unit pins move to
+  the production shape, and the anti-doubling guard stands beside
+  them.
+
 ### License
 
 - **Migrated from GPL-3.0-only to AGPL-3.0-only.** This closes the SaaS
