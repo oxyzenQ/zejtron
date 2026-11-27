@@ -26,6 +26,14 @@ Thumbs.db
 # netrunner lanes caught exactly this on ffbda58), so the negation
 # here is load-bearing, not cosmetic.
 !assets/gpg/pinned-maintainer-fpr.txt
+# The repos-for-ci catalogs (night-learning-into-darkness-1): the
+# AXP1-ZnQ (Architect's eXecution Protocol 1) address pool, data
+# files read only by scripts/ci/axp1znq_*.py and the CI lanes' own
+# python3 invocations - no build script or compiled source reads this
+# path, so the compile-time-include class above does not apply here.
+# The negation is directory-scoped: a future catalog joins by being a
+# repos-for-ci/*.txt, never by touching this block again.
+!repos-for-ci/*.txt
 *~
 
 # AI workdirs

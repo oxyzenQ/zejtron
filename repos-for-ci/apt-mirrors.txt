@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+#
+# AXP1-ZnQ (Architect's eXecution Protocol 1) - the repos-for-ci apt
+# mirror catalog (night-learning-into-darkness-1). One candidate
+# address per line, full https base (no trailing slash); '#'-comments
+# occupy their own line (a trailing comment on an address line would
+# corrupt the address). The CI failover resolver walks this list top
+# to bottom and uses the first address that answers
+# (scripts/ci/axp1znq_resolve.py, --probe-path dists/noble/InRelease);
+# the Sunday 10:00 WIB maintenance pass re-probes the whole list and
+# writes back the survivors (scripts/ci/axp1znq_refresh.py), so the
+# pool stays a tested pool, never a hardcoded default.
+#
+# Authored order is the owner's trust ranking: the canonical archive
+# first, the runner-native azure mirror second, kernel.org's edge
+# mirror third, then the wide mirrors (United States university and
+# nonprofit mirrors, the Leaseweb pair, the East Asia pair for
+# geographic diversity, the slowest verified mirror last). It is never
+# a latency leaderboard - the Sunday refresher keeps survivors in this
+# authored order, whatever the week's timings said.
+#
+# Seed provenance (2026-11-27, authored from the probe core's own
+# verdicts): 12 of 19 candidates answered HTTP 200 with a same-day
+# InRelease on dists/noble/InRelease; the 6 candidates still DOWN on
+# the patient re-test were excluded, not guessed alive.
+#
+# Bounded by the owner's law: 10 to 100 active lines per catalog file.
+# security.ubuntu.com is excluded on purpose: it serves the security
+# pocket only, while every apt consumer here installs from the full
+# archive pool.
+https://archive.ubuntu.com/ubuntu
+https://azure.archive.ubuntu.com/ubuntu
+https://mirrors.edge.kernel.org/ubuntu
+https://mirror.math.princeton.edu/pub/ubuntu
+https://ubuntu.osuosl.org/ubuntu
+https://ubuntu.mirror.constant.com
+https://mirror.pit.teraswitch.com/ubuntu
+https://mirror.leaseweb.com/ubuntu
+https://mirror.us.leaseweb.net/ubuntu
+https://mirror.sjtu.edu.cn/ubuntu
+https://mirrors.tuna.tsinghua.edu.cn/ubuntu
+https://mirror.rackspace.com/ubuntu
