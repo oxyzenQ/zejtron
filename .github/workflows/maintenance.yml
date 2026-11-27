@@ -135,6 +135,28 @@ jobs:
         shell: bash
         run: ./scripts/ci/refresh-cargo-deps.sh
 
+      # AXP1-ZnQ (Architect's eXecution Protocol 1) address refresh
+      # (night-learning-into-darkness-1): the whole repos-for-ci
+      # catalog is re-probed AFTER the dependency update finishes - the
+      # owner's sequencing law - and only addresses that answer AND
+      # serve a fresh index survive (the InRelease Date header is the
+      # freshness witness, the max-age law). The survivors are written
+      # back in their authored order, the dead left as dated tombstones,
+      # bounded by the 100-line cap, the never-empty guard refusing to
+      # erase the owner's pool. It never blocks the ship lane: a
+      # critical catalog state warns and names CALL THE OWNER; exit 1
+      # is reserved for a bot that cannot run. The note file is touched
+      # unconditionally so the upload below never races a bot that
+      # found nothing to rewrite.
+      - name: AXP1-ZnQ address refresh (repos-for-ci)
+        if: inputs.scan_only != true
+        run: |
+          python3 scripts/ci/axp1znq_refresh.py \
+            --root repos-for-ci \
+            --probe-path dists/noble/InRelease \
+            --note-file "${RUNNER_TEMP}/axp1-address-note.txt"
+          touch "${RUNNER_TEMP}/axp1-address-note.txt"
+
       # night-supply-1, the verdict: it speaks on the swept lane.
       # Scenario A (fixable) - a loud notice, the job stays green and
       # the validated lane below ships the fix. Scenario B
@@ -170,11 +192,13 @@ jobs:
             ./scripts/dev/regenerate-ebpf-prebuilt.sh
           fi
 
-      # night-zen-2: the allow-list widens to exactly the paths the
-      # sweep owns - every workspace lockfile plus the prebuilt lane
-      # the parity rider just proved - so the staging wall keeps its
-      # shape.
-      - name: Enforce dependency-only diff
+      # night-zen-2, widened by night-learning-into-darkness-1: the
+      # allow-list is exactly the paths the sweep owns - every
+      # workspace lockfile, the prebuilt lane the parity rider just
+      # proved, and the repos-for-ci address catalog the AXP1-ZnQ
+      # (Architect's eXecution Protocol 1) refresher just re-tested -
+      # so the staging wall keeps its shape.
+      - name: Enforce the validated diff
         if: inputs.scan_only != true
         id: changes
         shell: bash
@@ -187,8 +211,8 @@ jobs:
           fi
 
           git diff --name-only | tee /tmp/changed-files.txt
-          if grep -vE '(^|/)Cargo\.lock$|^ebpf-prebuilt/' /tmp/changed-files.txt; then
-            echo "::error::Auto-update may only modify Cargo.lock files and the ebpf-prebuilt lane"
+          if grep -vE '(^|/)Cargo\.lock$|^ebpf-prebuilt/|^repos-for-ci/' /tmp/changed-files.txt; then
+            echo "::error::Auto-update may only modify Cargo.lock files, the ebpf-prebuilt lane and the repos-for-ci catalog"
             exit 1
           fi
 
@@ -198,10 +222,12 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: ./scripts/build.sh
 
-      # night-zen-2: the artifact is the validated dependency lane -
-      # every workspace lockfile plus the prebuilt lane the rider just
-      # proved (the ! target negation keeps cache-restored build output
-      # out; the globs pick up future workspaces without touching this
+      # night-zen-2, widened by night-learning-into-darkness-1: the
+      # artifact is the validated lane - every workspace lockfile, the
+      # prebuilt lane the rider just proved, and the repos-for-ci
+      # catalog the AXP1-ZnQ refresher just re-tested (the ! target
+      # negation keeps cache-restored build output out; the globs pick
+      # up future workspaces and future catalogs without touching this
       # file). The commit job has no toolchain and must never rebuild.
       - name: Upload validated dependency lane
         if: steps.changes.outputs.changed == 'true'
@@ -211,7 +237,22 @@ jobs:
           path: |
             **/Cargo.lock
             ebpf-prebuilt/**
+            repos-for-ci/**
             !**/target/**
+          if-no-files-found: error
+
+      # The AXP1-ZnQ (Architect's eXecution Protocol 1) refresher's
+      # commit note, possibly empty: the commit job appends it to the
+      # weekly commit body so the one commit names which catalog lines
+      # moved and why. Always present when the ship lane runs - the
+      # refresh step touches it - so the download below can never
+      # 404.
+      - name: Upload the AXP1-ZnQ address note
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, SHA pin
+        with:
+          name: axp1-address-note
+          path: ${{ runner.temp }}/axp1-address-note.txt
           if-no-files-found: error
 
   commit:
@@ -237,13 +278,16 @@ jobs:
           ref: ${{ env.DEFAULT_BRANCH }}
           fetch-depth: 0
 
-      # night-zen-1 hotfix law, widened by night-zen-2: the artifact
-      # lands OUTSIDE the work tree (RUNNER_TEMP), never in an in-tree
-      # staging directory - an in-tree download once let the commit job
-      # sweep a .auto-update/ lockfile tree straight into the repo
-      # (the bot commit 9708883 incident, recorded in
-      # docs/MAINTENANCE.md). The artifact now carries the whole
-      # validated lane: every workspace lockfile plus ebpf-prebuilt/.
+      # night-zen-1 hotfix law, widened by night-zen-2 and
+      # night-learning-into-darkness-1: the artifacts land OUTSIDE the
+      # work tree (RUNNER_TEMP), never in an in-tree staging directory
+      # - an in-tree download once let the commit job sweep a
+      # .auto-update/ lockfile tree straight into the repo (the bot
+      # commit 9708883 incident, recorded in docs/MAINTENANCE.md). The
+      # lane artifact carries the whole validated lane: every workspace
+      # lockfile, the prebuilt lane and the repos-for-ci catalog; the
+      # second artifact carries the AXP1-ZnQ (Architect's eXecution
+      # Protocol 1) refresher's commit note.
       - name: Harden DNS (the poisoned-resolver defense)
         uses: ./.github/actions/harden-dns
       - name: Download validated dependency lane
@@ -251,27 +295,34 @@ jobs:
         with:
           name: validated-dependency-lane
           path: ${{ runner.temp }}/validated-dependency-lane
+      - name: Download the AXP1-ZnQ address note
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, SHA pin
+        with:
+          name: axp1-address-note
+          path: ${{ runner.temp }}/axp1-address-note
 
       - name: Maintenance deps weekly commit
         shell: bash
         run: |
           set -Eeuo pipefail
-          # night-zen-2: restore the validated lane from the
-          # out-of-tree artifact - every workspace lockfile by copy,
-          # the prebuilt lane by rsync --delete so a retired object
-          # cannot linger in the checkout. --checksum defeats the
-          # size+mtime quick check: the lane is tiny, and a same-size
-          # same-mtime content change (a fresh checkout and a fresh
-          # download land in the same second) must never be silently
-          # skipped. Staging stays exact-path: the walked lockfiles
-          # plus the lane, never a glob (the 9708883 staging-leak
-          # law).
+          # night-zen-2, widened by night-learning-into-darkness-1:
+          # restore the validated lane from the out-of-tree artifact -
+          # every workspace lockfile by copy, the prebuilt lane and the
+          # repos-for-ci catalog by rsync --delete so a retired object
+          # or a tombstoned address cannot linger in the checkout.
+          # --checksum defeats the size+mtime quick check: the lane is
+          # tiny, and a same-size same-mtime content change (a fresh
+          # checkout and a fresh download land in the same second) must
+          # never be silently skipped. Staging stays exact-path: the
+          # walked lockfiles plus the lane plus the catalog, never a
+          # glob (the 9708883 staging-leak law).
           lane_dir="${RUNNER_TEMP}/validated-dependency-lane"
           find "$lane_dir" -name Cargo.lock -type f | while IFS= read -r artifact_file; do
             rel="${artifact_file#"$lane_dir"/}"
             cp "$artifact_file" "$rel"
           done
           rsync -a --delete --checksum "$lane_dir/ebpf-prebuilt/" ebpf-prebuilt/
+          rsync -a --delete --checksum "$lane_dir/repos-for-ci/" repos-for-ci/
 
           if git diff --quiet; then
             echo "Validated lane is already current"
@@ -279,8 +330,8 @@ jobs:
           fi
 
           git diff --name-only | tee /tmp/changed-files.txt
-          if grep -vE '(^|/)Cargo\.lock$|^ebpf-prebuilt/' /tmp/changed-files.txt; then
-            echo "::error::Commit job may only modify Cargo.lock files and the ebpf-prebuilt lane"
+          if grep -vE '(^|/)Cargo\.lock$|^ebpf-prebuilt/|^repos-for-ci/' /tmp/changed-files.txt; then
+            echo "::error::Commit job may only modify Cargo.lock files, the ebpf-prebuilt lane and the repos-for-ci catalog"
             exit 1
           fi
 
@@ -288,15 +339,21 @@ jobs:
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
           # The exact lockfile paths from the manifest walk plus the
-          # prebuilt lane - the set the validate job proved, nothing
-          # else can match.
+          # prebuilt lane plus the address catalog - the set the
+          # validate job proved, nothing else can match.
           find . -name Cargo.lock -type f -not -path '*/target/*' -print0 \
             | xargs -0 -r git add --
           # The prebuilt lane rides as a directory: rsync --delete may
           # have retired files there, and only a directory add stages
-          # the deletions beside the modifications.
+          # the deletions beside the modifications. The catalog rides
+          # the same way (a refresher pass can tombstone addresses).
           git add -- ebpf-prebuilt
-          git commit -m "chore(deps): maintenance deps weekly"
+          git add -- repos-for-ci
+          message="chore(deps): maintenance deps weekly"
+          if [ -s "${RUNNER_TEMP}/axp1-address-note/axp1-address-note.txt" ]; then
+            message="${message}"$'\n\n'"$(cat "${RUNNER_TEMP}/axp1-address-note/axp1-address-note.txt")"
+          fi
+          git commit -m "${message}"
           # A push landing on main between the checkout and this push
           # used to fail the whole weekly run non-fast-forward, with
           # no self-heal until the next Sunday (night-zen-lts-2):
