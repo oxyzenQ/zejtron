@@ -214,7 +214,7 @@ jobs:
 
           git diff --name-only | tee /tmp/changed-files.txt
           if grep -vE '(^|/)Cargo\.lock$|^ebpf-prebuilt/|^repos-for-ci/' /tmp/changed-files.txt; then
-            echo "::error::Auto-update may only modify Cargo.lock files, the ebpf-prebuilt lane and the repos-for-ci catalog"
+            echo "::error::Auto-update may only modify Cargo.lock files, the prebuilt lane and the address catalog"
             exit 1
           fi
 
@@ -333,7 +333,7 @@ jobs:
 
           git diff --name-only | tee /tmp/changed-files.txt
           if grep -vE '(^|/)Cargo\.lock$|^ebpf-prebuilt/|^repos-for-ci/' /tmp/changed-files.txt; then
-            echo "::error::Commit job may only modify Cargo.lock files, the ebpf-prebuilt lane and the repos-for-ci catalog"
+            echo "::error::Commit job may only modify Cargo.lock files, the prebuilt lane and the address catalog"
             exit 1
           fi
 
