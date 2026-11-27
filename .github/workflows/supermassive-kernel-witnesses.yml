@@ -241,23 +241,40 @@ jobs:
         # timeout (exit 124, zero output, one runner out of five). So
         # the fallback now covers the install too: attempt 1 rides the
         # default mirror with tight bounds (update 45s, install 70s -
-        # bail fast); any failure re-points at the canonical
-        # archive.ubuntu.com (Fastly, a different CDN) and retries with
-        # generous bounds; dpkg --configure -a cleans whatever a killed
-        # install left half-configured. No penalty on a healthy runner.
+        # bail fast); any failure re-points at the first LIVE address
+        # of the AXP1-ZnQ (Architect's eXecution Protocol 1) catalog
+        # (night-learning-into-darkness-1: the repoint target is no
+        # longer a hardcoded hostname - the resolver walks
+        # repos-for-ci/apt-mirrors.txt top to bottom and hands back
+        # the first address that actually answers on the noble
+        # InRelease path, and the Sunday refresher keeps that catalog
+        # a tested pool). No live address is exit 1 - a lane must
+        # never silently fall back to a dead default. dpkg --configure
+        # -a cleans whatever a killed install left half-configured. No
+        # penalty on a healthy runner.
         run: |
           set -e
           if timeout 45 sudo apt-get -o Acquire::Retries=1 update -qq 2>/dev/null \
             && timeout 70 sudo apt-get -o Acquire::Retries=1 install -y --no-install-recommends qemu-system-x86; then
             exit 0
           fi
-          echo "default mirror degraded (hung or erroring) - switching to archive.ubuntu.com"
+          echo "default mirror degraded (hung or erroring) - re-pointing at the first live AXP1-ZnQ catalog address"
           sudo dpkg --configure -a > /dev/null 2>&1 || true
           SRC=/etc/apt/sources.list.d/ubuntu.sources
           [ -f "$SRC" ] || SRC=/etc/apt/sources.list
+          MIRROR="$(python3 scripts/ci/axp1znq_resolve.py \
+            --file repos-for-ci/apt-mirrors.txt \
+            --probe-path dists/noble/InRelease \
+            --first)"
+          # The pick is a full https base (https://host/ubuntu); the
+          # deb822 URIs carry the same base shape, so the swap is
+          # whole-URI and keeps the trailing slash the URIs lines end
+          # with.
           sudo sed -i \
-            -e 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
-            -e 's|security.ubuntu.com|archive.ubuntu.com|g' \
+            -e "s|http://azure.archive.ubuntu.com/ubuntu|${MIRROR}|g" \
+            -e "s|https://azure.archive.ubuntu.com/ubuntu|${MIRROR}|g" \
+            -e "s|http://security.ubuntu.com/ubuntu|${MIRROR}|g" \
+            -e "s|https://security.ubuntu.com/ubuntu|${MIRROR}|g" \
             "$SRC"
           # The fallback's bounds are the GENEROUS ones by contract -
           # the night-depth-hardening-Z1 recalibration: tonight's
