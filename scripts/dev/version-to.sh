@@ -249,6 +249,7 @@ bump_manifest() {
 		error "${label} the rewrite did not verify (expected ${VERSION}, read ${now:-nothing}) - the file was left as found, nothing kept"
 	fi
 	mv "${tmp}" "${path}"
+	chmod 644 "${path}"
 	echo "  OK ${label} ${name} ${old} -> ${VERSION}"
 	return 0
 }
@@ -289,6 +290,7 @@ bump_lock() {
 		error "${label} the lock rewrite did not verify - the file was left as found, nothing kept"
 	fi
 	mv "${tmp}" "${lockf}"
+	chmod 644 "${lockf}"
 	moved="$(awk -F'\t' 'NR==FNR { b[$1] = $2; next } { if ($1 in b && b[$1] != $2) printf "%s ", $1 }' \
 		<(printf '%s\n' "${before}") <(printf '%s\n' "${after}"))"
 	already="$(awk -F'\t' 'NR==FNR { b[$1] = $2; next } { if ($1 in b && b[$1] == $2) printf "%s ", $1 }' \
