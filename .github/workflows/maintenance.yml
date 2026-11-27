@@ -102,7 +102,8 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2, SHA pin
 
-      # night-supply-1: the verdict's scanner, pinned exactly like the
+      # night-supply-1: the AXP1-ZnQ (Architect's eXecution Protocol 1)
+      # verdict's scanner, pinned exactly like the
       # audit lane's (0.22.2, --locked) so the rust-cache carries the
       # same binary after the first Sunday run - red means a new
       # advisory, never a new scanner release.
@@ -166,7 +167,8 @@ jobs:
       # checks so a red Sunday lands fast, inside the same budget.
       # night-solid-defense-1: the verdict speaks under the owner's
       # sentinel name - every banner, annotation, and summary signs
-      # as AXP1-ZnQ, so the Sunday morning report names its watcher.
+      # as AXP1-ZnQ (Architect's eXecution Protocol 1), so the Sunday
+      # morning report names its watcher.
       - name: The AXP1-ZnQ verdict (the swept lane)
         run: ./scripts/ci/supplychain-verdict.sh --post
 

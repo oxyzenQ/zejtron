@@ -113,11 +113,16 @@ the weekly maintenance workflow, which runs `cargo update` in every workspace
 (auto-detected by `scripts/ci/refresh-cargo-deps.sh`, which walks each committed
 `Cargo.toml` - root, `ebpf/`, `fuzz/`, and any future subfolder workspace - and
 runs `cargo update` in each parent directory),
+re-probes the `repos-for-ci/` address catalog through the AXP1-ZnQ
+(Architect's eXecution Protocol 1) refresher (the tested address pool -
+[AXP1-ZnQ.md](AXP1-ZnQ.md), night-learning-into-darkness-1: no CI lane
+marries a hardcoded server),
 proves the prebuilt lane through the ONE WRITER (the parity rider: the
 read-only verdict first, a rebuild only when the manifest pin lags the swept
 tree), executes the full
 `./scripts/build.sh` suite, and commits the validated dependency lane (the
-refreshed `Cargo.lock` files plus `ebpf-prebuilt/`) directly
+refreshed `Cargo.lock` files, `ebpf-prebuilt/`, and the re-probed
+`repos-for-ci/` catalog) directly
 to the default branch only
 when validation succeeds.
 

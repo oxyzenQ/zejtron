@@ -27,7 +27,8 @@
 # verdict failure, never a silent pass.
 #
 # Identity (night-solid-defense-1): the verdict speaks under the
-# owner's sentinel name - AXP1-ZnQ. The banners, the annotations,
+# owner's sentinel name - AXP1-ZnQ (Architect's eXecution Protocol 1).
+# The banners, the annotations,
 # and the step summary all sign as AXP1-ZnQ, so a red Sunday names
 # its watcher and the run list reads like a sentinel on watch.
 #

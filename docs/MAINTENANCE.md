@@ -162,6 +162,62 @@ watched for staleness via `cargo:rerun-if-changed` on both `.git/HEAD`
 and `.cargo_vcs_info.json`, so a dev checkout and a registry extract
 never share one stale verdict.
 
+## The married hardcoded server class (armed since night-learning-into-darkness-1)
+
+The field report (the kernel-floor lane, night-T-4, recorded in its
+workflow): the runner's azure apt mirror degraded mid-flight - DNS
+healthy, the qemu download stalled silently past any timeout, one
+runner out of five - and the lane's fallback re-pointed at a second
+hardcoded hostname, `archive.ubuntu.com`. Two hardcoded servers in
+one fallback chain are one bad hour away from zero: when both sink,
+the lane has nowhere to go and the repair is a human editing a
+workflow under outage pressure.
+
+The shipped fix removes the hardcoding, not the outage: AXP1-ZnQ
+(Architect's eXecution Protocol 1, [AXP1-ZnQ.md](AXP1-ZnQ.md)) keeps
+a tested address pool at `repos-for-ci/*.txt` - 12 apt mirrors at
+arming time, each probe-verified before it shipped - and the failover
+resolver (`scripts/ci/axp1znq_resolve.py`) hands any lane the first
+address that actually answers. The Sunday maintenance pass re-probes
+the whole catalog after the dependency update and writes the
+survivors back (`scripts/ci/axp1znq_refresh.py`), the dead left as
+dated tombstones in place, so the pool stays a tested pool and the
+next week's failover starts from reality.
+
+The guards that make it LTS-safe:
+
+- the never-empty guard: a catalog with zero live addresses is NOT
+  rewritten - a flaky probe can never erase the owner's pool; the
+  lane warns (`::warning::`) and names CALL THE OWNER, the one
+  critical the bot escalates;
+- survivors keep their authored order (the owner's trust ranking),
+  never a latency reshuffle;
+- the 100-line cap prunes the OLDEST tombstones first; an active
+  address is never pruned;
+- freshness: an index older than 14 days (the `Date:` header the
+  InRelease file itself carries) is STALE and fails the write -
+  alive but frozen is a lie the catalog must not keep.
+
+The recovery ritual, one command: a human-readable verdict of the
+whole pool is
+
+```
+python3 scripts/ci/axp1znq_resolve.py \
+  --file repos-for-ci/apt-mirrors.txt \
+  --probe-path dists/noble/InRelease
+```
+
+and reviving a tombstoned address is deleting its one `# down` line -
+the next Sunday pass re-judges it. A `::warning::` naming CALL THE
+OWNER is the only state that needs a human decision: the whole pool
+went dark from the runner's network, and the catalog is deliberately
+left untouched until the owner says otherwise.
+
+The rule going forward: a new lane that needs an external server
+adopts the resolver (swap the hardcoded address for a resolver call -
+no new machinery), and a new address family gets its own
+`repos-for-ci/*.txt` catalog file.
+
 <!-- ZEJTRON-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
