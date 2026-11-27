@@ -9,14 +9,17 @@
 # docs-only or workflow-only change never skips the gates that
 # police it.
 #
-# Checks performed by gate-keepers.sh (21 sections: the pre-commit
-# self-install seat, the shell quad, plus 19 numbered gates):
+# Checks performed by gate-keepers.sh (22 sections: the pre-commit
+# self-install seat, the shell quad, plus 20 numbered and lettered
+# gates):
 #    0. Pre-commit hook self-install
 #    1. Shell quad (bash -n, shellcheck, shfmt, source resolution)
 #    2. yamllint       3. actionlint      4. TOML syntax
 #    5. codespell      6. SPDX headers   7. permissions (644/755)
 #    8. emoji sweep    9. .rs LOC cap   10. toolchain pin sync
 #   11. language      12. scripts LOC   13. version anti-patterns
+#   13b. version family sync (every versioned manifest + lock entry
+#       at the root version, detected - never listed)
 #   14. release parity (alias == matrix rustflags)
 #   15. family name case (zylaxion + zejtron lowercase law)
 #   16. prebuilt pin parity (the --check verdict, fail-closed)

@@ -189,16 +189,29 @@ the superseded pre-freeze v5.0.0 design specification lives in
 
 Version bumps must use the `./scripts/dev/version-to.sh` script (`vX.Y.Z`, or
 `vX.Y.Z-pre` for a pre-release cut such as `v12.0.0-rc.1` - the same tag shape
-the release lane validates), which runs the mirror census: every tracked
-`Cargo.toml` carrying the release version and its sibling lock (the root
-pair, the detached ebpf/ pair, and the test-fixtures/pidhide pair today),
-the prebuilt lane, the release-example docs (`README.md`,
-`docs/workflow/about-ci.md`, and any doc whose `TAG=` pin still names the
-old tag), and the CHANGELOG ledger, in a single consistent pass. A crate
-that joins the mirror by carrying the release version is picked up
-automatically - the census re-reads the tree every run, so a new crate can
-never go stale by being forgotten in a list. Manual version edits are
-prohibited.
+the release lane validates), which runs the version walk (night-cafe-mclaren-1,
+the zelynic lineage): the census is detected, never listed - every tracked
+`Cargo.toml` plus every authored-but-uncommitted one, wherever it lives, read
+structurally inside its `[package]` block, with the family prefix derived from
+the root crate's own name. The zejtron law is the superset of the
+family law:
+EVERY versioned manifest rides the release version - the root crate, every
+`zejtron-*` family crate, and every fixture/sibling crate beside them (the
+test-fixtures/pidhide pair today; proofs/ and fuzz/ rode their own versions
+before night-cafe-mclaren-1 and are healed to the release version by the
+first bump or the drift heal) - and a manifest whose current version
+differs is healed, never skipped. Every walked `Cargo.lock` moves the same
+way: every `[[package]]` entry whose name rides the bump set, verified in
+place. The same pass refreshes the prebuilt lane (the one writer runs when
+an `ebpf/` surface changed; otherwise the read-only verdict must be green),
+the release-example docs (`README.md`, `docs/workflow/about-ci.md`, and any
+doc whose `TAG=` pin still names the old tag), and the CHANGELOG ledger.
+The census re-reads the tree every run, so a new crate can never go stale
+by being forgotten in a list - and
+`scripts/gates/check-version-family-sync.sh` (gate-keepers section 13b)
+holds the same law at every push, with
+`./scripts/dev/version-to.sh v<ROOT_VERSION>` as the one-command heal.
+Manual version edits are prohibited.
 
 <!-- ZEJTRON-DISCLAIMER -->
 <!--

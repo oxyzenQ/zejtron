@@ -236,8 +236,14 @@ for the owner's tag.
 ./scripts/build.sh
 ```
 
-The script rewrites every version surface in one pass: `Cargo.toml` and
-`Cargo.lock` (the complete cargo surface - zejtron is the root workspace plus the detached `ebpf/` probe workspace pair, and the prebuilt manifest's version mirror rides along), the release
+The script rewrites every version surface in one pass: every versioned
+`Cargo.toml` in the tracked-or-uncommitted tree and every riding
+`[[package]]` entry in every walked `Cargo.lock` (the census is detected,
+never listed - the root crate, the detached `ebpf/` probe workspace, the
+`proofs/` and `fuzz/` harnesses, and the `test-fixtures/pidhide` pair
+today; a drifted manifest is healed, never skipped), the prebuilt
+manifest's version mirror (the one writer runs when an `ebpf/` surface
+changed; otherwise its read-only verdict must be green), the release
 examples in `README.md` and this document, and the `CHANGELOG.md`
 ledger - the bumped version is recorded as a bare line under
 `## [Released]`, newest first, above `## [Unreleased]`. The ledger

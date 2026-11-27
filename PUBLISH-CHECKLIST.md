@@ -13,10 +13,13 @@ agent does NOT publish; crates.io is the owner's hand, always.
 
 ## What this state proves
 
-- The version mirrors across all active files: root `Cargo.toml`,
-  `Cargo.lock`, `ebpf/Cargo.toml`, `ebpf/Cargo.lock`, and the
-  prebuilt manifest's `[contract]` version all read `<VERSION>`
-  (verified by `scripts/dev/regenerate-ebpf-prebuilt.sh --check`).
+- The version mirrors across all active files: every versioned
+  manifest in the tree and every riding `[[package]]` entry in every
+  lock (detected, never listed - root, `ebpf/`, `proofs/`, `fuzz/`,
+  and the `test-fixtures/pidhide` pair today), plus the prebuilt
+  manifest's `[contract]` version, all read `<VERSION>` (verified by
+  `scripts/gates/check-version-family-sync.sh` and
+  `scripts/dev/regenerate-ebpf-prebuilt.sh --check`).
 - The registry install builds with eBPF enabled and no toolchain on
   the target: the crate embeds the manifest-verified prebuilt kernel
   object.

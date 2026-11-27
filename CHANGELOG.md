@@ -56,6 +56,21 @@ v11.0.0
 
 ### Added
 
+- **ci: the version census is detected, never listed - every versioned
+  manifest rides the release version (night-cafe-mclaren-1).** The
+  zelynic lineage's adaptive census lands in zejtron: version-to.sh
+  walks the tracked tree plus the authored-but-uncommitted tree, reads
+  every [package] name/version structurally, derives the family prefix
+  from the root crate's own name, and heals every versioned manifest to
+  the release version wherever it lives (zejtron-proofs rode 0.1.0 and
+  zejtron-fuzz rode 0.0.0 beside a release-version root - drift now
+  heals, never skips); every walked Cargo.lock moves every riding
+  [[package]] entry under the same verify-before-it-lands law, the
+  prebuilt writer runs only when an ebpf/ surface changed (a no-op
+  regen would churn the manifest's generated stamp), and a reconcile
+  gate makes re-runs honest no-ops. New gate
+  scripts/gates/check-version-family-sync.sh (gate-keepers section
+  13b) holds the same law at every push with the one-command heal.
 - **audit: the manual estate verdict lands green - three cosmetic
   seams recorded, the sweep instrument added (night-dragon-fly-3).**
   The privileged manual run on the dragon-3 tree (e76c87b):

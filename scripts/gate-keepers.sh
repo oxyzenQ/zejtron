@@ -55,6 +55,16 @@
 #        (scripts/gates/check-version-anti-patterns.sh: no test may
 #        assert that Cargo.toml contains its own version string - the
 #        tautology that once broke CI on every bump)
+#   13b. Version family sync (scripts/gates/check-version-family-sync.sh,
+#        night-cafe-mclaren-1: every versioned Cargo.toml in the
+#        tracked-or-uncommitted tree, wherever it lives, and every
+#        [[package]] entry a walked Cargo.lock holds for a detected
+#        crate must carry the root manifest's version - the root
+#        crate, every zejtron-* family crate, and the fixture/sibling
+#        crates beside them; a drifted sibling fails at push time with
+#        the heal recipe (./scripts/dev/version-to.sh), never inside a
+#        release. The family is DETECTED from the root [package] name,
+#        never listed)
 #   14.  Release parity (scripts/gates/check-release-parity.sh: the
 #        two arch-baseline platforms' -C codegen tokens in
 #        .cargo/config.toml's pro-linux-amd64-* aliases must equal the
@@ -474,6 +484,20 @@ if bash scripts/gates/check-version-anti-patterns.sh; then
 	pass "13. version anti-patterns"
 else
 	fail "13. version anti-patterns"
+fi
+
+# ── 13b. Version family sync (night-cafe-mclaren-1) ───────────────────────────────────────
+header "13b. Version family sync (every versioned manifest + lock entry at the root version)"
+# The release lane's parity tripwire holds the ROOT Cargo.toml to the
+# tag; this gate holds the whole DETECTED crate estate to the root -
+# every versioned manifest and every riding [[package]] entry in
+# every walked lock, wherever it lives (zejtron's superset law: the
+# fixture pair rides too). A drifted sibling fails at push time with
+# the heal recipe, never inside a release.
+if bash scripts/gates/check-version-family-sync.sh; then
+	pass "13b. version family sync"
+else
+	fail "13b. version family sync (heal with ./scripts/dev/version-to.sh)"
 fi
 
 # ── 14. Release parity ──────────────────────────────────────────────────────
