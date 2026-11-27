@@ -127,14 +127,28 @@ and why. The refresher never blocks the ship lane: it exits 0 with
 warnings recorded; the red stays the verdict step's (AXP1-ZnQ -
 Architect's eXecution Protocol 1 - and its own exit-1 law).
 
-The first wired consumer is the kernel-floor lane's apt fallback: its
-repoint target is no longer a hardcoded hostname - the resolver hands
-the lane the first catalog address that actually answers on the noble
-InRelease path, and a catalog with nothing alive fails the lane loud.
-The other lanes adopt incrementally (the netrunner DNS guard and the
-container lane's apt are candidates; a lane adopts by swapping its
-hardcoded address for a resolver call - no new machinery needed, that
-is the point of the pool).
+The wired consumers today (every lane that apt-installs rides the
+bot, the all-lanes contract):
+
+- the kernel-floor lane's apt fallback: its repoint target is the
+  first catalog address that actually answers on the noble InRelease
+  path, and a catalog with nothing alive fails the lane loud;
+- the kernel-witness lane's qemu fallback: the same shape, migrated
+  off its second hardcoded hostname (the azure-to-archive swap died
+  with the pool);
+- the netrunner night lane's qemu and cpio install: attempt 1 rides
+  the default mirror with tight bounds, the failure path re-points
+  through the resolver and retries with the generous bounds;
+- the release lane's tag-run system packages: the one lane nobody
+  can re-dispatch cheaply now carries the same failover;
+- the container lane needs nothing: its apt dependency left with the
+  alias lane (no musl-tools), so there is no server to marry.
+
+The `getent hosts archive.ubuntu.com` canaries the DNS-hardening
+steps assert are diagnostic, not consumers: they test the runner's
+resolver path, not the mirror choice, and they stay. A future lane
+adopts the same way: swap the hardcoded address for a resolver call
+- no new machinery needed, that is the point of the pool.
 
 ## The honest edges
 
