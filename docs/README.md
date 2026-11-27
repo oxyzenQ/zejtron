@@ -36,6 +36,7 @@ carries the disclaimer and yields to it.
 | [LTS_FORTRESS_AUDIT.md](LTS_FORTRESS_AUDIT.md) | The fortress audit record: the final pre-release audit before the v80.0.0 tag (night-last-total-lts), the sub-task verdicts and their peaks. |
 | [Z11-GREEN-BASELINE-2026-11-25.md](Z11-GREEN-BASELINE-2026-11-25.md) | The green-baseline record (2026-11-25): the first all-green Z11 detonation on the host's own kernel - the refusal-to-fix timeline, the five legs, the run transcript. |
 | [ARC-GEMS-AUDIT-2026-11-26.md](ARC-GEMS-AUDIT-2026-11-26.md) | The depth architecture audit record (night-arc-gems-1): every runtime claim re-verified against the built binary, the bottleneck question answered by measurement (scale audit: 4x-33x inside budget), the zero-lock read path, the write-op census, and the stay-at-peak verdict. |
+| [MCLAREN-DEPTH-AUDIT-2026-11-27.md](MCLAREN-DEPTH-AUDIT-2026-11-27.md) | The depth master audit record (night-cafe-mclaren-2): the kernel-side engine read end to end (offsets-as-data, bounded walks, the honesty maps), the counted layering graph and its one pure-function cross edge, the parser depth, the proof and determinism instruments re-run live, and the complete-works-not-gimmick verdict. |
 
 ## Site-local (inside the trees they govern)
 
