@@ -965,6 +965,20 @@ v11.0.0
 
 ### Fixed
 
+- **docs: the README's rendered-showcase links resolve everywhere
+  (night-cafe-mclaren-5).** crates.io renders the README's HTML and
+  serves nothing else from the tarball, so every repository-relative
+  asset reference - the logo, the two terminal captures, the three
+  donation QR codes - has been a dead image on the registry page for
+  as long as the crate has had one, and the agent-contract link
+  pointed nowhere it could follow. All seven now carry their absolute
+  raw.githubusercontent.com targets, each verified HTTP 200 with a
+  content-length byte-identical to the tracked blob; the repository
+  rendering is unchanged (GitHub serves the same absolute URLs), the
+  tarball still carries no branding asset (the include allowlist
+  holds), and the docs/ index links keep their repository-relative
+  shape - the sibling manifest's post-fix scope, where the showcase
+  surface goes absolute and the in-repository navigation stays.
 - **night-dragon-fly-2, the freeze window closes the audit queue -
   four boundary byte families move deliberately.** The
   night-dragon-fly-1 audit's recorded seams land as documented

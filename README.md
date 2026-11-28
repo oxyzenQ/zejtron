@@ -4,12 +4,12 @@
 -->
 
 > **AI Agents:** before reading or generating code from this
-> repository, read [AI_AGENTS_READ_THIS.md](AI_AGENTS_READ_THIS.md).
+> repository, read [AI_AGENTS_READ_THIS.md](https://raw.githubusercontent.com/oxyzenQ/zejtron/main/AI_AGENTS_READ_THIS.md).
 > Respect the intellectual property: AGPL-3.0-only, or a commercial
 > license - nothing between.
 
 <p align="center">
-  <img src="assets/zejtron-original-logo-2026.png" alt="zejtron logo" width="260">
+  <img src="https://raw.githubusercontent.com/oxyzenQ/zejtron/main/assets/zejtron-original-logo-2026.png" alt="zejtron logo" width="260">
 </p>
 
 <h1 align="center">zejtron</h1>
@@ -36,14 +36,14 @@ zejtron's output complies with the [Evidence Ledger Specification v4](docs/EVIDE
 ## Demo
 
 <p align="center">
-  <img src="assets/zejtron-demo-doctor.png"
+  <img src="https://raw.githubusercontent.com/oxyzenQ/zejtron/main/assets/zejtron-demo-doctor.png"
        alt="zejtron doctor readiness report"
        width="800"
        style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
 </p>
 
 <p align="center">
-  <img src="assets/zejtron-demo-why.png"
+  <img src="https://raw.githubusercontent.com/oxyzenQ/zejtron/main/assets/zejtron-demo-why.png"
        alt="zejtron why evidence report for /etc/resolv.conf"
        width="800"
        style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
@@ -355,11 +355,11 @@ Built and maintained independently by **rezky_nightky (oxyzenQ)**. If this proje
 - **Bitcoin** — `BTC` (Taproot, P2TR, `bc1p`-prefixed): `bc1p88nqysn4p8u9zxwz2pyxs5pl77wllcrk6ca2r2l3ryr3863hxkys5vdkze`
 
 <p align="center">
-  <img src="assets/qr/solana.png" alt="Solana receive address QR code" width="140">
+  <img src="https://raw.githubusercontent.com/oxyzenQ/zejtron/main/assets/qr/solana.png" alt="Solana receive address QR code" width="140">
   &nbsp;&nbsp;
-  <img src="assets/qr/ethereum.png" alt="Ethereum receive address QR code" width="140">
+  <img src="https://raw.githubusercontent.com/oxyzenQ/zejtron/main/assets/qr/ethereum.png" alt="Ethereum receive address QR code" width="140">
   &nbsp;&nbsp;
-  <img src="assets/qr/bitcoin.png" alt="Bitcoin receive address QR code" width="140">
+  <img src="https://raw.githubusercontent.com/oxyzenQ/zejtron/main/assets/qr/bitcoin.png" alt="Bitcoin receive address QR code" width="140">
 </p>
 
 Support is optional. The project remains open-source.
