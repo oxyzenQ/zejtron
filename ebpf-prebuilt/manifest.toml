@@ -19,16 +19,16 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-27T20:47:08Z"
+generated = "2026-11-28T09:44:53Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "7e17d8ae9c0acb2333e44c647d92af213e83dacbd5cf9cc5a4678d2d53cff08b"
+ebpf_tree_blake3 = "e9e57e63d37b89bc5a884c432035a52cee191694497502f51272b6be48aee3a6"
 built_by = "rezky_nightky (oxyzenQ) <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zejtron-ebpf"
-blake3 = "b51d1c4f2071f15edea6dab4a6ec6995fbe314b7d16d38d46569490710629ddb"
-size = 36584
+blake3 = "56d2ebd6326b2f1f46b68739d2755f339013b511faa01c1f03e879ec82c54aa5"
+size = 36592
 
 [contract]
 # The thirteen attach targets the loader plants (src/ebpf/loader.rs; the
@@ -36,4 +36,4 @@ size = 36584
 # consumer; a probe-set change rewrites this list in the same
 # commit that changes the ebpf/ tree.
 attach_targets = ["sched_process_exec", "inet_sock_set_state", "vfs_open", "raw_syscalls/sys_enter", "vfs_writev", "vfs_unlink", "vfs_rename", "sched_process_exit", "filemap_dirty_folio", "__set_page_dirty_nobuffers", "fault_dirty_shared_page", "wp_page_shared", "io_uring/io_uring_submit_sqe"]
-version = "80.6.1"
+version = "80.6.2"
