@@ -45,14 +45,19 @@ that silently skips behind a missing tool is a check that does not
 exist. The pins ride the release CDN directly - no api.github.com
 resolve sits in the install path, so the unauthenticated rate-limit
 failure class (a busy shared egress pool outliving any retry window)
-has no seat in the install steps. The 21 sections cover the shell quad, the workflow linters, TOML
+has no seat in the install steps. The 23 sections cover the shell quad, the workflow linters, TOML
 syntax, the repo-discipline gates (headers, permissions, emoji,
 language, the LOC caps), the pin-sync guards, the fuzz include law
 (section 18), and the documentation disclaimer's placement (section
 19: every living .md carries the stale-data warning as its bottom
 block - a block pasted mid-file or under a header is relocated to the
 last lines, the sibling's legacy marker migrates to the house marker,
-and CHANGELOG.md with docs/archive/ stay frozen). Section 16 is the
+and CHANGELOG.md with docs/archive/ stay frozen). Section 20 is the
+dependency-ban lock read, and section 21 (night-cafe-mclaren-5)
+measures the registry tarball's real byte size against crates.io's
+documented upload cap - the 413 Payload Too Large class now fails in
+the gate in seconds, with the five largest members named on failure,
+instead of at the registry. Section 16 is the
 push-time seat of the prebuilt verdict: the one writer's read-only
 `--check` verdict (`scripts/dev/regenerate-ebpf-prebuilt.sh`) runs
 fail-closed in CI, so the

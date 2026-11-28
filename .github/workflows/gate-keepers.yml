@@ -9,8 +9,8 @@
 # docs-only or workflow-only change never skips the gates that
 # police it.
 #
-# Checks performed by gate-keepers.sh (22 sections: the pre-commit
-# self-install seat, the shell quad, plus 20 numbered and lettered
+# Checks performed by gate-keepers.sh (23 sections: the pre-commit
+# self-install seat, the shell quad, plus 21 numbered and lettered
 # gates):
 #    0. Pre-commit hook self-install
 #    1. Shell quad (bash -n, shellcheck, shfmt, source resolution)
@@ -26,8 +26,11 @@
 #   17. actions-pin freshness
 #   18. fuzz include law
 #   19. documentation disclaimer
-#   20. dependency bans (the --strict sweep, fail-closed on
-#       a KNOWN-stale tag pin; every skip reason stays a skip)
+#   20. dependency bans (the banned crates refuse every tracked
+#       Cargo.lock, the detached ebpf workspace included)
+#   21. package size cap (the registry tarball measured against
+#       crates.io's documented upload cap - the 413 Payload Too
+#       Large class, night-cafe-mclaren-5)
 #
 # Every tool below is installed and pinned - a check that silently
 # skips because its tool is missing is a check that does not exist.
@@ -116,7 +119,16 @@ jobs:
           sudo install -m755 /tmp/b3sum /usr/local/bin/b3sum
           b3sum --version
 
-      # The wholesale run: all 21 sections in one shot - exit code 0
+      # Section 21 builds the real registry tarball, so the wholesale
+      # seat carries the pinned toolchain - the same pin every
+      # compiling lane holds; the cargo-absent skip contract stays a
+      # local-machine courtesy, never a CI seat.
+      - name: Install Rust toolchain (pinned)
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, SHA pin
+        with:
+          toolchain: "1.98.1"
+
+      # The wholesale run: all 23 sections in one shot - exit code 0
       # or the push is blocked.
       - name: Run gate-keepers.sh (wholesale)
         run: bash scripts/gate-keepers.sh

@@ -120,6 +120,16 @@
 #        read does, with the documented upstream aya-build probe
 #        carve-out shape-guarded)
 #
+#   21.  Package size cap (scripts/gates/check-package-size.sh: the
+#        registry tarball's real byte count against crates.io's
+#        documented 10485760-byte upload cap - the 413 Payload Too
+#        Large class, night-cafe-mclaren-5: the sibling publish died
+#        at the registry with an ~11.25 MiB tarball after every other
+#        lane said green. The gate refuses dirty trees and names the
+#        five largest members; cargo-absent machines skip with the
+#        wholesale warning, the CI seat installs the pinned
+#        toolchain)
+#
 # Pre-commit hook: the first wholesale run on a clone self-installs
 # .githooks/pre-commit (git config core.hooksPath=.githooks - repo-
 # local, never --global), so every future commit on that clone
@@ -607,6 +617,27 @@ if bash scripts/gates/check-dep-bans.sh; then
 	pass "20. dependency bans"
 else
 	fail "20. dependency bans"
+fi
+
+# ── 21. Package size cap ────────────────────────────────────────────────────
+header "21. Package size cap (the registry tarball vs the crates.io upload cap)"
+# The push-time seat of the 413 Payload Too Large class
+# (night-cafe-mclaren-5): the sibling publish reached crates.io with
+# an ~11.25 MiB tarball and died there after every other lane said
+# green. The gate builds the real cargo package artifact and measures
+# it against the registry's documented cap, so a heavyweight that
+# walks past the include allowlist fails here in seconds. The tool
+# contract stays honest on both sides: a machine without cargo skips
+# with a warning (the wholesale contract), while the CI seat installs
+# the pinned toolchain so the seat never sleeps on a push.
+if command -v cargo >/dev/null 2>&1; then
+	if bash scripts/gates/check-package-size.sh; then
+		pass "21. package size cap"
+	else
+		fail "21. package size cap"
+	fi
+else
+	warn_skip "21. package size cap (cargo not installed)"
 fi
 
 # ── Summary ─────────────────────────────────────────────────────────────────

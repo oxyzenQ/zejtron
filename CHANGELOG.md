@@ -57,6 +57,27 @@ v11.0.0
 
 ### Added
 
+- **ci: the registry tarball's byte size is measured against the
+  crates.io upload cap (night-cafe-mclaren-5).** The sibling estate
+  lost a publish to the registry's hard answer - cosmostrix
+  v100.1.3-dragon.2 reached crates.io at ~11.25 MiB (a demo webp
+  grew to 9,217,878 bytes past the exclude lane's *.gif and *.png
+  coverage) and died there with "413 Payload Too Large: max upload
+  size is: 10485760" in 1m36s, after every other lane had said
+  green. zejtron's curated include allowlist already keeps the
+  branding assets repo-only, so the sibling's leaking axis is
+  structurally closed here; what no lane measured was the artifact
+  itself. New gate scripts/gates/check-package-size.sh builds the
+  real .crate (cargo package --locked --no-verify, packaging only)
+  and asserts its byte count against the documented server cap:
+  equality fails (headroom is the contract), dirty trees refuse to
+  measure, and the five largest members are named - the diagnostic
+  the publish log never offered. Two seats: gate-keepers section 21
+  on every push and PR (the wholesale CI seat carries the pinned
+  toolchain; cargo-absent machines keep the local skip contract),
+  and the crates-io.yml ship-set job at the tree the release tag
+  names, ahead of the compile-heavy dry run - a heavyweight tarball
+  fails in seconds, never at the registry.
 - **ci: the version census is detected, never listed - every versioned
   manifest rides the release version (night-cafe-mclaren-1).** The
   zelynic lineage's adaptive census lands in zejtron: version-to.sh

@@ -142,6 +142,16 @@ jobs:
           fi
           echo "ship-set verified: $(grep -c . <<<"${LIST}") files"
 
+      # The 413 Payload Too Large seat (night-cafe-mclaren-5): the
+      # sibling publish reached the registry at ~11.25 MiB and died
+      # there, past every other lane. The size gate measures the real
+      # tarball bytes against crates.io's documented cap ahead of the
+      # compile-heavy dry run - a heavyweight tarball fails in
+      # seconds, with the largest members named, never at the
+      # registry.
+      - name: Package size cap (crates.io upload limit)
+        run: bash scripts/gates/check-package-size.sh
+
       # The full dry run: builds the package the registry would
       # receive (including the build script's no-.git degradation).
       - name: Package dry run
